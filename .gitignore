@@ -1,0 +1,14 @@
+#compiled files
+*.pyc
+__pycache__/
+*.egg-info/
+
+# coverage files
+.coverage*
+
+# documentation files
+docs/source/
+docs/_build/
+
+# files for PyPI
+README.rst

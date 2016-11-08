@@ -1,0 +1,36 @@
+machine:
+  python:
+    version: 2.7.12
+dependencies:
+  cache_directories:
+    - ~/miniconda2
+    - ~/miniconda3
+  override:
+    - sudo apt-get install libglpk-dev
+    - sudo apt-get install python3-tk
+    
+    - >
+      if [ ! -d ~/miniconda2 ]; then
+        wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O ~/Miniconda2-latest-Linux-x86_64.sh
+        bash ~/Miniconda2-latest-Linux-x86_64.sh -b
+      fi
+    - ~/miniconda2/bin/conda install -y lxml matplotlib openpyxl numpy scipy
+    - ~/miniconda2/bin/pip install -U -e git+https://github.com/KarrLab/Karr-Lab-build-utils.git#egg=Karr-Lab-build-utils
+    - ~/miniconda2/bin/karr-lab-build-utils install-requirements
+    - ~/miniconda2/bin/pip install -e .    
+    
+    - >
+      if [ ! -d ~/miniconda3 ]; then
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/Miniconda3-latest-Linux-x86_64.sh    
+        bash ~/Miniconda3-latest-Linux-x86_64.sh -b
+      fi
+    - ~/miniconda3/bin/conda install -y lxml matplotlib openpyxl numpy scipy
+    - ~/miniconda3/bin/pip install -U -e git+https://github.com/KarrLab/Karr-Lab-build-utils.git#egg=Karr-Lab-build-utils
+    - ~/miniconda3/bin/karr-lab-build-utils install-requirements
+    - ~/miniconda3/bin/pip install -e .
+test:
+  override:
+    - ~/miniconda2/bin/karr-lab-build-utils run-tests tests --with-xunit --with-coverage
+    - ~/miniconda3/bin/karr-lab-build-utils run-tests tests --with-xunit --with-coverage
+  post:
+    - ~/miniconda2/bin/karr-lab-build-utils make-and-archive-reports
