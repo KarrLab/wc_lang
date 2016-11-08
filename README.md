@@ -1,6 +1,6 @@
 <!-- [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) -->
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](http://code.karrlab.org)
-[![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield&circle-token=7c5021e2d044f8553b0230045c4ded314d70747b)](https://circleci.com/gh/KarrLab/wc_lang)
+[![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield&circle-token=f0edfe4f971e8871ebb097bdc7b10a270cd90a96)](https://circleci.com/gh/KarrLab/wc_lang)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg?t=xViD7w)](https://coveralls.io/github/KarrLab/wc_lang)
 [![Code analysis](https://codeclimate.com/repos/58209c1247a76768b7003fef/badges/a0853e8ad58492f9f5df/gpa.svg)](https://codeclimate.com/repos/57ab5de1d544216f7d000615)
 [![License](https://img.shields.io/github/license/KarrLab/wc_lang.svg)](LICENSE)
