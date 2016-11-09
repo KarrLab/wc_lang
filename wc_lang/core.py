@@ -106,28 +106,6 @@ class Submodel(object):
         self.reactions = reactions or []
         self.parameters = parameters or []
 
-    def get_component_by_id(self, id, component_type=''):
-        """ Find model component with id.
-
-        Args:
-            id (:obj:`str`): id of component to find
-            component_type (:obj:`str`, optional): type of component to search for; if empty search over all components
-
-        Returns:
-            :obj:`object`: component with id, or `None` if there is no component with the id
-        """
-
-        # components to search over
-        if component_type in ['species', 'reactions', 'parameters']:
-            components = getattr(self, component_type)
-        elif not component_type:
-            components = chain(self.species, self.reactions, self.parameters)
-        else:
-            raise Exception('Invalid component type "{}"'.format(component_type))
-
-        # find component
-        return next((component for component in components if component.id == id), None)
-
 
 class Compartment(object):
     """ Represents a compartment. 
