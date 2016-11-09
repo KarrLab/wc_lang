@@ -244,11 +244,6 @@ class Reaction(object):
             comments      (:obj:`str`, optional): comments
         """
 
-        if vmax:
-            vmax = float(vmax)
-        if km:
-            km = float(km)
-
         self.id = id
         self.name = name
         self.submodel = submodel

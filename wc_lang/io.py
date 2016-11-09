@@ -49,32 +49,20 @@ class Excel(object):
             model.compartments.append(core.Compartment(
                 id=ws.cell(row=iRow, column=1).value,
                 name=ws.cell(row=iRow, column=2).value,
-                initial_volume=float(ws.cell(row=iRow, column=3).value),
+                initial_volume=float(ws.cell(row=iRow, column=3).value or 'nan'),
                 comments=ws.cell(row=iRow, column=4).value,
             ))
 
         # species
         ws = wb['Species']
         for iRow in range(2, ws.max_row + 1):
-            mw_str = ws.cell(row=iRow, column=5).value
-            if mw_str:
-                mw = float(mw_str)
-            else:
-                mw = None
-
-            charge_str = ws.cell(row=iRow, column=6).value
-            if charge_str:
-                charge = float(charge_str)
-            else:
-                charge = None
-
             model.species.append(core.Species(
                 id=ws.cell(row=iRow, column=1).value,
                 name=ws.cell(row=iRow, column=2).value,
                 structure=ws.cell(row=iRow, column=3).value,
                 empirical_formula=ws.cell(row=iRow, column=4).value,
-                molecular_weight=mw or np.NaN,
-                charge=charge,
+                molecular_weight=float(ws.cell(row=iRow, column=5).value or 'nan'),
+                charge=float(ws.cell(row=iRow, column=6).value or 'nan'),
                 type=ws.cell(row=iRow, column=7).value,
                 concentrations=[
                     core.Concentration(compartment='c', value=float(ws.cell(row=iRow, column=8).value or 0)),
@@ -109,8 +97,8 @@ class Excel(object):
                 participants=stoichiometry['participants'],
                 enzyme=ws.cell(row=iRow, column=5).value,
                 rate_law=rate_law,
-                vmax=ws.cell(row=iRow, column=7).value,
-                km=ws.cell(row=iRow, column=8).value,
+                vmax=float(ws.cell(row=iRow, column=7).value or 'nan'),
+                km=float(ws.cell(row=iRow, column=8).value or 'nan'),
                 cross_refs=[
                     core.CrossReference(
                         source=ws.cell(row=iRow, column=9).value,
@@ -127,7 +115,7 @@ class Excel(object):
                 id=ws.cell(row=iRow, column=1).value,
                 name=ws.cell(row=iRow, column=2).value,
                 submodel=ws.cell(row=iRow, column=3).value,
-                value=float(ws.cell(row=iRow, column=4).value),
+                value=float(ws.cell(row=iRow, column=4).value or 'nan'),
                 units=ws.cell(row=iRow, column=5).value,
                 comments=ws.cell(row=iRow, column=6).value,
             ))
