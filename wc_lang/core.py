@@ -74,9 +74,6 @@ class Model(object):
         # find component
         return next((component for component in components if component.id == id), None)
 
-    def __eq__(self, other):
-        return is_list_attributes_equal(['compartments', 'species', 'submodels', 'reactions', 'parameters', 'references'])
-
 
 class Submodel(object):
     """ Represents a submodel.
@@ -396,10 +393,13 @@ class SpeciesCompartment(object):
         self.species = species
         self.compartment = compartment
 
-    def calc_id_name(self):
-        """ Calculates id and name. """
-        self.id = '{0}[{1}]'.format(self.species.id, self.compartment.id)
-        self.name = '{0} ({1})'.format(self.species.name, self.compartment.name)
+    @property
+    def id(self):
+        return '{0}[{1}]'.format(self.species.id, self.compartment.id)
+
+    @property
+    def name(self):
+        return '{0} ({1})'.format(self.species.name, self.compartment.name)
 
 
 class ReactionParticipant(object):
@@ -423,13 +423,16 @@ class ReactionParticipant(object):
         self.compartment = compartment
         self.coefficient = coefficient
 
-    def calc_id_name(self):
-        """ Calculates id and name. """
-        self.id = '{0}[{1}]'.format(self.species.id, self.compartment.id)
-        self.name = '{0} ({1})'.format(self.species.name, self.compartment.name)
+    @property
+    def id(self):
+        return '{0}[{1}]'.format(self.species.id, self.compartment.id)
+
+    @property
+    def name(self):
+        return '{0} ({1})'.format(self.species.name, self.compartment.name)
 
     def __str__(self):
-        return '({:f}){:s}[{:s}]'.format(self.coefficient, self.species.id, self.compartment.id)
+        return '({:f}) {:s}[{:s}]'.format(self.coefficient, self.species.id, self.compartment.id)
 
 
 class RateLaw(object):
@@ -457,7 +460,7 @@ class RateLaw(object):
             :obj:`list`: list of modifiers
         """
 
-        #.. todo:: improve parsing: fully parse rate law and check that all name entities are defined in model
+        #.. todo:: improve parsing: fully parse rate law and check that all named entities are defined in model
         modifiers = []
         for spec in model.species:
             for comp in model.compartments:
@@ -487,17 +490,3 @@ class CrossReference(object):
 
         self.source = source
         self.id = id
-
-
-def is_list_attributes_equal(attributes):
-    for attribute in attributes:
-        if len(getattr(self, attribute)) != len(getattr(other, attribute)):
-            return False
-
-        objs_self = sorted(getattr(self, attribute), key=attrgetter('id'))
-        objs_other = sorted(getattr(other, attribute), key=attrgetter('id'))
-        for i_obj in range(len(objs_self)):
-            if objs_self[i_obj] != objs_other[i_obj]:
-                return False
-
-    return True

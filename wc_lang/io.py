@@ -168,8 +168,6 @@ class Excel(object):
                     undefined_components.append(id)
                 part.compartment = obj
 
-                part.calc_id_name()
-
             id = reaction.enzyme
             obj = model.get_component_by_id(id, 'species')
             if id and obj is None:
@@ -190,7 +188,7 @@ class Excel(object):
             undefined_components.sort()
             raise Exception('Undefined components:\n- {}'.format('\n- '.join(undefined_components)))
 
-        ''' Assemble back references'''
+        ''' Assemble reverse references'''
         for submodel in model.submodels:
             submodel.reactions = []
             submodel.species = []
@@ -219,7 +217,6 @@ class Excel(object):
                     species=model.get_component_by_id(species_id, 'species'),
                     compartment=model.get_component_by_id(comp_id, 'compartments'),
                 )
-                species_comp.calc_id_name()
                 submodel.species.append(species_comp)
 
         '''Return'''
