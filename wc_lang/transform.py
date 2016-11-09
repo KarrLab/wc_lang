@@ -18,10 +18,10 @@ class MergeAlgorithmicallyLikeSubmodels(object):
     @staticmethod
     def transform(model):
         """ Construct a model in which algorithmically-like submodels have been merged.
-        
+
         Args:
             model (:obj:`wc_lang.core.Model`): model definition
-        
+
         Returns:
             :obj:`wc_lang.core.Model`: model with submodels of the same simulation algorithm merged
         """
