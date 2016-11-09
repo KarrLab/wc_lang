@@ -199,6 +199,7 @@ class Species(object):
         self.type = type
         self.concentrations = concentrations or []
         self.cross_refs = cross_refs or []
+        self.comments = comments
 
     def is_carbon_containing(self):
         """ Returns `True` is species contains at least one carbon atom.
