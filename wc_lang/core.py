@@ -77,6 +77,13 @@ class Model(object):
     def __eq__(self, other):
         return is_list_attributes_equal(['compartments', 'species', 'submodels', 'reactions', 'parameters', 'references'])
 
+    def summary( self ):
+        '''Provide a string summary of the contents of a model.'''
+        counts=[]
+        for attr in 'submodels compartments species reactions parameters references'.split():
+            counts.append( "{}: {}".format( attr, len( getattr( self, attr ) ) ) )
+        return "Model contains:\n{}".format( '\n'.join( counts ) )
+
 
 class Submodel(object):
     """ Represents a submodel.
