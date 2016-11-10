@@ -74,6 +74,13 @@ class Model(object):
         # find component
         return next((component for component in components if component.id == id), None)
 
+    def summary(self):
+        '''Provide a string summary of the contents of a model.'''
+        counts = []
+        for attr in 'submodels compartments species reactions parameters references'.split():
+            counts.append("{}: {}".format(attr, len(getattr(self, attr))))
+        return "Model contains:\n{}".format('\n'.join(counts))
+
 
 class Submodel(object):
     """ Represents a submodel.
