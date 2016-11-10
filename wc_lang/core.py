@@ -32,7 +32,8 @@ class Model(object):
         references (:obj:`list`): list of references
     """
 
-    def __init__(self, compartments=None, species=None, submodels=None, reactions=None, parameters=None, references=None):
+    def __init__(self, compartments=None, species=None, submodels=None, reactions=None,
+        parameters=None, references=None):
         """ Construct a model
 
         Args:
@@ -56,14 +57,16 @@ class Model(object):
 
         Args:
             id (:obj:`str`): id of component to find
-            component_type (:obj:`str`, optional): type of component to search for; if empty search over all components
+            component_type (:obj:`str`, optional): type of component to search for; if empty
+            search over all components
 
         Returns:
             :obj:`object`: component with id, or `None` if there is no component with the id
         """
 
         # components to search over
-        if component_type in ['compartments', 'species', 'submodels', 'reactions', 'parameters', 'references']:
+        if component_type in ['compartments', 'species', 'submodels', 'reactions', 'parameters',
+            'references']:
             components = getattr(self, component_type)
         elif not component_type:
             components = chain(self.compartments, self.species, self.submodels,
@@ -75,7 +78,8 @@ class Model(object):
         return next((component for component in components if component.id == id), None)
 
     def __eq__(self, other):
-        return is_list_attributes_equal(['compartments', 'species', 'submodels', 'reactions', 'parameters', 'references'])
+        return is_list_attributes_equal(['compartments', 'species', 'submodels', 'reactions',
+            'parameters', 'references'])
 
     def summary( self ):
         '''Provide a string summary of the contents of a model.'''
