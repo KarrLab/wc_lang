@@ -93,7 +93,10 @@ class Excel(object):
         ws = wb['Reactions']
 
         for iRow in range(2, ws.max_row + 1):
-            stoichiometry = parse_stoichiometry(ws.cell(row=iRow, column=4).value)
+            entry = ws.cell(row=iRow, column=4).value
+            if entry is None or 0==len(entry):
+                raise Exception('Bad stoichiometry entry in row {}'.format(iRow))
+            stoichiometry = parse_stoichiometry(entry)
 
             rate_law_str = ws.cell(row=iRow, column=6).value
             if rate_law_str:
@@ -156,7 +159,8 @@ class Excel(object):
                 id = conc.compartment
                 obj = model.get_component_by_id(id, 'compartments')
                 if id and obj is None:
-                    undefined_components.append(id)
+                    undefined_components.append( ('species.concentration.compartment',
+                        species.id, conc.compartment) )
                 conc.compartment = obj
 
         # reaction submodel, participant species, participant compartments, enzymes
@@ -164,28 +168,34 @@ class Excel(object):
             id = reaction.submodel
             obj = model.get_component_by_id(id, 'submodels')
             if id and obj is None:
-                undefined_components.append(id)
+                undefined_components.append( ('reaction.submodel',
+                    reaction.id, reaction.submodel) )
             reaction.submodel = obj
 
             for part in reaction.participants:
                 id = part.species
                 obj = model.get_component_by_id(id, 'species')
                 if id and obj is None:
-                    undefined_components.append(id)
+                    undefined_components.append( ('reaction.participant.specie',
+                        reaction.id, part.species) )
                 part.species = obj
 
                 id = part.compartment
+                if id is None:
+                    # todo: fix; not right because the missing compartment is not available in part
+                    undefined_components.append( ('reaction.participant.compartment',
+                        reaction.id, part.species.id) )
+
                 obj = model.get_component_by_id(id, 'compartments')
                 if id and obj is None:
-                    undefined_components.append(id)
+                    undefined_components.append( ('reaction.participant.compartment',
+                        reaction.id, part.compartment) )
                 part.compartment = obj
-
-                part.calc_id_name()
 
             id = reaction.enzyme
             obj = model.get_component_by_id(id, 'species')
             if id and obj is None:
-                undefined_components.append(id)
+                undefined_components.append( ('reaction', reaction.enzyme, id) )
             reaction.enzyme = obj
 
         # parameter submodels
@@ -194,13 +204,18 @@ class Excel(object):
             if id:
                 obj = model.get_component_by_id(id, 'submodels')
                 if obj is None:
-                    undefined_components.append(id)
+                    undefined_components.append( ('parameter', param.id, id) )
                 param.submodel = obj
 
         if len(undefined_components) > 0:
-            undefined_components = list(set(undefined_components))
-            undefined_components.sort()
-            raise Exception('Undefined components:\n- {}'.format('\n- '.join(undefined_components)))
+            message = 'Missing model references:\n'
+            for (source, id, ref) in undefined_components:
+                message += " - {} {} references {}\n".format(source, id, ref)
+            raise Exception(message)
+
+        for reaction in model.reactions:
+            for part in reaction.participants:
+                part.calc_id_name()
 
         ''' Assemble back references'''
         for submodel in model.submodels:
