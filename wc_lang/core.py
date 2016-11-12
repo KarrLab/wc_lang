@@ -1,4 +1,4 @@
-""" Data model to represent models. 
+""" Data model to represent models.
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2017-07-25
@@ -144,7 +144,7 @@ class Submodel(object):
 
 
 class Compartment(object):
-    """ Represents a compartment. 
+    """ Represents a compartment.
 
     Attributes:
         id (:obj:`str`): unique id
@@ -221,7 +221,7 @@ class Species(object):
 
 
 class Reaction(object):
-    """ Represents a reaction. 
+    """ Represents a reaction.
 
     Attributes:
         id            (:obj:`str`): id
@@ -327,7 +327,7 @@ class Parameter(object):
         submodel  (:obj:`wc_lang.core.Submodel`): submodel
         value     (:obj:`float`): value
         units     (:obj:`str`): units of value
-        comments  (:obj:`str`): comments    
+        comments  (:obj:`str`): comments
     """
 
     def __init__(self, id, name='', submodel=None, value=float('nan'), units='', comments=''):
@@ -451,8 +451,10 @@ class RateLaw(object):
     """ Represents a rate law.
 
     Attributes:
-        law  (:obj:`str`):rate law
+        law  (:obj:`str`): the rate law, as originally provided in the model definition
     """
+    #.. todo:: need to restore a transcoded version of the rate law so the law can be eval'ed
+
 
     def __init__(self, law=''):
         """ Construct a rate law.
