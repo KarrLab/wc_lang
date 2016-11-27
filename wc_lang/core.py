@@ -98,7 +98,7 @@ class Submodel(object):
         algorithm (:obj:`str`): algorithm
         species (:obj:`list`): list of species in submodel
         reactions (:obj:`list`): list of reactions in submodel
-        parameters (:obj:`list`): list of parameers in submodel
+        parameters (:obj:`list`): list of parameters in submodel
     """
 
     def __init__(self, id, name='', algorithm='SSA', species=None, reactions=None, parameters=None):
@@ -110,7 +110,7 @@ class Submodel(object):
             algorithm (:obj:`str`, optional): algorithm
             species (:obj:`list`, optional): list of species in submodel
             reactions (:obj:`list`, optional): list of reactions in submodel
-            parameters (:obj:`list`, optional): list of parameers in submodel
+            parameters (:obj:`list`, optional): list of parameters in submodel
         """
 
         self.id = id
@@ -291,7 +291,7 @@ class Reaction(object):
                 part_str = ''
                 if part.coefficient != -1:
                     if math.ceil(part.coefficient) == part.coefficient:
-                        part_str += '({:d}) '.format(-part.coefficient)
+                        part_str += '({:d}) '.format(int(-part.coefficient))
                     else:
                         part_str += '({:e}) '.format(-part.coefficient)
                 part_str += part.species.id
