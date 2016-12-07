@@ -22,7 +22,6 @@ class ExcelIo(object):
         Args:
             filename (:obj:`str`): path to Excel file
             model (:obj:`Model`): model
-            keywords (:obj:`str`, optional): keywords
         """
         BaseExcelIo.write(filename, set((model,)), [
             Model, Taxon, Submodel, Compartment, SpeciesType,
@@ -41,8 +40,28 @@ class ExcelIo(object):
         Returns:
             :obj:`Model`: model
         """
-        objects = BaseExcelIo.read(filename, set((
+        objects = BaseExcelIo.read(filename, [
             Model, Taxon, Submodel, Compartment, SpeciesType,
             Concentration, Reaction, RateLaw, Parameter, Reference,
-            CrossReference, )))
+            CrossReference, ])
+
+        if not objects[Model]:
+            return None
+
+        if len(objects[Model]) > 1:
+            raise ValueError('Model file "{}" should only define one model'.format(filename))
+
         return objects[Model].pop()
+
+    @classmethod
+    def create_template(cls, filename):
+        """ Create Excel template
+
+        Args:
+            filename (:obj:`str`): path to Excel file
+        """
+        BaseExcelIo.create_template(filename, [
+            Model, Taxon, Submodel, Compartment, SpeciesType,
+            Concentration, Reaction, RateLaw, Parameter, Reference,
+            CrossReference],
+            language='wc_lang', creator=cls.__module__ + '.' + cls.__name__)
