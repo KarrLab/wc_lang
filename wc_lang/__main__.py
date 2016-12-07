@@ -82,7 +82,7 @@ class DifferenceController(CementBaseController):
         if diff:
             print(diff)
         else:
-            print 'Models are identical'
+            print('Models are identical')
 
 
 class ConvertController(CementBaseController):
