@@ -726,4 +726,4 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1]))
 
     def test_validate(self):
-        self.model.validate()
+        self.assertEqual(self.model.validate(), None)
