@@ -10,6 +10,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesTy
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import ExcelIo
+from wc_utils.schema.core import Validator
 import os
 import tempfile
 import unittest
@@ -129,6 +130,7 @@ class TestSimpleModel(unittest.TestCase):
     def test_write_read(self):
         ExcelIo.write(self.filename, self.model)
         model = ExcelIo.read(self.filename)
+        self.assertEqual(model.validate(), None)
 
         self.assertEqual(model, self.model)
         self.assertEqual(self.model.difference(model), '')
