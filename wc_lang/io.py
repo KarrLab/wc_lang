@@ -17,10 +17,10 @@ class ExcelIo(object):
 
     @classmethod
     def write(cls, filename, model):
-        """ Write model to Excel workbook
+        """ Write model to file
 
         Args:
-            filename (:obj:`str`): path to Excel file
+            filename (:obj:`str`): path to file
             model (:obj:`Model`): model
         """
         BaseExcelIo.write(filename, set((model,)), [
@@ -32,10 +32,10 @@ class ExcelIo(object):
 
     @classmethod
     def read(cls, filename):
-        """ Read model from Excel workbook
+        """ Read model from file
 
         Args:
-            filename (:obj:`str`): path to Excel file
+            filename (:obj:`str`): path to file
 
         Returns:
             :obj:`Model`: model
@@ -55,10 +55,10 @@ class ExcelIo(object):
 
     @classmethod
     def create_template(cls, filename):
-        """ Create Excel template
+        """ Create file with template (i.e. row, column headings)
 
         Args:
-            filename (:obj:`str`): path to Excel file
+            filename (:obj:`str`): path to file
         """
         BaseExcelIo.create_template(filename, [
             Model, Taxon, Submodel, Compartment, SpeciesType,
