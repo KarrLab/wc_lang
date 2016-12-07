@@ -9,8 +9,8 @@
 from cement.core.foundation import CementApp
 from cement.core.controller import CementBaseController, expose
 from wc_lang.io import ExcelIo
-from wc_utils.excel.core import convert as convert_workbook
-from wc_utils.excel.core import read as read_workbook
+from wc_utils.workbook.io import convert as convert_workbook
+from wc_utils.workbook.io import read as read_workbook
 import wc_lang
 
 
@@ -101,7 +101,7 @@ class ConvertController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        convert_workbook(args.source, args.destination)
+        convert_workbook(args.source, args.destination) #todo: styling
 
 
 class CreateTemplateController(CementBaseController):
