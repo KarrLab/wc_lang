@@ -1,15 +1,14 @@
 """ Transform models.
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2017-07-25
+:Date: 2016-11-10
 :Copyright: 2016, Karr Lab
 :License: MIT
 """
 
+from operator import attrgetter
 from wc_lang.core import Submodel
-import copy
 import itertools
-import operator
 
 
 class MergeAlgorithmicallyLikeSubmodels(object):
@@ -27,44 +26,41 @@ class MergeAlgorithmicallyLikeSubmodels(object):
         """
 
         # copy model
-        merged_model = copy.deepcopy(model)
+        merged_model = model.copy()
 
         # group submodels by algorithms
-        merged_submodels = []
-        for algorithm, group in itertools.groupby(merged_model.submodels, operator.attrgetter('algorithm')):
+        sorted_submodels = list(merged_model.submodels)
+        sorted_submodels.sort(key=attrgetter('algorithm'))
+        grouped_submodels = itertools.groupby(sorted_submodels, attrgetter('algorithm'))
+
+        merged_submodels = set()
+        for algorithm, group in grouped_submodels:
             submodels = tuple(group)
 
             # calculate id, name
-            id = "-".join([submodel.id for submodel in submodels])
+            id = "_".join([submodel.id for submodel in submodels])
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(id, name, algorithm, species=[], reactions=[], parameters=[])
+            merged_submodel = Submodel(model=merged_model, id=id, name=name, algorithm=algorithm)
 
-            # merge species, reactions, parameters
-            for submodel in submodels:
-                for species in submodel.species:
-                    merged_submodel.species.append(species)
+            # removed submodel from model; merge reactions, parameters, cross references, references
+            for submodel in list(submodels):
+                merged_model.submodels.remove(submodel)
 
-                for reaction in submodel.reactions:
-                    reaction.submodel = merged_model
-                    merged_submodel.reactions.append(reaction)
+                for rxn in list(submodel.reactions):
+                    rxn.submodel = merged_submodel
 
-                for parameter in submodel.parameters:
-                    parameter.submodel = merged_submodel
-                    merged_submodel.parameters.append(parameter)
+                for param in list(submodel.parameters):
+                    param.submodels.remove(submodel)
+                    param.submodels.add(merged_submodel)
 
-            # get unique set of species
-            unique_species = {}
-            for species in merged_submodel.species:
-                unique_species[species.id] = species
-            merged_submodel.species = unique_species.values()
+                for x_ref in list(submodel.cross_references):
+                    x_ref.submodel = merged_submodel
 
-            # append to list of merged submodels
-            merged_submodels.append(merged_submodel)
-
-        # replace submodels with merged versions
-        merged_model.submodels = merged_submodels
+                for ref in list(submodel.references):
+                    ref.submodels.remove(submodel)
+                    ref.submodels.add(merged_submodel)
 
         # return merged model
         return merged_model

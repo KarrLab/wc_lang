@@ -1,12 +1,12 @@
 """ Tests of model transforms.
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2017-07-25
+:Date: 2016-07-25
 :Copyright: 2016, Karr Lab
 :License: MIT
 """
 
-from wc_lang.core import Model, Submodel, Reaction, Species, Compartment, ReactionParticipant
+from wc_lang.core import Model, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment, ReactionParticipant
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodels
 import unittest
 
@@ -18,63 +18,75 @@ class TestTransform(unittest.TestCase):
         """ Test that algorithmically-like submodels are correctly merged """
 
         """ Construct model with 3 submodels: two SSA and one FBA """
-        cmp = Compartment(id='comp-1', name='compartment 1')
+        mdl = Model()
 
-        spec1 = Species(id='spec-1')
-        spec2 = Species(id='spec-2')
-        spec3 = Species(id='spec-3')
-        spec4 = Species(id='spec-4')
-        spec5 = Species(id='spec-5')
+        cmp = Compartment(id='comp_0', name='compartment 0')
+        mdl.compartments.add(cmp)
 
-        submdlA = Submodel(id='submdl-A', algorithm='SSA', species=[spec1, spec2, spec3], reactions=[])
-        submdlB = Submodel(id='submdl-B', algorithm='SSA', species=[spec1, spec2, spec4], reactions=[])
-        submdlC = Submodel(id='submdl-C', algorithm='FBA', species=[spec1, spec2, spec5], reactions=[])
+        specs = []
+        for i in range(5):
+            spec_type = SpeciesType(id='spec_type_{}'.format(i), type=SpeciesTypeType['metabolite'])
+            mdl.species_types.add(spec_type)
 
-        rxnA1 = Reaction(id='rxn-A-1', submodel=submdlA, participants=[
-            ReactionParticipant(species=spec1, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec2, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec3, compartment=cmp, coefficient=1),
-        ])
-        rxnB1 = Reaction(id='rxn-B-1', submodel=submdlB, participants=[
-            ReactionParticipant(species=spec1, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec2, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec4, compartment=cmp, coefficient=1),
-        ])
-        rxnC1 = Reaction(id='rxn-C-1', submodel=submdlC, participants=[
-            ReactionParticipant(species=spec1, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec2, compartment=cmp, coefficient=-1),
-            ReactionParticipant(species=spec5, compartment=cmp, coefficient=1),
-        ])
-        submdlA.reactions.append(rxnA1)
-        submdlB.reactions.append(rxnB1)
-        submdlC.reactions.append(rxnC1)
+            spec = Species(species_type=spec_type, compartment=cmp)
+            specs.append(spec)
 
-        mdl = Model(
-            compartments=[cmp],
-            species=[spec1, spec2, spec3, spec4, spec5],
-            submodels=[submdlA, submdlB, submdlC],
-            reactions=[rxnA1, rxnB1, rxnC1],
-        )
+        submdl_0 = Submodel(id='submdl_0', algorithm='SSA')
+        submdl_1 = Submodel(id='submdl_1', algorithm='SSA')
+        submdl_2 = Submodel(id='submdl_2', algorithm='FBA')
+        mdl.submodels.add(submdl_0)
+        mdl.submodels.add(submdl_1)
+        mdl.submodels.add(submdl_2)
+
+        rxn_0 = Reaction(id='rxn_0')
+        rxn_0.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
+        rxn_0.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
+        rxn_0.participants.add(ReactionParticipant(species=specs[2], coefficient=1))
+
+        rxn_1 = Reaction(id='rxn_1')
+        rxn_1.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
+        rxn_1.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
+        rxn_1.participants.add(ReactionParticipant(species=specs[3], coefficient=1))
+
+        rxn_2 = Reaction(id='rxn_2')
+        rxn_2.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
+        rxn_2.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
+        rxn_2.participants.add(ReactionParticipant(species=specs[4], coefficient=1))
+
+        submdl_0.reactions.add(rxn_0)
+        submdl_1.reactions.add(rxn_1)
+        submdl_2.reactions.add(rxn_2)
 
         """ Merge algorithmically-like submodels """
         merged_mdl = MergeAlgorithmicallyLikeSubmodels.transform(mdl)
 
+        merged_submodels = list(merged_mdl.submodels)
+
+        if merged_submodels[0].algorithm == 'SSA':
+            merged_submdl_ssa = merged_submodels[0]
+            merged_submdl_fba = merged_submodels[1]
+        else:
+            merged_submdl_ssa = merged_submodels[1]
+            merged_submdl_fba = merged_submodels[0]
+
         """ Test submodels merged corrected """
         self.assertEqual(len(mdl.compartments), len(merged_mdl.compartments))
-        self.assertEqual(len(mdl.species), len(merged_mdl.species))
+        self.assertEqual(len(mdl.species_types), len(merged_mdl.species_types))
         self.assertEqual(2, len(merged_mdl.submodels))
-        self.assertEqual(len(mdl.reactions), len(merged_mdl.reactions))
+        self.assertEqual(len(mdl.parameters), len(merged_mdl.parameters))
+        self.assertEqual(len(mdl.get_reactions()), len(merged_mdl.get_reactions()))
 
-        self.assertEqual('{0}-{1}'.format(mdl.submodels[0].id, mdl.submodels[1].id), merged_mdl.submodels[0].id)
-        self.assertEqual(mdl.submodels[2].id, merged_mdl.submodels[1].id)
+        self.assertIn(merged_submdl_ssa.id, [
+            '{0}_{1}'.format(submdl_0.id, submdl_1.id),
+            '{1}_{0}'.format(submdl_0.id, submdl_1.id),
+        ])
+        self.assertEqual(submdl_2.id, merged_submdl_fba.id)
 
-        self.assertEqual(mdl.submodels[0].algorithm, merged_mdl.submodels[0].algorithm)
-        self.assertEqual(mdl.submodels[2].algorithm, merged_mdl.submodels[1].algorithm)
+        self.assertEqual(submdl_0.algorithm, merged_submdl_ssa.algorithm)
+        self.assertEqual(submdl_2.algorithm, merged_submdl_fba.algorithm)
 
-        self.assertEqual(4, len(merged_mdl.submodels[0].species))
-        self.assertEqual(len(mdl.submodels[2].species), len(merged_mdl.submodels[1].species))
+        self.assertEqual(4, len(merged_submdl_ssa.get_species()))
+        self.assertEqual(len(submdl_2.get_species()), len(merged_submdl_fba.get_species()))
 
-        self.assertEqual(
-            + len(mdl.submodels[0].reactions) 
-            + len(mdl.submodels[1].reactions), len(merged_mdl.submodels[0].reactions))
-        self.assertEqual(len(mdl.submodels[2].reactions), len(merged_mdl.submodels[1].reactions))
+        self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
+        self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
