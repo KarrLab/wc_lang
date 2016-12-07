@@ -6,30 +6,43 @@
 :License: MIT
 """
 
+from abc import ABCMeta, abstractmethod
 from operator import attrgetter
-from wc_lang.core import Submodel
+from six import with_metaclass
+from wc_lang.core import Model, Submodel
 import itertools
 
 
-class MergeAlgorithmicallyLikeSubmodels(object):
-    """ Constructs models in which algorithmically-like submodels have been merged. """
+class Transform(with_metaclass(ABCMeta, object)):
 
-    @staticmethod
-    def transform(model):
-        """ Construct a model in which algorithmically-like submodels have been merged.
+    @abstractmethod
+    def run(self, model):
+        """ Transform a model
 
         Args:
-            model (:obj:`wc_lang.core.Model`): model definition
+            model (:obj:`Model`): model
 
         Returns:
-            :obj:`wc_lang.core.Model`: model with submodels of the same simulation algorithm merged
+            :obj:`Model`: transformed model
+        """
+        pass
+
+
+class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
+    """ Merge groups of algorithmically-like submodels into individual submodels """
+
+    def run(self, model):
+        """ Merge groups of algorithmically-like submodels into individual submodels
+
+        Args:
+            model (:obj:`Model`): model definition
+
+        Returns:
+            :obj:`Model`: same model definition, but with submodels of the same simulation algorithm merged
         """
 
-        # copy model
-        merged_model = model.copy()
-
         # group submodels by algorithms
-        sorted_submodels = list(merged_model.submodels)
+        sorted_submodels = list(model.submodels)
         sorted_submodels.sort(key=attrgetter('algorithm'))
         grouped_submodels = itertools.groupby(sorted_submodels, attrgetter('algorithm'))
 
@@ -42,11 +55,11 @@ class MergeAlgorithmicallyLikeSubmodels(object):
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(model=merged_model, id=id, name=name, algorithm=algorithm)
+            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=algorithm)
 
             # removed submodel from model; merge reactions, parameters, cross references, references
             for submodel in list(submodels):
-                merged_model.submodels.remove(submodel)
+                model.submodels.remove(submodel)
 
                 for rxn in list(submodel.reactions):
                     rxn.submodel = merged_submodel
@@ -63,4 +76,20 @@ class MergeAlgorithmicallyLikeSubmodels(object):
                     ref.submodels.add(merged_submodel)
 
         # return merged model
-        return merged_model
+        return model
+
+
+class SplitReversibleReactionsTransform(Transform):
+    """ Split reversible reactions into separate forward and backward reactions """
+
+    def run(self, model):
+        """ Split reversible reactions into separate forward and backward reactions
+
+        Args:
+            model (:obj:`Model`): model definition
+
+        Returns:
+            :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
+        """
+
+        return model

@@ -7,7 +7,7 @@
 """
 
 from wc_lang.core import Model, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment, ReactionParticipant
-from wc_lang.transform import MergeAlgorithmicallyLikeSubmodels
+from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
 import unittest
 
 
@@ -58,7 +58,8 @@ class TestTransform(unittest.TestCase):
         submdl_2.reactions.add(rxn_2)
 
         """ Merge algorithmically-like submodels """
-        merged_mdl = MergeAlgorithmicallyLikeSubmodels.transform(mdl)
+        merged_mdl = mdl.copy()
+        MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
 
         merged_submodels = list(merged_mdl.submodels)
 
@@ -90,3 +91,7 @@ class TestTransform(unittest.TestCase):
 
         self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
         self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
+
+    @unittest.skip('me')
+    def test_split_reversible_reactions(self):
+        pass
