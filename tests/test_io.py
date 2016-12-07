@@ -15,7 +15,21 @@ import tempfile
 import unittest
 
 
-class TestIo(unittest.TestCase):
+class TestCreateTemplate(unittest.TestCase):
+
+    def setUp(self):
+        _, self.filename = tempfile.mkstemp(suffix='.xlsx')
+
+    def tearDown(self):
+        if os.path.isfile(self.filename):
+            os.remove(self.filename)
+
+    def test_create_template(self):
+        ExcelIo.create_template(self.filename)
+        self.assertEqual(ExcelIo.read(self.filename), None)
+
+
+class TestSimpleModel(unittest.TestCase):
 
     def setUp(self):
         self.model = mdl = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1b')
