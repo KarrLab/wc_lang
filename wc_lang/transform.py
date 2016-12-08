@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from operator import attrgetter
 from six import with_metaclass
 from wc_lang.core import Model, Submodel, RateLawDirection
