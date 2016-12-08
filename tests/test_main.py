@@ -12,7 +12,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from wc_lang.__main__ import App as WcLangCli
 from wc_lang.core import Model
-from wc_lang.io import ExcelIo
+from wc_lang.io import Writer, Reader
 import unittest
 import wc_lang
 
@@ -35,7 +35,7 @@ class TestCli(unittest.TestCase):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         self.assertEqual(model.validate(), None)
         filename = path.join(self.tempdir, 'model.xlsx')
-        ExcelIo.write(filename, model)
+        Writer().run(filename, model)
 
         with CaptureOutput() as capturer:
             with WcLangCli(argv=['validate', filename]) as app:
@@ -45,15 +45,15 @@ class TestCli(unittest.TestCase):
     def test_difference(self):
         model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         filename1 = path.join(self.tempdir, 'model1.xlsx')
-        ExcelIo.write(filename1, model1)
+        Writer().run(filename1, model1)
 
         model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         filename2 = path.join(self.tempdir, 'model2.xlsx')
-        ExcelIo.write(filename2, model2)
+        Writer().run(filename2, model2)
 
         model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename3 = path.join(self.tempdir, 'model3.xlsx')
-        ExcelIo.write(filename3, model3)
+        Writer().run(filename3, model3)
 
         with CaptureOutput() as capturer:
             with WcLangCli(argv=['difference', filename1, filename2]) as app:
@@ -80,7 +80,7 @@ class TestCli(unittest.TestCase):
     def test_transform(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        ExcelIo.write(source, model)
+        Writer().run(source, model)
 
         destination = path.join(self.tempdir, 'destination.xlsx')
         with WcLangCli(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
@@ -93,7 +93,7 @@ class TestCli(unittest.TestCase):
         filename_csv = path.join(self.tempdir, 'model-*.csv')
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        ExcelIo.write(filename_xls, model)
+        Writer().run(filename_xls, model)
 
         with WcLangCli(argv=['convert', filename_xls, filename_csv]) as app:
             app.run()
@@ -113,10 +113,10 @@ class TestCli(unittest.TestCase):
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         self.assertNotEqual(model.wc_lang_version, wc_lang.__version__)
-        ExcelIo.write(filename, model)
+        Writer().run(filename, model)
 
         with WcLangCli(argv=['update-wc-lang-version', filename]) as app:
             app.run()
 
-        model = ExcelIo.read(filename)
+        model = Reader().run(filename)
         self.assertEqual(model.wc_lang_version, wc_lang.__version__)

@@ -6,10 +6,10 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
+from wc_lang.core import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
-from wc_lang.util import Utils
+from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
 
 
@@ -90,7 +90,7 @@ class TestUtil(unittest.TestCase):
 
     def test_get_model_size(self):
         model = self.model
-        size = Utils.get_model_size(model)
+        size = get_model_size(model)
         self.assertEqual(3, size['submodels'])
         self.assertEqual(8, size['species_types'])
         self.assertEqual(8, size['species'])
@@ -101,23 +101,36 @@ class TestUtil(unittest.TestCase):
 
     def test_get_model_summary(self):
         model = self.model
-        summary = Utils.get_model_summary(model)
+        summary = get_model_summary(model)
         self.assertIsInstance(summary, str)
 
     def test_get_reaction_string(self):
         species_types = self.species_types
         species = self.species
 
-        self.assertIn(Utils.get_reaction_string(self.rxn_0), [
+        self.assertIn(get_reaction_string(self.rxn_0), [
             '[{0}]: ({1}) {2} + ({3}) {4} ==> {5}'.format(self.comp_0.id, 2,
                                                           species_types[0].id, 3, species_types[1].id, species_types[2].id),
             '[{0}]: ({3}) {4} + ({1}) {2} ==> {5}'.format(self.comp_0.id, 2,
                                                           species_types[0].id, 3, species_types[1].id, species_types[2].id),
         ])
 
-        self.assertIn(Utils.get_reaction_string(self.rxn_1), [
+        self.assertIn(get_reaction_string(self.rxn_1), [
             '({0}) {1} + ({2}) {3} ==> (2) {4}'.format(2,
                                                        species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
             '({2}) {3} + ({0}) {1} ==> (2) {4}'.format(2,
                                                        species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
         ])
+
+    def test_get_models(self):
+        non_inline_models = set([
+            Model, Taxon,
+            Submodel, Compartment, SpeciesType, Concentration,
+            Reaction, RateLaw, Parameter,
+            Reference, CrossReference,
+        ])
+        inline_models = set([
+            Species, ReactionParticipant, RateLawEquation
+        ])
+        self.assertEqual(set(get_models()), non_inline_models | inline_models)
+        self.assertEqual(set(get_models(inline=False)), non_inline_models)

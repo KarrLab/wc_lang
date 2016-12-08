@@ -9,8 +9,7 @@
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
-from wc_lang.io import ExcelIo
-from wc_utils.schema.core import Validator
+from wc_lang.io import Writer, Reader, create_template
 import os
 import tempfile
 import unittest
@@ -26,8 +25,8 @@ class TestCreateTemplate(unittest.TestCase):
             os.remove(self.filename)
 
     def test_create_template(self):
-        ExcelIo.create_template(self.filename)
-        self.assertEqual(ExcelIo.read(self.filename), None)
+        create_template(self.filename)
+        self.assertEqual(Reader().run(self.filename), None)
 
 
 class TestSimpleModel(unittest.TestCase):
@@ -128,9 +127,23 @@ class TestSimpleModel(unittest.TestCase):
             os.remove(self.filename)
 
     def test_write_read(self):
-        ExcelIo.write(self.filename, self.model)
-        model = ExcelIo.read(self.filename)
+        Writer().run(self.filename, self.model)
+        model = Reader().run(self.filename)
         self.assertEqual(model.validate(), None)
 
         self.assertEqual(model, self.model)
         self.assertEqual(self.model.difference(model), '')
+
+
+class TestExampleModel(unittest.TestCase):
+
+    def setUp(self):
+        _, self.filename = tempfile.mkstemp(suffix='.xlsx')
+
+    def tearDown(self):
+        if os.path.isfile(self.filename):
+            os.remove(self.filename)
+
+    @unittest.skip('Implement me')
+    def test_read_write(self):
+        pass

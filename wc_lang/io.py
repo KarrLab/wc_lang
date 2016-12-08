@@ -1,4 +1,8 @@
-""" Classes for reading and writing models to/from files.
+""" Reading and writing models to/from files.
+
+* Comma separated values (.csv)
+* Excel (.xlsx)
+* Tab separated values (.tsv)
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2016-12-05
@@ -9,59 +13,69 @@
 from wc_lang.core import (Model, Taxon, Submodel, Compartment, SpeciesType,
                           Concentration, Reaction, RateLaw, Parameter, Reference,
                           CrossReference)
-from wc_utils.schema.io import ExcelIo as BaseExcelIo
+from wc_lang.util import get_models
+from wc_utils.schema import io
 
 
-class ExcelIo(object):
-    """ Read/write model to/from Excel workbooks """
+class Writer(object):
+    """ Write model to file(s) """
 
-    @classmethod
-    def write(cls, filename, model):
-        """ Write model to file
+    def run(self, path, model=None):
+        """ Write model to file(s)
 
         Args:
-            filename (:obj:`str`): path to file
+            path (:obj:`str`): path to file(s)
             model (:obj:`Model`): model
         """
-        BaseExcelIo.write(filename, set((model,)), [
-            Model, Taxon, Submodel, Compartment, SpeciesType,
-            Concentration, Reaction, RateLaw, Parameter, Reference,
-            CrossReference],
-            title=model.id, description=model.name, version=model.version,
-            language='wc_lang', creator=cls.__module__ + '.' + cls.__name__)
+        models = [
+            Model, Taxon,
+            Submodel, Compartment, SpeciesType, Concentration,
+            Reaction, RateLaw, Parameter,
+            Reference, CrossReference,
+        ]
 
-    @classmethod
-    def read(cls, filename):
-        """ Read model from file
+        kwargs = {
+            'language': 'wc_lang',
+            'creator': '{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
+        }
+        if model:
+            objects = set((model,))
+            kwargs['title'] = model.id
+            kwargs['description'] = model.name
+            kwargs['version'] = model.version
+        else:
+            objects = set()
+
+        io.Writer().run(path, objects, models, **kwargs)
+
+
+class Reader(object):
+    """ Read model from file(s) """
+
+    def run(self, path):
+        """ Read model from file(s)
 
         Args:
-            filename (:obj:`str`): path to file
+            path (:obj:`str`): path to file(s)
 
         Returns:
             :obj:`Model`: model
         """
-        objects = BaseExcelIo.read(filename, [
-            Model, Taxon, Submodel, Compartment, SpeciesType,
-            Concentration, Reaction, RateLaw, Parameter, Reference,
-            CrossReference, ])
+        objects = io.Reader().run(path, get_models(inline=False))
 
         if not objects[Model]:
             return None
 
         if len(objects[Model]) > 1:
-            raise ValueError('Model file "{}" should only define one model'.format(filename))
+            raise ValueError('Model file "{}" should only define one model'.format(path))
 
         return objects[Model].pop()
 
-    @classmethod
-    def create_template(cls, filename):
-        """ Create file with template (i.e. row, column headings)
 
-        Args:
-            filename (:obj:`str`): path to file
-        """
-        BaseExcelIo.create_template(filename, [
-            Model, Taxon, Submodel, Compartment, SpeciesType,
-            Concentration, Reaction, RateLaw, Parameter, Reference,
-            CrossReference],
-            language='wc_lang', creator=cls.__module__ + '.' + cls.__name__)
+def create_template(path):
+    """ Create file with model template, including row and column headings
+
+    Args:
+        path (:obj:`str`): path to file(s)
+    """
+    Writer().run(path)

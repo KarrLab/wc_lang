@@ -8,8 +8,8 @@
 
 from cement.core.foundation import CementApp
 from cement.core.controller import CementBaseController, expose
-from wc_lang.io import ExcelIo
 from wc_lang import transform
+from wc_lang.io import Writer, Reader, create_template
 from wc_utils.workbook.io import convert as convert_workbook
 from wc_utils.workbook.io import read as read_workbook
 import wc_lang
@@ -43,7 +43,7 @@ class ValidateController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        model = ExcelIo.read(args.path)
+        model = Reader().run(args.path)
         error = model.validate()
         if error:
             print(str(error))
@@ -76,8 +76,8 @@ class DifferenceController(CementBaseController):
             diff = model1.difference(model2)
 
         else:
-            model1 = ExcelIo.read(args.path_1)
-            model2 = ExcelIo.read(args.path_2)
+            model1 = Reader().run(args.path_1)
+            model2 = Reader().run(args.path_2)
             diff = model1.difference(model2)
 
         if diff:
@@ -115,7 +115,7 @@ class TransformController(CementBaseController):
             return
 
         # read model
-        model = ExcelIo.read(args.source)
+        model = Reader().run(args.source)
 
         # apply transforms
         transforms = transform.get_transforms()
@@ -125,7 +125,7 @@ class TransformController(CementBaseController):
             instance.run(model)
 
         # write model
-        ExcelIo.write(args.destination, model)
+        Writer().run(args.destination, model)
 
 
 class ConvertController(CementBaseController):
@@ -162,7 +162,7 @@ class CreateTemplateController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        ExcelIo.create_template(args.path)
+        create_template(args.path)
 
 
 class UpdateWcLangVersionController(CementBaseController):
@@ -180,9 +180,9 @@ class UpdateWcLangVersionController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        model = ExcelIo.read(args.path)
+        model = Reader().run(args.path)
         model.wc_lang_version = wc_lang.__version__
-        ExcelIo.write(args.path, model)
+        Writer().run(args.path, model)
 
 
 class App(CementApp):

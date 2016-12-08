@@ -10,14 +10,14 @@ from enum import Enum, EnumMeta
 from itertools import chain
 from math import isnan
 from six import with_metaclass
-from wc_utils.schema.core import Model as BaseModel
-from wc_utils.schema.core import Validator as BaseValidator
-from wc_utils.schema.core import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
+from wc_utils.schema.core import (Model as BaseModel,
+                                  BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                                   RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
-                                  OneToOneAttribute, ManyToOneAttribute, OneToManyAttribute, ManyToManyAttribute,
-                                  InvalidObjectSet, InvalidModel, InvalidObject, InvalidAttribute,
+                                  OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
+                                  InvalidModel, InvalidObject, InvalidAttribute,
                                   TabularOrientation)
 import re
+import sys
 
 
 class TaxonRankMeta(EnumMeta):
