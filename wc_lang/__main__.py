@@ -9,6 +9,7 @@
 from cement.core.foundation import CementApp
 from cement.core.controller import CementBaseController, expose
 from wc_lang.io import ExcelIo
+from wc_lang import transform
 from wc_utils.workbook.io import convert as convert_workbook
 from wc_utils.workbook.io import read as read_workbook
 import wc_lang
@@ -85,6 +86,48 @@ class DifferenceController(CementBaseController):
             print('Models are identical')
 
 
+transform_list = ''
+for trans in transform.get_transforms().values():
+    transform_list += '\n  {}: {}'.format(trans.Meta.id, trans.Meta.label)
+
+
+class TransformController(CementBaseController):
+    """ Apply one, or more, transforms to a model and save the result """
+
+    class Meta:
+        label = 'transform'
+        description = 'Apply one, or more, transforms to a model and save the result'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['source'], dict(type=str, help='Path to model definition')),
+            (['destination'], dict(type=str, help='Path to save transformed model definition')),
+            (['--transform'], dict(dest='transforms', action='append',
+                                   help='Model transform:' + transform_list)),
+        ]
+
+    @expose(hide=True)
+    def default(self):
+        args = self.app.pargs
+
+        if not args.transforms:
+            print('Please select at least one transform')
+            return
+
+        # read model
+        model = ExcelIo.read(args.source)
+
+        # apply transforms
+        transforms = transform.get_transforms()
+        for id in args.transforms:
+            cls = transforms[id]
+            instance = cls()
+            instance.run(model)
+
+        # write model
+        ExcelIo.write(args.destination, model)
+
+
 class ConvertController(CementBaseController):
     """ Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv) """
 
@@ -101,7 +144,7 @@ class ConvertController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        convert_workbook(args.source, args.destination) #todo: styling
+        convert_workbook(args.source, args.destination)  # todo: styling
 
 
 class CreateTemplateController(CementBaseController):
@@ -151,6 +194,7 @@ class App(CementApp):
             BaseController,
             ValidateController,
             DifferenceController,
+            TransformController,
             ConvertController,
             CreateTemplateController,
             UpdateWcLangVersionController,

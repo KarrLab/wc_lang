@@ -6,11 +6,28 @@
 :License: MIT
 """
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 from operator import attrgetter
 from six import with_metaclass
 from wc_lang.core import Model, Submodel, RateLawDirection
 import itertools
+import sys
+
+
+def get_transforms():
+    """ Get dictionary of available transform classes
+
+    Returns:
+        :obj:`dict` of `str`: `class`: dictionary of available transform classes
+    """
+    module = sys.modules[__name__]
+    transforms = {}
+    for attr_name in dir(module):
+        attr = getattr(module, attr_name)
+        if isinstance(attr, type) and issubclass(attr, Transform) and attr is not Transform:
+            transforms[attr.Meta.id] = attr
+
+    return transforms
 
 
 class Transform(with_metaclass(ABCMeta, object)):
@@ -30,6 +47,10 @@ class Transform(with_metaclass(ABCMeta, object)):
 
 class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
     """ Merge groups of algorithmically-like submodels into individual submodels """
+
+    class Meta(object):
+        id = 'MergeAlgorithmicallyLikeSubmodels'
+        label = 'Merge groups of algorithmically-like submodels into individual submodels'
 
     def run(self, model):
         """ Merge groups of algorithmically-like submodels into individual submodels
@@ -81,6 +102,10 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
 
 class SplitReversibleReactionsTransform(Transform):
     """ Split reversible reactions into separate forward and backward reactions """
+
+    class Meta(object):
+        id = 'SplitReversibleReactions'
+        label = 'Split reversible reactions into separate forward and backward reactions'
 
     def run(self, model):
         """ Split reversible reactions into separate forward and backward reactions

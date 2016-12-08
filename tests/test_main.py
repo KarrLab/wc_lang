@@ -77,6 +77,17 @@ class TestCli(unittest.TestCase):
             diff = 'Sheet Model:\n  Row 4:\n    Cell B: 0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
 
+    def test_transform(self):
+        source = path.join(self.tempdir, 'source.xlsx')
+        model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        ExcelIo.write(source, model)
+
+        destination = path.join(self.tempdir, 'destination.xlsx')
+        with WcLangCli(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
+            app.run()
+
+        self.assertTrue(path.isfile(destination))
+
     def test_convert(self):
         filename_xls = path.join(self.tempdir, 'model.xlsx')
         filename_csv = path.join(self.tempdir, 'model-*.csv')
