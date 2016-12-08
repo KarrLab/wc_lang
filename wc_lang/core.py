@@ -368,7 +368,7 @@ class Model(BaseModel):
 
     class Meta(BaseModel.Meta):
         attribute_order = ('id', 'name', 'version', 'wc_lang_version', 'comments', 'references')
-        tabular_orientation = TabularOrientation['column']
+        tabular_orientation = TabularOrientation.column
 
     def get_compartments(self):
         """ Get all compartments
@@ -536,7 +536,7 @@ class Taxon(BaseModel):
                            'model',
                            'rank',
                            'comments', 'references')
-        tabular_orientation = TabularOrientation['column']
+        tabular_orientation = TabularOrientation.column
 
 
 class Submodel(BaseModel):
@@ -674,7 +674,7 @@ class Species(BaseModel):
     class Meta(BaseModel.Meta):
         attribute_order = ('species_type', 'compartment')
         frozen_columns = 1
-        tabular_orientation = TabularOrientation['inline']
+        tabular_orientation = TabularOrientation.inline
 
     def serialize(self):
         """ Get value of primary attribute
@@ -818,7 +818,7 @@ class ReactionParticipant(BaseModel):
     class Meta(BaseModel.Meta):
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
-        tabular_orientation = TabularOrientation['inline']
+        tabular_orientation = TabularOrientation.inline
 
     def serialize(self, compartment=None):
         """ Serialize related object
@@ -964,7 +964,7 @@ class RateLawEquation(BaseModel):
             valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in `law`
         """
         attribute_order = ('expression', 'modifiers')
-        tabular_orientation = TabularOrientation['inline']
+        tabular_orientation = TabularOrientation.inline
         valid_functions = ('ceil', 'exp', 'floor', 'log', 'log10', 'min', 'max', 'pow')
 
     def serialize(self):
