@@ -6,8 +6,11 @@
 :License: MIT
 """
 
-from wc_lang.core import Model, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment, ReactionParticipant
+from itertools import chain
+from wc_lang.core import (Model, Submodel, Reaction, SpeciesType, SpeciesTypeType,
+                          Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
+from wc_utils.schema.core import RelatedAttribute
 import unittest
 
 
@@ -25,7 +28,7 @@ class TestTransform(unittest.TestCase):
 
         specs = []
         for i in range(5):
-            spec_type = SpeciesType(id='spec_type_{}'.format(i), type=SpeciesTypeType['metabolite'])
+            spec_type = SpeciesType(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
             mdl.species_types.add(spec_type)
 
             spec = Species(species_type=spec_type, compartment=cmp)
@@ -92,6 +95,76 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
         self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
 
-    @unittest.skip('me')
     def test_split_reversible_reactions(self):
-        pass
+        model = Model()
+
+        c = model.compartments.create(id='c')
+
+        t0 = model.species_types.create(id='s0', type=SpeciesTypeType.metabolite)
+        t1 = model.species_types.create(id='s1', type=SpeciesTypeType.metabolite)
+        t2 = model.species_types.create(id='s2', type=SpeciesTypeType.metabolite)
+
+        s0 = Species(species_type=t0, compartment=c)
+        s1 = Species(species_type=t1, compartment=c)
+        s2 = Species(species_type=t2, compartment=c)
+
+        submodel = model.submodels.create(id='submodel', algorithm='SSA')
+
+        r0 = submodel.reactions.create(id='r0', reversible=True)
+        r0.participants.create(species=s0, coefficient=-2)
+        r0.participants.create(species=s1, coefficient=3)
+        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='a'))
+        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='b'))
+        r0.references.create(id='ref_0')
+        r0.cross_references.create(database='x', id='y')
+
+        r1 = submodel.reactions.create(id='r1', reversible=False)
+        r1.participants.create(species=s1, coefficient=-3)
+        r1.participants.create(species=s2, coefficient=4)
+        r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='c'))
+        r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='d'))
+        r1.references.create(id='ref_1')
+        r1.cross_references.create(database='xx', id='yy')
+
+        model2 = model.copy()
+        submodel2 = model2.submodels.get(id='submodel')
+        r0 = submodel2.reactions.get(id='r0')
+
+        SplitReversibleReactionsTransform().run(model2)
+
+        self.assertEqual(set([x.id for x in submodel2.reactions]), set(['r0_forward', 'r0_backward', 'r1']))
+
+        r0_f = submodel2.reactions.get(id='r0_forward')
+        r0_b = submodel2.reactions.get(id='r0_backward')
+        r1_2 = submodel2.reactions.get(id='r1')
+        attr = Reaction.Meta.attributes['participants']
+        self.assertEqual(attr.serialize(r0_f.participants), '[c]: (2) s0 ==> (3) s1')
+        self.assertEqual(attr.serialize(r0_b.participants), '[c]: (3) s1 ==> (2) s0')
+        self.assertEqual(attr.serialize(r1_2.participants), '[c]: (3) s1 ==> (4) s2')
+        self.assertEqual(len(r0_f.rate_laws), 1)
+        self.assertEqual(len(r0_b.rate_laws), 1)
+        self.assertEqual(list(r0_f.rate_laws)[0].direction, RateLawDirection.forward)
+        self.assertEqual(list(r0_b.rate_laws)[0].direction, RateLawDirection.forward)
+        self.assertEqual(list(r0_f.rate_laws)[0].equation.expression, 'a')
+        self.assertEqual(list(r0_b.rate_laws)[0].equation.expression, 'b')
+        self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.forward).equation.expression, 'c')
+        self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.backward).equation.expression, 'd')
+
+        self.assertEqual(set([x.id for x in r0_f.references]), set(['ref_0']))
+        self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
+        self.assertEqual(set([x.id for x in r1_2.references]), set(['ref_1']))
+
+        self.assertEqual(set([x.id for x in r0_f.cross_references]), set(['y']))
+        self.assertEqual(set([x.id for x in r0_b.cross_references]), set(['y']))
+        self.assertEqual(set([x.id for x in r1_2.cross_references]), set(['yy']))
+
+        self.assertEqual(r0.submodel, None)
+        self.assertEqual(r0.participants, set())
+        self.assertEqual(r0.rate_laws, set())
+        self.assertEqual(r0.references, set())
+        self.assertEqual(r0.cross_references, set())
+
+        for attr_name, attr in chain(Reaction.Meta.attributes.items(), Reaction.Meta.related_attributes.items()):
+            if isinstance(attr, RelatedAttribute):
+                val = getattr(r0, attr_name)
+                self.assertTrue(val is None or (isinstance(val, set) and len(val) == 0))

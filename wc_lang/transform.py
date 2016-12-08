@@ -9,7 +9,7 @@
 from abc import ABCMeta, abstractmethod
 from operator import attrgetter
 from six import with_metaclass
-from wc_lang.core import Model, Submodel
+from wc_lang.core import Model, Submodel, RateLawDirection
 import itertools
 
 
@@ -91,5 +91,61 @@ class SplitReversibleReactionsTransform(Transform):
         Returns:
             :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
         """
+
+        for submodel in model.submodels:
+            for rxn in list(submodel.reactions):
+                if rxn.reversible:
+                    # remove reversible reaction
+                    submodel.reactions.remove(rxn)
+
+                    # create separate forward and reverse reactions
+                    rxn_for = submodel.reactions.create(
+                        id='{}_forward'.format(rxn.id),
+                        name='{} (forward)'.format(rxn.name),
+                        reversible=False,
+                        comments=rxn.comments,
+                        references=set(rxn.references),
+                    )
+                    rxn_bck = submodel.reactions.create(
+                        id='{}_backward'.format(rxn.id),
+                        name='{} (backward)'.format(rxn.name),
+                        reversible=False,
+                        comments=rxn.comments,
+                        references=set(rxn.references),
+                    )
+
+                    rxn.references = ()
+
+                    # copy participants and negate for backward reaction
+                    for part in rxn.participants:
+                        rxn_for.participants.add(part)
+                        rxn_bck.participants.create(species=part.species, coefficient=-1 * part.coefficient)
+
+                    rxn.participants = ()
+
+                    # copy rate laws
+                    law_for = rxn.rate_laws.get(direction=RateLawDirection.forward)
+                    law_bck = rxn.rate_laws.get(direction=RateLawDirection.backward)
+
+                    if law_for:
+                        law_for.reaction = rxn_for
+                        law_for.direction = RateLawDirection.forward
+                    if law_bck:
+                        law_bck.reaction = rxn_bck
+                        law_bck.direction = RateLawDirection.forward
+
+                    # cross references
+                    for x_ref in list(rxn.cross_references):
+                        rxn_for.cross_references.create(
+                            database=x_ref.database,
+                            id=x_ref.id,
+                            url=x_ref.url)
+
+                        rxn_bck.cross_references.create(
+                            database=x_ref.database,
+                            id=x_ref.id,
+                            url=x_ref.url)
+
+                        rxn.cross_references.remove(x_ref)
 
         return model
