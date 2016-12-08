@@ -83,6 +83,7 @@ class SpeciesTypeType(Enum):
 
 class RateLawDirection(Enum):
     """ Rate law directions """
+    backward = -1
     reverse = -1
     forward = 1
 
@@ -526,7 +527,7 @@ class Taxon(BaseModel):
     id = SlugAttribute()
     name = StringAttribute()
     model = OneToOneAttribute('Model', related_name='taxon')
-    rank = EnumAttribute(TaxonRank)
+    rank = EnumAttribute(TaxonRank, default=TaxonRank.species)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='taxa')
 
@@ -556,7 +557,7 @@ class Submodel(BaseModel):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute('Model', related_name='submodels')
-    algorithm = EnumAttribute(SubmodelAlgorithm)
+    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
@@ -635,7 +636,7 @@ class SpeciesType(BaseModel):
     empirical_formula = RegexAttribute(pattern='^([A-Z][a-z]?\d*)*$')
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
-    type = EnumAttribute(SpeciesTypeType)
+    type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
@@ -923,7 +924,7 @@ class RateLaw(BaseModel):
     """
 
     reaction = ManyToOneAttribute('Reaction', related_name='rate_laws')
-    direction = EnumAttribute(RateLawDirection, default=RateLawDirection['forward'])
+    direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     equation = RateLawEquationAttribute(related_name='rate_law')
     k_cat = FloatAttribute(min=0, nan=True)
     k_m = FloatAttribute(min=0, nan=True)

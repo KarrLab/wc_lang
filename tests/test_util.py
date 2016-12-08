@@ -28,7 +28,7 @@ class TestUtil(unittest.TestCase):
         self.concentrations = concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
-                i), name='species type {}'.format(i), type=SpeciesTypeType['metabolite'])
+                i), name='species type {}'.format(i), type=SpeciesTypeType.metabolite)
             species_types.append(spec_type)
 
             if i != 3:
@@ -40,9 +40,9 @@ class TestUtil(unittest.TestCase):
             conc = Concentration(species=spec, value=1)
             concentrations.append(conc)
 
-        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm['ssa'])
-        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm['ssa'])
-        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm['dfba'])
+        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
+        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm.ssa)
+        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0')
@@ -82,7 +82,7 @@ class TestUtil(unittest.TestCase):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
 
-            ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType['misc'])
+            ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType.misc)
             references.append(ref)
 
             x_ref = ref.cross_references.create(database='Y', id='x')

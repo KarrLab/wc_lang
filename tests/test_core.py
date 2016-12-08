@@ -18,7 +18,7 @@ class TestCore(unittest.TestCase):
     def setUp(self):
         self.model = mdl = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1b')
 
-        mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank['species'])
+        mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
         self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0', initial_volume=1.25)
         self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1', initial_volume=2.5)
@@ -31,7 +31,7 @@ class TestCore(unittest.TestCase):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
-                type=SpeciesTypeType['metabolite'],
+                type=SpeciesTypeType.metabolite,
                 structure='C' * i + 'H' * (i + 1),
                 empirical_formula='C{}H{}'.format(i, i + 1),
                 molecular_weight=12 * (i + 1),
@@ -48,11 +48,11 @@ class TestCore(unittest.TestCase):
             concentrations.append(conc)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm['ssa'])
+            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm['ssa'])
+            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm['dfba'])
+            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
@@ -97,7 +97,7 @@ class TestCore(unittest.TestCase):
 
             ref = param.references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
-                type=ReferenceType['misc'])
+                type=ReferenceType.misc)
             references.append(ref)
 
             x_ref = ref.cross_references.create(database='x', id='y' * (i + 1),
