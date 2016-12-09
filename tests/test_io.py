@@ -9,8 +9,9 @@
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
-from wc_lang.io import Writer, Reader, create_template
+from wc_lang.io import Writer, Reader, convert, create_template
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -120,19 +121,37 @@ class TestSimpleModel(unittest.TestCase):
                                                 url='http://x.com/{}'.format('y' * (i + 1)))
             cross_references.append(x_ref)
 
-        _, self.filename = tempfile.mkstemp(suffix='.xlsx')
+        self.dirname = tempfile.mkdtemp()
 
     def tearDown(self):
-        if os.path.isfile(self.filename):
-            os.remove(self.filename)
+        shutil.rmtree(self.dirname)
 
     def test_write_read(self):
-        Writer().run(self.filename, self.model)
-        model = Reader().run(self.filename)
+        filename = os.path.join(self.dirname, 'model.xlsx')
+
+        Writer().run(filename, self.model)
+        model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
         self.assertEqual(model, self.model)
         self.assertEqual(self.model.difference(model), '')
+
+    def test_convert(self):
+        filename_xls1 = os.path.join(self.dirname, 'model1.xlsx')
+        filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
+        filename_csv = os.path.join(self.dirname, 'model-*.csv')
+
+        Writer().run(filename_xls1, self.model)
+
+        convert(filename_xls1, filename_csv)
+        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
+        model = Reader().run(filename_csv)
+        self.assertEqual(model, self.model)
+
+        convert(filename_csv, filename_xls2)
+        model = Reader().run(filename_xls2)
+        self.assertEqual(model, self.model)
 
 
 class TestExampleModel(unittest.TestCase):
@@ -144,6 +163,6 @@ class TestExampleModel(unittest.TestCase):
         if os.path.isfile(self.filename):
             os.remove(self.filename)
 
-    @unittest.skip('Implement me')
+    unittest.skip('Implement me')
     def test_read_write(self):
         pass

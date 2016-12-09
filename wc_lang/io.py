@@ -20,6 +20,13 @@ from wc_utils.schema import io
 class Writer(object):
     """ Write model to file(s) """
 
+    model_order = [
+        Model, Taxon,
+        Submodel, Compartment, SpeciesType, Concentration,
+        Reaction, RateLaw, Parameter,
+        Reference, CrossReference,
+    ]
+
     def run(self, path, model=None):
         """ Write model to file(s)
 
@@ -27,12 +34,6 @@ class Writer(object):
             path (:obj:`str`): path to file(s)
             model (:obj:`Model`): model
         """
-        models = [
-            Model, Taxon,
-            Submodel, Compartment, SpeciesType, Concentration,
-            Reaction, RateLaw, Parameter,
-            Reference, CrossReference,
-        ]
 
         kwargs = {
             'language': 'wc_lang',
@@ -46,7 +47,7 @@ class Writer(object):
         else:
             objects = set()
 
-        io.Writer().run(path, objects, models, **kwargs)
+        io.Writer().run(path, objects, self.model_order, **kwargs)
 
 
 class Reader(object):
@@ -70,6 +71,16 @@ class Reader(object):
             raise ValueError('Model file "{}" should only define one model'.format(path))
 
         return objects[Model].pop()
+
+
+def convert(source, destination):
+    """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv)
+
+    Args:
+        source (:obj:`str`): path to source file
+        destination (:obj:`str`): path to save converted file
+    """
+    io.convert(source, destination, models=Writer.model_order)
 
 
 def create_template(path):
