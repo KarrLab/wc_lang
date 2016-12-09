@@ -70,37 +70,55 @@ class TaxonRank(with_metaclass(TaxonRankMeta, Enum)):
 class SubmodelAlgorithm(Enum):
     """ Submodel algorithms """
     dfba = 1
+    dFBA = 1
     ode = 2
+    ODE = 2
     ssa = 3
+    SSA = 3
 
 
 class SpeciesTypeType(Enum):
     """ Types of species types """
     metabolite = 1
+    Metabolite = 1
     protein = 2
+    Protein = 2
     rna = 3
+    RNA = 3
 
 
 class RateLawDirection(Enum):
     """ Rate law directions """
     backward = -1
+    Backward = -1
     reverse = -1
+    Reverse = -1
     forward = 1
+    Forward = 1
 
 
 class ReferenceType(Enum):
     """ Reference types """
     article = 1
+    Article = 1
     book = 2
+    Book = 2
     online = 3
+    Online = 3
     proceedings = 4
+    Proceeedings = 4
     thesis = 5
+    Thesis = 5
 
     inbook = 6
+    InBook = 6
     incollection = 7
+    InCollection = 7
     inproceedings = 8
+    InProceedings = 8
 
     misc = 9
+    Misc = 9
 
 
 class OneToOneSpeciesAttribute(OneToOneAttribute):
@@ -349,7 +367,6 @@ class Model(BaseModel):
         version (:obj:`str`): version number
         wc_lang_version (:obj:`str`): wc_lang version number
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
 
         cross_references (:obj:`set` of `CrossReference`): cross references
         taxon (:obj:`Taxon`): taxon
@@ -357,6 +374,7 @@ class Model(BaseModel):
         compartments (:obj:`set` of `Compartment`): compartments
         species_types (:obj:`set` of `SpeciesType`): species types
         parameters (:obj:`set` of `Parameter`): parameters
+        references (:obj:`set` of `Reference`): references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -364,10 +382,9 @@ class Model(BaseModel):
     wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
                                      verbose_name='wc_lang version')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='models')
 
     class Meta(BaseModel.Meta):
-        attribute_order = ('id', 'name', 'version', 'wc_lang_version', 'comments', 'references')
+        attribute_order = ('id', 'name', 'version', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
 
     def get_compartments(self):
@@ -1161,6 +1178,7 @@ class Reference(BaseModel):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         title (:obj:`str`): title
         author (:obj:`str`): author(s)
         editor (:obj:`str`): editor(s)
@@ -1177,8 +1195,7 @@ class Reference(BaseModel):
         pages (:obj:`str`): page range
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        models (:obj:`set` of `Model`): models
+        cross_references (:obj:`set` of `CrossReference`): cross references        
         taxa (:obj:`set` of `Taxon`): taxa
         submodels (:obj:`set` of `Submodel`): submodels
         compartments (:obj:`set` of `Compartment`): compartments
@@ -1190,6 +1207,7 @@ class Reference(BaseModel):
     """
     id = SlugAttribute()
     name = StringAttribute()
+    model = ManyToOneAttribute('Model', related_name='references')
     title = StringAttribute()
     author = StringAttribute()
     editor = StringAttribute()
@@ -1207,7 +1225,7 @@ class Reference(BaseModel):
     comments = LongStringAttribute()
 
     class Meta(BaseModel.Meta):
-        attribute_order = ('id', 'name',
+        attribute_order = ('id', 'name', 'model',
                            'title', 'author', 'editor', 'year', 'type', 'publication', 'publisher',
                            'series', 'volume', 'number', 'issue', 'edition', 'chapter', 'pages',
                            'comments')
