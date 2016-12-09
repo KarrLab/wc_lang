@@ -895,7 +895,7 @@ class ReactionParticipant(BaseModel):
         else:
             pattern = '^(\((\d*\.?\d+|\d+\.)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
 
-        match = re.match(pattern, value)
+        match = re.match(pattern, value, flags=re.I)
         if match:
             errors = []
 
@@ -1005,7 +1005,8 @@ class RateLawEquation(BaseModel):
         modifiers = set()
         errors = []
         pattern = '({}\[{}\])'.format(SpeciesType.id.pattern[1:-1], Compartment.id.pattern[1:-1])
-        for species_id in re.findall(pattern, value):
+
+        for species_id in re.findall(pattern, value, flags=re.I):
             species, error = Species.deserialize(attribute, species_id, objects)
             if error:
                 errors += error.messages
@@ -1035,7 +1036,7 @@ class RateLawEquation(BaseModel):
 
         """ check that all named entities are defined """
         modifier_ids = set((x.serialize() for x in self.modifiers))
-        species_ids = set(re.findall(pattern, self.expression))
+        species_ids = set(re.findall(pattern, self.expression, flags=re.I))
 
         if modifier_ids != species_ids:
             errors = []
@@ -1065,7 +1066,7 @@ class RateLawEquation(BaseModel):
                 local_ns['k_m'] = 1.
 
         local_ns['species'] = {}
-        for species_id in re.findall(pattern, self.expression):
+        for species_id in re.findall(pattern, self.expression, flags=re.I):
             local_ns['species'][species_id] = 1.
 
         # try evaluating law
