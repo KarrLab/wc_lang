@@ -216,6 +216,7 @@ class TestCore(unittest.TestCase):
 
     def test_taxon_rank_class(self):
         self.assertEqual(TaxonRank['class'], TaxonRank['classis'])
+        self.assertEqual(TaxonRank.__getattr__('class'), TaxonRank['classis'])
 
     def test_model_get_species(self):
         self.assertEqual(self.model.get_species(), set(self.species))

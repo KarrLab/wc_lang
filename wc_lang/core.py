@@ -16,11 +16,25 @@ from wc_utils.schema.core import (Model as BaseModel,
                                   OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
                                   InvalidModel, InvalidObject, InvalidAttribute,
                                   TabularOrientation)
+from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 import re
 import sys
 
 
-class TaxonRankMeta(EnumMeta):
+class TaxonRankMeta(CaseInsensitiveEnumMeta):
+
+    def __getattr__(cls, name):
+        """ Get value by name
+
+        Args:
+            name (:obj:`str`): attribute name
+
+        Returns:
+            :obj:`TaxonRank`: taxonomic rank
+        """
+        if name.lower() == 'class':
+            name = 'classis'
+        return super(TaxonRankMeta, cls).__getattr__(name)
 
     def __getitem__(cls, name):
         """ Get value by name
@@ -31,7 +45,7 @@ class TaxonRankMeta(EnumMeta):
         Returns:
             :obj:`TaxonRank`: taxonomic rank
         """
-        if name == 'class':
+        if name.lower() == 'class':
             name = 'classis'
         return super(TaxonRankMeta, cls).__getitem__(name)
 
@@ -67,58 +81,42 @@ class TaxonRank(with_metaclass(TaxonRankMeta, Enum)):
     strain = 10
 
 
-class SubmodelAlgorithm(Enum):
+class SubmodelAlgorithm(CaseInsensitiveEnum):
     """ Submodel algorithms """
     dfba = 1
-    dFBA = 1
     ode = 2
-    ODE = 2
     ssa = 3
-    SSA = 3
 
 
-class SpeciesTypeType(Enum):
+class SpeciesTypeType(CaseInsensitiveEnum):
     """ Types of species types """
     metabolite = 1
-    Metabolite = 1
     protein = 2
-    Protein = 2
     rna = 3
-    RNA = 3
+    pseudo_species = 4
+    pseudo = 4
 
 
-class RateLawDirection(Enum):
+class RateLawDirection(CaseInsensitiveEnum):
     """ Rate law directions """
     backward = -1
-    Backward = -1
     reverse = -1
-    Reverse = -1
     forward = 1
-    Forward = 1
 
 
-class ReferenceType(Enum):
+class ReferenceType(CaseInsensitiveEnum):
     """ Reference types """
     article = 1
-    Article = 1
     book = 2
-    Book = 2
     online = 3
-    Online = 3
     proceedings = 4
-    Proceeedings = 4
     thesis = 5
-    Thesis = 5
 
     inbook = 6
-    InBook = 6
     incollection = 7
-    InCollection = 7
     inproceedings = 8
-    InProceedings = 8
 
     misc = 9
-    Misc = 9
 
 
 class OneToOneSpeciesAttribute(OneToOneAttribute):
