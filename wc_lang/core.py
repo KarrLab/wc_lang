@@ -8,7 +8,7 @@
 
 from enum import Enum, EnumMeta
 from itertools import chain
-from math import isnan
+from math import ceil, floor, exp, log, log10, isnan
 from six import with_metaclass
 from wc_utils.schema.core import (Model as BaseModel,
                                   BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
@@ -980,7 +980,7 @@ class RateLawEquation(BaseModel):
         """
         attribute_order = ('expression', 'modifiers')
         tabular_orientation = TabularOrientation.inline
-        valid_functions = ('ceil', 'exp', 'floor', 'log', 'log10', 'min', 'max', 'pow')
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def serialize(self):
         """ Generate string representation
@@ -1004,10 +1004,11 @@ class RateLawEquation(BaseModel):
         """
         modifiers = set()
         errors = []
-        pattern = '({}\[{}\])'.format(SpeciesType.id.pattern[1:-1], Compartment.id.pattern[1:-1])
+        pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+                                                                  Compartment.id.pattern[1:-1])
 
-        for species_id in re.findall(pattern, value, flags=re.I):
-            species, error = Species.deserialize(attribute, species_id, objects)
+        for match in re.findall(pattern, value, flags=re.I):
+            species, error = Species.deserialize(attribute, match[1], objects)
             if error:
                 errors += error.messages
             else:
@@ -1032,11 +1033,12 @@ class RateLawEquation(BaseModel):
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
 
-        pattern = '({}\[{}\])'.format(SpeciesType.id.pattern[1:-1], Compartment.id.pattern[1:-1])
+        pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+                                                                  Compartment.id.pattern[1:-1])
 
         """ check that all named entities are defined """
         modifier_ids = set((x.serialize() for x in self.modifiers))
-        species_ids = set(re.findall(pattern, self.expression, flags=re.I))
+        species_ids = set([x[1] for x in re.findall(pattern, self.expression, flags=re.I)])
 
         if modifier_ids != species_ids:
             errors = []
@@ -1052,11 +1054,8 @@ class RateLawEquation(BaseModel):
             return InvalidObject(self, [attr_err])
 
         """ Check that rate law evaluates """
-        # format law for python evaluation
-        law = re.sub(pattern, r'species["\1"]', self.expression, re.I)
-
-        # setup name space
-        local_ns = dict([(k, locals().get(k, None)) for k in self.__class__.Meta.valid_functions])
+        # setup name space and format expression for python evaluation
+        local_ns = {f.__name__: f for f in self.__class__.Meta.valid_functions}
 
         if self.rate_law:
             if not isnan(self.rate_law.k_cat):
@@ -1065,15 +1064,17 @@ class RateLawEquation(BaseModel):
             if not isnan(self.rate_law.k_m):
                 local_ns['k_m'] = 1.
 
-        local_ns['species'] = {}
-        for species_id in re.findall(pattern, self.expression, flags=re.I):
-            local_ns['species'][species_id] = 1.
+        local_ns['s'] = []
+        py_expression = self.expression
+        for i_species, species_id in enumerate(set([x[1] for x in re.findall(pattern, self.expression, flags=re.I)])):
+            local_ns['s'].append(1.)
+            py_expression = py_expression.replace(species_id, 's[{}]'.format(i_species))
 
         # try evaluating law
         try:
-            eval(law, {'__builtins__': None}, local_ns)
-        except:
-            msg = 'Invalid function: {}'.format(self.expression)
+            eval(py_expression, {'__builtins__': None}, local_ns)
+        except Exception as error:
+            msg = 'Invalid function: {}\n  {}'.format(self.expression, str(error).replace('\n', '\n  '))
             attr = self.__class__.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [msg])
             return InvalidObject(self, [attr_err])
