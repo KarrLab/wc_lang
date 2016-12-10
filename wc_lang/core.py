@@ -218,7 +218,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         errors = []
 
         id = '[a-z][a-z0-9_]*'
-        stoch = '\((\d*\.?\d+|\d+\.)\)'
+        stoch = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
         gbl_part = '({} )*({})'.format(stoch, id)
         lcl_part = '({} )*({}\[{}\])'.format(stoch, id, id)
         gbl_side = '{}( \+ {})*'.format(gbl_part, gbl_part)
@@ -236,32 +236,32 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                 global_comp = None
                 errors.append('Undefined compartment "{}"'.format(global_match.group(1)))
             lhs = global_match.group(2)
-            rhs = global_match.group(10)
+            rhs = global_match.group(14)
 
         elif local_match:
             global_comp = None
             lhs = local_match.group(1)
-            rhs = local_match.group(9)
+            rhs = local_match.group(13)
 
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
 
         parts = set()
 
-        for part in re.findall('(\((\d*\.?\d+|\d+\.)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', lhs, flags=re.I):
+        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', lhs, flags=re.I):
             part_errors = []
 
-            if part[2] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[2]]
+            if part[4] in objects[SpeciesType]:
+                species_type = objects[SpeciesType][part[4]]
             else:
-                part_errors.append('Undefined species type "{}"'.format(part[2]))
+                part_errors.append('Undefined species type "{}"'.format(part[4]))
 
             if global_comp:
                 compartment = global_comp
-            elif part[4] in objects[Compartment]:
-                compartment = objects[Compartment][part[4]]
+            elif part[6] in objects[Compartment]:
+                compartment = objects[Compartment][part[6]]
             else:
-                part_errors.append('Undefined compartment "{}"'.format(part[4]))
+                part_errors.append('Undefined compartment "{}"'.format(part[6]))
 
             coefficient = float(part[1] or 1.)
 
@@ -280,20 +280,20 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                 objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
                 parts.add(rxn_part)
 
-        for part in re.findall('(\((\d*\.?\d+|\d+\.)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', rhs, flags=re.I):
+        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', rhs, flags=re.I):
             part_errors = []
 
-            if part[2] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[2]]
+            if part[4] in objects[SpeciesType]:
+                species_type = objects[SpeciesType][part[4]]
             else:
-                part_errors.append('Undefined species type "{}"'.format(part[2]))
+                part_errors.append('Undefined species type "{}"'.format(part[4]))
 
             if global_comp:
                 compartment = global_comp
-            elif part[4] in objects[Compartment]:
-                compartment = objects[Compartment][part[4]]
+            elif part[6] in objects[Compartment]:
+                compartment = objects[Compartment][part[6]]
             else:
-                part_errors.append('Undefined compartment "{}"'.format(part[4]))
+                part_errors.append('Undefined compartment "{}"'.format(part[6]))
 
             coefficient = float(part[1] or 1.)
 
@@ -647,7 +647,7 @@ class SpeciesType(BaseModel):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute('Model', related_name='species_types')
-    structure = StringAttribute()
+    structure = LongStringAttribute()
     empirical_formula = RegexAttribute(pattern='^([A-Z][a-z]?\d*)*$')
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
@@ -891,9 +891,9 @@ class ReactionParticipant(BaseModel):
         errors = []
 
         if compartment:
-            pattern = '^(\((\d*\.?\d+|\d+\.)\) )*([a-z][a-z0-9_]*)$'
+            pattern = '^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)$'
         else:
-            pattern = '^(\((\d*\.?\d+|\d+\.)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
+            pattern = '^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
 
         match = re.match(pattern, value, flags=re.I)
         if match:
@@ -902,9 +902,9 @@ class ReactionParticipant(BaseModel):
             coefficient = float(match.group(2) or 1.)
 
             if compartment:
-                species_id = '{}[{}]'.format(match.group(3), compartment.get_primary_attribute())
+                species_id = '{}[{}]'.format(match.group(5), compartment.get_primary_attribute())
             else:
-                species_id = match.group(3)
+                species_id = match.group(5)
 
             species, error = Species.deserialize(attribute, species_id, objects)
             if error:
@@ -1073,7 +1073,7 @@ class RateLawEquation(BaseModel):
         try:
             eval(law, {'__builtins__': None}, local_ns)
         except:
-            msg = 'Invalid function: {}'.format(law)
+            msg = 'Invalid function: {}'.format(self.expression)
             attr = self.__class__.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [msg])
             return InvalidObject(self, [attr_err])
