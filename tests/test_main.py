@@ -88,6 +88,27 @@ class TestCli(unittest.TestCase):
 
         self.assertTrue(path.isfile(destination))
 
+    def test_normalize(self):
+        filename_xls_1 = path.join(self.tempdir, 'model-1.xlsx')
+        filename_xls_2 = path.join(self.tempdir, 'model-2.xlsx')
+
+        model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        Writer().run(filename_xls_1, model)
+
+        # with same destination
+        with WcLangCli(argv=['normalize', filename_xls_1]) as app:
+            app.run()
+
+        model2 = Reader().run(filename_xls_1)
+        self.assertEqual(model2, model)
+
+        # with different destination
+        with WcLangCli(argv=['normalize', filename_xls_1, '--destination', filename_xls_2]) as app:
+            app.run()
+
+        model2 = Reader().run(filename_xls_2)
+        self.assertEqual(model2, model)
+
     def test_convert(self):
         filename_xls = path.join(self.tempdir, 'model.xlsx')
         filename_csv = path.join(self.tempdir, 'model-*.csv')

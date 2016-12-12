@@ -127,6 +127,29 @@ class TransformController(CementBaseController):
         Writer().run(args.destination, model)
 
 
+class NormalizeController(CementBaseController):
+    """ Normalize model definition """
+
+    class Meta:
+        label = 'normalize'
+        description = 'Normalize model definition'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['source'], dict(type=str, help='Path to model definition')),
+            (['--destination'], dict(default='', type=str, help='Path to save normalized model definition')),
+        ]
+
+    @expose(hide=True)
+    def default(self):
+        args = self.app.pargs
+        model = Reader().run(args.source)
+        if args.destination:
+            Writer().run(args.destination, model)
+        else:
+            Writer().run(args.source, model)
+
+
 class ConvertController(CementBaseController):
     """ Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv) """
 
@@ -194,6 +217,7 @@ class App(CementApp):
             ValidateController,
             DifferenceController,
             TransformController,
+            NormalizeController,
             ConvertController,
             CreateTemplateController,
             UpdateWcLangVersionController,
