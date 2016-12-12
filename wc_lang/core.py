@@ -9,6 +9,7 @@
 from enum import Enum, EnumMeta
 from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
+from natsort import natsorted, ns
 from six import with_metaclass
 from wc_utils.schema.core import (Model as BaseModel,
                                   BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
@@ -45,40 +46,37 @@ class TaxonRankMeta(CaseInsensitiveEnumMeta):
         Returns:
             :obj:`TaxonRank`: taxonomic rank
         """
-        if name.lower() == 'class':
+        lower_name = name.lower()
+
+        if lower_name in ['varietas', 'strain']:
+            name = 'variety'
+        elif lower_name == 'tribus':
+            name = 'tribe'
+        elif lower_name == 'familia':
+            name = 'family'
+        elif lower_name == 'ordo':
+            name = 'order'
+        elif lower_name == 'class':
             name = 'classis'
+        elif lower_name in ['division', 'divisio']:
+            name = 'phylum'
+        elif lower_name == 'regnum':
+            name = 'kingdom'
         return super(TaxonRankMeta, cls).__getitem__(name)
 
 
 class TaxonRank(with_metaclass(TaxonRankMeta, Enum)):
     """ Taxonomic ranks """
     domain = 1
-
     kingdom = 2
-    regnum = 2
-
     phylum = 3
-    division = 3
-    divisio = 3
-
-    # class = 4
     classis = 4
-
     order = 5
-    ordo = 5
-
     family = 6
-    familia = 6
-
     tribe = 7
-    tribus = 7
-
     genus = 8
     species = 9
-
     variety = 10
-    varietas = 10
-    strain = 10
 
 
 class SubmodelAlgorithm(CaseInsensitiveEnum):
@@ -94,13 +92,11 @@ class SpeciesTypeType(CaseInsensitiveEnum):
     protein = 2
     rna = 3
     pseudo_species = 4
-    pseudo = 4
 
 
 class RateLawDirection(CaseInsensitiveEnum):
     """ Rate law directions """
     backward = -1
-    reverse = -1
     forward = 1
 
 
@@ -191,12 +187,18 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         else:
             global_comp = None
 
+        if global_comp:
+            participants = natsorted(participants, lambda part: part.species.species_type.id, alg=ns.IGNORECASE)
+        else:
+            participants = natsorted(participants, lambda part: (
+                part.species.species_type.id, part.species.compartment.id), alg=ns.IGNORECASE)
+
         lhs = []
         rhs = []
         for part in participants:
             if part.coefficient < 0:
                 lhs.append(part.serialize(global_comp))
-            else:
+            elif part.coefficient > 0:
                 rhs.append(part.serialize(global_comp))
 
         if global_comp:
@@ -274,11 +276,12 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                 if error:
                     raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
 
-                rxn_part = ReactionParticipant(species=species, coefficient=-1 * coefficient)
-                if ReactionParticipant not in objects:
-                    objects[ReactionParticipant] = {}
-                objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                parts.add(rxn_part)
+                if coefficient != 0:
+                    rxn_part = ReactionParticipant(species=species, coefficient=-1 * coefficient)
+                    if ReactionParticipant not in objects:
+                        objects[ReactionParticipant] = {}
+                    objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
+                    parts.add(rxn_part)
 
         for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', rhs, flags=re.I):
             part_errors = []
@@ -306,11 +309,12 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                 if error:
                     raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
 
-                rxn_part = ReactionParticipant(species=species, coefficient=coefficient)
-                if ReactionParticipant not in objects:
-                    objects[ReactionParticipant] = {}
-                objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                parts.add(rxn_part)
+                if coefficient != 0:
+                    rxn_part = ReactionParticipant(species=species, coefficient=coefficient)
+                    if ReactionParticipant not in objects:
+                        objects[ReactionParticipant] = {}
+                    objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
+                    parts.add(rxn_part)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
@@ -690,6 +694,7 @@ class Species(BaseModel):
         attribute_order = ('species_type', 'compartment')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
+        ordering = ('species_type', 'compartment')
 
     def serialize(self):
         """ Get value of primary attribute
@@ -760,7 +765,8 @@ class Concentration(BaseModel):
         attribute_order = ('species',
                            'value',
                            'comments', 'references')
-        frozen_columns = 2
+        frozen_columns = 1
+        ordering = ('species',)
 
     def serialize(self):
         """ Generate string representation
@@ -786,7 +792,6 @@ class Reaction(BaseModel):
         cross_references (:obj:`set` of `CrossReference`): cross references
         rate_laws (:obj:`set` of `RateLaw`): rate laws
     """
-
     id = SlugAttribute()
     name = StringAttribute()
     submodel = ManyToOneAttribute('Submodel', related_name='reactions')
@@ -834,6 +839,7 @@ class ReactionParticipant(BaseModel):
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
+        ordering = ('species',)
 
     def serialize(self, compartment=None):
         """ Serialize related object
@@ -862,12 +868,10 @@ class ReactionParticipant(BaseModel):
 
         if abs(coefficient) == 1:
             coefficient_str = ''
-        elif coefficient % 1 == 0:
+        elif coefficient % 1 == 0 and abs(coefficient) < 1000:
             coefficient_str = '({:.0f}) '.format(abs(coefficient))
-        elif abs(coefficient) > 1e6 or abs(coefficient) < 1e-6:
-            coefficient_str = '({:e}) '.format(abs(coefficient))
         else:
-            coefficient_str = '({}) '.format(abs(coefficient))
+            coefficient_str = '({:e}) '.format(abs(coefficient))
 
         if compartment:
             return '{}{}'.format(coefficient_str, species.species_type.get_primary_attribute())
@@ -951,6 +955,7 @@ class RateLaw(BaseModel):
                            'equation', 'k_cat', 'k_m',
                            'comments', 'references')
         unique_together = (('reaction', 'direction'), )
+        ordering = ('reaction', 'direction',)
 
     def serialize(self):
         """ Generate string representation
@@ -981,6 +986,7 @@ class RateLawEquation(BaseModel):
         attribute_order = ('expression', 'modifiers')
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        ordering = ('rate_law',)
 
     def serialize(self):
         """ Generate string representation
@@ -1261,6 +1267,7 @@ class CrossReference(BaseModel):
         attribute_order = ('database', 'id', 'url',
                            'model', 'taxon', 'submodel', 'compartment', 'species_type', 'reaction', 'reference')
         frozen_columns = 2
+        ordering = ('database', 'id', )
 
     def serialize(self):
         """ Generate string representation

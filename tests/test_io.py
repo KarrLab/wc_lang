@@ -10,6 +10,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesTy
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
+from wc_utils.workbook.io import read as read_workbook
 import os
 import shutil
 import tempfile
@@ -163,6 +164,19 @@ class TestExampleModel(unittest.TestCase):
         if os.path.isfile(self.filename):
             os.remove(self.filename)
 
-    unittest.skip('Implement me')
     def test_read_write(self):
-        pass
+        fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
+
+        model = Reader().run(fixture_filename)
+        self.assertEqual(model.validate(), None)
+
+        # compare excel files
+        Writer().run(self.filename, model)
+        original = read_workbook(fixture_filename)
+        copy = read_workbook(self.filename)
+        self.assertEqual(copy, original)
+
+        # compare models
+        model2 = Reader().run(self.filename)
+        self.assertEqual(model2, model)
+        self.assertTrue(model.difference(model2) == '')
