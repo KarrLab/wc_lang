@@ -1,3 +1,5 @@
-numpy
-openpyxl
+cement
+enum34
+natsort
+six
 git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils

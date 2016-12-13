@@ -1,318 +1,92 @@
-""" Classes for reading and writing models to/from files.
+""" Reading and writing models to/from files.
+
+* Comma separated values (.csv)
+* Excel (.xlsx)
+* Tab separated values (.tsv)
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2017-07-25
+:Date: 2016-12-05
 :Copyright: 2016, Karr Lab
 :License: MIT
 """
 
-from wc_lang import core
-import numpy as np
-import openpyxl
-import re
-import warnings
+from wc_lang.core import (Model, Taxon, Submodel, Compartment, SpeciesType,
+                          Concentration, Reaction, RateLaw, Parameter, Reference,
+                          CrossReference)
+from wc_lang.util import get_models
+from wc_utils.schema import io
 
 
-class Excel(object):
-    """ Reads and writes models from Excel workbooks. """
+class Writer(object):
+    """ Write model to file(s) """
 
-    @staticmethod
-    def read(file_name):
-        """ Read model from Excel workbook.
+    model_order = [
+        Model, Taxon,
+        Submodel, Compartment, SpeciesType, Concentration,
+        Reaction, RateLaw, Parameter,
+        Reference, CrossReference,
+    ]
+
+    def run(self, path, model=None):
+        """ Write model to file(s)
 
         Args:
-            file_name (:obj:`str`): path to Excel workbook
+            path (:obj:`str`): path to file(s)
+            model (:obj:`Model`): model
+        """
+
+        kwargs = {
+            'language': 'wc_lang',
+            'creator': '{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
+        }
+        if model:
+            objects = set((model,))
+            kwargs['title'] = model.id
+            kwargs['description'] = model.name
+            kwargs['version'] = model.version
+        else:
+            objects = set()
+
+        io.Writer().run(path, objects, self.model_order, **kwargs)
+
+
+class Reader(object):
+    """ Read model from file(s) """
+
+    def run(self, path):
+        """ Read model from file(s)
+
+        Args:
+            path (:obj:`str`): path to file(s)
 
         Returns:
-            :obj:`wc_lang.core.Model`: model
+            :obj:`Model`: model
         """
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Discarded range with reserved name", UserWarning)
-            wb = openpyxl.load_workbook(filename=file_name)
+        objects = io.Reader().run(path, get_models(inline=False))
 
-        # initialize model object
-        model = core.Model()
+        if not objects[Model]:
+            return None
 
-        '''Read details from Excel'''
-        # submodels
-        ws = wb['Submodels']
-        for iRow in range(2, ws.max_row + 1):
-            id = ws.cell(row=iRow, column=1).value
-            name = ws.cell(row=iRow, column=2).value
-            algorithm = ws.cell(row=iRow, column=3).value
-            submodel = core.Submodel(id=id, name=name, algorithm=algorithm)
-            model.submodels.append(submodel)
+        if len(objects[Model]) > 1:
+            raise ValueError('Model file "{}" should only define one model'.format(path))
 
-        # compartments
-        ws = wb['Compartments']
-        for iRow in range(2, ws.max_row + 1):
-            model.compartments.append(core.Compartment(
-                id=ws.cell(row=iRow, column=1).value,
-                name=ws.cell(row=iRow, column=2).value,
-                initial_volume=float(ws.cell(row=iRow, column=3).value),
-                comments=ws.cell(row=iRow, column=4).value,
-            ))
-
-        # species
-        ws = wb['Species']
-        for iRow in range(2, ws.max_row + 1):
-            mw_str = ws.cell(row=iRow, column=5).value
-            if mw_str:
-                mw = float(mw_str)
-            else:
-                mw = None
-
-            charge_str = ws.cell(row=iRow, column=6).value
-            if charge_str:
-                charge = float(charge_str)
-            else:
-                charge = None
-
-            model.species.append(core.Species(
-                id=ws.cell(row=iRow, column=1).value,
-                name=ws.cell(row=iRow, column=2).value,
-                structure=ws.cell(row=iRow, column=3).value,
-                empirical_formula=ws.cell(row=iRow, column=4).value,
-                molecular_weight=mw or np.NaN,
-                charge=charge,
-                type=ws.cell(row=iRow, column=7).value,
-                concentrations=[
-                    core.Concentration(compartment='c', value=float(ws.cell(row=iRow, column=8).value or 0)),
-                    core.Concentration(compartment='e', value=float(ws.cell(row=iRow, column=9).value or 0)),
-                ],
-                cross_refs=[
-                    core.CrossReference(
-                        source=ws.cell(row=iRow, column=10).value,
-                        id=ws.cell(row=iRow, column=11).value,
-                    ),
-                ],
-                comments=ws.cell(row=iRow, column=12).value,
-            ))
-
-        # reactions
-        ws = wb['Reactions']
-
-        for iRow in range(2, ws.max_row + 1):
-            entry = ws.cell(row=iRow, column=4).value
-            if entry is None or 0==len(entry):
-                raise Exception('Bad stoichiometry entry in row {}'.format(iRow))
-            stoichiometry = parse_stoichiometry(entry)
-
-            rate_law_str = ws.cell(row=iRow, column=6).value
-            if rate_law_str:
-                rate_law = core.RateLaw(rate_law_str)
-            else:
-                rate_law = None
-
-            model.reactions.append(core.Reaction(
-                id=ws.cell(row=iRow, column=1).value,
-                name=ws.cell(row=iRow, column=2).value,
-                submodel=ws.cell(row=iRow, column=3).value,
-                reversible=stoichiometry['reversible'],
-                participants=stoichiometry['participants'],
-                enzyme=ws.cell(row=iRow, column=5).value,
-                rate_law=rate_law,
-                vmax=ws.cell(row=iRow, column=7).value,
-                km=ws.cell(row=iRow, column=8).value,
-                cross_refs=[
-                    core.CrossReference(
-                        source=ws.cell(row=iRow, column=9).value,
-                        id=ws.cell(row=iRow, column=10).value,
-                    ),
-                ],
-                comments=ws.cell(row=iRow, column=11).value,
-            ))
-
-        # parameters
-        ws = wb['Parameters']
-        for iRow in range(2, ws.max_row + 1):
-            model.parameters.append(core.Parameter(
-                id=ws.cell(row=iRow, column=1).value,
-                name=ws.cell(row=iRow, column=2).value,
-                submodel=ws.cell(row=iRow, column=3).value,
-                value=float(ws.cell(row=iRow, column=4).value),
-                units=ws.cell(row=iRow, column=5).value,
-                comments=ws.cell(row=iRow, column=6).value,
-            ))
-
-        # references
-        ws = wb['References']
-        for iRow in range(2, ws.max_row + 1):
-            model.references.append(core.Reference(
-                id=ws.cell(row=iRow, column=1).value,
-                name=ws.cell(row=iRow, column=2).value,
-                cross_refs=[
-                    core.CrossReference(
-                        source=ws.cell(row=iRow, column=3).value,
-                        id=ws.cell(row=iRow, column=4).value,
-                    ),
-                ],
-                comments=ws.cell(row=iRow, column=5).value,
-            ))
-
-        '''deserialize references'''
-        undefined_components = []
-
-        # species concentration
-        for species in model.species:
-            for conc in species.concentrations:
-                id = conc.compartment
-                obj = model.get_component_by_id(id, 'compartments')
-                if id and obj is None:
-                    undefined_components.append( ('species.concentration.compartment',
-                        species.id, conc.compartment) )
-                conc.compartment = obj
-
-        # reaction submodel, participant species, participant compartments, enzymes
-        for reaction in model.reactions:
-            id = reaction.submodel
-            obj = model.get_component_by_id(id, 'submodels')
-            if id and obj is None:
-                undefined_components.append( ('reaction.submodel',
-                    reaction.id, reaction.submodel) )
-            reaction.submodel = obj
-
-            for part in reaction.participants:
-                id = part.species
-                obj = model.get_component_by_id(id, 'species')
-                if id and obj is None:
-                    undefined_components.append( ('reaction.participant.specie',
-                        reaction.id, part.species) )
-                part.species = obj
-
-                id = part.compartment
-                if id is None:
-                    # todo: fix; not right because the missing compartment is not available in part
-                    undefined_components.append( ('reaction.participant.compartment',
-                        reaction.id, part.species.id) )
-
-                obj = model.get_component_by_id(id, 'compartments')
-                if id and obj is None:
-                    undefined_components.append( ('reaction.participant.compartment',
-                        reaction.id, part.compartment) )
-                part.compartment = obj
-
-            id = reaction.enzyme
-            obj = model.get_component_by_id(id, 'species')
-            if id and obj is None:
-                undefined_components.append( ('reaction', reaction.enzyme, id) )
-            reaction.enzyme = obj
-
-        # parameter submodels
-        for param in model.parameters:
-            id = param.submodel
-            if id:
-                obj = model.get_component_by_id(id, 'submodels')
-                if obj is None:
-                    undefined_components.append( ('parameter', param.id, id) )
-                param.submodel = obj
-
-        if len(undefined_components) > 0:
-            message = 'Missing model references:\n'
-            for (source, id, ref) in undefined_components:
-                message += " - {} {} references {}\n".format(source, id, ref)
-            raise Exception(message)
-
-        for reaction in model.reactions:
-            for part in reaction.participants:
-                part.calc_id_name()
-
-        ''' Assemble back references'''
-        for submodel in model.submodels:
-            submodel.reactions = []
-            submodel.species = []
-            submodel.parameters = []
-        for rxn in model.reactions:
-            rxn.submodel.reactions.append(rxn)
-            for part in rxn.participants:
-                rxn.submodel.species.append('{0}[{1}]'.format(part.species.id, part.compartment.id))
-            if rxn.enzyme:
-                rxn.submodel.species.append('{0}[{1}]'.format(rxn.enzyme.id, 'c'))
-            if rxn.rate_law:
-                rxn.submodel.species += rxn.rate_law.get_modifiers(model)
-
-        for param in model.parameters:
-            if param.submodel:
-                param.submodel.parameters.append(param)
-
-        for submodel in model.submodels:
-            species_str_list = list(set(submodel.species))
-            species_str_list.sort()
-            submodel.species = []
-            for index, speciesStr in enumerate(species_str_list):
-                species_id, comp_id = speciesStr.split('[')
-                comp_id = comp_id[0:-1]
-                species_comp = core.SpeciesCompartment(
-                    species=model.get_component_by_id(species_id, 'species'),
-                    compartment=model.get_component_by_id(comp_id, 'compartments'),
-                )
-                species_comp.calc_id_name()
-                submodel.species.append(species_comp)
-
-        '''Return'''
-        return model
+        return objects[Model].pop()
 
 
-def parse_stoichiometry(rxn_str):
-    """ Parse a string representing the stoichiometry of a reaction into a Python object.
+def convert(source, destination):
+    """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv)
 
     Args:
-        rxn_str (:obj:`str`): string representation of reaction
-
-    Returns:
-        :obj:`dict`: dict representation of reaction stoichiometry with two keys: participants and reversible
+        source (:obj:`str`): path to source file
+        destination (:obj:`str`): path to save converted file
     """
+    io.convert(source, destination, models=Writer.model_order)
 
-    # Split stoichiometry in to global compartment, left-hand side, right-hand side, reversibility indictor
-    rxn_match = re.match('(?P<compartment>\[([a-z])\]: )?(?P<lhs>((\(\d*\.?\d*([e][-+]?[0-9]+)?\) )?[a-z0-9\-_]+(\[[a-z]\])? \+ )*(\(\d*\.?\d*([e][-+]?[0-9]+)?\) )?[a-z0-9\-_]+(\[[a-z]\])?) (?P<direction>[<]?)==> (?P<rhs>((\(\d*\.?\d*([e][-+]?[0-9]+)?\) )?[a-z0-9\-_]+(\[[a-z]\])? \+ )*(\(\d*\.?\d*([e][-+]?[0-9]+)?\) )?[a-z0-9\-_]+(\[[a-z]\])?)', rxn_str, flags=re.I)
-    if rxn_match is None:
-        raise Exception('Invalid stoichiometry: {}'.format(rxn_str))
 
-    # Determine reversiblity
-    rxn_dict = rxn_match.groupdict()
-    reversible = rxn_dict['direction'] == '<'
+def create_template(path):
+    """ Create file with model template, including row and column headings
 
-    # Determine if global compartment for reaction was specified
-    if rxn_dict['compartment'] is None:
-        global_comp = None
-    else:
-        global_comp = re.match('\[(?P<compartment>[a-z])\]', rxn_dict['compartment'],
-                               flags=re.I).groupdict()['compartment']
-
-    # initialize array of reaction participants
-    participants = []
-
-    # Parse left-hand side
-    for rxn_part_str in rxn_dict['lhs'].split(' + '):
-        rxn_part_dict = re.match(
-            '(\((?P<coefficient>\d*\.?\d*([e][-+]?[0-9]+)?)\) )?(?P<species>[a-z0-9\-_]+)(\[(?P<compartment>[a-z])\])?', rxn_part_str, flags=re.I).groupdict()
-
-        species = rxn_part_dict['species']
-        compartment = rxn_part_dict['compartment'] or global_comp
-        coefficient = float(rxn_part_dict['coefficient'] or 1)
-
-        participants.append(core.ReactionParticipant(
-            species=species,
-            compartment=compartment,
-            coefficient=-coefficient,
-        ))
-
-    # Parse right-hand side
-    for rxn_part_str in rxn_dict['rhs'].split(' + '):
-        rxn_part_dict = re.match(
-            '(\((?P<coefficient>\d*\.?\d*([e][-+]?[0-9]+)?)\) )?(?P<species>[a-z0-9\-_]+)(\[(?P<compartment>[a-z])\])?', rxn_part_str, flags=re.I).groupdict()
-
-        species = rxn_part_dict['species']
-        compartment = rxn_part_dict['compartment'] or global_comp
-        coefficient = float(rxn_part_dict['coefficient'] or 1)
-
-        participants.append(core.ReactionParticipant(
-            species=species,
-            compartment=compartment,
-            coefficient=coefficient,
-        ))
-
-    return {
-        'reversible': reversible,
-        'participants': participants,
-    }
+    Args:
+        path (:obj:`str`): path to file(s)
+    """
+    Writer().run(path)

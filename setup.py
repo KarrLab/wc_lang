@@ -40,4 +40,9 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
+    entry_points={
+        'console_scripts': [
+            'wc_lang = wc_lang.__main__:main',
+        ],
+    },
 )

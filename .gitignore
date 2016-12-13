@@ -2,6 +2,7 @@
 *.pyc
 __pycache__/
 *.egg-info/
+.cache/
 
 # coverage files
 .coverage*
@@ -12,3 +13,9 @@ docs/_build/
 
 # files for PyPI
 README.rst
+
+#temp Excel files
+.~lock.*.xlsx#
+.~lock.*.xls#
+~$*.xlsx
+~$*.xls

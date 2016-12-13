@@ -1,70 +1,176 @@
 """ Transform models.
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2017-07-25
+:Date: 2016-11-10
 :Copyright: 2016, Karr Lab
 :License: MIT
 """
 
-from wc_lang.core import Submodel
-import copy
+from abc import ABCMeta, abstractmethod
+from operator import attrgetter
+from six import with_metaclass
+from wc_lang.core import Model, Submodel, RateLawDirection
 import itertools
-import operator
+import sys
 
 
-class MergeAlgorithmicallyLikeSubmodels(object):
-    """ Constructs models in which algorithmically-like submodels have been merged. """
+def get_transforms():
+    """ Get dictionary of available transform classes
 
-    @staticmethod
-    def transform(model):
-        """ Construct a model in which algorithmically-like submodels have been merged.
-        
+    Returns:
+        :obj:`dict` of `str`: `class`: dictionary of available transform classes
+    """
+    module = sys.modules[__name__]
+    transforms = {}
+    for attr_name in dir(module):
+        attr = getattr(module, attr_name)
+        if isinstance(attr, type) and issubclass(attr, Transform) and attr is not Transform:
+            transforms[attr.Meta.id] = attr
+
+    return transforms
+
+
+class Transform(with_metaclass(ABCMeta, object)):
+
+    @abstractmethod
+    def run(self, model):
+        """ Transform a model
+
         Args:
-            model (:obj:`wc_lang.core.Model`): model definition
-        
+            model (:obj:`Model`): model
+
         Returns:
-            :obj:`wc_lang.core.Model`: model with submodels of the same simulation algorithm merged
+            :obj:`Model`: transformed model
+        """
+        pass
+
+
+class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
+    """ Merge groups of algorithmically-like submodels into individual submodels """
+
+    class Meta(object):
+        id = 'MergeAlgorithmicallyLikeSubmodels'
+        label = 'Merge groups of algorithmically-like submodels into individual submodels'
+
+    def run(self, model):
+        """ Merge groups of algorithmically-like submodels into individual submodels
+
+        Args:
+            model (:obj:`Model`): model definition
+
+        Returns:
+            :obj:`Model`: same model definition, but with submodels of the same simulation algorithm merged
         """
 
-        # copy model
-        merged_model = copy.deepcopy(model)
-
         # group submodels by algorithms
-        merged_submodels = []
-        for algorithm, group in itertools.groupby(merged_model.submodels, operator.attrgetter('algorithm')):
+        sorted_submodels = list(model.submodels)
+        sorted_submodels.sort(key=attrgetter('algorithm'))
+        grouped_submodels = itertools.groupby(sorted_submodels, attrgetter('algorithm'))
+
+        merged_submodels = set()
+        for algorithm, group in grouped_submodels:
             submodels = tuple(group)
 
             # calculate id, name
-            id = "-".join([submodel.id for submodel in submodels])
+            id = "_".join([submodel.id for submodel in submodels])
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(id, name, algorithm, species=[], reactions=[], parameters=[])
+            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=algorithm)
 
-            # merge species, reactions, parameters
-            for submodel in submodels:
-                for species in submodel.species:
-                    merged_submodel.species.append(species)
+            # removed submodel from model; merge reactions, parameters, cross references, references
+            for submodel in list(submodels):
+                model.submodels.remove(submodel)
 
-                for reaction in submodel.reactions:
-                    reaction.submodel = merged_model
-                    merged_submodel.reactions.append(reaction)
+                for rxn in list(submodel.reactions):
+                    rxn.submodel = merged_submodel
 
-                for parameter in submodel.parameters:
-                    parameter.submodel = merged_submodel
-                    merged_submodel.parameters.append(parameter)
+                for param in list(submodel.parameters):
+                    param.submodels.remove(submodel)
+                    param.submodels.add(merged_submodel)
 
-            # get unique set of species
-            unique_species = {}
-            for species in merged_submodel.species:
-                unique_species[species.id] = species
-            merged_submodel.species = unique_species.values()
+                for x_ref in list(submodel.cross_references):
+                    x_ref.submodel = merged_submodel
 
-            # append to list of merged submodels
-            merged_submodels.append(merged_submodel)
-
-        # replace submodels with merged versions
-        merged_model.submodels = merged_submodels
+                for ref in list(submodel.references):
+                    ref.submodels.remove(submodel)
+                    ref.submodels.add(merged_submodel)
 
         # return merged model
-        return merged_model
+        return model
+
+
+class SplitReversibleReactionsTransform(Transform):
+    """ Split reversible reactions into separate forward and backward reactions """
+
+    class Meta(object):
+        id = 'SplitReversibleReactions'
+        label = 'Split reversible reactions into separate forward and backward reactions'
+
+    def run(self, model):
+        """ Split reversible reactions into separate forward and backward reactions
+
+        Args:
+            model (:obj:`Model`): model definition
+
+        Returns:
+            :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
+        """
+
+        for submodel in model.submodels:
+            for rxn in list(submodel.reactions):
+                if rxn.reversible:
+                    # remove reversible reaction
+                    submodel.reactions.remove(rxn)
+
+                    # create separate forward and reverse reactions
+                    rxn_for = submodel.reactions.create(
+                        id='{}_forward'.format(rxn.id),
+                        name='{} (forward)'.format(rxn.name),
+                        reversible=False,
+                        comments=rxn.comments,
+                        references=set(rxn.references),
+                    )
+                    rxn_bck = submodel.reactions.create(
+                        id='{}_backward'.format(rxn.id),
+                        name='{} (backward)'.format(rxn.name),
+                        reversible=False,
+                        comments=rxn.comments,
+                        references=set(rxn.references),
+                    )
+
+                    rxn.references = ()
+
+                    # copy participants and negate for backward reaction
+                    for part in rxn.participants:
+                        rxn_for.participants.add(part)
+                        rxn_bck.participants.create(species=part.species, coefficient=-1 * part.coefficient)
+
+                    rxn.participants = ()
+
+                    # copy rate laws
+                    law_for = rxn.rate_laws.get(direction=RateLawDirection.forward)
+                    law_bck = rxn.rate_laws.get(direction=RateLawDirection.backward)
+
+                    if law_for:
+                        law_for.reaction = rxn_for
+                        law_for.direction = RateLawDirection.forward
+                    if law_bck:
+                        law_bck.reaction = rxn_bck
+                        law_bck.direction = RateLawDirection.forward
+
+                    # cross references
+                    for x_ref in list(rxn.cross_references):
+                        rxn_for.cross_references.create(
+                            database=x_ref.database,
+                            id=x_ref.id,
+                            url=x_ref.url)
+
+                        rxn_bck.cross_references.create(
+                            database=x_ref.database,
+                            id=x_ref.id,
+                            url=x_ref.url)
+
+                        rxn.cross_references.remove(x_ref)
+
+        return model
