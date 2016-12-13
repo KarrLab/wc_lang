@@ -411,6 +411,7 @@ class SpeciesCompartment(object):
         self.species = species
         self.compartment = compartment
 
+    #.. todo:: make hidden method and call from __init__ to avoid risk of uninitialized id or name
     def calc_id_name(self):
         """ Calculates id and name. """
         self.id = '{0}[{1}]'.format(self.species.id, self.compartment.id)
@@ -438,6 +439,7 @@ class ReactionParticipant(object):
         self.compartment = compartment
         self.coefficient = coefficient
 
+    #.. todo:: make hidden method and call from __init__ to avoid risk of unitialized id or name
     def calc_id_name(self):
         """ Calculates id and name. """
         self.id = '{0}[{1}]'.format(self.species.id, self.compartment.id)
