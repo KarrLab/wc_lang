@@ -1,5 +1,6 @@
 """ Reading and writing models to/from files.
 
+Supported file types:
 * Comma separated values (.csv)
 * Excel (.xlsx)
 * Tab separated values (.tsv)
