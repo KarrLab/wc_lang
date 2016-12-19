@@ -7,9 +7,8 @@
 """
 
 from abc import ABCMeta, abstractmethod
-from operator import attrgetter
 from six import with_metaclass
-from wc_lang.core import Model, Submodel, RateLawDirection
+from wc_lang.core import Model, Submodel, SubmodelAlgorithm, RateLawDirection
 import itertools
 import sys
 
@@ -63,9 +62,10 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
         """
 
         # group submodels by algorithms
+        key_func = lambda submodel: submodel.algorithm.value
         sorted_submodels = list(model.submodels)
-        sorted_submodels.sort(key=attrgetter('algorithm'))
-        grouped_submodels = itertools.groupby(sorted_submodels, attrgetter('algorithm'))
+        sorted_submodels.sort(key=key_func)
+        grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
         merged_submodels = set()
         for algorithm, group in grouped_submodels:
@@ -76,7 +76,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=algorithm)
+            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=SubmodelAlgorithm(algorithm))
 
             # removed submodel from model; merge reactions, parameters, cross references, references
             for submodel in list(submodels):
