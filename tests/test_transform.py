@@ -8,7 +8,7 @@
 
 from itertools import chain
 from wc_lang.core import (Model, Submodel, Reaction, SpeciesType, SpeciesTypeType,
-                          Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation)
+                          Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
 from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
 from wc_utils.schema.core import RelatedAttribute
 import unittest
@@ -39,9 +39,9 @@ class TestTransform(unittest.TestCase):
             spec = Species(species_type=spec_type, compartment=cmp)
             specs.append(spec)
 
-        submdl_0 = Submodel(id='submdl_0', algorithm='SSA')
-        submdl_1 = Submodel(id='submdl_1', algorithm='SSA')
-        submdl_2 = Submodel(id='submdl_2', algorithm='FBA')
+        submdl_0 = Submodel(id='submdl_0', algorithm=SubmodelAlgorithm.SSA)
+        submdl_1 = Submodel(id='submdl_1', algorithm=SubmodelAlgorithm.SSA)
+        submdl_2 = Submodel(id='submdl_2', algorithm=SubmodelAlgorithm.dFBA)
         mdl.submodels.add(submdl_0)
         mdl.submodels.add(submdl_1)
         mdl.submodels.add(submdl_2)
@@ -68,15 +68,9 @@ class TestTransform(unittest.TestCase):
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
         MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
-
-        merged_submodels = list(merged_mdl.submodels)
-
-        if merged_submodels[0].algorithm == 'SSA':
-            merged_submdl_ssa = merged_submodels[0]
-            merged_submdl_fba = merged_submodels[1]
-        else:
-            merged_submdl_ssa = merged_submodels[1]
-            merged_submdl_fba = merged_submodels[0]
+        print(merged_mdl.submodels)
+        merged_submdl_ssa = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.SSA)
+        merged_submdl_fba = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.dFBA)
 
         """ Test submodels merged corrected """
         self.assertEqual(len(mdl.compartments), len(merged_mdl.compartments))
