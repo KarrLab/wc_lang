@@ -19,3 +19,6 @@ README.rst
 .~lock.*.xls#
 ~$*.xlsx
 ~$*.xls
+
+# mac DS files
+.DS_Store
