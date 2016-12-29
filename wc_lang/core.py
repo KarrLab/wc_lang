@@ -1,4 +1,35 @@
-""" Data model to represent models.
+""" Data model to represent bio-chemical models.
+
+This module defines classes that represent the schema of a bio-chemical model:
+
+* :obj:`Taxon`
+* :obj:`Submodel`
+* :obj:`Compartment`
+* :obj:`SpeciesType`
+* :obj:`Species`
+* :obj:`Concentration`
+* :obj:`Reaction`
+* :obj:`ReactionParticipant`
+* :obj:`RateLaw`
+* :obj:`RateLawEquation`
+* :obj:`Parameter`
+* :obj:`Reference`
+* :obj:`CrossReference`
+
+These are all instances of `BaseModel`, an alias for `wc_utils.schema.core.Model`.
+A bio-chemical model may contain a list of instances of each of these classes, interlinked
+by object references. For example, A :obj:`Reaction` will reference its constituent
+:obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
+
+This module also defines numerous classes that serve as attributes of these classes.
+
+Many classes contain the methods `serialize()` and `deserialize()`, which invert each other.
+`serialize()` converts a python object instance into a string representation, whereas
+`deserialize()` parses an object's string representation -- as would be stored in a file or spreadsheet
+representation of a bio-chemical model -- into a python object instance.
+`deserialize()` returns an error when the string representatin cannot be parsed into the
+python object.
+
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2016-11-10
@@ -515,7 +546,7 @@ class Model(BaseModel):
     def get_component(self, type, id):
         """ Find model component of `type` with `id`
 
-        Args:            
+        Args:
             type (:obj:`str`) type of component to find
             id (:obj:`str`): id of component to find
 
@@ -1201,7 +1232,7 @@ class Reference(BaseModel):
         pages (:obj:`str`): page range
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`set` of `CrossReference`): cross references        
+        cross_references (:obj:`set` of `CrossReference`): cross references
         taxa (:obj:`set` of `Taxon`): taxa
         submodels (:obj:`set` of `Submodel`): submodels
         compartments (:obj:`set` of `Compartment`): compartments
