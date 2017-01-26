@@ -68,7 +68,6 @@ class TestTransform(unittest.TestCase):
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
         MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
-        print(merged_mdl.submodels)
         merged_submdl_ssa = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.SSA)
         merged_submdl_fba = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.dFBA)
 

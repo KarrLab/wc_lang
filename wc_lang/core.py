@@ -27,11 +27,12 @@ Many classes contain the methods `serialize()` and `deserialize()`, which invert
 `serialize()` converts a python object instance into a string representation, whereas
 `deserialize()` parses an object's string representation -- as would be stored in a file or spreadsheet
 representation of a bio-chemical model -- into a python object instance.
-`deserialize()` returns an error when the string representatin cannot be parsed into the
+`deserialize()` returns an error when the string representation cannot be parsed into the
 python object.
 
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2016-11-10
 :Copyright: 2016, Karr Lab
 :License: MIT
