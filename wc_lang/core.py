@@ -34,7 +34,7 @@ python object.
 :Author: Jonathan Karr <karr@mssm.edu>
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2016-11-10
-:Copyright: 2016, Karr Lab
+:Copyright: 2016-2017, Karr Lab
 :License: MIT
 """
 
@@ -728,11 +728,12 @@ class Species(BaseModel):
         tabular_orientation = TabularOrientation.inline
         ordering = ('species_type', 'compartment')
 
+    # todo: rename this method to id(); unlike other serialize() methods here, it provides the object's id
     def serialize(self):
-        """ Get value of primary attribute
+        """ Provide a Species' primary identifier
 
         Returns:
-            :obj:`str`: value of primary attribute
+            :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
         """
         return '{}[{}]'.format(
             self.species_type.get_primary_attribute(),
@@ -1045,12 +1046,15 @@ class RateLawEquation(BaseModel):
         pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
                                                                   Compartment.id.pattern[1:-1])
 
-        for match in re.findall(pattern, value, flags=re.I):
-            species, error = Species.deserialize(attribute, match[1], objects)
-            if error:
-                errors += error.messages
-            else:
-                modifiers.add(species)
+        try:
+            for match in re.findall(pattern, value, flags=re.I):
+                species, error = Species.deserialize(attribute, match[1], objects)
+                if error:
+                    errors += error.messages
+                else:
+                    modifiers.add(species)
+        except Exception as e:
+            errors += ["deserialize fails on '{}'".format(value)]
 
         if errors:
             attr = cls.Meta.attributes['expression']
