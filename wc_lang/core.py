@@ -38,6 +38,8 @@ python object.
 :License: MIT
 """
 
+# todo: replace py_expression.replace(...) with python tokenization, as in multialgorithm_simulation.py
+
 from enum import Enum, EnumMeta
 from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
@@ -728,7 +730,7 @@ class Species(BaseModel):
         tabular_orientation = TabularOrientation.inline
         ordering = ('species_type', 'compartment')
 
-    # todo: rename this method to id(); unlike other serialize() methods here, it provides the object's id
+    # todo: rename this method to id(); unlike other serialize() methods here, it provides the object's id; alternatively, define id() to call serialize()
     def serialize(self):
         """ Provide a Species' primary identifier
 
@@ -1003,18 +1005,20 @@ class RateLawEquation(BaseModel):
     """ Rate law equation
 
     Attributes:
-        expression (:obj:`str`): expression
-        modifiers (:obj:`set` of `Species`): modifiers
+        expression (:obj:`str`): mathematical expression of the rate law
+        transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
+        modifiers (:obj:`set` of `Species`): species whose concentrations are used in the rate law
 
-        rate_law (:obj:`RateLaw`): rate law
+        rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
     expression = LongStringAttribute()
+    transcoded = LongStringAttribute()
     modifiers = ManyToManyAttribute('Species', related_name='rate_law_equations')
 
     class Meta(BaseModel.Meta):
         """
         Attributes:
-            valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in `law`
+            valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in this `RateLawEquation`
         """
         attribute_order = ('expression', 'modifiers')
         tabular_orientation = TabularOrientation.inline
@@ -1068,11 +1072,11 @@ class RateLawEquation(BaseModel):
         return (obj, None)
 
     def validate(self):
-        """ Determine if the object is valid
+        """ Determine whether a `RateLawEquation` is valid
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors as an instance of `InvalidObject`
+                otherwise return a list of errors in an `InvalidObject` instance
         """
 
         pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
@@ -1101,20 +1105,22 @@ class RateLawEquation(BaseModel):
 
         if self.rate_law:
             if not isnan(self.rate_law.k_cat):
-                local_ns['k_cat'] = 1.
+                local_ns['k_cat'] = self.rate_law.k_cat
 
             if not isnan(self.rate_law.k_m):
-                local_ns['k_m'] = 1.
+                local_ns['k_m'] = self.rate_law.k_m
 
         local_ns['s'] = []
         py_expression = self.expression
         for i_species, species_id in enumerate(set([x[1] for x in re.findall(pattern, self.expression, flags=re.I)])):
             local_ns['s'].append(1.)
+            # warning: if a specie name matches the suffix of another this string replace may fail
             py_expression = py_expression.replace(species_id, 's[{}]'.format(i_species))
 
         # try evaluating law
         try:
             eval(py_expression, {'__builtins__': None}, local_ns)
+        # todo: distinguish between SyntaxError, NameError, and other exceptions
         except Exception as error:
             msg = 'Invalid function: {}\n  {}'.format(self.expression, str(error).replace('\n', '\n  '))
             attr = self.__class__.Meta.attributes['expression']
