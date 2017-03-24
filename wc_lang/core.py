@@ -231,9 +231,9 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         rhs = []
         for part in participants:
             if part.coefficient < 0:
-                lhs.append(part.serialize(global_comp))
+                lhs.append(part.serialize(show_compartment=global_comp is None))
             elif part.coefficient > 0:
-                rhs.append(part.serialize(global_comp))
+                rhs.append(part.serialize(show_compartment=global_comp is None))
 
         if global_comp:
             return '[{}]: {} ==> {}'.format(global_comp.get_primary_attribute(), ' + '.join(lhs), ' + '.join(rhs))
@@ -730,7 +730,9 @@ class Species(BaseModel):
         tabular_orientation = TabularOrientation.inline
         ordering = ('species_type', 'compartment')
 
-    # todo: rename this method to id(); unlike other serialize() methods here, it provides the object's id; alternatively, define id() to call serialize()
+    # todo: rename this method to id(); unlike other serialize() methods here,
+    # it provides the object's id; alternatively, define id() to call
+    # serialize()
     def serialize(self):
         """ Provide a Species' primary identifier
 
@@ -876,25 +878,25 @@ class ReactionParticipant(BaseModel):
         tabular_orientation = TabularOrientation.inline
         ordering = ('species',)
 
-    def serialize(self, compartment=None):
+    def serialize(self, show_compartment=True):
         """ Serialize related object
 
         Args:
-            compartment (:obj:`Compartment`, optional): global compartment
+            show_compartment (:obj:`bool`, optional): if true, show compartment
 
         Returns:
             :obj:`str`: simple Python representation
         """
-        return self._serialize(self.species, self.coefficient, compartment=compartment)
+        return self._serialize(self.species, self.coefficient, show_compartment=show_compartment)
 
     @staticmethod
-    def _serialize(species, coefficient, compartment=None):
+    def _serialize(species, coefficient, show_compartment=True):
         """ Serialize values
 
         Args:
             species (:obj:`Species`): species
             coefficient (:obj:`float`): coefficient
-            compartment (:obj:`Compartment`, optional): global compartment
+            show_compartment (:obj:`bool`, optional): if true, show compartment
 
         Returns:
             :obj:`str`: simple Python representation
@@ -908,10 +910,10 @@ class ReactionParticipant(BaseModel):
         else:
             coefficient_str = '({:e}) '.format(abs(coefficient))
 
-        if compartment:
-            return '{}{}'.format(coefficient_str, species.species_type.get_primary_attribute())
-        else:
+        if show_compartment:
             return '{}{}'.format(coefficient_str, species.serialize())
+        else:
+            return '{}{}'.format(coefficient_str, species.species_type.get_primary_attribute())
 
     @classmethod
     def deserialize(cls, attribute, value, objects, compartment=None):
