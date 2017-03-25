@@ -41,12 +41,12 @@ class Writer(object):
             'creator': '{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
         }
         if model:
-            objects = set((model,))
+            objects = [model]
             kwargs['title'] = model.id
             kwargs['description'] = model.name
             kwargs['version'] = model.version
         else:
-            objects = set()
+            objects = []
 
         io.Writer().run(path, objects, self.model_order, **kwargs)
 

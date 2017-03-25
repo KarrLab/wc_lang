@@ -79,7 +79,7 @@ class TestSimpleModel(unittest.TestCase):
         rxn_0.participants.create(species=species[2], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
-            modifiers=set(species[5:6]))
+            modifiers=species[5:6])
         rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
@@ -88,7 +88,7 @@ class TestSimpleModel(unittest.TestCase):
         rxn_1.participants.create(species=species[3], coefficient=2)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
-            modifiers=set(species[6:7]))
+            modifiers=species[6:7])
         rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
@@ -97,7 +97,7 @@ class TestSimpleModel(unittest.TestCase):
         rxn_2.participants.create(species=species[4], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
-            modifiers=set(species[7:8]))
+            modifiers=species[7:8])
         rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
@@ -134,7 +134,7 @@ class TestSimpleModel(unittest.TestCase):
         model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
-        self.assertEqual(model, self.model)
+        self.assertTrue(model.is_equal(self.model))
         self.assertEqual(self.model.difference(model), '')
 
     def test_convert(self):
@@ -148,11 +148,11 @@ class TestSimpleModel(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
         model = Reader().run(filename_csv)
-        self.assertEqual(model, self.model)
+        self.assertTrue(model.is_equal(self.model))
 
         convert(filename_csv, filename_xls2)
         model = Reader().run(filename_xls2)
-        self.assertEqual(model, self.model)
+        self.assertTrue(model.is_equal(self.model))
 
 
 class TestExampleModel(unittest.TestCase):
@@ -178,5 +178,5 @@ class TestExampleModel(unittest.TestCase):
 
         # compare models
         model2 = Reader().run(self.filename)
-        self.assertEqual(model2, model)
+        self.assertTrue(model2.is_equal(model))
         self.assertTrue(model.difference(model2) == '')

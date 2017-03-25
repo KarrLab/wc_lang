@@ -100,14 +100,14 @@ class TestCli(unittest.TestCase):
             app.run()
 
         model2 = Reader().run(filename_xls_1)
-        self.assertEqual(model2, model)
+        self.assertTrue(model2.is_equal(model))
 
         # with different destination
         with WcLangCli(argv=['normalize', filename_xls_1, '--destination', filename_xls_2]) as app:
             app.run()
 
         model2 = Reader().run(filename_xls_2)
-        self.assertEqual(model2, model)
+        self.assertTrue(model2.is_equal(model))
 
     def test_convert(self):
         filename_xls = path.join(self.tempdir, 'model.xlsx')

@@ -183,7 +183,7 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `set` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         return Species.deserialize(self, value, objects)
@@ -207,7 +207,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         """ Serialize related object
 
         Args:
-            participants (:obj:`set` of `ReactionParticipant`): Python representation of reaction participants
+            participants (:obj:`list` of `ReactionParticipant`): Python representation of reaction participants
 
         Returns:
             :obj:`str`: simple Python representation
@@ -248,7 +248,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `set` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         errors = []
@@ -282,7 +282,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
 
-        parts = set()
+        parts = []
 
         for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', lhs, flags=re.I):
             part_errors = []
@@ -315,7 +315,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                     if ReactionParticipant not in objects:
                         objects[ReactionParticipant] = {}
                     objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                    parts.add(rxn_part)
+                    parts.append(rxn_part)
 
         for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', rhs, flags=re.I):
             part_errors = []
@@ -348,7 +348,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                     if ReactionParticipant not in objects:
                         objects[ReactionParticipant] = {}
                     objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                    parts.add(rxn_part)
+                    parts.append(rxn_part)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
@@ -404,13 +404,13 @@ class Model(BaseModel):
         wc_lang_version (:obj:`str`): wc_lang version number
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
+        cross_references (:obj:`list` of `CrossReference`): cross references
         taxon (:obj:`Taxon`): taxon
-        submodels (:obj:`set` of `Submodel`): submodels
-        compartments (:obj:`set` of `Compartment`): compartments
-        species_types (:obj:`set` of `SpeciesType`): species types
-        parameters (:obj:`set` of `Parameter`): parameters
-        references (:obj:`set` of `Reference`): references
+        submodels (:obj:`list` of `Submodel`): submodels
+        compartments (:obj:`list` of `Compartment`): compartments
+        species_types (:obj:`list` of `SpeciesType`): species types
+        parameters (:obj:`list` of `Parameter`): parameters
+        references (:obj:`list` of `Reference`): references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -427,124 +427,124 @@ class Model(BaseModel):
         """ Get all compartments
 
         Returns:
-            :obj:`set` of `Compartment`: compartments
+            :obj:`list` of `Compartment`: compartments
         """
-        return set(self.compartments)
+        return self.compartments
 
     def get_species_types(self):
         """ Get all species types
 
         Returns:
-            :obj:`set` of `SpeciesType`: species types
+            :obj:`list` of `SpeciesType`: species types
         """
-        return set(self.species_types)
+        return self.species_types
 
     def get_submodels(self):
         """ Get all submodels
 
         Returns:
-            :obj:`set` of `Submodel`: submodels
+            :obj:`list` of `Submodel`: submodels
         """
-        return set(self.submodels)
+        return self.submodels
 
     def get_species(self):
         """ Get all species from submodels
 
         Returns:
-            :obj:`set` of `Species`: species
+            :obj:`list` of `Species`: species
         """
-        species = set()
+        species = []
 
         for submodel in self.submodels:
-            species.update(submodel.get_species())
+            species.extend(submodel.get_species())
 
         for concentation in self.get_concentrations():
-            species.add(concentation.species)
+            species.append(concentation.species)
 
-        return species
+        return list(set(species))
 
     def get_concentrations(self):
         """ Get all concentrations from species types
 
         Returns:
-            :obj:`set` of `Concentration`: concentations
+            :obj:`list` of `Concentration`: concentations
         """
-        concentrations = set()
+        concentrations = []
         for species_type in self.species_types:
             for species in species_type.species:
                 if species.concentration:
-                    concentrations.add(species.concentration)
+                    concentrations.append(species.concentration)
         return concentrations
 
     def get_reactions(self):
         """ Get all reactions from submodels
 
         Returns:
-            :obj:`set` of `Reaction`: reactions
+            :obj:`list` of `Reaction`: reactions
         """
-        reactions = set()
+        reactions = []
         for submodel in self.submodels:
-            reactions.update(submodel.reactions)
+            reactions.extend(submodel.reactions)
         return reactions
 
     def get_rate_laws(self):
         """ Get all rate laws from reactions
 
         Returns:
-            :obj:`set` of `RateLaw`: rate laws
+            :obj:`list` of `RateLaw`: rate laws
         """
-        rate_laws = set()
+        rate_laws = []
         for reaction in self.get_reactions():
-            rate_laws.update(reaction.rate_laws)
+            rate_laws.extend(reaction.rate_laws)
         return rate_laws
 
     def get_parameters(self):
         """ Get all parameters from model and submodels
 
         Returns:
-            :obj:`set` of `Parameter`: parameters
+            :obj:`list` of `Parameter`: parameters
         """
-        parameters = set()
-        parameters.update(self.parameters)
+        parameters = []
+        parameters.extend(self.parameters)
         for submodel in self.submodels:
-            parameters.update(submodel.parameters)
-        return parameters
+            parameters.extend(submodel.parameters)
+        return list(set(parameters))
 
     def get_references(self):
         """ Get all references from model and children
 
         Returns:
-            :obj:`set` of `Reference`: references
+            :obj:`list` of `Reference`: references
         """
-        refs = set()
+        refs = []
 
-        refs.update(self.references)
+        refs.extend(self.references)
 
         if self.taxon:
-            refs.update(self.taxon.references)
+            refs.extend(self.taxon.references)
 
         for compartment in self.compartments:
-            refs.update(compartment.references)
+            refs.extend(compartment.references)
 
         for species_type in self.species_types:
-            refs.update(species_type.references)
+            refs.extend(species_type.references)
 
         for concentration in self.get_concentrations():
-            refs.update(concentration.references)
+            refs.extend(concentration.references)
 
         for submodel in self.submodels:
-            refs.update(submodel.references)
+            refs.extend(submodel.references)
 
         for reaction in self.get_reactions():
-            refs.update(reaction.references)
+            refs.extend(reaction.references)
 
         for rate_law in self.get_rate_laws():
-            refs.update(rate_law.references)
+            refs.extend(rate_law.references)
 
         for parameter in self.get_parameters():
-            refs.update(parameter.references)
+            refs.extend(parameter.references)
 
-        return refs
+        return list(set(refs))
 
     def get_component(self, type, id):
         """ Find model component of `type` with `id`
@@ -573,9 +573,9 @@ class Taxon(BaseModel):
         model (:obj:`Model`): model
         rank (:obj:`TaxonRank`): rank
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
+        cross_references (:obj:`list` of `CrossReference`): cross references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -601,11 +601,11 @@ class Submodel(BaseModel):
         model (:obj:`Model`): model
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        reactions (:obj:`set` of `Reaction`): reactions
-        parameters (:obj:`set` of `Parameter`): parameters
+        cross_references (:obj:`list` of `CrossReference`): cross references
+        reactions (:obj:`list` of `Reaction`): reactions
+        parameters (:obj:`list` of `Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -624,14 +624,14 @@ class Submodel(BaseModel):
         """ Get species in reactions
 
         Returns:
-            :obj:`set` of `Species`: species in reactions
+            :obj:`list` of `Species`: species in reactions
         """
-        species = set()
+        species = []
 
         for rxn in self.reactions:
-            species.update(rxn.get_species())
+            species.extend(rxn.get_species())
 
-        return species
+        return list(set(species))
 
 
 class Compartment(BaseModel):
@@ -643,11 +643,11 @@ class Compartment(BaseModel):
         model (:obj:`Model`): model
         initial_volume (:obj:`float`): initial volume(L)
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        concentrations (:obj:`set` of `Concentration`): concentrations
-        reaction_participants (:obj:`set` of `ReactionParticipant`): reaction participants
+        cross_references (:obj:`list` of `CrossReference`): cross references
+        concentrations (:obj:`list` of `Concentration`): concentrations
+        reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -676,11 +676,11 @@ class SpeciesType(BaseModel):
         charge (:obj:`int`): charge
         type (:obj:`SpeciesTypeType`): type
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        concentrations (:obj:`set` of `Concentration`): concentrations
-        reaction_participants (:obj:`set` of `ReactionParticipant`): reaction participants
+        cross_references (:obj:`list` of `CrossReference`): cross references
+        concentrations (:obj:`list` of `Concentration`): concentrations
+        reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -718,7 +718,7 @@ class Species(BaseModel):
         compartment (:obj:`Compartment`): compartment
 
         concentration (:obj:`Concentration`): concentration
-        reaction_participants (:obj:`set` of `Reaction`): participations in reactions
+        reaction_participants (:obj:`list` of `Reaction`): participations in reactions
         rate_law_equations (:obj:`RateLawEquation`): rate law equations
     """
     species_type = ManyToOneAttribute('SpeciesType', related_name='species', none=False)
@@ -791,7 +791,7 @@ class Concentration(BaseModel):
         species (:obj:`Species`): species
         value (:obj:`float`): value (M)
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
     """
     species = OneToOneSpeciesAttribute(related_name='concentration')
     value = FloatAttribute(min=0)
@@ -821,13 +821,13 @@ class Reaction(BaseModel):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         submodel (:obj:`Submodel`): submodel that reaction belongs to
-        participants (:obj:`set` of `ReactionParticipant`): participants
+        participants (:obj:`list` of `ReactionParticipant`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        rate_laws (:obj:`set` of `RateLaw`): rate laws
+        cross_references (:obj:`list` of `CrossReference`): cross references
+        rate_laws (:obj:`list` of `RateLaw`): rate laws
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -847,17 +847,17 @@ class Reaction(BaseModel):
         """ Get species
 
         Returns:
-            :obj:`set`: set of `Species`
+            :obj:`list`: list of `Species`
         """
-        species = set()
+        species = []
 
         for part in self.participants:
-            species.add(part.species)
+            species.append(part.species)
 
         for rate_law in self.rate_laws:
-            species.update(rate_law.equation.modifiers)
+            species.extend(rate_law.equation.modifiers)
 
-        return species
+        return list(set(species))
 
 
 class ReactionParticipant(BaseModel):
@@ -926,7 +926,7 @@ class ReactionParticipant(BaseModel):
             compartment (:obj:`Compartment`, optional): compartment
 
         Returns:
-            :obj:`tuple` of `set` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         errors = []
@@ -976,7 +976,7 @@ class RateLaw(BaseModel):
         k_cat (:obj:`float`): v_max (reactions enz^-1 s^-1)
         k_m (:obj:`float`): k_m (M)
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
     """
 
     reaction = ManyToOneAttribute('Reaction', related_name='rate_laws')
@@ -1009,7 +1009,7 @@ class RateLawEquation(BaseModel):
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
-        modifiers (:obj:`set` of `Species`): species whose concentrations are used in the rate law
+        modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
 
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
@@ -1047,7 +1047,7 @@ class RateLawEquation(BaseModel):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        modifiers = set()
+        modifiers = []
         errors = []
         pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
                                                                   Compartment.id.pattern[1:-1])
@@ -1058,7 +1058,7 @@ class RateLawEquation(BaseModel):
                 if error:
                     errors += error.messages
                 else:
-                    modifiers.add(species)
+                    modifiers.append(species)
         except Exception as e:
             errors += ["deserialize fails on '{}'".format(value)]
 
@@ -1067,7 +1067,7 @@ class RateLawEquation(BaseModel):
             return (None, InvalidAttribute(attribute, errors))
 
         # return value
-        obj = cls(expression=value, modifiers=modifiers)
+        obj = cls(expression=value, modifiers=list(set(modifiers)))
         if cls not in objects:
             objects[cls] = {}
         objects[cls][obj.serialize()] = obj
@@ -1144,7 +1144,7 @@ class Parameter(BaseModel):
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         comments (:obj:`str`): comments
-        references (:obj:`set` of `Reference`): references
+        references (:obj:`list` of `Reference`): references
     """
     id = SlugAttribute(unique=False)
     name = StringAttribute()
@@ -1167,7 +1167,7 @@ class Parameter(BaseModel):
         within each model/submodel.
 
         Args:
-            objects (:obj:`set` of `Parameter`): set of objects
+            objects (:obj:`list` of `Parameter`): list of objects
 
         Returns:
             :obj:`InvalidModel`: list of invalid attributes and their errors
@@ -1245,15 +1245,15 @@ class Reference(BaseModel):
         pages (:obj:`str`): page range
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`set` of `CrossReference`): cross references
-        taxa (:obj:`set` of `Taxon`): taxa
-        submodels (:obj:`set` of `Submodel`): submodels
-        compartments (:obj:`set` of `Compartment`): compartments
-        species_types (:obj:`set` of `SpeciesType`): species types
-        concentrations (:obj:`set` of `Concentration`): concentrations
-        reactions (:obj:`set` of `Reaction`): reactions
-        rate_laws (:obj:`set` of `RateLaw`): rate laws
-        parameters (:obj:`set` of `Parameter`): parameters
+        cross_references (:obj:`list` of `CrossReference`): cross references
+        taxa (:obj:`list` of `Taxon`): taxa
+        submodels (:obj:`list` of `Submodel`): submodels
+        compartments (:obj:`list` of `Compartment`): compartments
+        species_types (:obj:`list` of `SpeciesType`): species types
+        concentrations (:obj:`list` of `Concentration`): concentrations
+        reactions (:obj:`list` of `Reaction`): reactions
+        rate_laws (:obj:`list` of `RateLaw`): rate laws
+        parameters (:obj:`list` of `Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()

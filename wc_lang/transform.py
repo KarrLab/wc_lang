@@ -63,11 +63,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
 
         # group submodels by algorithms
         key_func = lambda submodel: submodel.algorithm.value
-        sorted_submodels = list(model.submodels)
-        sorted_submodels.sort(key=key_func)
+        sorted_submodels = sorted(model.submodels, key=key_func)
         grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
-        merged_submodels = set()
         for algorithm, group in grouped_submodels:
             submodels = tuple(group)
 
@@ -79,22 +77,22 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             merged_submodel = Submodel(model=model, id=id, name=name, algorithm=SubmodelAlgorithm(algorithm))
 
             # removed submodel from model; merge reactions, parameters, cross references, references
-            for submodel in list(submodels):
+            for submodel in submodels:
                 model.submodels.remove(submodel)
 
-                for rxn in list(submodel.reactions):
+                for rxn in submodel.reactions:
                     rxn.submodel = merged_submodel
 
-                for param in list(submodel.parameters):
+                for param in reversed(submodel.parameters):
                     param.submodels.remove(submodel)
-                    param.submodels.add(merged_submodel)
+                    param.submodels.append(merged_submodel)
 
-                for x_ref in list(submodel.cross_references):
+                for x_ref in reversed(submodel.cross_references):
                     x_ref.submodel = merged_submodel
 
-                for ref in list(submodel.references):
+                for ref in reversed(submodel.references):
                     ref.submodels.remove(submodel)
-                    ref.submodels.add(merged_submodel)
+                    ref.submodels.append(merged_submodel)
 
         # return merged model
         return model
@@ -118,7 +116,7 @@ class SplitReversibleReactionsTransform(Transform):
         """
 
         for submodel in model.submodels:
-            for rxn in list(submodel.reactions):
+            for rxn in submodel.reactions:
                 if rxn.reversible:
                     # remove reversible reaction
                     submodel.reactions.remove(rxn)
@@ -129,24 +127,24 @@ class SplitReversibleReactionsTransform(Transform):
                         name='{} (forward)'.format(rxn.name),
                         reversible=False,
                         comments=rxn.comments,
-                        references=set(rxn.references),
+                        references=rxn.references,
                     )
                     rxn_bck = submodel.reactions.create(
                         id='{}_backward'.format(rxn.id),
                         name='{} (backward)'.format(rxn.name),
                         reversible=False,
                         comments=rxn.comments,
-                        references=set(rxn.references),
+                        references=rxn.references,
                     )
 
-                    rxn.references = ()
+                    rxn.references = []
 
                     # copy participants and negate for backward reaction
                     for part in rxn.participants:
-                        rxn_for.participants.add(part)
+                        rxn_for.participants.append(part)
                         rxn_bck.participants.create(species=part.species, coefficient=-1 * part.coefficient)
 
-                    rxn.participants = ()
+                    rxn.participants = []
 
                     # copy rate laws
                     law_for = rxn.rate_laws.get(direction=RateLawDirection.forward)
@@ -160,7 +158,7 @@ class SplitReversibleReactionsTransform(Transform):
                         law_bck.direction = RateLawDirection.forward
 
                     # cross references
-                    for x_ref in list(rxn.cross_references):
+                    for x_ref in rxn.cross_references:
                         rxn_for.cross_references.create(
                             database=x_ref.database,
                             id=x_ref.id,

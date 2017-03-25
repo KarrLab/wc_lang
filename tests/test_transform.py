@@ -141,10 +141,10 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(attr.serialize(r1_2.participants), '[c]: (3) s1 ==> (4) s2')
         self.assertEqual(len(r0_f.rate_laws), 1)
         self.assertEqual(len(r0_b.rate_laws), 1)
-        self.assertEqual(list(r0_f.rate_laws)[0].direction, RateLawDirection.forward)
-        self.assertEqual(list(r0_b.rate_laws)[0].direction, RateLawDirection.forward)
-        self.assertEqual(list(r0_f.rate_laws)[0].equation.expression, 'a')
-        self.assertEqual(list(r0_b.rate_laws)[0].equation.expression, 'b')
+        self.assertEqual(r0_f.rate_laws[0].direction, RateLawDirection.forward)
+        self.assertEqual(r0_b.rate_laws[0].direction, RateLawDirection.forward)
+        self.assertEqual(r0_f.rate_laws[0].equation.expression, 'a')
+        self.assertEqual(r0_b.rate_laws[0].equation.expression, 'b')
         self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.forward).equation.expression, 'c')
         self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.backward).equation.expression, 'd')
 
@@ -157,12 +157,12 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(set([x.id for x in r1_2.cross_references]), set(['yy']))
 
         self.assertEqual(r0.submodel, None)
-        self.assertEqual(r0.participants, set())
-        self.assertEqual(r0.rate_laws, set())
-        self.assertEqual(r0.references, set())
-        self.assertEqual(r0.cross_references, set())
+        self.assertEqual(r0.participants, [])
+        self.assertEqual(r0.rate_laws, [])
+        self.assertEqual(r0.references, [])
+        self.assertEqual(r0.cross_references, [])
 
         for attr_name, attr in chain(Reaction.Meta.attributes.items(), Reaction.Meta.related_attributes.items()):
             if isinstance(attr, RelatedAttribute):
                 val = getattr(r0, attr_name)
-                self.assertTrue(val is None or (isinstance(val, set) and len(val) == 0))
+                self.assertTrue(val is None or (isinstance(val, list) and len(val) == 0))

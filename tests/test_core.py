@@ -61,7 +61,7 @@ class TestCore(unittest.TestCase):
         rxn_0.participants.create(species=species[2], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
-            modifiers=set(species[5:6]))
+            modifiers=species[5:6])
         rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
@@ -70,7 +70,7 @@ class TestCore(unittest.TestCase):
         rxn_1.participants.create(species=species[3], coefficient=2)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
-            modifiers=set(species[6:7]))
+            modifiers=species[6:7])
         rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
@@ -79,7 +79,7 @@ class TestCore(unittest.TestCase):
         rxn_2.participants.create(species=species[4], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
-            modifiers=set(species[7:8]))
+            modifiers=species[7:8])
         rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
@@ -107,34 +107,34 @@ class TestCore(unittest.TestCase):
     def test_reverse_references(self):
         mdl = self.model
 
-        self.assertEqual(mdl.submodels, set(self.submodels))
-        self.assertEqual(mdl.compartments, set(self.compartments))
-        self.assertEqual(mdl.species_types, set(self.species_types))
-        self.assertEqual(mdl.parameters, set(self.parameters))
+        self.assertEqual(set(mdl.submodels), set(self.submodels))
+        self.assertEqual(set(mdl.compartments), set(self.compartments))
+        self.assertEqual(set(mdl.species_types), set(self.species_types))
+        self.assertEqual(set(mdl.parameters), set(self.parameters))
 
         # submodel
         for reaction, submodel in zip(self.reactions, self.submodels):
-            self.assertEqual(submodel.reactions, set([reaction]))
+            self.assertEqual(submodel.reactions, [reaction])
 
         for submodel in self.submodels:
-            self.assertEqual(submodel.cross_references, set())
-            self.assertEqual(submodel.references, set())
+            self.assertEqual(submodel.cross_references, [])
+            self.assertEqual(submodel.references, [])
 
         # compartment
-        self.assertEqual(self.compartments[0].species, set(self.species[0:3] + self.species[4:]))
-        self.assertEqual(self.compartments[1].species, set([self.species[3]]))
+        self.assertEqual(set(self.compartments[0].species), set(self.species[0:3] + self.species[4:]))
+        self.assertEqual(self.compartments[1].species, self.species[3:4])
 
         for compartment in self.compartments:
-            self.assertEqual(compartment.cross_references, set())
-            self.assertEqual(compartment.references, set())
+            self.assertEqual(compartment.cross_references, [])
+            self.assertEqual(compartment.references, [])
 
         # species type
         for species_type, species in zip(self.species_types, self.species):
-            self.assertEqual(species_type.species, set([species]))
+            self.assertEqual(species_type.species, [species])
 
         for species_type in self.species_types:
-            self.assertEqual(species_type.cross_references, set())
-            self.assertEqual(species_type.references, set())
+            self.assertEqual(species_type.cross_references, [])
+            self.assertEqual(species_type.references, [])
 
         # specie
         for species_type, species in zip(self.species_types, self.species):
@@ -175,29 +175,29 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(x.species for x in self.reactions[2].participants),
                          set([self.species[0], self.species[1], self.species[4]]))
 
-        self.assertEqual(list(self.reactions[0].rate_laws)[0].equation.modifiers, set(self.species[5:6]))
-        self.assertEqual(list(self.reactions[1].rate_laws)[0].equation.modifiers, set(self.species[6:7]))
-        self.assertEqual(list(self.reactions[2].rate_laws)[0].equation.modifiers, set(self.species[7:8]))
+        self.assertEqual(self.reactions[0].rate_laws[0].equation.modifiers, self.species[5:6])
+        self.assertEqual(self.reactions[1].rate_laws[0].equation.modifiers, self.species[6:7])
+        self.assertEqual(self.reactions[2].rate_laws[0].equation.modifiers, self.species[7:8])
 
         for reaction in self.reactions:
-            self.assertEqual(reaction.cross_references, set())
-            self.assertEqual(reaction.references, set())
+            self.assertEqual(reaction.cross_references, [])
+            self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
         # parameters
         for reference, parameter in zip(self.references, self.parameters):
-            self.assertEqual(parameter.references, set([reference]))
+            self.assertEqual(parameter.references, [reference])
 
         for parameter in self.parameters:
             self.assertEqual(parameter.model, mdl)
 
         # references
         for reference, parameter in zip(self.references, self.parameters):
-            self.assertEqual(reference.parameters, set([parameter]))
-            self.assertEqual(parameter.references, set([reference]))
+            self.assertEqual(reference.parameters, [parameter])
+            self.assertEqual(parameter.references, [reference])
 
         for reference, cross_reference in zip(self.references, self.cross_references):
-            self.assertEqual(reference.cross_references, set([cross_reference]))
+            self.assertEqual(reference.cross_references, [cross_reference])
             self.assertEqual(cross_reference.reference, reference)
 
         # reaction participant
@@ -211,7 +211,7 @@ class TestCore(unittest.TestCase):
 
         # cross references
         for reference, cross_reference in zip(self.references, self.cross_references):
-            self.assertEqual(reference.cross_references, set([cross_reference]))
+            self.assertEqual(reference.cross_references, [cross_reference])
             self.assertEqual(cross_reference.reference, reference)
 
     def test_taxon_rank_class(self):
@@ -219,44 +219,44 @@ class TestCore(unittest.TestCase):
         self.assertEqual(TaxonRank.__getattr__('class'), TaxonRank['classis'])
 
     def test_model_get_species(self):
-        self.assertEqual(self.model.get_species(), set(self.species))
+        self.assertEqual(set(self.model.get_species()), set(self.species))
 
     def test_submodel_get_species(self):
         species = self.species
-        self.assertEqual(self.submdl_0.get_species(), set([
+        self.assertEqual(set(self.submdl_0.get_species()), set([
             species[0], species[1], species[2], species[5],
         ]))
-        self.assertEqual(self.submdl_1.get_species(), set([
+        self.assertEqual(set(self.submdl_1.get_species()), set([
             species[0], species[1], species[3], species[6],
         ]))
-        self.assertEqual(self.submdl_2.get_species(), set([
+        self.assertEqual(set(self.submdl_2.get_species()), set([
             species[0], species[1], species[4], species[7],
         ]))
 
     def test_reaction_get_species(self):
         species = self.species
-        self.assertEqual(self.rxn_0.get_species(), set([
+        self.assertEqual(set(self.rxn_0.get_species()), set([
             species[0], species[1], species[2], species[5],
         ]))
-        self.assertEqual(self.rxn_1.get_species(), set([
+        self.assertEqual(set(self.rxn_1.get_species()), set([
             species[0], species[1], species[3], species[6],
         ]))
-        self.assertEqual(self.rxn_2.get_species(), set([
+        self.assertEqual(set(self.rxn_2.get_species()), set([
             species[0], species[1], species[4], species[7],
         ]))
 
     def test_get_components(self):
         mdl = self.model
 
-        self.assertEqual(mdl.get_compartments(), set(self.compartments))
-        self.assertEqual(mdl.get_species_types(), set(self.species_types))
-        self.assertEqual(mdl.get_submodels(), set(self.submodels))
-        self.assertEqual(mdl.get_species(), set(self.species))
-        self.assertEqual(mdl.get_concentrations(), set(self.concentrations))
-        self.assertEqual(mdl.get_reactions(), set(self.reactions))
-        self.assertEqual(mdl.get_rate_laws(), set(self.rate_laws))
-        self.assertEqual(mdl.get_parameters(), set(self.parameters))
-        self.assertEqual(mdl.get_references(), set(self.references))
+        self.assertEqual(set(mdl.get_compartments()), set(self.compartments))
+        self.assertEqual(set(mdl.get_species_types()), set(self.species_types))
+        self.assertEqual(set(mdl.get_submodels()), set(self.submodels))
+        self.assertEqual(set(mdl.get_species()), set(self.species))
+        self.assertEqual(set(mdl.get_concentrations()), set(self.concentrations))
+        self.assertEqual(set(mdl.get_reactions()), set(self.reactions))
+        self.assertEqual(set(mdl.get_rate_laws()), set(self.rate_laws))
+        self.assertEqual(set(mdl.get_parameters()), set(self.parameters))
+        self.assertEqual(set(mdl.get_references()), set(self.references))
 
     def test_get_component(self):
         model = self.model
@@ -462,7 +462,7 @@ class TestCore(unittest.TestCase):
         equation1, error = RateLawEquation.deserialize(attr, expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
-        self.assertEqual(list(equation1.modifiers)[0].serialize(), 'spec_0[c_0]')
+        self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1]))
 
         expression = 'k_cat * spec_0[c_1] / (k_m + spec_2[c_1])'
@@ -552,9 +552,9 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(equation.validate(), None)
 
     def test_rate_law_modifiers(self):
-        self.assertEqual(list(self.rxn_0.rate_laws)[0].equation.modifiers, set([self.species[5]]))
-        self.assertEqual(list(self.rxn_1.rate_laws)[0].equation.modifiers, set([self.species[6]]))
-        self.assertEqual(list(self.rxn_2.rate_laws)[0].equation.modifiers, set([self.species[7]]))
+        self.assertEqual(self.rxn_0.rate_laws[0].equation.modifiers, self.species[5:6])
+        self.assertEqual(self.rxn_1.rate_laws[0].equation.modifiers, self.species[6:7])
+        self.assertEqual(self.rxn_2.rate_laws[0].equation.modifiers, self.species[7:8])
 
     def test_parameter_validate_unique(self):
         self.assertEqual(Parameter.validate_unique(self.parameters), None)
@@ -628,7 +628,7 @@ class TestCore(unittest.TestCase):
         species0, error = attr.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(species0.serialize(), val)
-        self.assertEqual(set(objs[Species].values()), set([species0]))
+        self.assertEqual(list(objs[Species].values()), [species0])
 
     def test_ReactionParticipantsAttribute_serialize(self):
         attr = ReactionParticipantsAttribute()
@@ -657,7 +657,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set([p.serialize() for p in parts1]), set(
             ['(2) spec_0[c_0]', '(3.500000e+00) spec_1[c_0]', 'spec_2[c_0]']))
         self.assertEqual(len(objs[ReactionParticipant]), 3)
-        self.assertEqual(set(objs[ReactionParticipant].values()), parts1)
+        self.assertEqual(set(objs[ReactionParticipant].values()), set(parts1))
         self.assertEqual(len(objs[Species]), 3)
         self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1]))
 
@@ -667,9 +667,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set([p.serialize() for p in parts2]), set(
             ['(2) spec_0[c_0]', '(3) spec_1[c_0]', '(2) spec_2[c_1]']))
         self.assertEqual(set([p.serialize() for p in objs[ReactionParticipant].values()]),
-                         set([p.serialize() for p in parts1 | parts2]))
+                         set([p.serialize() for p in parts1 + parts2]))
         self.assertEqual(len(objs[Species]), 4)
-        self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1 | parts2]))
+        self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1 + parts2]))
 
         # negative examples
         parts3, error = attr.deserialize(
@@ -699,7 +699,7 @@ class TestCore(unittest.TestCase):
 
     def test_RateLawEquationAttribute_serialize(self):
         rxn = self.rxn_0
-        rate_law = list(rxn.rate_laws)[0]
+        rate_law = rxn.rate_laws[0]
         equation = rate_law.equation
 
         attr = RateLawEquationAttribute()
@@ -723,8 +723,8 @@ class TestCore(unittest.TestCase):
         equation1, error = attr.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
-        self.assertEqual(list(equation1.modifiers)[0].serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[RateLawEquation].values()), set([equation1]))
+        self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
+        self.assertEqual(list(objs[RateLawEquation].values()), [equation1])
 
     def test_validate(self):
         self.assertEqual(self.model.validate(), None)
