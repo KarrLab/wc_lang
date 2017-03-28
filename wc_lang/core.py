@@ -728,6 +728,7 @@ class Species(BaseModel):
         attribute_order = ('species_type', 'compartment')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
+        unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
 
     # todo: rename this method to id(); unlike other serialize() methods here,
@@ -799,6 +800,7 @@ class Concentration(BaseModel):
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(BaseModel.Meta):
+        unique_together = (('species', ), )
         attribute_order = ('species',
                            'value',
                            'comments', 'references')
@@ -1308,6 +1310,7 @@ class CrossReference(BaseModel):
     reference = ManyToOneAttribute('Reference', related_name='cross_references')
 
     class Meta(BaseModel.Meta):
+        unique_together = (('database', 'id', ), )
         attribute_order = ('database', 'id', 'url',
                            'model', 'taxon', 'submodel', 'compartment', 'species_type', 'reaction', 'reference')
         frozen_columns = 2
