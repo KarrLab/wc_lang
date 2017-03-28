@@ -1,3 +1,9 @@
+# IDE config files
+.idea/
+
+# profiling data
+prof/
+
 #compiled files
 *.pyc
 __pycache__/
