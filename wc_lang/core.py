@@ -99,7 +99,7 @@ class TaxonRankMeta(CaseInsensitiveEnumMeta):
         return super(TaxonRankMeta, cls).__getitem__(name)
 
 
-class TaxonRank(with_metaclass(TaxonRankMeta, Enum)):
+class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
     """ Taxonomic ranks """
     domain = 1
     kingdom = 2
@@ -113,14 +113,14 @@ class TaxonRank(with_metaclass(TaxonRankMeta, Enum)):
     variety = 10
 
 
-class SubmodelAlgorithm(CaseInsensitiveEnum):
+class SubmodelAlgorithm(int, CaseInsensitiveEnum):
     """ Submodel algorithms """
     dfba = 1
     ode = 2
     ssa = 3
 
 
-class SpeciesTypeType(CaseInsensitiveEnum):
+class SpeciesTypeType(int, CaseInsensitiveEnum):
     """ Types of species types """
     metabolite = 1
     protein = 2
@@ -128,13 +128,13 @@ class SpeciesTypeType(CaseInsensitiveEnum):
     pseudo_species = 4
 
 
-class RateLawDirection(CaseInsensitiveEnum):
+class RateLawDirection(int, CaseInsensitiveEnum):
     """ Rate law directions """
     backward = -1
     forward = 1
 
 
-class ReferenceType(CaseInsensitiveEnum):
+class ReferenceType(int, CaseInsensitiveEnum):
     """ Reference types """
     article = 1
     book = 2
@@ -1158,6 +1158,7 @@ class Parameter(BaseModel):
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(BaseModel.Meta):
+        unique_together = (('id', 'model', 'submodels', ), )
         attribute_order = ('id', 'name',
                            'model', 'submodels',
                            'value', 'units',
