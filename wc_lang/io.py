@@ -15,7 +15,7 @@ from wc_lang.core import (Model, Taxon, Submodel, Compartment, SpeciesType,
                           Concentration, Reaction, RateLaw, Parameter, Reference,
                           CrossReference)
 from wc_lang.util import get_models
-from wc_utils.schema import io
+from obj_model import io
 
 
 class Writer(object):
