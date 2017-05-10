@@ -161,7 +161,7 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super(OneToOneSpeciesAttribute, self).__init__('Species',
-                                                       related_name=related_name, none=False, related_none=True,
+                                                       related_name=related_name, min_related=1, min_related_rev=0,
                                                        verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, value):
@@ -367,7 +367,7 @@ class RateLawEquationAttribute(OneToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super(RateLawEquationAttribute, self).__init__('RateLawEquation',
-                                                       related_name=related_name, none=False, related_none=False,
+                                                       related_name=related_name, min_related=1, min_related_rev=1,
                                                        verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, value):
@@ -721,8 +721,8 @@ class Species(BaseModel):
         reaction_participants (:obj:`list` of `Reaction`): participations in reactions
         rate_law_equations (:obj:`RateLawEquation`): rate law equations
     """
-    species_type = ManyToOneAttribute('SpeciesType', related_name='species', none=False)
-    compartment = ManyToOneAttribute('Compartment', related_name='species', none=False)
+    species_type = ManyToOneAttribute('SpeciesType', related_name='species', min_related=1)
+    compartment = ManyToOneAttribute('Compartment', related_name='species', min_related=1)
 
     class Meta(BaseModel.Meta):
         attribute_order = ('species_type', 'compartment')
