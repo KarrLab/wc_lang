@@ -68,7 +68,7 @@ class TestCli(unittest.TestCase):
         with CaptureOutput() as capturer:
             with WcLangCli(argv=['difference', filename1, filename3]) as app:
                 app.run()
-            diff = 'Objects ("model", "model") have different attribute values:\n  `wc_lang_version` are not equal:\n    0.0.0 != 0.0.1'
+            diff = 'Objects (Model: "model", Model: "model") have different attribute values:\n  `wc_lang_version` are not equal:\n    0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
 
         with CaptureOutput() as capturer:
