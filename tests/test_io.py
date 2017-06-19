@@ -73,28 +73,36 @@ class TestSimpleModel(unittest.TestCase):
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
+        participants = {}
+        def get_or_create_participant(species=None, coefficient=None):
+            part_serialized = ReactionParticipant._serialize(species, coefficient)
+            #if part_serialized not in participants:
+            participants[part_serialized] = ReactionParticipant(species=species, coefficient=coefficient)
+            return participants[part_serialized]
+
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
-        rxn_0.participants.create(species=species[0], coefficient=-2)
-        rxn_0.participants.create(species=species[1], coefficient=-3)
-        rxn_0.participants.create(species=species[2], coefficient=1)
+
+        rxn_0.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
+        rxn_0.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
+        rxn_0.participants.append(get_or_create_participant(species=species[2], coefficient=1))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
         rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
-        rxn_1.participants.create(species=species[0], coefficient=-2)
-        rxn_1.participants.create(species=species[1], coefficient=-3)
-        rxn_1.participants.create(species=species[3], coefficient=2)
+        rxn_1.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
+        rxn_1.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
+        rxn_1.participants.append(get_or_create_participant(species=species[3], coefficient=2))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
         rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
-        rxn_2.participants.create(species=species[0], coefficient=-2)
-        rxn_2.participants.create(species=species[1], coefficient=-3)
-        rxn_2.participants.create(species=species[4], coefficient=1)
+        rxn_2.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
+        rxn_2.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
+        rxn_2.participants.append(get_or_create_participant(species=species[4], coefficient=1))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])

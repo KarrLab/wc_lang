@@ -46,11 +46,11 @@ from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
 from six import with_metaclass
 from obj_model.core import (Model as BaseModel,
-                                  BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
-                                  RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
-                                  OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
-                                  InvalidModel, InvalidObject, InvalidAttribute,
-                                  TabularOrientation)
+                            BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
+                            RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
+                            OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
+                            InvalidModel, InvalidObject, InvalidAttribute,
+                            TabularOrientation)
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 import re
 import sys
@@ -201,7 +201,8 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             help (:obj:`str`, optional): help message
         """
         super(ReactionParticipantsAttribute, self).__init__('ReactionParticipant', related_name=related_name,
-                                                            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+                                                            verbose_name=verbose_name, verbose_related_name=verbose_related_name,
+                                                            help=help)
 
     def serialize(self, participants):
         """ Serialize related object
@@ -282,77 +283,73 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
 
-        parts = []
+        lhs_parts, lhs_errors = self.deserialize_side(-1., lhs, objects, global_comp)
+        rhs_parts, rhs_errors = self.deserialize_side( 1., rhs, objects, global_comp)
 
-        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', lhs, flags=re.I):
-            part_errors = []
-
-            if part[4] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[4]]
-            else:
-                part_errors.append('Undefined species type "{}"'.format(part[4]))
-
-            if global_comp:
-                compartment = global_comp
-            elif part[6] in objects[Compartment]:
-                compartment = objects[Compartment][part[6]]
-            else:
-                part_errors.append('Undefined compartment "{}"'.format(part[6]))
-
-            coefficient = float(part[1] or 1.)
-
-            if part_errors:
-                errors += part_errors
-            else:
-                spec_primary_attribute = '{}[{}]'.format(
-                    species_type.get_primary_attribute(), compartment.get_primary_attribute())
-                species, error = Species.deserialize(self, spec_primary_attribute, objects)
-                if error:
-                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
-
-                if coefficient != 0:
-                    rxn_part = ReactionParticipant(species=species, coefficient=-1 * coefficient)
-                    if ReactionParticipant not in objects:
-                        objects[ReactionParticipant] = {}
-                    objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                    parts.append(rxn_part)
-
-        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', rhs, flags=re.I):
-            part_errors = []
-
-            if part[4] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[4]]
-            else:
-                part_errors.append('Undefined species type "{}"'.format(part[4]))
-
-            if global_comp:
-                compartment = global_comp
-            elif part[6] in objects[Compartment]:
-                compartment = objects[Compartment][part[6]]
-            else:
-                part_errors.append('Undefined compartment "{}"'.format(part[6]))
-
-            coefficient = float(part[1] or 1.)
-
-            if part_errors:
-                errors += part_errors
-            else:
-                spec_primary_attribute = '{}[{}]'.format(
-                    species_type.get_primary_attribute(), compartment.get_primary_attribute())
-                species, error = Species.deserialize(self, spec_primary_attribute, objects)
-                if error:
-                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
-
-                if coefficient != 0:
-                    rxn_part = ReactionParticipant(species=species, coefficient=coefficient)
-                    if ReactionParticipant not in objects:
-                        objects[ReactionParticipant] = {}
-                    objects[ReactionParticipant][rxn_part.serialize()] = rxn_part
-                    parts.append(rxn_part)
+        parts = lhs_parts + rhs_parts
+        errors.extend(lhs_errors)
+        errors.extend(rhs_errors)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
         return (parts, None)
+
+    def deserialize_side(self, direction, value, objects, global_comp):
+        """ Deserialize the LHS or RHS of a reaction equation
+
+        Args:
+            direction (:obj:`float`): -1. indicates LHS, +1. indicates RHS
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+            global_comp (:obj:`Compartment`): global compartment of the reaction
+
+        Returns:
+            :obj:`tuple`:
+
+                * :obj:`list` of :obj:`ReactionParticipant`: list of reaction participants
+                * :obj:`list` of :obj:`Exception`: list of errors
+        """
+        parts = []
+        errors = []
+
+        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I):
+            part_errors = []
+
+            if part[4] in objects[SpeciesType]:
+                species_type = objects[SpeciesType][part[4]]
+            else:
+                part_errors.append('Undefined species type "{}"'.format(part[4]))
+
+            if global_comp:
+                compartment = global_comp
+            elif part[6] in objects[Compartment]:
+                compartment = objects[Compartment][part[6]]
+            else:
+                part_errors.append('Undefined compartment "{}"'.format(part[6]))
+
+            coefficient = float(part[1] or 1.)
+
+            if part_errors:
+                errors += part_errors
+            else:
+                spec_primary_attribute = '{}[{}]'.format(
+                    species_type.get_primary_attribute(), compartment.get_primary_attribute())
+                species, error = Species.deserialize(self, spec_primary_attribute, objects)
+                if error:
+                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
+
+                if coefficient != 0:
+                    if ReactionParticipant not in objects:
+                        objects[ReactionParticipant] = {}
+                    serialized_value = ReactionParticipant._serialize(species, direction * coefficient)
+                    #if serialized_value in objects[ReactionParticipant]:
+                    #    rxn_part = objects[ReactionParticipant][serialized_value]
+                    #else:
+                    rxn_part = ReactionParticipant(species=species, coefficient=direction * coefficient)
+                    objects[ReactionParticipant][serialized_value] = rxn_part
+                    parts.append(rxn_part)
+
+        return (parts, errors)
 
 
 class RateLawEquationAttribute(OneToOneAttribute):
@@ -875,6 +872,7 @@ class ReactionParticipant(BaseModel):
     coefficient = FloatAttribute(nan=False)
 
     class Meta(BaseModel.Meta):
+        #unique_together = (('species', 'coefficient'), )
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
