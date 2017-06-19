@@ -232,9 +232,9 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         rhs = []
         for part in participants:
             if part.coefficient < 0:
-                lhs.append(part.serialize(show_compartment=global_comp is None))
+                lhs.append(part.serialize(show_compartment=global_comp is None, show_coefficient_sign=False))
             elif part.coefficient > 0:
-                rhs.append(part.serialize(show_compartment=global_comp is None))
+                rhs.append(part.serialize(show_compartment=global_comp is None, show_coefficient_sign=False))
 
         if global_comp:
             return '[{}]: {} ==> {}'.format(global_comp.get_primary_attribute(), ' + '.join(lhs), ' + '.join(rhs))
@@ -327,7 +327,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             else:
                 part_errors.append('Undefined compartment "{}"'.format(part[6]))
 
-            coefficient = float(part[1] or 1.)
+            coefficient = direction * float(part[1] or 1.)
 
             if part_errors:
                 errors += part_errors
@@ -341,12 +341,12 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                 if coefficient != 0:
                     if ReactionParticipant not in objects:
                         objects[ReactionParticipant] = {}
-                    serialized_value = ReactionParticipant._serialize(species, direction * coefficient)
-                    #if serialized_value in objects[ReactionParticipant]:
-                    #    rxn_part = objects[ReactionParticipant][serialized_value]
-                    #else:
-                    rxn_part = ReactionParticipant(species=species, coefficient=direction * coefficient)
-                    objects[ReactionParticipant][serialized_value] = rxn_part
+                    serialized_value = ReactionParticipant._serialize(species, coefficient)
+                    if serialized_value in objects[ReactionParticipant]:
+                        rxn_part = objects[ReactionParticipant][serialized_value]
+                    else:
+                        rxn_part = ReactionParticipant(species=species, coefficient=coefficient)
+                        objects[ReactionParticipant][serialized_value] = rxn_part
                     parts.append(rxn_part)
 
         return (parts, errors)
@@ -872,43 +872,49 @@ class ReactionParticipant(BaseModel):
     coefficient = FloatAttribute(nan=False)
 
     class Meta(BaseModel.Meta):
-        #unique_together = (('species', 'coefficient'), )
+        unique_together = (('species', 'coefficient'), )
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
         ordering = ('species',)
 
-    def serialize(self, show_compartment=True):
+    def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
 
         Args:
             show_compartment (:obj:`bool`, optional): if true, show compartment
+            show_coefficient_sign (:obj:`bool`, optional): if true, show coefficient sign
 
         Returns:
             :obj:`str`: simple Python representation
         """
-        return self._serialize(self.species, self.coefficient, show_compartment=show_compartment)
+        return self._serialize(self.species, self.coefficient, 
+            show_compartment=show_compartment, show_coefficient_sign=show_coefficient_sign)
 
     @staticmethod
-    def _serialize(species, coefficient, show_compartment=True):
+    def _serialize(species, coefficient, show_compartment=True, show_coefficient_sign=True):
         """ Serialize values
 
         Args:
             species (:obj:`Species`): species
             coefficient (:obj:`float`): coefficient
             show_compartment (:obj:`bool`, optional): if true, show compartment
+            show_coefficient_sign (:obj:`bool`, optional): if true, show coefficient sign
 
         Returns:
             :obj:`str`: simple Python representation
         """
         coefficient = float(coefficient)
 
-        if abs(coefficient) == 1:
+        if not show_coefficient_sign:
+            coefficient = abs(coefficient)
+
+        if coefficient == 1:
             coefficient_str = ''
         elif coefficient % 1 == 0 and abs(coefficient) < 1000:
-            coefficient_str = '({:.0f}) '.format(abs(coefficient))
+            coefficient_str = '({:.0f}) '.format(coefficient)
         else:
-            coefficient_str = '({:e}) '.format(abs(coefficient))
+            coefficient_str = '({:e}) '.format(coefficient)
 
         if show_compartment:
             return '{}{}'.format(coefficient_str, species.serialize())

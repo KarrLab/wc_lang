@@ -333,7 +333,7 @@ class TestCore(unittest.TestCase):
 
     def test_reaction_participant_serialize(self):
         self.assertEqual(set([part.serialize() for part in self.rxn_0.participants]), set([
-            '(2) spec_type_0[comp_0]', '(3.500000e+00) spec_type_1[comp_0]', 'spec_type_2[comp_0]'
+            '(-2) spec_type_0[comp_0]', '(-3.500000e+00) spec_type_1[comp_0]', 'spec_type_2[comp_0]'
         ]))
 
     def test_reaction_participant_deserialize(self):
@@ -655,7 +655,7 @@ class TestCore(unittest.TestCase):
         parts1, error = attr.deserialize('[c_0]: (2) spec_0 + (3.5) spec_1 ==> spec_2', objs)
         self.assertEqual(error, None)
         self.assertEqual(set([p.serialize() for p in parts1]), set(
-            ['(2) spec_0[c_0]', '(3.500000e+00) spec_1[c_0]', 'spec_2[c_0]']))
+            ['(-2) spec_0[c_0]', '(-3.500000e+00) spec_1[c_0]', 'spec_2[c_0]']))
         self.assertEqual(len(objs[ReactionParticipant]), 3)
         self.assertEqual(set(objs[ReactionParticipant].values()), set(parts1))
         self.assertEqual(len(objs[Species]), 3)
@@ -665,7 +665,7 @@ class TestCore(unittest.TestCase):
             '(2) spec_0[c_0] + (3) spec_1[c_0] ==> (2) spec_2[c_1]', objs)
         self.assertEqual(error, None)
         self.assertEqual(set([p.serialize() for p in parts2]), set(
-            ['(2) spec_0[c_0]', '(3) spec_1[c_0]', '(2) spec_2[c_1]']))
+            ['(-2) spec_0[c_0]', '(-3) spec_1[c_0]', '(2) spec_2[c_1]']))
         self.assertEqual(set([p.serialize() for p in objs[ReactionParticipant].values()]),
                          set([p.serialize() for p in parts1 + parts2]))
         self.assertEqual(len(objs[Species]), 4)

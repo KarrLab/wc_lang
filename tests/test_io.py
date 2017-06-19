@@ -76,8 +76,8 @@ class TestSimpleModel(unittest.TestCase):
         participants = {}
         def get_or_create_participant(species=None, coefficient=None):
             part_serialized = ReactionParticipant._serialize(species, coefficient)
-            #if part_serialized not in participants:
-            participants[part_serialized] = ReactionParticipant(species=species, coefficient=coefficient)
+            if part_serialized not in participants:
+                participants[part_serialized] = ReactionParticipant(species=species, coefficient=coefficient)
             return participants[part_serialized]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
