@@ -1,7 +1,7 @@
 `wc_lang` documentation
 =======================
 
-This package defines `wc_lang`, a data-driven, rule-based language for concisely describing WC models.
+This package defines `wc_lang`, a data-driven language for concisely describing WC models.
 
 Whole-cell (WC) models are comprehensive computational models of all of the biochemical activity inside individaul cells [Karr et al., 2015; Macklin et al., 2014]. WC models have great potential to enable bioengineers to rationally design microorganisms for industrial and medical applications and to enable physicians to personalize medical therapy [Carrera and Covert, 2015]. Please see `WholeCell.org <http://www.wholecell.org>`_ for more information about WC modeling, including perspectives, reviews, and tutorials.
 

@@ -1,6 +1,6 @@
-""" Data model to represent bio-chemical models.
+""" Data model to represent biochemical models.
 
-This module defines classes that represent the schema of a bio-chemical model:
+This module defines classes that represent the schema of a biochemical model:
 
 * :obj:`Taxon`
 * :obj:`Submodel`
@@ -17,8 +17,8 @@ This module defines classes that represent the schema of a bio-chemical model:
 * :obj:`CrossReference`
 
 These are all instances of `BaseModel`, an alias for `obj_model.core.Model`.
-A bio-chemical model may contain a list of instances of each of these classes, interlinked
-by object references. For example, A :obj:`Reaction` will reference its constituent
+A biochemical model may contain a list of instances of each of these classes, interlinked
+by object references. For example, a :obj:`Reaction` will reference its constituent
 :obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
 
 This module also defines numerous classes that serve as attributes of these classes.
@@ -26,7 +26,7 @@ This module also defines numerous classes that serve as attributes of these clas
 Many classes contain the methods `serialize()` and `deserialize()`, which invert each other.
 `serialize()` converts a python object instance into a string representation, whereas
 `deserialize()` parses an object's string representation -- as would be stored in a file or spreadsheet
-representation of a bio-chemical model -- into a python object instance.
+representation of a biochemical model -- into a python object instance.
 `deserialize()` returns an error when the string representation cannot be parsed into the
 python object.
 
@@ -51,9 +51,17 @@ from obj_model.core import (Model as BaseModel,
                             OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
                             InvalidModel, InvalidObject, InvalidAttribute,
                             TabularOrientation)
+import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 import re
 import sys
+
+# wc_lang generates obj_model SchemaWarning warnings because some Models lack primary attributes.
+# These models include RateLaw, ReactionParticipant, RateLawEquation, and Species.
+# However, these are not needed by the workbook and delimiter-separated representations of
+# models on disk. Therefore, suppress the warnings.
+import warnings
+warnings.filterwarnings('ignore', '', obj_model.core.SchemaWarning, 'obj_model.core')
 
 
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
@@ -638,7 +646,7 @@ class Compartment(BaseModel):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        initial_volume (:obj:`float`): initial volume(L)
+        initial_volume (:obj:`float`): initial volume (L)
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -667,7 +675,7 @@ class SpeciesType(BaseModel):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        structure (:obj:`str`): structure(InChI for metabolites; sequence for DNA, RNA, proteins)
+        structure (:obj:`str`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)
         empirical_formula (:obj:`str`): empirical formula
         molecular_weight (:obj:`float`): molecular weight
         charge (:obj:`int`): charge
