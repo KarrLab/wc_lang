@@ -605,6 +605,7 @@ class Submodel(BaseModel):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
+        compartment (:obj:`Compartment`): the compartment that contains the submodel's species
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -616,13 +617,14 @@ class Submodel(BaseModel):
     name = StringAttribute()
     model = ManyToOneAttribute('Model', related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
+    compartment = ManyToOneAttribute('Compartment', related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(BaseModel.Meta):
         attribute_order = ('id', 'name',
                            'model',
-                           'algorithm',
+                           'algorithm', 'compartment',
                            'comments', 'references')
 
     def get_species(self):
