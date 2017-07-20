@@ -626,6 +626,7 @@ class Submodel(BaseModel):
                            'model',
                            'algorithm', 'compartment',
                            'comments', 'references')
+        indexed_attrs_tuples = (('id',), )
 
     def get_species(self):
         """ Get species in reactions
@@ -706,6 +707,7 @@ class SpeciesType(BaseModel):
                            'model',
                            'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
                            'comments', 'references')
+        indexed_attrs_tuples = (('id',), )
 
     # todo: move to compiled model
     def is_carbon_containing(self):
