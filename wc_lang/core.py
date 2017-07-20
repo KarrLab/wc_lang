@@ -834,6 +834,7 @@ class Reaction(BaseModel):
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of `ReactionParticipant`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
+        objective_proportion (:obj:`float`): proportional contribution to an FBA objective
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -845,14 +846,16 @@ class Reaction(BaseModel):
     submodel = ManyToOneAttribute('Submodel', related_name='reactions')
     participants = ReactionParticipantsAttribute(related_name='reactions')
     reversible = BooleanAttribute()
+    objective_proportion = FloatAttribute(min=0)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(BaseModel.Meta):
         attribute_order = ('id', 'name',
                            'submodel',
-                           'participants', 'reversible',
+                           'participants', 'reversible', 'objective_proportion',
                            'comments', 'references')
+        indexed_attrs_tuples = (('id',), )
 
     def get_species(self):
         """ Get species
