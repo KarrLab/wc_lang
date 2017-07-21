@@ -996,8 +996,8 @@ class RateLaw(BaseModel):
         equation (:obj:`RateLawEquation`): equation
         k_cat (:obj:`float`): v_max (reactions enz^-1 s^-1)
         k_m (:obj:`float`): k_m (M)
-        min_flux (:obj:`float`): minimum flux, a bound for solving an FBA model
-        max_flux (:obj:`float`): maximum flux, a bound for solving an FBA model
+        min_flux (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
+        max_flux (:obj:`float`): maximum flux bound for solving an FBA model
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
     """
@@ -1007,7 +1007,7 @@ class RateLaw(BaseModel):
     equation = RateLawEquationAttribute(related_name='rate_law')
     k_cat = FloatAttribute(min=0, nan=True)
     k_m = FloatAttribute(min=0, nan=True)
-    min_flux = FloatAttribute(min=0, nan=True)
+    min_flux = FloatAttribute(nan=True)
     max_flux = FloatAttribute(min=0, nan=True)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
