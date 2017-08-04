@@ -6,9 +6,10 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
+from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
+                          Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
-                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration,
+                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute)
 import unittest
 
@@ -54,6 +55,15 @@ class TestCore(unittest.TestCase):
         self.submdl_2 = submdl_2 = mdl.submodels.create(
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
+
+        biomass_components=[]
+        for i in range(2):
+            biomass_components.append(
+                submdl_2.biomass_components.create(
+                    id = 'biomass_comp_{}'.format(i+1),
+                    coefficient = float(i+1),
+                    species_type = species_types[i]))
+        self.biomass_components = submdl_2.biomass_components = biomass_components
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
         rxn_0.participants.create(species=species[0], coefficient=-2)
@@ -183,6 +193,15 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reaction.cross_references, [])
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
+
+        # biomass components
+        for i in range(len(self.biomass_components)):
+            # submodels
+            self.assertEqual(self.biomass_components[i].submodel, self.submodels[2])
+            self.assertEqual(self.biomass_components[i], self.submodels[2].biomass_components[i])
+            # species types
+            self.assertEqual(self.biomass_components[i].species_type, self.species_types[i])
+            self.assertEqual(self.biomass_components[i], self.species_types[i].biomass_components[0])
 
         # parameters
         for reference, parameter in zip(self.references, self.parameters):

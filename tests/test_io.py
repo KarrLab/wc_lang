@@ -7,7 +7,7 @@
 """
 
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
-                          ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
+                          ReactionParticipant, BiomassComponent, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook

@@ -12,6 +12,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`ReactionParticipant`
 * :obj:`RateLaw`
 * :obj:`RateLawEquation`
+* :obj:`BiomassComponent`
 * :obj:`Parameter`
 * :obj:`Reference`
 * :obj:`CrossReference`
@@ -1158,6 +1159,35 @@ class RateLawEquation(BaseModel):
         """ return `None` to indicate valid object """
         return None
 
+class BiomassComponent(BaseModel):
+    """ BiomassComponent
+
+    Each BiomassComponent instance describes a component of a biomass reaction that determines
+    a submodel's growth rate. Different submodels can use different biomass reactions.
+
+    Attributes:
+        id (:obj:`str`): unique identifier per submodel
+        name (:obj:`str`): name
+        submodel (:obj:`Submodel`): the submodel which uses the biomass reaction
+        coefficient (:obj:`float`): the specie's reaction coefficient
+        specie (:obj:`Species`): the specie
+        comments (:obj:`str`): comments
+        references (:obj:`list` of `Reference`): references
+    """
+    id = SlugAttribute(unique=False)
+    name = StringAttribute()
+    submodel = ManyToOneAttribute('Submodel', related_name='biomass_components')
+    coefficient = FloatAttribute()
+    species_type = ManyToOneAttribute('SpeciesType', related_name='biomass_components')
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='biomass_components')
+
+    class Meta(BaseModel.Meta):
+        unique_together = (('id', 'submodel', ), ('submodel', 'species_type'))
+        attribute_order = ('id', 'name',
+                           'submodel', 'coefficient',
+                           'species_type', 'comments', 'references')
+
 
 class Parameter(BaseModel):
     """ Parameter
@@ -1187,66 +1217,6 @@ class Parameter(BaseModel):
                            'model', 'submodels',
                            'value', 'units',
                            'comments', 'references')
-
-    @classmethod
-    def validate_unique(cls, objects):
-        """ Validate attribute uniqueness. Make sure that parameter ids are unique
-        within each model/submodel.
-
-        Args:
-            objects (:obj:`list` of `Parameter`): list of objects
-
-        Returns:
-            :obj:`InvalidModel`: list of invalid attributes and their errors
-        """
-
-        # validate attributes uniqueness
-        error = super(Parameter, cls).validate_unique(objects)
-        if error:
-            errors = error.attributes
-        else:
-            errors = []
-
-        # check for id uniqueness within each model/submodel
-        model_ids = set()
-        model_rep_ids = set()
-        submodel_ids = {}
-        submodel_rep_ids = {}
-        for obj in objects:
-            if obj.model:
-                if obj.id in model_ids:
-                    model_rep_ids.add(obj.id)
-                else:
-                    model_ids.add(obj.id)
-
-            for submodel in obj.submodels:
-                if submodel not in submodel_ids:
-                    submodel_ids[submodel] = set()
-
-                if obj.id in submodel_ids[submodel]:
-                    if submodel not in submodel_rep_ids:
-                        submodel_rep_ids[submodel] = set()
-                    submodel_rep_ids[submodel].add(obj.id)
-                else:
-                    submodel_ids[submodel].add(obj.id)
-
-        if model_rep_ids or submodel_rep_ids:
-            msg = 'IDs must be unique within each model/submodel. The following IDs were repeated:'
-
-            for id in model_rep_ids:
-                msg += '\n- {}'.format(id)
-
-            for submodel, rep_ids in submodel_rep_ids.items():
-                msg += '\n- {}:'.format(submodel.id)
-                for id in rep_ids:
-                    msg += '\n  - {}'.format(id)
-
-            errors.append(InvalidAttribute(cls.Meta.attributes['id'], [msg]))
-
-        # return
-        if errors:
-            return InvalidModel(cls, errors)
-        return None
 
 
 class Reference(BaseModel):

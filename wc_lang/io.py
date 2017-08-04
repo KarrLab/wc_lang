@@ -12,7 +12,7 @@ Supported file types:
 """
 
 from wc_lang.core import (Model, Taxon, Submodel, Compartment, SpeciesType,
-                          Concentration, Reaction, RateLaw, Parameter, Reference,
+                          Concentration, Reaction, RateLaw, BiomassComponent, Parameter, Reference,
                           CrossReference)
 from wc_lang.util import get_models
 from obj_model import io
@@ -24,7 +24,7 @@ class Writer(object):
     model_order = [
         Model, Taxon,
         Submodel, Compartment, SpeciesType, Concentration,
-        Reaction, RateLaw, Parameter,
+        Reaction, RateLaw, BiomassComponent, Parameter,
         Reference, CrossReference,
     ]
 

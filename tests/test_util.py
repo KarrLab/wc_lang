@@ -7,8 +7,8 @@
 """
 
 from wc_lang.core import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
-                          ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
-                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
+                          ReactionParticipant, BiomassComponent, Parameter, Reference, ReferenceType,
+                          CrossReference, RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
 
@@ -126,7 +126,7 @@ class TestUtil(unittest.TestCase):
         non_inline_models = set([
             Model, Taxon,
             Submodel, Compartment, SpeciesType, Concentration,
-            Reaction, RateLaw, Parameter,
+            Reaction, RateLaw, BiomassComponent, Parameter,
             Reference, CrossReference,
         ])
         inline_models = set([
