@@ -13,6 +13,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`RateLaw`
 * :obj:`RateLawEquation`
 * :obj:`BiomassComponent`
+* :obj:`BiomassReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
 * :obj:`CrossReference`
@@ -210,7 +211,8 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             help (:obj:`str`, optional): help message
         """
         super(ReactionParticipantsAttribute, self).__init__('ReactionParticipant', related_name=related_name,
-                                                            verbose_name=verbose_name, verbose_related_name=verbose_related_name,
+                                                            verbose_name=verbose_name,
+                                                            verbose_related_name=verbose_related_name,
                                                             help=help)
 
     def serialize(self, participants):
@@ -610,6 +612,7 @@ class Submodel(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
+        biomass_reaction (:obj:`BiomassReaction`): this submodel's biomass reaction
         cross_references (:obj:`list` of `CrossReference`): cross references
         reactions (:obj:`list` of `Reaction`): reactions
         parameters (:obj:`list` of `Parameter`): parameters
@@ -835,7 +838,6 @@ class Reaction(BaseModel):
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of `ReactionParticipant`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
-        objective_proportion (:obj:`float`): proportional contribution to an FBA objective
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -847,14 +849,13 @@ class Reaction(BaseModel):
     submodel = ManyToOneAttribute('Submodel', related_name='reactions')
     participants = ReactionParticipantsAttribute(related_name='reactions')
     reversible = BooleanAttribute()
-    objective_proportion = FloatAttribute(min=0)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(BaseModel.Meta):
         attribute_order = ('id', 'name',
                            'submodel',
-                           'participants', 'reversible', 'objective_proportion',
+                           'participants', 'reversible',
                            'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -1159,6 +1160,7 @@ class RateLawEquation(BaseModel):
         """ return `None` to indicate valid object """
         return None
 
+
 class BiomassComponent(BaseModel):
     """ BiomassComponent
 
@@ -1166,27 +1168,53 @@ class BiomassComponent(BaseModel):
     a submodel's growth rate. Different submodels can use different biomass reactions.
 
     Attributes:
-        id (:obj:`str`): unique identifier per submodel
+        id (:obj:`str`): unique identifier per BiomassComponent
         name (:obj:`str`): name
-        submodel (:obj:`Submodel`): the submodel which uses the biomass reaction
+        biomass_reaction (:obj:`BiomassReaction`): the biomass reaction that uses the biomass component
         coefficient (:obj:`float`): the specie's reaction coefficient
-        specie (:obj:`Species`): the specie
+        species_type (:obj:`SpeciesType`): the specie type
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
     """
-    id = SlugAttribute(unique=False)
+    id = SlugAttribute()
     name = StringAttribute()
-    submodel = ManyToOneAttribute('Submodel', related_name='biomass_components')
+    biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='biomass_components')
     coefficient = FloatAttribute()
     species_type = ManyToOneAttribute('SpeciesType', related_name='biomass_components')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_components')
 
     class Meta(BaseModel.Meta):
-        unique_together = (('id', 'submodel', ), ('submodel', 'species_type'))
-        attribute_order = ('id', 'name',
-                           'submodel', 'coefficient',
-                           'species_type', 'comments', 'references')
+        unique_together = (('biomass_reaction', 'species_type'), )
+        attribute_order = ('id', 'name', 'biomass_reaction',
+                           'coefficient', 'species_type',
+                           'comments', 'references')
+
+
+class BiomassReaction(BaseModel):
+    """ BiomassReaction
+
+    A pseudo-reaction used to estimate a cell's growth.
+
+    Attributes:
+        id (:obj:`str`): unique identifier
+        name (:obj:`str`): name
+        submodel (:obj:`Submodel`): the submodel that uses this biomass reaction
+        comments (:obj:`str`): comments
+        references (:obj:`list` of `Reference`): references
+
+        biomass_components (:obj:`list` of `BiomassComponent`): the components of this biomass reaction
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    submodel = OneToOneAttribute('Submodel', related_name='biomass_reaction')
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
+
+    class Meta(BaseModel.Meta):
+        attribute_order = ('id', 'name', 'submodel',
+                           'comments', 'references')
+        indexed_attrs_tuples = (('id',), )
 
 
 class Parameter(BaseModel):
