@@ -1,9 +1,11 @@
+import traceback, sys
 """ Data model to represent biochemical models.
 
 This module defines classes that represent the schema of a biochemical model:
 
 * :obj:`Taxon`
 * :obj:`Submodel`
+* :obj:`ObjectiveFunction`
 * :obj:`Compartment`
 * :obj:`SpeciesType`
 * :obj:`Species`
@@ -24,14 +26,6 @@ by object references. For example, a :obj:`Reaction` will reference its constitu
 :obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
 
 This module also defines numerous classes that serve as attributes of these classes.
-
-Many classes contain the methods `serialize()` and `deserialize()`, which invert each other.
-`serialize()` converts a python object instance into a string representation, whereas
-`deserialize()` parses an object's string representation -- as would be stored in a file or spreadsheet
-representation of a biochemical model -- into a python object instance.
-`deserialize()` returns an error when the string representation cannot be parsed into the
-python object.
-
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
@@ -157,6 +151,48 @@ class ReferenceType(int, CaseInsensitiveEnum):
     inproceedings = 8
 
     misc = 9
+
+
+class ObjectiveFunctionAttribute(OneToOneAttribute):
+    """ Objective function attribute """
+
+    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
+        """
+        Args:
+            related_name (:obj:`str`, optional): name of related attribute on `related_class`
+            verbose_name (:obj:`str`, optional): verbose name
+            verbose_related_name (:obj:`str`, optional): verbose related name
+            help (:obj:`str`, optional): help message
+        """
+        super(ObjectiveFunctionAttribute, self).__init__('ObjectiveFunction',
+            related_name=related_name,
+            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+
+    def serialize(self, value):
+        """ Serialize related object
+
+        Args:
+            value (:obj:`ObjectiveFunction`): the referenced ObjectiveFunction
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        if value is None:
+            return None
+        else:
+            return value.serialize()
+
+    def deserialize(self, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        return ObjectiveFunction.deserialize(self, value, objects)
 
 
 class OneToOneSpeciesAttribute(OneToOneAttribute):
@@ -382,10 +418,10 @@ class RateLawEquationAttribute(OneToOneAttribute):
         """ Serialize related object
 
         Args:
-            participants (:obj:`Model`): Python representation
+            value (:obj:`RateLawEquation`): the related RateLawEquation
 
         Returns:
-            :obj:`str`: simple Python representation
+            :obj:`str`: simple Python representation of the rate law equation
         """
         return value.serialize()
 
@@ -609,10 +645,11 @@ class Submodel(BaseModel):
         model (:obj:`Model`): model
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
         compartment (:obj:`Compartment`): the compartment that contains the submodel's species
+        biomass_reaction (:obj:`BiomassReaction`): the growth reaction for a dFBA submodel
+        objective_function (:obj:`ObjectiveFunction`): optional objective function for a dFBA submodel
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        biomass_reaction (:obj:`BiomassReaction`): this submodel's biomass reaction
         cross_references (:obj:`list` of `CrossReference`): cross references
         reactions (:obj:`list` of `Reaction`): reactions
         parameters (:obj:`list` of `Parameter`): parameters
@@ -622,14 +659,15 @@ class Submodel(BaseModel):
     model = ManyToOneAttribute('Model', related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     compartment = ManyToOneAttribute('Compartment', related_name='submodels')
+    biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='submodels')
+    objective_function = ObjectiveFunctionAttribute(related_name='submodel')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(BaseModel.Meta):
-        attribute_order = ('id', 'name',
-                           'model',
-                           'algorithm', 'compartment',
-                           'comments', 'references')
+        attribute_order = ('id', 'name', 'model',
+                           'algorithm', 'compartment', 'biomass_reaction',
+                           'objective_function', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def get_species(self):
@@ -644,6 +682,153 @@ class Submodel(BaseModel):
             species.extend(rxn.get_species())
 
         return list(set(species))
+
+
+class ObjectiveFunction(BaseModel):
+    """ Objective function
+
+    Attributes:
+        expression (:obj:`str`): input mathematical expression of the objective function
+        reactions (:obj:`list` of `Reaction`): reactions whose fluxes are used in the objective function
+        biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions whose fluxes are used
+            in the objective function
+
+        submodel (:obj:`Submodel`): the `Submodel` which uses this `ObjectiveFunction`
+    """
+    expression = LongStringAttribute()
+    reactions = ManyToManyAttribute('Reaction', related_name='objective_functions')
+    biomass_reactions = ManyToManyAttribute('BiomassReaction', related_name='objective_functions')
+
+    class Meta(BaseModel.Meta):
+        """
+        Attributes:
+            valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in
+            this `ObjectiveFunction`
+        """
+        attribute_order = ('expression', 'reactions', 'biomass_reactions')
+        tabular_orientation = TabularOrientation.inline
+        # objective functions must be continuous
+        valid_functions = (exp, pow, log, log10)
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: value of primary attribute
+        """
+        return self.expression
+
+    @classmethod
+    def deserialize(cls, attribute, value, objects):
+        """ Deserialize value
+
+        Args:
+            attribute (:obj:`Attribute`): attribute
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of all `Model` objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        # if value is None don't create an ObjectiveFunction
+        if value is None:
+            return (None, None)
+
+        # parse identifiers
+        pattern = '(^|[^a-z0-9_])({})([^a-z0-9_]|$)'.format(SlugAttribute().pattern[1:-1])
+        identifiers = []
+        for match in re.findall(pattern, value, flags=re.I):
+            identifiers.append(match[1])
+
+        # allocate identifiers between reactions and biomass reactions
+        reactions_dict = objects[Reaction]
+        reaction_ids = reactions_dict.keys()
+        reactions = []
+        biomass_reactions_dict = objects[BiomassReaction]
+        biomass_reaction_ids = biomass_reactions_dict.keys()
+        biomass_reactions = []
+        valid_functions_names = set(map(lambda f: f.__name__, cls.Meta.valid_functions))
+        errors = []
+
+        # do not allow Reaction or BiomassReaction instances with ids equal to a valid_function
+        invalid_reaction_ids = valid_functions_names & set(reaction_ids) & set(identifiers)
+        if invalid_reaction_ids:
+            errors.append("reaction id(s) {} ambiguous between a Reaction and a "
+                "valid function in '{}'".format(invalid_reaction_ids, value))
+        invalid_biomass_reaction_ids = valid_functions_names & set(biomass_reaction_ids) & set(identifiers)
+        if invalid_biomass_reaction_ids:
+            errors.append("reaction id(s) {} ambiguous between a BiomassReaction "
+                "and a valid function in '{}'".format(invalid_biomass_reaction_ids, value))
+
+        for id in identifiers:
+
+            if id in valid_functions_names:
+                continue
+
+            is_reaction = id in reaction_ids
+            is_biomass_reactions = id in biomass_reaction_ids
+
+            # redundant names
+            if is_reaction and is_biomass_reactions:
+                errors.append("id '{}' ambiguous between a Reaction and a "
+                    "BiomassReaction in '{}'".format(id, value))
+
+            # missing reaction
+            if not (is_reaction or is_biomass_reactions):
+                errors.append("id '{}' not a Reaction or a "
+                    "BiomassReaction identifier in '{}'".format(id, value))
+
+            if is_reaction:
+                # a reaction may be used multiple times in an objective function
+                if reactions_dict[id] not in reactions:
+                    reactions.append(reactions_dict[id])
+
+            if is_biomass_reactions:
+                if biomass_reactions_dict[id] not in biomass_reactions:
+                    biomass_reactions.append(biomass_reactions_dict[id])
+
+        if errors:
+            return (None, InvalidAttribute(attribute, errors, value=value))
+
+        # create new ObjectiveFunction
+        obj = cls(expression=value, reactions=reactions, biomass_reactions=biomass_reactions)
+        if cls not in objects:
+            objects[cls] = {}
+        objects[cls][obj.serialize()] = obj
+        return (obj, None)
+
+    def validate(self):
+        """ Determine whether an `ObjectiveFunction` is valid
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        """ ensure that self.expression evaluates as valid Python """
+
+        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
+        # test validation with fluxes of 1.0
+        local_ns = {func.__name__: func for func in ObjectiveFunction.Meta.valid_functions}
+        local_ns.update({rxn.id: 1.0 for rxn in self.reactions})
+        local_ns.update({biomass_rxn.id: 1.0 for biomass_rxn in self.biomass_reactions})
+        errors = []
+
+        try:
+            eval(self.expression, {}, local_ns)
+        except SyntaxError as error:
+            errors.append("syntax error in expression '{}'".format(self.expression))
+        except NameError as error:
+            errors.append("NameError in expression '{}'".format(self.expression))
+        except Exception as error:
+            errors.append("cannot eval expression '{}'".format(self.expression))
+
+        if errors:
+            attr = self.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, errors)
+            return InvalidObject(self, [attr_err])
+
+        """ return `None` to indicate valid object """
+        return None
 
 
 class Compartment(BaseModel):
@@ -744,9 +929,14 @@ class Species(BaseModel):
         unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
 
-    # todo: rename this method to id(); unlike other serialize() methods here,
-    # it provides the object's id; alternatively, define id() to call
-    # serialize()
+    def id(self):
+        """ Provide a Species' primary identifier
+
+        Returns:
+            :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
+        """
+        return self.serialize()
+
     def serialize(self):
         """ Provide a Species' primary identifier
 
@@ -1199,21 +1389,19 @@ class BiomassReaction(BaseModel):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
-        submodel (:obj:`Submodel`): the submodel that uses this biomass reaction
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
+        submodels (:obj:`Submodel`): the submodel that uses this biomass reaction
         biomass_components (:obj:`list` of `BiomassComponent`): the components of this biomass reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
-    submodel = OneToOneAttribute('Submodel', related_name='biomass_reaction')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
 
     class Meta(BaseModel.Meta):
-        attribute_order = ('id', 'name', 'submodel',
-                           'comments', 'references')
+        attribute_order = ('id', 'name', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
 

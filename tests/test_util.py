@@ -9,7 +9,7 @@
 from wc_lang.core import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
                           Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
                           Parameter, Reference, ReferenceType, CrossReference, RateLaw,
-                          RateLawEquation, SubmodelAlgorithm, Concentration)
+                          RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction)
 from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
 
@@ -131,7 +131,7 @@ class TestUtil(unittest.TestCase):
             Reference, CrossReference,
         ])
         inline_models = set([
-            Species, ReactionParticipant, RateLawEquation
+            Species, ReactionParticipant, RateLawEquation, ObjectiveFunction
         ])
         self.assertEqual(set(get_models()), non_inline_models | inline_models)
         self.assertEqual(set(get_models(inline=False)), non_inline_models)

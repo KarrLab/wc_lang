@@ -6,12 +6,13 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
-                          Compartment,
+from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
+                          Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
                           BiomassReaction,
-                          OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute)
+                          OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
+                          InvalidObject)
 import unittest
 
 
@@ -58,7 +59,7 @@ class TestCore(unittest.TestCase):
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.biomass_reaction = biomass_reaction = BiomassReaction(id='biomass_reaction_1',
-            name='biomass reaction', submodel=submdl_2)
+            name='biomass reaction')
 
         biomass_components=[]
         for i in range(2):
@@ -202,7 +203,7 @@ class TestCore(unittest.TestCase):
         for i in range(len(self.biomass_components)):
             # submodels
             self.assertEqual(self.biomass_components[i].biomass_reaction, self.biomass_reaction)
-            self.assertEqual(self.biomass_reaction.submodel, self.submodels[2])
+            # self.assertEqual(self.biomass_reaction.submodels[0], self.submodels[2])
             # species types
             self.assertEqual(self.biomass_components[i].species_type, self.species_types[i])
             self.assertEqual(self.biomass_components[i], self.species_types[i].biomass_components[0])
@@ -748,6 +749,107 @@ class TestCore(unittest.TestCase):
         self.assertEqual(equation1.expression, expression)
         self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
         self.assertEqual(list(objs[RateLawEquation].values()), [equation1])
+
+    def test_objective_function_deserialize(self):
+
+        objs = {
+            Reaction: {
+                'reaction_0': Reaction(id='reaction_0'),
+                'reaction_1': Reaction(id='reaction_1'),
+                'reaction_2': Reaction(id='reaction_2'),
+            },
+            BiomassReaction: {
+                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
+                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
+            },
+        }
+
+        attr = ObjectiveFunction.Meta.attributes['expression']
+
+        value = None
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertTrue(of is None)
+        self.assertTrue(invalid_attribute is None)
+
+        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertEqual(of.reactions[0], objs[Reaction]['reaction_1'])
+        self.assertEqual(of.biomass_reactions[0], objs[BiomassReaction]['biomass_reaction_1'])
+
+        objs[Reaction]['biomass_reaction_1'] = Reaction(id='biomass_reaction_1')
+        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertTrue(of is None)
+        self.assertIn("id 'biomass_reaction_1' ambiguous between a Reaction and a BiomassReaction",
+            invalid_attribute.messages[0])
+
+        del objs[Reaction]['biomass_reaction_1']
+        value = "2*biomass_reaction_1 - pow( reaction_x, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertTrue(of is None)
+        self.assertIn("id 'reaction_x' not a Reaction or a BiomassReaction identifier",
+            invalid_attribute.messages[0])
+
+        value = "2*biomass_reaction_1 - pow( biomass_reaction_1, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertEqual(of.reactions, [])
+        self.assertEqual(of.biomass_reactions[0], objs[BiomassReaction]['biomass_reaction_1'])
+        self.assertEqual(len(of.biomass_reactions), 1)
+
+    def test_objective_function_deserialize_invalid_ids(self):
+
+        objs = {
+            Reaction: {
+                'pow': Reaction(id='reaction_0'),
+                'reaction_x': Reaction(id='reaction_x'),
+            },
+            BiomassReaction: {
+                'exp': BiomassReaction(id='biomass_reaction_0'),
+            },
+        }
+
+        attr = ObjectiveFunction.Meta.attributes['expression']
+        value = "2*exp - pow( reaction_x, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertTrue(of is None)
+        self.assertIn("reaction id(s) {'pow'} ambiguous between a Reaction and a valid function",
+            invalid_attribute.messages[0])
+        self.assertIn("reaction id(s) {'exp'} ambiguous between a BiomassReaction and a valid function",
+            invalid_attribute.messages[1])
+
+    def test_objective_function_validate(self):
+
+        objs = {
+            Reaction: {
+                'reaction_0': Reaction(id='reaction_0'),
+                'reaction_1': Reaction(id='reaction_1'),
+                'reaction_2': Reaction(id='reaction_2'),
+            },
+            BiomassReaction: {
+                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
+                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
+            },
+        }
+
+        attr = ObjectiveFunction.Meta.attributes['expression']
+
+        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        self.assertTrue(invalid_attribute is None)
+        rv = of.validate()
+        self.assertTrue(rv is None)
+
+        value = "2*biomass_reaction_1 - pow( reaction_1, 2"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        rv = of.validate()
+        self.assertTrue(isinstance(rv, InvalidObject))
+        self.assertEqual(rv.attributes[0].messages[0], "syntax error in expression '{}'".format(value))
+
+        value = "2*biomass_reaction_1 - pow( 3*reaction_1, 2)"
+        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
+        of.biomass_reactions = []
+        rv = of.validate()
+        self.assertEqual(rv.attributes[0].messages[0], "NameError in expression '{}'".format(value))
 
     def test_validate(self):
         self.assertEqual(self.model.validate(), None)

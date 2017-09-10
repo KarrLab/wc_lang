@@ -11,9 +11,9 @@ Supported file types:
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, Submodel, Compartment, SpeciesType,
-                          Concentration, Reaction, RateLaw, BiomassComponent, Parameter, Reference,
-                          CrossReference)
+from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
+                          Concentration, Reaction, RateLaw, BiomassComponent,
+                          BiomassReaction, Parameter, Reference, CrossReference)
 from wc_lang.util import get_models
 from obj_model import io
 
@@ -22,10 +22,9 @@ class Writer(object):
     """ Write model to file(s) """
 
     model_order = [
-        Model, Taxon,
-        Submodel, Compartment, SpeciesType, Concentration,
-        Reaction, RateLaw, BiomassComponent, Parameter,
-        Reference, CrossReference,
+        Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
+        Concentration, Reaction, RateLaw, BiomassComponent,
+        BiomassReaction, Parameter, Reference, CrossReference
     ]
 
     def run(self, path, model=None):
