@@ -753,12 +753,12 @@ class ObjectiveFunction(BaseModel):
         # do not allow Reaction or BiomassReaction instances with ids equal to a valid_function
         invalid_reaction_ids = valid_functions_names & set(reaction_ids) & set(identifiers)
         if invalid_reaction_ids:
-            errors.append("reaction id(s) {} ambiguous between a Reaction and a "
-                "valid function in '{}'".format(invalid_reaction_ids, value))
+            errors.append("reaction id(s) {{{}}} ambiguous between a Reaction and a "
+                "valid function in '{}'".format(', '.join(list(invalid_reaction_ids)), value))
         invalid_biomass_reaction_ids = valid_functions_names & set(biomass_reaction_ids) & set(identifiers)
         if invalid_biomass_reaction_ids:
-            errors.append("reaction id(s) {} ambiguous between a BiomassReaction "
-                "and a valid function in '{}'".format(invalid_biomass_reaction_ids, value))
+            errors.append("reaction id(s) {{{}}} ambiguous between a BiomassReaction "
+                "and a valid function in '{}'".format(', '.join(list(invalid_biomass_reaction_ids)), value))
 
         for id in identifiers:
 

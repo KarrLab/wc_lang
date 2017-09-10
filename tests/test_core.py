@@ -812,9 +812,9 @@ class TestCore(unittest.TestCase):
         value = "2*exp - pow( reaction_x, 2)"
         (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
         self.assertTrue(of is None)
-        self.assertIn("reaction id(s) {'pow'} ambiguous between a Reaction and a valid function",
+        self.assertIn("reaction id(s) {pow} ambiguous between a Reaction and a valid function",
             invalid_attribute.messages[0])
-        self.assertIn("reaction id(s) {'exp'} ambiguous between a BiomassReaction and a valid function",
+        self.assertIn("reaction id(s) {exp} ambiguous between a BiomassReaction and a valid function",
             invalid_attribute.messages[1])
 
     def test_objective_function_validate(self):
