@@ -646,7 +646,8 @@ class Submodel(BaseModel):
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
         compartment (:obj:`Compartment`): the compartment that contains the submodel's species
         biomass_reaction (:obj:`BiomassReaction`): the growth reaction for a dFBA submodel
-        objective_function (:obj:`ObjectiveFunction`): optional objective function for a dFBA submodel
+        objective_function (:obj:`ObjectiveFunction`, optional): objective function for a dFBA submodel;
+            if not provided, then `biomass_reaction` is used as the objective function
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -946,6 +947,31 @@ class Species(BaseModel):
         return '{}[{}]'.format(
             self.species_type.get_primary_attribute(),
             self.compartment.get_primary_attribute())
+
+    @staticmethod
+    def get(ids, species_iterator):
+        """ Find some Species instances
+
+        Args:
+            ids (:obj:`Iterator` of `str`): an iterator over some species identifiers
+            species_iterator (:obj:`Iterator`): an iterator over some species
+
+        Returns:
+            :obj:`list` of `Species` or `None`: each element of the `list` corresponds to an element
+                of `ids` and contains either a `Species` with `id()` equal to the element in `ids`,
+                or `None` indicating that `species_iterator` does not contain a matching `Species`
+        """
+        # TODO: this costs O(|ids||species_iterator|); replace with O(|ids|) operation using obj_model.Manager.get()
+        rv = []
+        for id in ids:
+            s = None
+            for specie in species_iterator:
+                if specie.id() == id:
+                    s = specie
+                    # one match is enough
+                    break
+            rv.append(s)
+        return rv
 
     @classmethod
     def deserialize(cls, attribute, value, objects):

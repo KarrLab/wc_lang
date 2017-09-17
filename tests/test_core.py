@@ -1,6 +1,7 @@
 """ Tests of core
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Arthur Goldberg, Arthur.Goldberg@mssm.edu
 :Date: 2016-11-10
 :Copyright: 2016, Karr Lab
 :License: MIT
@@ -303,6 +304,17 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.species[1].serialize(), 'spec_type_1[comp_0]')
         self.assertEqual(self.species[2].serialize(), 'spec_type_2[comp_0]')
         self.assertEqual(self.species[3].serialize(), 'spec_type_3[comp_1]')
+
+    def test_species_get(self):
+        for s in self.species:
+            print(s.id())
+        self.assertEqual(Species.get([], self.species), [])
+        self.assertEqual(Species.get(['X'], self.species), [None])
+        self.assertEqual(Species.get(['spec_type_0[comp_0]'], self.species), [self.species[0]])
+        ids = ["spec_type_{}[comp_0]".format(i) for i in range(4,8)]
+        self.assertEqual(Species.get(ids, self.species), self.species[4:])
+        ids.append('X')
+        self.assertEqual(Species.get(ids, self.species), self.species[4:]+[None])
 
     def test_species_deserialize(self):
         objs = {
