@@ -1,4 +1,4 @@
-""" Tests of SBML
+""" Tests of SBML utils
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2017-09-22
@@ -13,23 +13,11 @@ import os
 # presumably from the SWIG wrapper: http://web.mit.edu/svn/src/swig-1.3.25/Lib/python/pyinit.swg
 from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString)
 
-from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
-    Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
-    BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
-
-from wc_lang.sbml import wrap_libsbml, LibSBMLError, Reader, Writer, SBMLExchange
+from wc_lang.sbml.util import wrap_libsbml, LibSBMLError
 
 
 class TestSbml(unittest.TestCase):
 
-    MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
-
-    '''
-    def setUp(self):
-        # read and initialize a model
-        self.model = Reader().run(self.MODEL_FILENAME)
-    '''
-        
     def test_SBML_wrap_libsbml(self):
 
         self.assertEqual(wrap_libsbml("LIBSBML_OPERATION_SUCCESS"), LIBSBML_OPERATION_SUCCESS)
@@ -67,6 +55,3 @@ class TestSbml(unittest.TestCase):
         model = wrap_libsbml("document.createModel()")
         self.assertEqual(wrap_libsbml("model.setTimeUnits('second')"), LIBSBML_OPERATION_SUCCESS)
 
-    def test_SBML_Exchange(self):
-        # document = SBMLExchange.write([self.model.get_compartments()], [Compartment])
-        document = SBMLExchange.write([], [Compartment])
