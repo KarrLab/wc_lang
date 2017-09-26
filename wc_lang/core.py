@@ -609,6 +609,24 @@ class Model(BaseModel):
         components = getattr(self, 'get_{}s'.format(type))()
         return next((c for c in components if c.id == id), None)
 
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Model to a libsbml SBML document.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml("sbml_document.createModel()")
+        wrap_libsbml("sbml_model.setId(self.id)")
+        wrap_libsbml("sbml_model.setName(self.name)")
+        # TODO: save other attributes, perhaps as Notes
+        if self.comments:
+            # TODO: GET libsbml TO DO THIS xml CRAP
+            xml_string = "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(self.comments)
+            wrap_libsbml("sbml_model.appendNotes(xml_string)")
+        return sbml_model
 
 class Taxon(BaseModel):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
@@ -862,15 +880,16 @@ class Compartment(BaseModel):
                            'initial_volume',
                            'comments', 'references')
 
-    def add_to_sbml_doc(self, sbml_model):
-        """ Add compartment into a libsbml SBML model.
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Compartment to a libsbml SBML document.
 
         Args:
-             (:obj:`obj`): a `libsbml` model
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
 
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
+        sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
         wrap_libsbml("sbml_compartment.setId(self.id)")
         wrap_libsbml("sbml_compartment.setName(self.name)")

@@ -28,20 +28,23 @@ from wc_lang.sbml.util import wrap_libsbml
 
 '''
 wc_lang to SBML mapping
-WC Model			    SBML Model
+WC			            SBML
+-----                   -----
+Model                   Model
 Taxon			        None, make SBML notes
 Submodel			    Submodel
+ObjectiveFunction       Objective
 Compartment			    Compartment
 SpeciesType			    NA: all species are located in compartments
 Species			        Species
 Concentration			NA: concentrations are incorporated in Species
-Reaction			
-ReactionParticipant			
-RateLaw			
+Reaction			    Reaction, but FbcReactionPlugin for DFBA submodels
+ReactionParticipant		SpeciesReference in a Reaction
+RateLaw			        KineticLaw?
 RateLawEquation			
 BiomassComponent			
 BiomassReaction			
-Parameter			    
+Parameter			    Parameter
 Reference			    
 CrossReference			
 '''
@@ -166,7 +169,7 @@ class SBMLExchange(object):
 
         # Dependencies among entities force an order on their creation.
         # E.g. compartments must be defined before the species that they contain
-        model_order = [Compartment, Species, Reaction]
+        model_order = [Model, Submodel, Compartment, Species, Reaction]
 
         # add objects into SBMLDocument
         for model in model_order:
@@ -176,6 +179,7 @@ class SBMLExchange(object):
 
         return document
 
+    @staticmethod
     def read(document):
         """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
 

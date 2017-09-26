@@ -873,11 +873,17 @@ class TestCore(unittest.TestCase):
             document = SBMLDocument(3, 1)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
-        sbml_model = wrap_libsbml("document.createModel()")
 
-        # Write Compartment to SBML doc
+        # Write Model to an SBML document
+        self.model.comments = 'test model comment'
+        sbml_model = self.model.add_to_sbml_doc(document)
+        self.assertEqual(sbml_model.getIdAttribute(), self.model.id)
+        self.assertEqual(sbml_model.getName(), self.model.name)
+        self.assertIn(self.model.comments, XMLNode.convertXMLNodeToString(sbml_model.getNotes()))
+
+        # Write Compartment to an SBML document
         self.comp_0.comments = 'test comment'
-        sbml_compartment = self.comp_0.add_to_sbml_doc(sbml_model)
+        sbml_compartment = self.comp_0.add_to_sbml_doc(document)
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
         self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
