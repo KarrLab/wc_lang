@@ -103,6 +103,7 @@ class Writer(object):
 class SBMLExchange(object):
     """ Exchange `wc_lang` model to/from a libSBML SBML representation """
 
+    @staticmethod
     def write(objects, models):
         """ Write a list of `wc_lang` model objects to a libSBML `SBMLDocument`.
 
