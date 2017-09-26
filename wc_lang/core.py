@@ -49,7 +49,7 @@ from obj_model.core import (Model as BaseModel,
                             TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import wrap_libsbml
+from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -609,11 +609,15 @@ class Model(BaseModel):
         components = getattr(self, 'get_{}s'.format(type))()
         return next((c for c in components if c.id == id), None)
 
+    '''
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Model to a libsbml SBML document.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.model`: the libsbml model that's created
 
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
@@ -623,10 +627,9 @@ class Model(BaseModel):
         wrap_libsbml("sbml_model.setName(self.name)")
         # TODO: save other attributes, perhaps as Notes
         if self.comments:
-            # TODO: GET libsbml TO DO THIS xml CRAP
-            xml_string = "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(self.comments)
-            wrap_libsbml("sbml_model.appendNotes(xml_string)")
+            wrap_libsbml("sbml_model.appendNotes(str_to_xmlstr(self.comments))")
         return sbml_model
+    '''
 
 class Taxon(BaseModel):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
@@ -703,6 +706,25 @@ class Submodel(BaseModel):
             species.extend(rxn.get_species())
 
         return list(set(species))
+
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.model`: the libsbml model that's created
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml("sbml_document.createModel()")
+        wrap_libsbml("sbml_model.setId(self.id)")
+        wrap_libsbml("sbml_model.setName(self.name)")
+        if self.comments:
+            wrap_libsbml("sbml_model.appendNotes(str_to_xmlstr(self.comments))")
+        return sbml_model
 
 
 class ObjectiveFunction(BaseModel):
@@ -886,6 +908,9 @@ class Compartment(BaseModel):
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
 
+        Returns:
+            :obj:`libsbml.compartment`: the libsbml compartment that's created
+
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
@@ -895,10 +920,7 @@ class Compartment(BaseModel):
         wrap_libsbml("sbml_compartment.setName(self.name)")
         wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
         if self.comments:
-            # TODO: GET libsbml TO DO THIS xml CRAP
-            xml_string = "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(self.comments)
-            # print("xml_node '{}'".format(XMLNode.convertXMLNodeToString(xml_node)))
-            wrap_libsbml("sbml_compartment.appendNotes(xml_string)")
+            wrap_libsbml("sbml_compartment.appendNotes(str_to_xmlstr(self.comments))")
         return sbml_compartment
 
 
@@ -1053,6 +1075,48 @@ class Species(BaseModel):
                 return (obj, None)
 
         return (None, InvalidAttribute(attribute, ['Invalid species']))
+
+    def xml_id(self):
+        """ Make SBML id, which satisfies the SBML string id syntax
+
+        See Finney and Hucka, "Systems Biology Markup Language (SBML) Level 2: Structures and
+        Facilities for Model Definitions", 2003, section 3.4.
+
+        Returns:
+            :obj:`str`: an SBML id
+        """
+        return '{}__{}__'.format(
+            self.species_type.get_primary_attribute(),
+            self.compartment.get_primary_attribute())
+
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Species to a libsbml SBML document.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.species`: the libsbml species that's created
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml("sbml_document.getModel()")
+        sbml_species = wrap_libsbml("sbml_model.createSpecies()")
+        wrap_libsbml("sbml_species.setId(self.xml_id())")
+
+        # add some SpeciesType data
+        wrap_libsbml("sbml_species.setName(self.species_type.name)")
+        if self.species_type.comments:
+            wrap_libsbml("sbml_species.appendNotes(str_to_xmlstr(self.species_type.comments))")
+
+        # set Compartment, which must already be in the SBML document
+        wrap_libsbml("sbml_species.setCompartment(self.compartment.id)")
+
+        # set the Initial Concentration
+        wrap_libsbml("sbml_species.setInitialConcentration(self.concentration.value)")
+
+        return sbml_species
 
 
 class Concentration(BaseModel):

@@ -128,3 +128,15 @@ def wrap_libsbml(call):
             frame.f_back.f_locals)
     finally:
         del frame
+
+def str_to_xmlstr(str):
+    """ Convert a Python string to an XML string that can be stored as a Note in an SBML Document.
+
+    Args:
+        str (:obj:`str`): a string
+
+    Returns:
+        :obj:`str`: an XML string that can be stored as a Note in an SBML Document
+    """
+    # TODO: GET libsbml to do this XML crap, but none of the obvious methods work
+    return "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(str)

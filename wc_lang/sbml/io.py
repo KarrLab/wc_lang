@@ -27,20 +27,22 @@ from wc_lang.sbml.util import wrap_libsbml
 '''
 
 '''
-wc_lang to SBML mapping
-WC			            SBML
------                   -----
-Model                   Model
-Taxon			        None, make SBML notes
-Submodel			    Submodel
-ObjectiveFunction       Objective
-Compartment			    Compartment
-SpeciesType			    NA: all species are located in compartments
-Species			        Species
+wc_lang to SBML mapping to support FBA modeling
+Individual wc_lang submodels that use dFBA are mapped to individual SBML documents and files.
+
+WC			            SBML                                                Status
+-----                   -----                                               ------
+Model                   Model                                               Ignored
+Taxon			        None, perhaps make SBML annotations                 Ignored
+Submodel			    Model                                               Implemented
+ObjectiveFunction       Objective                                           TBD
+Compartment			    Compartment                                         Implemented
+SpeciesType			    NA: SpeciesType aren't defined
+Species			        Species                                             Implemented
 Concentration			NA: concentrations are incorporated in Species
-Reaction			    Reaction, but FbcReactionPlugin for DFBA submodels
+Reaction			    Reaction, but FbcReactionPlugin for DFBA submodels  TBD
 ReactionParticipant		SpeciesReference in a Reaction
-RateLaw			        KineticLaw?
+RateLaw			        KineticLaw?                                         Ignored
 RateLawEquation			
 BiomassComponent			
 BiomassReaction			
@@ -169,7 +171,7 @@ class SBMLExchange(object):
 
         # Dependencies among entities force an order on their creation.
         # E.g. compartments must be defined before the species that they contain
-        model_order = [Model, Submodel, Compartment, Species, Reaction]
+        model_order = [Submodel, Compartment, Species, Reaction]
 
         # add objects into SBMLDocument
         for model in model_order:

@@ -16,6 +16,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           InvalidObject)
 import unittest
 from libsbml import (SBMLDocument, XMLNode)
+import libsbml
 from wc_lang.sbml.util import wrap_libsbml, LibSBMLError
 
 
@@ -874,14 +875,14 @@ class TestCore(unittest.TestCase):
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
 
-        # Write Model to an SBML document
-        self.model.comments = 'test model comment'
-        sbml_model = self.model.add_to_sbml_doc(document)
-        self.assertEqual(sbml_model.getIdAttribute(), self.model.id)
-        self.assertEqual(sbml_model.getName(), self.model.name)
-        self.assertIn(self.model.comments, XMLNode.convertXMLNodeToString(sbml_model.getNotes()))
+        # Write a dFBA Submodel to an SBML document
+        self.submdl_2.comments = 'test submodel comment'
+        sbml_model = self.submdl_2.add_to_sbml_doc(document)
+        self.assertEqual(sbml_model.getIdAttribute(), self.submdl_2.id)
+        self.assertEqual(sbml_model.getName(), self.submdl_2.name)
+        self.assertIn(self.submdl_2.comments, XMLNode.convertXMLNodeToString(sbml_model.getNotes()))
 
-        # Write Compartment to an SBML document
+        # Write Compartments to the SBML document
         self.comp_0.comments = 'test comment'
         sbml_compartment = self.comp_0.add_to_sbml_doc(document)
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
@@ -889,4 +890,16 @@ class TestCore(unittest.TestCase):
         self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
         self.assertIn(self.comp_0.comments, XMLNode.convertXMLNodeToString(sbml_compartment.getNotes()))
 
+        # Write species used by the submodel to the SBML document
+        for species in self.submdl_2.get_species():
+            sbml_species = species.add_to_sbml_doc(document)
+            self.assertEqual(sbml_species.getIdAttribute(), species.xml_id())
+            self.assertEqual(sbml_species.getName(), species.species_type.name)
+            self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
+            self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.value)
+
+        # Write reactions used by the submodel to an SBML document
+
+        # Check the SBML document
         # Read Compartment from SBML doc
+        print(libsbml.writeSBMLToString(document))
