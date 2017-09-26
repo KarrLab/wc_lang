@@ -15,6 +15,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
                           InvalidObject)
 import unittest
+from libsbml import (SBMLDocument, XMLNode)
+from wc_lang.sbml.util import wrap_libsbml, LibSBMLError
 
 
 class TestCore(unittest.TestCase):
@@ -24,8 +26,10 @@ class TestCore(unittest.TestCase):
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
-        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0', initial_volume=1.25)
-        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1', initial_volume=2.5)
+        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0',
+            initial_volume=1.25)
+        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1',
+            initial_volume=2.5)
         self.compartments = compartments = [comp_0, comp_1]
 
         self.species_types = species_types = []
@@ -306,8 +310,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.species[3].serialize(), 'spec_type_3[comp_1]')
 
     def test_species_get(self):
-        for s in self.species:
-            print(s.id())
         self.assertEqual(Species.get([], self.species), [])
         self.assertEqual(Species.get(['X'], self.species), [None])
         self.assertEqual(Species.get(['spec_type_0[comp_0]'], self.species), [self.species[0]])
@@ -865,3 +867,20 @@ class TestCore(unittest.TestCase):
 
     def test_validate(self):
         self.assertEqual(self.model.validate(), None)
+
+    def test_sbml_data_exchange(self):
+        try:
+            document = SBMLDocument(3, 1)
+        except ValueError:
+            raise SystemExit('Could not create SBMLDocumention object')
+        sbml_model = wrap_libsbml("document.createModel()")
+
+        # Write Compartment to SBML doc
+        self.comp_0.comments = 'test comment'
+        sbml_compartment = self.comp_0.add_to_sbml_doc(sbml_model)
+        self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
+        self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
+        self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
+        self.assertIn(self.comp_0.comments, XMLNode.convertXMLNodeToString(sbml_compartment.getNotes()))
+
+        # Read Compartment from SBML doc

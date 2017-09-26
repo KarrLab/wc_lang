@@ -49,6 +49,8 @@ from obj_model.core import (Model as BaseModel,
                             TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
+from wc_lang.sbml.util import wrap_libsbml
+from libsbml import (XMLNode,)
 import re
 import sys
 
@@ -859,6 +861,26 @@ class Compartment(BaseModel):
                            'model',
                            'initial_volume',
                            'comments', 'references')
+
+    def add_to_sbml_doc(self, sbml_model):
+        """ Add compartment into a libsbml SBML model.
+
+        Args:
+             (:obj:`obj`): a `libsbml` model
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
+        wrap_libsbml("sbml_compartment.setId(self.id)")
+        wrap_libsbml("sbml_compartment.setName(self.name)")
+        wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
+        if self.comments:
+            # TODO: GET libsbml TO DO THIS xml CRAP
+            xml_string = "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(self.comments)
+            # print("xml_node '{}'".format(XMLNode.convertXMLNodeToString(xml_node)))
+            wrap_libsbml("sbml_compartment.appendNotes(xml_string)")
+        return sbml_compartment
 
 
 class SpeciesType(BaseModel):

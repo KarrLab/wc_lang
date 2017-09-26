@@ -28,14 +28,13 @@ from wc_lang.sbml.util import wrap_libsbml
 
 '''
 wc_lang to SBML mapping
-Model			        Model
-Taxon			        
-Submodel			
-ObjectiveFunction			
+WC Model			    SBML Model
+Taxon			        None, make SBML notes
+Submodel			    Submodel
 Compartment			    Compartment
 SpeciesType			    NA: all species are located in compartments
-Species			        
-Concentration			
+Species			        Species
+Concentration			NA: concentrations are incorporated in Species
 Reaction			
 ReactionParticipant			
 RateLaw			
@@ -45,6 +44,14 @@ BiomassReaction
 Parameter			    
 Reference			    
 CrossReference			
+'''
+
+'''
+wc_lang attribute to SBML mapping
+WC Model			    SBML Model
+comments                notes
+references              notes, as a Python dict
+
 '''
 
 class Reader(object):
