@@ -129,6 +129,39 @@ def wrap_libsbml(call):
     finally:
         del frame
 
+print('UNIT_KIND_LITER', UNIT_KIND_LITER)
+def init_model_units(sbml_model):
+    """ Initialize an SMBL model with unit definitions.
+
+    Args:
+         sbml_model (:obj:`libsbml.model`): a `libsbml` Model
+
+    Raises:
+        :obj:`LibSBMLError`: if calling `libsbml` raises an error
+    """
+    # Copied from libsbml-5.15.0/examples/python/createSimpleModel.py
+
+    # To produce a model with complete units for the reaction rates, we need
+    # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
+    # set 'substanceUnits' too, for good measure, though it's not strictly
+    # necessary here because we also set the units for invididual species
+    # in their definitions.
+    wrap_libsbml("sbml_model.setTimeUnits('second')")
+    wrap_libsbml("sbml_model.setExtentUnits('mole')")
+    wrap_libsbml("sbml_model.setSubstanceUnits('mole')")
+    wrap_libsbml("sbml_model.setVolumeUnits('litre')")
+
+    # Create a unit definition we will need later.  Note that SBML Unit
+    # objects must have all four attributes 'kind', 'exponent', 'scale'
+    # and 'multiplier' defined.
+    per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
+    wrap_libsbml("per_second.setId('per_second')")
+    unit = wrap_libsbml("per_second.createUnit()")
+    wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
+    wrap_libsbml("unit.setExponent(-1)")
+    wrap_libsbml("unit.setScale(0)")
+    wrap_libsbml("unit.setMultiplier(1)")
+
 def str_to_xmlstr(str):
     """ Convert a Python string to an XML string that can be stored as a Note in an SBML Document.
 

@@ -49,7 +49,7 @@ from obj_model.core import (Model as BaseModel,
                             TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr
+from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr, LibSBMLError, init_model_units
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -915,9 +915,11 @@ class Compartment(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
+        init_model_units(sbml_model)
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
         wrap_libsbml("sbml_compartment.setId(self.id)")
         wrap_libsbml("sbml_compartment.setName(self.name)")
+        wrap_libsbml("sbml_compartment.setSpatialDimensions(3)")
         wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
         if self.comments:
             wrap_libsbml("sbml_compartment.appendNotes(str_to_xmlstr(self.comments))")

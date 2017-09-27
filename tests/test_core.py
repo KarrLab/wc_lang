@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
 import unittest
 from libsbml import (SBMLDocument, XMLNode)
 import libsbml
-from wc_lang.sbml.util import wrap_libsbml, LibSBMLError
+from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_model_units
 
 
 class TestCore(unittest.TestCase):
@@ -901,5 +901,10 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
 
         # Check the SBML document
+        for i in range(document.checkConsistency()):
+            print(document.getError(i).getShortMessage())
+            print(document.getError(i).getMessage())
+        self.assertEqual(document.checkConsistency(), 0)
+        self.assertEqual(document.checkL3v1Compatibility(), 0)
+
         # Read Compartment from SBML doc
-        print(libsbml.writeSBMLToString(document))

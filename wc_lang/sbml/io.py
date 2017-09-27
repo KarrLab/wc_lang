@@ -136,27 +136,8 @@ class SBMLExchange(object):
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
 
-        # Create the basic Model object inside the SBMLDocument object.  To
-        # produce a model with complete units for the reaction rates, we need
-        # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
-        # set 'substanceUnits' too, for good measure, though it's not strictly
-        # necessary here because we also set the units for invididual species
-        # in their definitions.
+        # Create the basic Model object inside the SBMLDocument object.
         sbml_model = wrap_libsbml("document.createModel()")
-        wrap_libsbml("sbml_model.setTimeUnits('second')")
-        wrap_libsbml("sbml_model.setExtentUnits('mole')")
-        wrap_libsbml("sbml_model.setSubstanceUnits('mole')")
-
-        # Create a unit definition we will need later.  Note that SBML Unit
-        # objects must have all four attributes 'kind', 'exponent', 'scale'
-        # and 'multiplier' defined.
-        per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
-        wrap_libsbml("per_second.setId('per_second')")
-        unit = wrap_libsbml("per_second.createUnit()")
-        wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
-        wrap_libsbml("unit.setExponent(-1)")
-        wrap_libsbml("unit.setScale(0)")
-        wrap_libsbml("unit.setMultiplier(1)")
 
         # find related objects
         # validate objects
