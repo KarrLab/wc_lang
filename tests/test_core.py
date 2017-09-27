@@ -61,7 +61,7 @@ class TestCore(unittest.TestCase):
         self.submdl_1 = submdl_1 = mdl.submodels.create(
             id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
+            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba, compartment=comp_0)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.biomass_reaction = biomass_reaction = BiomassReaction(id='biomass_reaction_1',
@@ -899,6 +899,20 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.value)
 
         # Write reactions used by the submodel to an SBML document
+        sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
+        self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
+        self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
+        self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
+        self.assertEqual(len(sbml_reaction.getListOfReactants()) + len(sbml_reaction.getListOfProducts()),
+            len(self.rxn_2.participants))
+        for reactant in sbml_reaction.getListOfReactants():
+            for participant in self.rxn_2.participants:
+                if reactant.getSpecies() == participant.species.xml_id():
+                    self.assertEqual(reactant.getStoichiometry(), -participant.coefficient)
+        for product in sbml_reaction.getListOfProducts():
+            for participant in self.rxn_2.participants:
+                if product.getSpecies() == participant.species.xml_id():
+                    self.assertEqual(product.getStoichiometry(), participant.coefficient)
 
         # Check the SBML document
         for i in range(document.checkConsistency()):

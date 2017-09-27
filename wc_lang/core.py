@@ -609,27 +609,6 @@ class Model(BaseModel):
         components = getattr(self, 'get_{}s'.format(type))()
         return next((c for c in components if c.id == id), None)
 
-    '''
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Model to a libsbml SBML document.
-
-        Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
-
-        Returns:
-            :obj:`libsbml.model`: the libsbml model that's created
-
-        Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
-        """
-        sbml_model = wrap_libsbml("sbml_document.createModel()")
-        wrap_libsbml("sbml_model.setId(self.id)")
-        wrap_libsbml("sbml_model.setName(self.name)")
-        # TODO: save other attributes, perhaps as Notes
-        if self.comments:
-            wrap_libsbml("sbml_model.appendNotes(str_to_xmlstr(self.comments))")
-        return sbml_model
-    '''
 
 class Taxon(BaseModel):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
@@ -709,6 +688,8 @@ class Submodel(BaseModel):
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
+
+        Creates the document's `libsbml.model`.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
@@ -1079,8 +1060,9 @@ class Species(BaseModel):
         return (None, InvalidAttribute(attribute, ['Invalid species']))
 
     def xml_id(self):
-        """ Make SBML id, which satisfies the SBML string id syntax
+        """ Make a Species id that satisfies the SBML string id syntax.
 
+        Replaces the '[' and ']' in Species.id() with double-underscores '__'.
         See Finney and Hucka, "Systems Biology Markup Language (SBML) Level 2: Structures and
         Facilities for Model Definitions", 2003, section 3.4.
 
@@ -1202,6 +1184,40 @@ class Reaction(BaseModel):
             species.extend(rate_law.equation.modifiers)
 
         return list(set(species))
+
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Reaction to a libsbml SBML document.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.reaction`: the libsbml reaction that's created
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml("sbml_document.getModel()")
+        sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
+        wrap_libsbml("sbml_reaction.setId(self.id)")
+        wrap_libsbml("sbml_reaction.setName(self.name)")
+        wrap_libsbml("sbml_reaction.setCompartment(self.submodel.compartment.id)")
+        if self.comments:
+            wrap_libsbml("sbml_reaction.appendNotes(str_to_xmlstr(self.comments))")
+
+        for participant in self.participants:
+            if participant.coefficient<0:
+                species_reference = wrap_libsbml("sbml_reaction.createReactant()")
+                wrap_libsbml("species_reference.setStoichiometry(-participant.coefficient)")
+            elif 0<participant.coefficient:
+                species_reference = wrap_libsbml("sbml_reaction.createProduct()")
+                wrap_libsbml("species_reference.setStoichiometry(participant.coefficient)")
+            else:
+                raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
+                    participant.coefficient, self.id))
+            wrap_libsbml("species_reference.setSpecies(participant.species.xml_id())")
+
+        return sbml_reaction
 
 
 class ReactionParticipant(BaseModel):

@@ -129,7 +129,6 @@ def wrap_libsbml(call):
     finally:
         del frame
 
-print('UNIT_KIND_LITER', UNIT_KIND_LITER)
 def init_model_units(sbml_model):
     """ Initialize an SMBL model with unit definitions.
 
