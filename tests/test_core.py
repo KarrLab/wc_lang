@@ -15,9 +15,9 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
                           InvalidObject)
 import unittest
-from libsbml import (SBMLDocument, XMLNode)
+from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode)
 import libsbml
-from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_model_units
+from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_sbml_model
 
 
 class TestCore(unittest.TestCase):
@@ -870,10 +870,15 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.model.validate(), None)
 
     def test_sbml_data_exchange(self):
+        # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         try:
-            document = SBMLDocument(3, 1)
+            sbmlns = SBMLNamespaces(3, 2, "fbc", 2)
+            document = SBMLDocument(sbmlns)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
+
+        # Initialize the SBML document's model
+        sbml_model = init_sbml_model(document)
 
         # Write a dFBA Submodel to an SBML document
         self.submdl_2.comments = 'test submodel comment'
@@ -899,10 +904,19 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.value)
 
         # Write reactions used by the submodel to an SBML document
+        self.rxn_2.min_flux = 100
+        self.rxn_2.max_flux = 200
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
         self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
         self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
+        self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
+        fbc_plugin = sbml_reaction.getPlugin('fbc')
+        sbml_model = document.getModel()
+        self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),
+            self.rxn_2.min_flux)
+        self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
+            self.rxn_2.max_flux)
         self.assertEqual(len(sbml_reaction.getListOfReactants()) + len(sbml_reaction.getListOfProducts()),
             len(self.rxn_2.participants))
         for reactant in sbml_reaction.getListOfReactants():

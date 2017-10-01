@@ -107,11 +107,12 @@ def __wrap_libsbml(call, globals, locals):
         # return data provided by libsbml method
         return rc
 
-def wrap_libsbml(call):
+def wrap_libsbml(call, debug=False):
     """ Wrap a libsbml method, automatically passing global and local namespaces.
 
     Args:
         call (:obj:`str`): the libsbml expression to execute
+        debug (bool): whether to print debug output
 
     Returns:
         :obj:`obj` or `int`: return the libsbml method's return value, either
@@ -123,22 +124,28 @@ def wrap_libsbml(call):
     """
     frame = inspect.currentframe()
     try:
+        if debug:
+            print(call)
         return __wrap_libsbml(call,
             frame.f_back.f_globals,
             frame.f_back.f_locals)
     finally:
         del frame
 
-def init_model_units(sbml_model):
-    """ Initialize an SMBL model with unit definitions.
+def init_sbml_model(sbml_document):
+    """ Create and initialize an SMBL model.
 
     Args:
-         sbml_model (:obj:`libsbml.model`): a `libsbml` Model
+         sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+    Returns:
+        :obj:`libsbml.model`: the SBML model
 
     Raises:
         :obj:`LibSBMLError`: if calling `libsbml` raises an error
     """
-    # Copied from libsbml-5.15.0/examples/python/createSimpleModel.py
+    # Modified libsbml-5.15.0/examples/python/createSimpleModel.py
+    sbml_model = wrap_libsbml("sbml_document.createModel()")
 
     # To produce a model with complete units for the reaction rates, we need
     # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
@@ -158,8 +165,32 @@ def init_model_units(sbml_model):
     unit = wrap_libsbml("per_second.createUnit()")
     wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
     wrap_libsbml("unit.setExponent(-1)")
-    wrap_libsbml("unit.setScale(0)")
-    wrap_libsbml("unit.setMultiplier(1)")
+    wrap_libsbml("unit.setScale(1)")
+    wrap_libsbml("unit.setMultiplier(1.0)")
+
+    mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
+    wrap_libsbml("mmol_per_gDW_per_hr.setId('mmol_per_gDW_per_hr')")
+
+    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
+    wrap_libsbml("unit.setKind(UNIT_KIND_MOLE)")
+    wrap_libsbml("unit.setExponent(0)")
+    wrap_libsbml("unit.setScale(-3)")
+    wrap_libsbml("unit.setMultiplier(1.0)")
+
+    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
+    wrap_libsbml("unit.setKind(UNIT_KIND_GRAM)")
+    wrap_libsbml("unit.setExponent(-1)")
+    wrap_libsbml("unit.setScale(1)")
+    wrap_libsbml("unit.setMultiplier(1.0)")
+
+    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
+    wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
+    wrap_libsbml("unit.setExponent(-1)")
+    wrap_libsbml("unit.setScale(1)")
+    wrap_libsbml("unit.setMultiplier(3600.0)")
+
+    return sbml_model
+
 
 def str_to_xmlstr(str):
     """ Convert a Python string to an XML string that can be stored as a Note in an SBML Document.

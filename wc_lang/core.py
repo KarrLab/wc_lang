@@ -49,7 +49,7 @@ from obj_model.core import (Model as BaseModel,
                             TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr, LibSBMLError, init_model_units
+from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr, LibSBMLError, init_sbml_model
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -700,7 +700,7 @@ class Submodel(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.createModel()")
+        sbml_model = wrap_libsbml("sbml_document.getModel()")
         wrap_libsbml("sbml_model.setId(self.id)")
         wrap_libsbml("sbml_model.setName(self.name)")
         if self.comments:
@@ -896,7 +896,6 @@ class Compartment(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
-        init_model_units(sbml_model)
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
         wrap_libsbml("sbml_compartment.setId(self.id)")
         wrap_libsbml("sbml_compartment.setName(self.name)")
@@ -1198,6 +1197,8 @@ class Reaction(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
+
+        # create SBML reaction in SBML document
         sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
         wrap_libsbml("sbml_reaction.setId(self.id)")
         wrap_libsbml("sbml_reaction.setName(self.name)")
@@ -1205,6 +1206,7 @@ class Reaction(BaseModel):
         if self.comments:
             wrap_libsbml("sbml_reaction.appendNotes(str_to_xmlstr(self.comments))")
 
+        # write reaction participants to SBML document
         for participant in self.participants:
             if participant.coefficient<0:
                 species_reference = wrap_libsbml("sbml_reaction.createReactant()")
@@ -1216,6 +1218,24 @@ class Reaction(BaseModel):
                 raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
                     participant.coefficient, self.id))
             wrap_libsbml("species_reference.setSpecies(participant.species.xml_id())")
+
+        # write flux bounds to SBML document; uses version 2 of the 'Flux Balance Constraints' extension
+        fbc_reaction_plugin = wrap_libsbml("sbml_reaction.getPlugin('fbc')")
+        flux_bounds = {}
+        for bound in ['lower', 'upper']:
+            flux_bounds[bound] = wrap_libsbml("sbml_model.createParameter()")
+        for bound in ['lower', 'upper']:
+            wrap_libsbml("flux_bounds[bound].setConstant(True)")
+            wrap_libsbml("flux_bounds[bound].setUnits('mmol_per_gDW_per_hr')")
+            # make a unique ID for each parameter
+            param_id = "_reaction_{}_{}_bound".format(self.id, bound)
+            wrap_libsbml("flux_bounds[bound].setIdAttribute('{}')".format(param_id))
+            if bound == 'lower':
+                wrap_libsbml("flux_bounds['lower'].setValue({})".format(self.min_flux))
+                wrap_libsbml("fbc_reaction_plugin.setLowerFluxBound('{}')".format(param_id))
+            if bound == 'upper':
+                wrap_libsbml("flux_bounds['upper'].setValue({})".format(self.max_flux))
+                wrap_libsbml("fbc_reaction_plugin.setUpperFluxBound('{}')".format(param_id))
 
         return sbml_reaction
 

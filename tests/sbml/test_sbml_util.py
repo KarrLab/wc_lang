@@ -11,7 +11,8 @@ import os
 
 # "from libsbml import *" generates "NameError: Unknown C global variable" in pytest,
 # presumably from the SWIG wrapper: http://web.mit.edu/svn/src/swig-1.3.25/Lib/python/pyinit.swg
-from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString)
+from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString,
+    SBMLNamespaces)
 
 from wc_lang.sbml.util import wrap_libsbml, LibSBMLError
 
@@ -40,8 +41,7 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml("document.setIdAttribute('{}')".format(id)), LIBSBML_OPERATION_SUCCESS)
 
-        id = '..'
-        call = "document.setIdAttribute('{}')".format(id)
+        call = "document.setIdAttribute('..')"
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(call)
         self.assertIn('LibSBML returned error code', str(context.exception))
@@ -55,3 +55,21 @@ class TestSbml(unittest.TestCase):
         model = wrap_libsbml("document.createModel()")
         self.assertEqual(wrap_libsbml("model.setTimeUnits('second')"), LIBSBML_OPERATION_SUCCESS)
 
+    def test_init_sbml_model(self):
+        # TODO
+        pass
+
+    def test_SBML_fbc(self):
+
+        try:
+            # use uses the SBML Level 3 Flux Balance Constraints package
+            sbmlns = SBMLNamespaces(3, 2, "fbc", 2);
+            document = SBMLDocument(sbmlns);
+            # mark the fbc package required
+            document.setPackageRequired("fbc", True)
+        except ValueError:
+            raise SystemExit("'SBMLNamespaces(3, 2, 'fbc', 2) fails")
+
+        id = 'x'
+        self.assertEqual(
+            wrap_libsbml("document.setIdAttribute('{}')".format(id)), LIBSBML_OPERATION_SUCCESS)
