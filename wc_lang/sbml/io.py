@@ -132,7 +132,7 @@ class SBMLExchange(object):
         # this, it is still possible for a failure to occur (e.g., if the
         # operating system runs out of memory).
         try:
-            document = SBMLDocument(3, 2)
+            document = SBMLDocument(3, 1)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
 

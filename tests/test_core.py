@@ -872,7 +872,7 @@ class TestCore(unittest.TestCase):
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         try:
-            sbmlns = SBMLNamespaces(3, 2, "fbc", 2)
+            sbmlns = SBMLNamespaces(3, 1, "fbc", 2)
             document = SBMLDocument(sbmlns)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
