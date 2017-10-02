@@ -67,7 +67,41 @@ class LibSBMLError(Error):
         return self.msg
 
 
-def __wrap_libsbml(call, globals, locals):
+class LibsbmlInterface(object):
+    '''Methods that compactly use libsbml to create SBML objects.
+
+    The libsbml method calls provide horribly narrow interfaces, typically exchanging one
+    value per call, which creates extremely verbose SBML code. These methods aggregate multiple
+    libsbml method calls to enable more compact usage.
+    '''
+    @staticmethod
+    def create_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
+        """ Add an SBML unit on an existing unit definition.
+
+        Args:
+            unit_definition (:obj:`libsbml.UnitDefinition`): a libsbml UnitDefinition
+            unit_kind (:obj:`libsbml.UnitDefinition`): a libsbml UnitDefinition
+
+        Returns:
+            :obj:`obj` or `int`: return the value returned by the libsbml method, either
+            an object that has been created or retrieved, or an integer return code
+
+        Raises:
+            :obj:`LibSBMLError`: if one of the libsbml calls fails
+        """
+        unit = wrap_libsbml("unit_definition.createUnit()")
+        wrap_libsbml("unit.setKind({})".format(unit_kind))
+        wrap_libsbml("unit.setExponent({})".format(exponent))
+        wrap_libsbml("unit.setScale({})".format(scale))
+        wrap_libsbml("unit.setMultiplier({})".format(multiplier))
+        return unit
+
+    @staticmethod
+    def create_sbml_parameter(unit_definition, unit_kind, exponent=0, scale=1, multiplier=1.0):
+        pass
+
+
+def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
     """ Wrap a libsbml method and properly handle errors.
 
     Unfortunately, libsbml methods that do not return data usually handle errors via return codes,
@@ -78,6 +112,8 @@ def __wrap_libsbml(call, globals, locals):
         call (:obj:`str`): a libsbml expression to execute
         globals (:obj:`namespace`): the global namespace
         locals (:obj:`namespace`): the local namespace at the calling code
+        returns_int (:obj:`bool`, optional): whether the method returns an int
+        debug (:obj:`bool`, optional): whether to print debug output
 
     Returns:
         :obj:`obj` or `int`: return the value returned by the libsbml method, either
@@ -99,20 +135,32 @@ def __wrap_libsbml(call, globals, locals):
         raise LibSBMLError("libsbml returned None when executing '{}'.".format(call))
     elif type(rc) is int:
         if rc == LIBSBML_OPERATION_SUCCESS:
+            if debug:
+                print('libsbml returned LIBSBML_OPERATION_SUCCESS')
             return rc
         else:
-            raise LibSBMLError("LibSBML returned error code '{}' "
-                "when executing '{}'.".format(OperationReturnValue_toString(rc), call))
+            error_code = OperationReturnValue_toString(rc)
+            # Handle libsbml methods that return int as values
+            # TODO: handle this more gracefully
+            if error_code is None or returns_int:
+                return rc
+            else:
+                raise LibSBMLError("LibSBML returned error code '{}' "
+                    "when executing '{}'.\nWARNING: if the libsbml call above returns an int, then this "
+                    "error may be incorrect; pass 'returns_int=True' to wrap_libsbml().".format(error_code, call))
     else:
         # return data provided by libsbml method
+        if debug:
+            print('libsbml returned', rc)
         return rc
 
-def wrap_libsbml(call, debug=False):
+def wrap_libsbml(call, returns_int=False, debug=False):
     """ Wrap a libsbml method, automatically passing global and local namespaces.
 
     Args:
         call (:obj:`str`): the libsbml expression to execute
-        debug (bool): whether to print debug output
+        returns_int (:obj:`bool`, optional): whether the method returns an int
+        debug (:obj:`bool`, optional): whether to print debug output
 
     Returns:
         :obj:`obj` or `int`: return the libsbml method's return value, either
@@ -125,10 +173,11 @@ def wrap_libsbml(call, debug=False):
     frame = inspect.currentframe()
     try:
         if debug:
-            print(call)
+            print('wrap_libsbml call:', call)
         return __wrap_libsbml(call,
             frame.f_back.f_globals,
-            frame.f_back.f_locals)
+            frame.f_back.f_locals,
+            returns_int, debug)
     finally:
         del frame
 
@@ -162,32 +211,14 @@ def init_sbml_model(sbml_document):
     # and 'multiplier' defined.
     per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("per_second.setId('per_second')")
-    unit = wrap_libsbml("per_second.createUnit()")
-    wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
-    wrap_libsbml("unit.setExponent(-1)")
-    wrap_libsbml("unit.setScale(1)")
-    wrap_libsbml("unit.setMultiplier(1.0)")
+    LibsbmlInterface.create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
 
     mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("mmol_per_gDW_per_hr.setId('mmol_per_gDW_per_hr')")
-
-    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
-    wrap_libsbml("unit.setKind(UNIT_KIND_MOLE)")
-    wrap_libsbml("unit.setExponent(0)")
-    wrap_libsbml("unit.setScale(-3)")
-    wrap_libsbml("unit.setMultiplier(1.0)")
-
-    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
-    wrap_libsbml("unit.setKind(UNIT_KIND_GRAM)")
-    wrap_libsbml("unit.setExponent(-1)")
-    wrap_libsbml("unit.setScale(1)")
-    wrap_libsbml("unit.setMultiplier(1.0)")
-
-    unit = wrap_libsbml("mmol_per_gDW_per_hr.createUnit()")
-    wrap_libsbml("unit.setKind(UNIT_KIND_SECOND)")
-    wrap_libsbml("unit.setExponent(-1)")
-    wrap_libsbml("unit.setScale(1)")
-    wrap_libsbml("unit.setMultiplier(3600.0)")
+    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
+    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
+    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
+        multiplier=3600.0)
 
     return sbml_model
 
