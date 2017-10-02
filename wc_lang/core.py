@@ -49,7 +49,8 @@ from obj_model.core import (Model as BaseModel,
                             TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import wrap_libsbml, str_to_xmlstr, LibSBMLError, init_sbml_model
+from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError, init_sbml_model, create_sbml_parameter,
+                                create_sbml_unit)
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -1221,22 +1222,17 @@ class Reaction(BaseModel):
 
         # write flux bounds to SBML document; uses version 2 of the 'Flux Balance Constraints' extension
         fbc_reaction_plugin = wrap_libsbml("sbml_reaction.getPlugin('fbc')")
-        flux_bounds = {}
         for bound in ['lower', 'upper']:
-            flux_bounds[bound] = wrap_libsbml("sbml_model.createParameter()")
-        for bound in ['lower', 'upper']:
-            wrap_libsbml("flux_bounds[bound].setConstant(True)")
-            wrap_libsbml("flux_bounds[bound].setUnits('mmol_per_gDW_per_hr')")
-            # make a unique ID for each parameter
+            # make a unique ID for each flux bound parameter
             param_id = "_reaction_{}_{}_bound".format(self.id, bound)
-            wrap_libsbml("flux_bounds[bound].setIdAttribute('{}')".format(param_id))
+            param = create_sbml_parameter(sbml_model, id=param_id, units='mmol_per_gDW_per_hr',
+                value=self.min_flux)
             if bound == 'lower':
-                wrap_libsbml("flux_bounds['lower'].setValue({})".format(self.min_flux))
+                wrap_libsbml("param.setValue({})".format(self.min_flux))
                 wrap_libsbml("fbc_reaction_plugin.setLowerFluxBound('{}')".format(param_id))
             if bound == 'upper':
-                wrap_libsbml("flux_bounds['upper'].setValue({})".format(self.max_flux))
+                wrap_libsbml("param.setValue({})".format(self.max_flux))
                 wrap_libsbml("fbc_reaction_plugin.setUpperFluxBound('{}')".format(param_id))
-
         return sbml_reaction
 
 

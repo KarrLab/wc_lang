@@ -75,16 +75,22 @@ class LibsbmlInterface(object):
     libsbml method calls to enable more compact usage.
     '''
     @staticmethod
-    def create_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
-        """ Add an SBML unit on an existing unit definition.
+    def _create_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
+        """ Add an SBML unit on an existing SBML unit definition.
+
+        Provides the SBML level 3 version 1 default values for `exponent=1`, `scale=0`, and `multiplier=1.0`.
+        See http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_unit_definition.html
+        in the libsbml documentation and the SBML specs for details.
 
         Args:
             unit_definition (:obj:`libsbml.UnitDefinition`): a libsbml UnitDefinition
-            unit_kind (:obj:`libsbml.UnitDefinition`): a libsbml UnitDefinition
+            unit_kind (:obj:`libsbml.UnitDefinition`): the unit kind code for the SBML unit
+            exponent (:obj:`int`, optional): the exponent on the SBML unit
+            scale (:obj:`int`, optional): the scale of the SBML unit
+            multiplier (:obj:`float`, optional): the multiplier of the SBML unit
 
         Returns:
-            :obj:`obj` or `int`: return the value returned by the libsbml method, either
-            an object that has been created or retrieved, or an integer return code
+            :obj:`libsbml.Unit`: the new SBML Unit
 
         Raises:
             :obj:`LibSBMLError`: if one of the libsbml calls fails
@@ -97,9 +103,44 @@ class LibsbmlInterface(object):
         return unit
 
     @staticmethod
-    def create_sbml_parameter(unit_definition, unit_kind, exponent=0, scale=1, multiplier=1.0):
-        pass
+    def _create_sbml_parameter(sbml_model, id, name=None, value=None, units=None, constant=True):
+        """ Add an SBML Parameter to an SBML model.
 
+        See http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_parameter.html
+        in the libsbml documentation and the SBML specs for details.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): a libsbml Model
+            id (:obj:`str`): the id of the new SBML Parameter
+            name (:obj:`str`, optional): the name of the new SBML Parameter
+            value (:obj:`obj`, optional): the value of the new SBML Parameter
+            units (:obj:`str`, optional): the units of the new SBML Parameter
+            constant (:obj:`str`, optional): whether the new SBML Parameter is a constant
+
+        Returns:
+            :obj:`libsbml.Parameter`: the new SBML Parameter
+
+        Raises:
+            :obj:`LibSBMLError`: if one of the libsbml calls fails
+            :obj:`ValueError`: if the Parameter `id` is already in use
+        """
+        try:
+            wrap_libsbml("sbml_model.getParameter('{}')".format(id))
+            raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
+        except LibSBMLError as e:
+            sbml_parameter = wrap_libsbml("sbml_model.createParameter()")
+            wrap_libsbml("sbml_parameter.setIdAttribute('{}')".format(id))
+            if not name is None:
+                wrap_libsbml("sbml_parameter.setName('{}')".format(name))
+            if not value is None:
+                wrap_libsbml("sbml_parameter.setValue({})".format(value))
+            if not units is None:
+                wrap_libsbml("sbml_parameter.setUnits('{}')".format(units))
+            wrap_libsbml("sbml_parameter.setConstant({})".format(constant))
+            return sbml_parameter
+
+create_sbml_unit = LibsbmlInterface._create_sbml_unit
+create_sbml_parameter = LibsbmlInterface._create_sbml_parameter
 
 def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
     """ Wrap a libsbml method and properly handle errors.
@@ -123,6 +164,8 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
         :obj:`LibSBMLError`: if `call` contains an error, or the libsbml call returns None,
         or the libsbml call return a code != LIBSBML_OPERATION_SUCCESS
     """
+    if debug:
+        print('_wrap_libsbml call:', call)
     try:
         rc = eval(call, globals, locals)
     except SyntaxError as error:
@@ -143,6 +186,8 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
             # Handle libsbml methods that return int as values
             # TODO: handle this more gracefully
             if error_code is None or returns_int:
+                if debug:
+                    print("libsbml returns int that isn't error code", rc)
                 return rc
             else:
                 raise LibSBMLError("LibSBML returned error code '{}' "
@@ -172,8 +217,6 @@ def wrap_libsbml(call, returns_int=False, debug=False):
     """
     frame = inspect.currentframe()
     try:
-        if debug:
-            print('wrap_libsbml call:', call)
         return __wrap_libsbml(call,
             frame.f_back.f_globals,
             frame.f_back.f_locals,
@@ -193,7 +236,7 @@ def init_sbml_model(sbml_document):
     Raises:
         :obj:`LibSBMLError`: if calling `libsbml` raises an error
     """
-    # Modified libsbml-5.15.0/examples/python/createSimpleModel.py
+    # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
     sbml_model = wrap_libsbml("sbml_document.createModel()")
 
     # To produce a model with complete units for the reaction rates, we need
@@ -211,13 +254,13 @@ def init_sbml_model(sbml_document):
     # and 'multiplier' defined.
     per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("per_second.setId('per_second')")
-    LibsbmlInterface.create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
+    create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
 
     mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("mmol_per_gDW_per_hr.setId('mmol_per_gDW_per_hr')")
-    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
-    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
-    LibsbmlInterface.create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
+    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
+    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
+    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
         multiplier=3600.0)
 
     return sbml_model
