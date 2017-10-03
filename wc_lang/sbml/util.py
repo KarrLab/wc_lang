@@ -1,4 +1,4 @@
-""" Reading/writing a WC model to/from an SBML representation
+""" Utilities for writing/reading a wc_lang model to/from SBML
 
 Representations include
 * Files
@@ -50,6 +50,10 @@ written permission.
 import sys
 import inspect
 from libsbml import *
+
+# SBML level and version being used
+SBML_LEVEL = 3
+SBML_VERSION = 1
 
 class Error(Exception):
     '''Base class libsbml exceptions.'''

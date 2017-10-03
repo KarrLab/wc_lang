@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
 
-from wc_lang.sbml.util import wrap_libsbml
+from wc_lang.sbml.util import wrap_libsbml, SBML_LEVEL, SBML_VERSION
 
 '''
     reader = SBMLReader()
@@ -132,7 +132,7 @@ class SBMLExchange(object):
         # this, it is still possible for a failure to occur (e.g., if the
         # operating system runs out of memory).
         try:
-            document = SBMLDocument(3, 2)
+            document = SBMLDocument(SBML_LEVEL, SBML_VERSION)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
 

@@ -15,16 +15,16 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_unit, create_sbml_parameter,
-    init_sbml_model)
+    init_sbml_model, SBML_LEVEL, SBML_VERSION)
 
 
 class TestSbml(unittest.TestCase):
 
     def setUp(self):
         try:
-            self.document = SBMLDocument(3, 2)
+            self.document = SBMLDocument(SBML_LEVEL, SBML_VERSION)
         except ValueError:
-            raise SystemExit("'SBMLDocument(3, 2)' fails")
+            raise SystemExit("'SBMLDocument({}, {})' fails".format(SBML_LEVEL, SBML_VERSION))
 
     def test_SBML_wrap_libsbml(self):
 
@@ -79,12 +79,12 @@ class TestSbml(unittest.TestCase):
 
         try:
             # use uses the SBML Level 3 Flux Balance Constraints package
-            sbmlns = SBMLNamespaces(3, 2, "fbc", 2);
+            sbmlns = SBMLNamespaces(SBML_LEVEL, SBML_VERSION, "fbc", 2);
             document = SBMLDocument(sbmlns);
             # mark the fbc package required
             document.setPackageRequired("fbc", True)
         except ValueError:
-            raise SystemExit("'SBMLNamespaces(3, 2, 'fbc', 2) fails")
+            raise SystemExit("'SBMLNamespaces({}, {}, 'fbc', 2) fails".format(SBML_LEVEL, SBML_VERSION))
 
         id = 'x'
         self.assertEqual(
@@ -94,7 +94,7 @@ class TestSbml(unittest.TestCase):
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = SBMLNamespaces(3, 2, "fbc", 2);
+        sbmlns = SBMLNamespaces(SBML_LEVEL, SBML_VERSION, "fbc", 2);
         self.sbml_document = SBMLDocument(sbmlns);
         self.sbml_model = wrap_libsbml("self.sbml_document.createModel()")
 

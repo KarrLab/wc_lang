@@ -4,4 +4,4 @@ git+https://github.com/KarrLab/obj_model.git#egg=obj_model
 natsort
 six
 git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils
-python-libsbml == 15.5.0
+python-libsbml

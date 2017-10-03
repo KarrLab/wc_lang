@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
 import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode)
 import libsbml
-from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_sbml_model
+from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_sbml_model, SBML_LEVEL, SBML_VERSION
 
 
 class TestCore(unittest.TestCase):
@@ -872,7 +872,7 @@ class TestCore(unittest.TestCase):
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         try:
-            sbmlns = SBMLNamespaces(3, 2, "fbc", 2)
+            sbmlns = SBMLNamespaces(SBML_LEVEL, SBML_VERSION, "fbc", 2)
             document = SBMLDocument(sbmlns)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
