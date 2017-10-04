@@ -15,7 +15,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
                           InvalidObject)
 import unittest
-from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode)
+from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
 from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_sbml_model, SBML_LEVEL, SBML_VERSION
 
@@ -956,12 +956,18 @@ class TestCore(unittest.TestCase):
         self.assertEqual(flux_objective.getCoefficient(), 1.0)
 
         # Check the SBML document
-        '''
-        # TODO: get fix for using checkConsistency()
-        for i in range(document.checkConsistency()):
-            print(document.getError(i).getShortMessage())
-            print(document.getError(i).getMessage())
-        '''
-        # print(document.toSBML())
-        # self.assertEqual(wrap_libsbml("document.checkConsistency()"), 0)
         self.assertEqual(wrap_libsbml("document.checkL3v1Compatibility()"), 0)
+
+        '''
+        document.checkConsistency() does not properly handle fbc_model_plugin.createObjective()
+        a bug fix is in commit https://sourceforge.net/p/sbml/code/24580/ of libsbml,
+        and will be included in the next release, scheduled for in Nov. 2017
+
+        workaround: write the sbml document to a string, read it back, and check that
+        # TODO: either compile & use the source trunk, or install the next release
+        '''
+        workaround_document = wrap_libsbml("readSBMLFromString(document.toSBML())")
+        self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
+        for i in range(workaround_document.checkConsistency()):
+            print(workaround_document.getError(i).getShortMessage())
+            print(workaround_document.getError(i).getMessage())
