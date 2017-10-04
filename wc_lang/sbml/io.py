@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
 
-from wc_lang.sbml.util import wrap_libsbml, SBML_LEVEL, SBML_VERSION
+from wc_lang.sbml.util import wrap_libsbml, init_sbml_model, SBML_LEVEL, SBML_VERSION
 
 '''
     reader = SBMLReader()
@@ -37,26 +37,25 @@ Taxon			        None, perhaps make SBML annotations                 Ignored
 Submodel			    Model                                               Implemented
 ObjectiveFunction       Objective                                           TBD
 Compartment			    Compartment                                         Implemented
-SpeciesType			    NA: SpeciesType aren't defined
+SpeciesType			    SpeciesType aren't defined                          NA
 Species			        Species                                             Implemented
-Concentration			NA: concentrations are incorporated in Species
-Reaction			    Reaction, but FbcReactionPlugin for DFBA submodels  TBD
-ReactionParticipant		SpeciesReference in a Reaction
-RateLaw			        KineticLaw?                                         Ignored
+Concentration			Concentrations are incorporated in Species          NA
+Reaction			    Reaction, with FbcReactionPlugin for DFBA submodels Implemented
+ReactionParticipant		SpeciesReference in a Reaction                      Implemented
+RateLaw			        KineticLaw                                          Ignored
 RateLawEquation			
-BiomassComponent			
+BiomassComponent
 BiomassReaction			
-Parameter			    Parameter
+Parameter			    Parameter                                           Implemented
 Reference			    
 CrossReference			
-'''
 
-'''
-wc_lang attribute to SBML mapping
+wc_lang attribute to SBML mapping:
+
 WC Model			    SBML Model
+--------                ----------
 comments                notes
 references              notes, as a Python dict
-
 '''
 
 class Reader(object):
@@ -132,12 +131,12 @@ class SBMLExchange(object):
         # this, it is still possible for a failure to occur (e.g., if the
         # operating system runs out of memory).
         try:
-            document = SBMLDocument(SBML_LEVEL, SBML_VERSION)
+            sbml_document = SBMLDocument(SBML_LEVEL, SBML_VERSION)
         except ValueError:
             raise SystemExit('Could not create SBMLDocumention object')
 
         # Create the basic Model object inside the SBMLDocument object.
-        sbml_model = wrap_libsbml("document.createModel()")
+        sbml_model = init_sbml_model(sbml_document)
 
         # find related objects
         # validate objects
@@ -160,7 +159,7 @@ class SBMLExchange(object):
                 for obj in grouped_objects[model]:
                     obj.add_to_sbml_doc(sbml_model)
 
-        return document
+        return sbml_document
 
     @staticmethod
     def read(document):
@@ -179,5 +178,4 @@ class SBMLExchange(object):
         Raises:
             :obj:`ValueError`: if ...
         """
-        # TODO: write
         pass

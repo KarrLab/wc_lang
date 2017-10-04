@@ -169,7 +169,7 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
         or the libsbml call return a code != LIBSBML_OPERATION_SUCCESS
     """
     if debug:
-        print('_wrap_libsbml call:', call)
+        print('libsbml call:', call)
     try:
         rc = eval(call, globals, locals)
     except SyntaxError as error:
@@ -183,7 +183,7 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
     elif type(rc) is int:
         if rc == LIBSBML_OPERATION_SUCCESS:
             if debug:
-                print('libsbml returned LIBSBML_OPERATION_SUCCESS')
+                print('libsbml returns: LIBSBML_OPERATION_SUCCESS')
             return rc
         else:
             error_code = OperationReturnValue_toString(rc)
@@ -191,7 +191,7 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
             # TODO: handle this more gracefully
             if error_code is None or returns_int:
                 if debug:
-                    print("libsbml returns int that isn't error code", rc)
+                    print("libsbml returns:", rc)
                 return rc
             else:
                 raise LibSBMLError("LibSBML returned error code '{}' "
@@ -200,7 +200,7 @@ def __wrap_libsbml(call, globals, locals, returns_int=False, debug=False):
     else:
         # return data provided by libsbml method
         if debug:
-            print('libsbml returned', rc)
+            print('libsbml returns:', rc)
         return rc
 
 def wrap_libsbml(call, returns_int=False, debug=False):
@@ -257,15 +257,19 @@ def init_sbml_model(sbml_document):
     # objects must have all four attributes 'kind', 'exponent', 'scale'
     # and 'multiplier' defined.
     per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
-    wrap_libsbml("per_second.setId('per_second')")
+    wrap_libsbml("per_second.setIdAttribute('per_second')")
     create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
 
     mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
-    wrap_libsbml("mmol_per_gDW_per_hr.setId('mmol_per_gDW_per_hr')")
+    wrap_libsbml("mmol_per_gDW_per_hr.setIdAttribute('mmol_per_gDW_per_hr')")
     create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
     create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
     create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
         multiplier=3600.0)
+
+    dimensionless = wrap_libsbml("sbml_model.createUnitDefinition()")
+    wrap_libsbml("dimensionless.setIdAttribute('dimensionless_ud')")
+    create_sbml_unit(dimensionless, UNIT_KIND_DIMENSIONLESS)
 
     return sbml_model
 
