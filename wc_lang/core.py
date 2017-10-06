@@ -706,7 +706,7 @@ class Submodel(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
-        wrap_libsbml("sbml_model.setIdAttribute(self.id)")
+        wrap_libsbml("sbml_model.setIdAttribute({})".format(self.id))
         wrap_libsbml("sbml_model.setName(self.name)")
         # compartment, objective_function, and parameters are created separately
         if self.comments:
