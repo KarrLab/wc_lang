@@ -15,7 +15,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_unit, create_sbml_parameter,
-    init_sbml_model, SBML_LEVEL, SBML_VERSION)
+    init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
 
 
 class TestSbml(unittest.TestCase):
@@ -61,14 +61,14 @@ class TestSbml(unittest.TestCase):
         sbml_model = init_sbml_model(self.document)
 
         # check the SBML document
-        self.assertEqual(self.document.checkConsistency(), 0)
-        self.assertEqual(self.document.checkL3v1Compatibility(), 0)
+        self.assertEqual(wrap_libsbml("self.document.checkConsistency()"), 0)
+        self.assertEqual(wrap_libsbml("self.document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
 
         # check mmol_per_gDW_per_hr
         mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.getUnitDefinition('mmol_per_gDW_per_hr')")
         printed_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr)")
+        # TODO: if 'compact' gets fixed, try this
         '''
-        if 'compact' gets fixed, try this
         compact_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr, compact=True)")
         self.assertIn('(10^-3 mole)^1', compact_mmol_per_gDW_per_hr)
         self.assertIn('(3600 second)^-1', compact_mmol_per_gDW_per_hr)
@@ -94,8 +94,8 @@ class TestSbml(unittest.TestCase):
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = SBMLNamespaces(SBML_LEVEL, SBML_VERSION, "fbc", 2);
-        self.sbml_document = SBMLDocument(sbmlns);
+        sbmlns = wrap_libsbml('SBMLNamespaces({}, {}, "fbc", 2)'.format(SBML_LEVEL, SBML_VERSION))
+        self.sbml_document = wrap_libsbml('SBMLDocument(sbmlns)')
         self.sbml_model = wrap_libsbml("self.sbml_document.createModel()")
 
         self.per_second_id = 'per_second'

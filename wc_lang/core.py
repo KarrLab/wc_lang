@@ -685,6 +685,14 @@ class Submodel(BaseModel):
 
         return list(set(species))
 
+    def get_objective_function(self):
+        """ Get this `Submodel`'s `ObjectiveFunction`
+
+        Returns:
+            :obj:`list` of `ObjectiveFunction`: this `Submodel`'s `ObjectiveFunction`
+        """
+        return self.objective_function
+
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
 
@@ -700,9 +708,7 @@ class Submodel(BaseModel):
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         wrap_libsbml("sbml_model.setIdAttribute(self.id)")
         wrap_libsbml("sbml_model.setName(self.name)")
-        # compartment is created separately
-        # objective_function
-        # parameters are created separately
+        # compartment, objective_function, and parameters are created separately
         if self.comments:
             wrap_libsbml("sbml_model.appendNotes(str_to_xmlstr(self.comments))")
         return sbml_model
@@ -875,7 +881,6 @@ class ObjectiveFunction(BaseModel):
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         fbc_model_plugin = wrap_libsbml("sbml_model.getPlugin('fbc')")
         sbml_objective = wrap_libsbml("fbc_model_plugin.createObjective()")
-        wrap_libsbml("sbml_objective.setIdAttribute('test')")
         for reaction in self.reactions:
             sbml_flux_objective = wrap_libsbml("sbml_objective.createFluxObjective()")
             wrap_libsbml("sbml_flux_objective.setReaction('{}')".format(reaction.id))
@@ -1644,10 +1649,16 @@ class Parameter(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_id = "parameter_{}".format(self.id)
-        # TODO: map from self.units to the SBML model units
+        # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':
             sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
                 value=self.value, units='dimensionless_ud')
+        elif self.units == 's':
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
+                value=self.value, units='second')
+        elif self.units == 'mmol/gDCW/h':
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
+                value=self.value, units='mmol_per_gDW_per_hr')
         else:
             sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name, value=self.value)
 

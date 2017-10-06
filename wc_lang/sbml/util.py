@@ -49,11 +49,13 @@ written permission.
 
 import sys
 import inspect
-from libsbml import *
+from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
+    UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString)
 
 # SBML level and version being used
 SBML_LEVEL = 3
 SBML_VERSION = 1
+SBML_COMPATIBILITY_METHOD = 'checkL3v1Compatibility()'
 
 class Error(Exception):
     '''Base class libsbml exceptions.'''

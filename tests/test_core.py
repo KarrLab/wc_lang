@@ -17,7 +17,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
 import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
-from wc_lang.sbml.util import wrap_libsbml, LibSBMLError, init_sbml_model, SBML_LEVEL, SBML_VERSION
+from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model, SBML_LEVEL, SBML_VERSION,
+    SBML_COMPATIBILITY_METHOD)
 
 
 class TestCore(unittest.TestCase):
@@ -956,7 +957,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(flux_objective.getCoefficient(), 1.0)
 
         # Check the SBML document
-        self.assertEqual(wrap_libsbml("document.checkL3v1Compatibility()"), 0)
+        self.assertEqual(wrap_libsbml("document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
 
         '''
         document.checkConsistency() does not properly handle fbc_model_plugin.createObjective()
@@ -964,8 +965,8 @@ class TestCore(unittest.TestCase):
         and will be included in the next release, scheduled for in Nov. 2017
 
         workaround: write the sbml document to a string, read it back, and check that
-        # TODO: either compile & use the source trunk, or install the next release
         '''
+        # TODO: either compile & use the libsbml source trunk, or install the next release of libsbml
         workaround_document = wrap_libsbml("readSBMLFromString(document.toSBML())")
         self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
         for i in range(workaround_document.checkConsistency()):
