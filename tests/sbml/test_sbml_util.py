@@ -67,13 +67,10 @@ class TestSbml(unittest.TestCase):
         # check mmol_per_gDW_per_hr
         mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.getUnitDefinition('mmol_per_gDW_per_hr')")
         printed_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr)")
-        # TODO: if 'compact' gets fixed, try this
-        '''
-        compact_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr, compact=True)")
-        self.assertIn('(10^-3 mole)^1', compact_mmol_per_gDW_per_hr)
+        compact_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr, True)")
+        self.assertIn('(0.001 mole)^1', compact_mmol_per_gDW_per_hr)
         self.assertIn('(3600 second)^-1', compact_mmol_per_gDW_per_hr)
-        self.assertIn('(10^-3 kilogram)^-1', compact_mmol_per_gDW_per_hr)
-        '''
+        self.assertIn('(1 gram)^-1', compact_mmol_per_gDW_per_hr)
 
     def test_SBML_fbc(self):
 
