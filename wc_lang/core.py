@@ -707,10 +707,10 @@ class Submodel(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         wrap_libsbml("sbml_model.setIdAttribute('{}')".format(self.id))
-        wrap_libsbml("sbml_model.setName(self.name)")
+        wrap_libsbml("sbml_model.setName('{}')".format(self.name))
         # compartment, objective_function, and parameters are created separately
         if self.comments:
-            wrap_libsbml("sbml_model.appendNotes(str_to_xmlstr(self.comments))")
+            wrap_libsbml("sbml_model.appendNotes('{}')".format(str_to_xmlstr(self.comments)))
         return sbml_model
 
 
