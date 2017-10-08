@@ -1250,11 +1250,11 @@ class Reaction(BaseModel):
         # create SBML reaction in SBML document
         sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
         check_for_ucode(self)
-        wrap_libsbml("sbml_reaction.setIdAttribute(self.id)")
-        wrap_libsbml("sbml_reaction.setName(self.name)")
-        wrap_libsbml("sbml_reaction.setCompartment(self.submodel.compartment.id)")
+        wrap_libsbml_pass_text("sbml_reaction.setIdAttribute", self.id)
+        wrap_libsbml_pass_text("sbml_reaction.setName", self.name)
+        wrap_libsbml_pass_text("sbml_reaction.setCompartment", self.submodel.compartment.id)
         if self.comments:
-            wrap_libsbml("sbml_reaction.appendNotes(str_to_xmlstr(self.comments))")
+            wrap_libsbml_pass_text("sbml_reaction.appendNotes", sbml_reaction.appendNotes)
 
         # write reaction participants to SBML document
         for participant in self.participants:
@@ -1267,7 +1267,7 @@ class Reaction(BaseModel):
             else:
                 raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
                     participant.coefficient, self.id))
-            wrap_libsbml("species_reference.setSpecies(participant.species.xml_id())")
+            wrap_libsbml_pass_text("species_reference.setSpecies", participant.species.xml_id())
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
@@ -1280,10 +1280,10 @@ class Reaction(BaseModel):
                     value=self.min_flux)
                 if bound == 'lower':
                     wrap_libsbml("param.setValue({})".format(self.min_flux))
-                    wrap_libsbml("fbc_reaction_plugin.setLowerFluxBound('{}')".format(param_id))
+                    wrap_libsbml_pass_text("fbc_reaction_plugin.setLowerFluxBound", param_id)
                 if bound == 'upper':
                     wrap_libsbml("param.setValue({})".format(self.max_flux))
-                    wrap_libsbml("fbc_reaction_plugin.setUpperFluxBound('{}')".format(param_id))
+                    wrap_libsbml_pass_text("fbc_reaction_plugin.setUpperFluxBound", param_id)
         return sbml_reaction
 
 

@@ -133,17 +133,17 @@ class LibsbmlInterface(object):
             :obj:`ValueError`: if the Parameter `id` is already in use
         """
         try:
-            wrap_libsbml("sbml_model.getParameter('{}')".format(id))
+            wrap_libsbml_pass_text("sbml_model.getParameter", id)
             raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
         except LibSBMLError as e:
             sbml_parameter = wrap_libsbml("sbml_model.createParameter()")
-            wrap_libsbml("sbml_parameter.setIdAttribute('{}')".format(id))
+            wrap_libsbml_pass_text("sbml_parameter.setIdAttribute", id)
             if not name is None:
-                wrap_libsbml("sbml_parameter.setName('{}')".format(name))
+                wrap_libsbml_pass_text("sbml_parameter.setName", name)
             if not value is None:
                 wrap_libsbml("sbml_parameter.setValue({})".format(value))
             if not units is None:
-                wrap_libsbml("sbml_parameter.setUnits('{}')".format(units))
+                wrap_libsbml_pass_text("sbml_parameter.setUnits", units)
             wrap_libsbml("sbml_parameter.setConstant({})".format(constant))
             return sbml_parameter
 

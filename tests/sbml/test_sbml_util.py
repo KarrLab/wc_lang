@@ -41,10 +41,6 @@ class TestSbml(unittest.TestCase):
 
         id = 'x'
         self.assertEqual(
-            wrap_libsbml("self.document.setIdAttribute('{}')".format(id)), LIBSBML_OPERATION_SUCCESS)
-
-        id = 'x'
-        self.assertEqual(
             wrap_libsbml_pass_text("self.document.setIdAttribute", id), LIBSBML_OPERATION_SUCCESS)
 
         call = "self.document.setIdAttribute('..')"
@@ -59,7 +55,8 @@ class TestSbml(unittest.TestCase):
         self.assertIn("in libsbml method call '{}'".format(call), str(context.exception))
 
         model = wrap_libsbml("self.document.createModel()")
-        self.assertEqual(wrap_libsbml("model.setTimeUnits('second')"), LIBSBML_OPERATION_SUCCESS)
+        self.assertEqual(
+            wrap_libsbml_pass_text("model.setTimeUnits", 'second'), LIBSBML_OPERATION_SUCCESS)
 
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)
