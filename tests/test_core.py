@@ -17,8 +17,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
 import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
-from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model, SBML_LEVEL, SBML_VERSION,
-    SBML_COMPATIBILITY_METHOD)
+from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, init_sbml_model,
+    SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
 
 
 class TestCore(unittest.TestCase):

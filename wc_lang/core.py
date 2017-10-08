@@ -57,8 +57,8 @@ from obj_model.core import (Model as BaseModel,
                             InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError, init_sbml_model,
-                               create_sbml_parameter, create_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_str)
+from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, str_to_xmlstr, LibSBMLError,
+    init_sbml_model, create_sbml_parameter, create_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_text)
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -717,13 +717,12 @@ class Submodel(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         check_for_ucode(self)
-        wrap_libsbml_pass_str("sbml_model.setIdAttribute", self.id)
-        #wrap_libsbml("sbml_model.setIdAttribute(self.id)")
+        wrap_libsbml_pass_text("sbml_model.setIdAttribute", self.id)
         if self.name:
-            wrap_libsbml("sbml_model.setName(self.name)")
+            wrap_libsbml_pass_text("sbml_model.setName", self.name)
         # compartment, objective_function, and parameters are created separately
         if self.comments:
-            wrap_libsbml("sbml_model.appendNotes('{}')".format(str_to_xmlstr(self.comments)))
+            wrap_libsbml_pass_text("sbml_model.appendNotes", str_to_xmlstr(self.comments))
         return sbml_model
 
 
@@ -896,7 +895,7 @@ class ObjectiveFunction(BaseModel):
         sbml_objective = wrap_libsbml("fbc_model_plugin.createObjective()")
         for reaction in self.reactions:
             sbml_flux_objective = wrap_libsbml("sbml_objective.createFluxObjective()")
-            wrap_libsbml("sbml_flux_objective.setReaction('{}')".format(reaction.id))
+            wrap_libsbml_pass_text("sbml_flux_objective.setReaction", reaction.id)
             # TODO: use actual coefficient
             wrap_libsbml("sbml_flux_objective.setCoefficient(1.0)")
 
@@ -946,12 +945,12 @@ class Compartment(BaseModel):
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
         check_for_ucode(self)
-        wrap_libsbml("sbml_compartment.setIdAttribute(self.id)")
-        wrap_libsbml("sbml_compartment.setName(self.name)")
+        wrap_libsbml_pass_text("sbml_compartment.setIdAttribute", self.id)
+        wrap_libsbml_pass_text("sbml_compartment.setName", self.name)
         wrap_libsbml("sbml_compartment.setSpatialDimensions(3)")
         wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
         if self.comments:
-            wrap_libsbml("sbml_compartment.appendNotes(str_to_xmlstr(self.comments))")
+            wrap_libsbml_pass_text("sbml_compartment.appendNotes", str_to_xmlstr(self.comments))
         return sbml_compartment
 
 
@@ -1135,16 +1134,16 @@ class Species(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_species = wrap_libsbml("sbml_model.createSpecies()")
-        wrap_libsbml("sbml_species.setIdAttribute(self.xml_id())")
+        wrap_libsbml_pass_text("sbml_species.setIdAttribute", self.xml_id())
         check_for_ucode(self)
 
         # add some SpeciesType data
-        wrap_libsbml("sbml_species.setName(self.species_type.name)")
+        wrap_libsbml_pass_text("sbml_species.setName", self.species_type.name)
         if self.species_type.comments:
-            wrap_libsbml("sbml_species.appendNotes(str_to_xmlstr(self.species_type.comments))")
+            wrap_libsbml_pass_text("sbml_species.appendNotes", str_to_xmlstr(self.species_type.comments))
 
         # set Compartment, which must already be in the SBML document
-        wrap_libsbml("sbml_species.setCompartment(self.compartment.id)")
+        wrap_libsbml_pass_text("sbml_species.setCompartment", self.compartment.id)
 
         # set the Initial Concentration
         wrap_libsbml("sbml_species.setInitialConcentration(self.concentration.value)")

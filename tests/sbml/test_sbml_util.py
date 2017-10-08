@@ -14,8 +14,8 @@ import os
 from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString,
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
-from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_unit, create_sbml_parameter,
-    init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
+from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, create_sbml_unit,
+    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
 
 
 class TestSbml(unittest.TestCase):
@@ -42,6 +42,10 @@ class TestSbml(unittest.TestCase):
         id = 'x'
         self.assertEqual(
             wrap_libsbml("self.document.setIdAttribute('{}')".format(id)), LIBSBML_OPERATION_SUCCESS)
+
+        id = 'x'
+        self.assertEqual(
+            wrap_libsbml_pass_text("self.document.setIdAttribute", id), LIBSBML_OPERATION_SUCCESS)
 
         call = "self.document.setIdAttribute('..')"
         with self.assertRaises(LibSBMLError) as context:
@@ -85,7 +89,7 @@ class TestSbml(unittest.TestCase):
 
         id = 'x'
         self.assertEqual(
-            wrap_libsbml("document.setIdAttribute('{}')".format(id)), LIBSBML_OPERATION_SUCCESS)
+            wrap_libsbml_pass_text("document.setIdAttribute", id), LIBSBML_OPERATION_SUCCESS)
 
 
 class TestLibsbmlInterface(unittest.TestCase):
@@ -97,7 +101,7 @@ class TestLibsbmlInterface(unittest.TestCase):
 
         self.per_second_id = 'per_second'
         self.per_second = wrap_libsbml("self.sbml_model.createUnitDefinition()")
-        wrap_libsbml("self.per_second.setIdAttribute('{}')".format(self.per_second_id))
+        wrap_libsbml_pass_text("self.per_second.setIdAttribute", self.per_second_id)
         create_sbml_unit(self.per_second, UNIT_KIND_SECOND, exponent=-1)
 
     def test_create_sbml_unit(self):
@@ -152,3 +156,15 @@ class TestLibsbmlInterface(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             parameter = create_sbml_parameter(self.sbml_model, id)
         self.assertIn("is already in use as a Parameter id", str(context.exception))
+
+    def test_wrap_libsbml_pass_text(self):
+        triple_double = '""" I can\'t mom """'
+        triple_single = "''' hi mom '''"
+        def f(a):
+            return a
+        self.assertEqual(wrap_libsbml_pass_text("f", triple_double), triple_double)
+        self.assertEqual(wrap_libsbml_pass_text("f", triple_single), triple_single)
+
+        with self.assertRaises(LibSBMLError) as context:
+            wrap_libsbml_pass_text(None, 3)
+        self.assertIn("3 isn't textual data", str(context.exception))

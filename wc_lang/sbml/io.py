@@ -19,7 +19,7 @@ from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
 
-from wc_lang.sbml.util import wrap_libsbml, init_sbml_model, SBML_LEVEL, SBML_VERSION
+from wc_lang.sbml.util import wrap_libsbml, wrap_libsbml_pass_text, init_sbml_model, SBML_LEVEL, SBML_VERSION
 
 '''
 wc_lang to SBML mapping to support FBA modeling

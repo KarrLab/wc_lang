@@ -52,6 +52,8 @@ import inspect
 from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString)
 
+import six
+
 # SBML level and version being used
 SBML_LEVEL = 3
 SBML_VERSION = 1
@@ -219,7 +221,7 @@ def wrap_libsbml(call, returns_int=False, debug=False):
 
     Raises:
         :obj:`LibSBMLError`: if `call` contains an error, or the libsbml call returns None,
-        or the libsbml call return a code != LIBSBML_OPERATION_SUCCESS
+        or the libsbml call returns a code != LIBSBML_OPERATION_SUCCESS
     """
     frame = inspect.currentframe()
     try:
@@ -230,10 +232,36 @@ def wrap_libsbml(call, returns_int=False, debug=False):
     finally:
         del frame
 
-def wrap_libsbml_pass_str(method, str_expr, returns_int=False, debug=False):
+def wrap_libsbml_pass_text(method, text, returns_int=False, debug=False):
+    """ To workaround a SWIG / Python 2 bug wrap a libsbml method that passes text.
+
+    Under Python 2, SWIG (which libsbml uses) fails to pass unicode text, generating this error:
+    "invalid null reference in method ..., argument 2 of type 'std::string const &'"
+    See https://github.com/swig/swig/issues/620
+
+    Args:
+        method (:obj:`str`): the libsbml method to call
+        text (:obj:`str`): textual data that's the argument to `method`
+        returns_int (:obj:`bool`, optional): whether the method returns an int
+        debug (:obj:`bool`, optional): whether to print debug output
+
+    Returns:
+        :obj:`obj` or `int`: return the libsbml method's return value, either
+        an object that has been created or retrieved, or an integer return code
+
+    Raises:
+        :obj:`LibSBMLError`: if `call` contains an error, or the libsbml call returns None,
+        or `text` isn't textual data, or the libsbml call returns a code != LIBSBML_OPERATION_SUCCESS
+    """
     frame = inspect.currentframe()
     try:
-        call = "{}('{}')".format(method, str_expr)
+        if not isinstance(text, six.string_types):
+            raise LibSBMLError("{} isn't textual data".format(text))
+        if six.PY2:
+            if isinstance(text, six.text_type):
+                text = str(text)
+        text = text.replace("'", r"\'")
+        call = "{}('{}')".format(method, text)
         return __wrap_libsbml(call,
             frame.f_back.f_globals,
             frame.f_back.f_locals,
