@@ -58,7 +58,7 @@ from obj_model.core import (Model as BaseModel,
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError, init_sbml_model,
-                               create_sbml_parameter, create_sbml_unit, UNIT_KIND_DIMENSIONLESS)
+                               create_sbml_parameter, create_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_str)
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -717,7 +717,8 @@ class Submodel(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         check_for_ucode(self)
-        wrap_libsbml("sbml_model.setIdAttribute(self.id)")
+        wrap_libsbml_pass_str("sbml_model.setIdAttribute", self.id)
+        #wrap_libsbml("sbml_model.setIdAttribute(self.id)")
         if self.name:
             wrap_libsbml("sbml_model.setName(self.name)")
         # compartment, objective_function, and parameters are created separately

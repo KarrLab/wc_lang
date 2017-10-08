@@ -230,6 +230,17 @@ def wrap_libsbml(call, returns_int=False, debug=False):
     finally:
         del frame
 
+def wrap_libsbml_pass_str(method, str_expr, returns_int=False, debug=False):
+    frame = inspect.currentframe()
+    try:
+        call = "{}('{}')".format(method, str_expr)
+        return __wrap_libsbml(call,
+            frame.f_back.f_globals,
+            frame.f_back.f_locals,
+            returns_int, debug)
+    finally:
+        del frame
+
 def init_sbml_model(sbml_document):
     """ Create and initialize an SMBL model.
 
