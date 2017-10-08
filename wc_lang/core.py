@@ -34,6 +34,16 @@ This module also defines numerous classes that serve as attributes of these clas
 """
 
 # todo: replace py_expression.replace(...) with python tokenization, as in multialgorithm_simulation.py
+import six
+
+def check_for_ucode(obj, attrs=None):
+    if not attrs:
+        attrs = 'id name'.split()
+    for a in attrs:
+        if hasattr(obj, a):
+            v = getattr(obj, a)
+            if isinstance(v, six.text_type):
+                print("self.{}=={} is unicode in {}".format(a, v, obj))
 
 from enum import Enum, EnumMeta
 from itertools import chain
@@ -706,9 +716,7 @@ class Submodel(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
-        if not self.id:
-            print("id not set for", self)
-            return
+        check_for_ucode(self)
         wrap_libsbml("sbml_model.setIdAttribute(self.id)")
         if self.name:
             wrap_libsbml("sbml_model.setName(self.name)")
@@ -936,6 +944,7 @@ class Compartment(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
+        check_for_ucode(self)
         wrap_libsbml("sbml_compartment.setIdAttribute(self.id)")
         wrap_libsbml("sbml_compartment.setName(self.name)")
         wrap_libsbml("sbml_compartment.setSpatialDimensions(3)")
@@ -1126,6 +1135,7 @@ class Species(BaseModel):
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_species = wrap_libsbml("sbml_model.createSpecies()")
         wrap_libsbml("sbml_species.setIdAttribute(self.xml_id())")
+        check_for_ucode(self)
 
         # add some SpeciesType data
         wrap_libsbml("sbml_species.setName(self.species_type.name)")
@@ -1239,6 +1249,7 @@ class Reaction(BaseModel):
 
         # create SBML reaction in SBML document
         sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
+        check_for_ucode(self)
         wrap_libsbml("sbml_reaction.setIdAttribute(self.id)")
         wrap_libsbml("sbml_reaction.setName(self.name)")
         wrap_libsbml("sbml_reaction.setCompartment(self.submodel.compartment.id)")
@@ -1652,6 +1663,7 @@ class Parameter(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
+        check_for_ucode(self, attrs=['id'])
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':

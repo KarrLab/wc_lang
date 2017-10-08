@@ -108,8 +108,9 @@ class SBMLExchange(object):
 
         Warning: `wc_lang` and SBML semantics are not equivalent. Thus, this
         `wc_lang` information will not be written:
-            * xxx
-            # TODO: elaborate
+        * xxx
+
+        # TODO: elaborate
 
         Args:
             objects (:obj:`list`): list of objects
@@ -176,7 +177,7 @@ class SBMLExchange(object):
 
         Warning: `wc_lang` and SBML semantics are not equivalent. Thus, this
         SBML information will not be read:
-            * xxx
+        * xxx
 
         Args:
             document (:obj:`SBMLDocument`): representation of an SBML model
