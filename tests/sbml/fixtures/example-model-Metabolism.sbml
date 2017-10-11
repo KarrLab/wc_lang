@@ -1,0 +1,1492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version1/core" xmlns:fbc="http://www.sbml.org/sbml/level3/version1/fbc/version2" level="3" version="1" fbc:required="false">
+  <model id="Metabolism" name="Metabolism" substanceUnits="mole" timeUnits="second" volumeUnits="litre" extentUnits="mole" fbc:strict="false">
+    <listOfUnitDefinitions>
+      <unitDefinition id="per_second">
+        <listOfUnits>
+          <unit kind="second" exponent="-1" scale="0" multiplier="1"/>
+        </listOfUnits>
+      </unitDefinition>
+      <unitDefinition id="mmol_per_gDW_per_hr">
+        <listOfUnits>
+          <unit kind="mole" exponent="1" scale="-3" multiplier="1"/>
+          <unit kind="gram" exponent="-1" scale="0" multiplier="1"/>
+          <unit kind="second" exponent="-1" scale="0" multiplier="3600"/>
+        </listOfUnits>
+      </unitDefinition>
+      <unitDefinition id="dimensionless_ud">
+        <listOfUnits>
+          <unit kind="dimensionless" exponent="1" scale="0" multiplier="1"/>
+        </listOfUnits>
+      </unitDefinition>
+    </listOfUnitDefinitions>
+    <listOfCompartments>
+      <compartment id="c" name="Cell" spatialDimensions="3" size="4.58e-17" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Average volume of Mycoplasma pneumoniae is 66 aL [Ref_0001]. This equates to 45.8 aL at the beginning of the cell cycle (66 aL * ln(2)).</p>
+        </notes>
+      </compartment>
+      <compartment id="e" name="Extracellular space" spatialDimensions="3" size="1e-12" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Typical density of Mycoplasma pneumoniae cells in culture is 1e-9 cells/mL [Ref_0002].</p>
+        </notes>
+      </compartment>
+    </listOfCompartments>
+    <listOfSpecies>
+      <species id="URI__c__" name="uridine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Pgm_Protein__c__" name="2,3-bisphosphoglycerate-independent phosphoglycerate mutase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ThrThr__e__" name="L-threonyl-L-threonine" compartment="e" initialConcentration="0.00470492" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="THR__c__" name="D-threonine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="MetMet__c__" name="L-methionyl-L-methionine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="MET__c__" name="D-methionine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="TklB_Protein__c__" name="Transketolase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="LEU__c__" name="D-leucine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GLY__c__" name="Glycine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="LeuLeu__e__" name="L-leucyl-L-leucine" compartment="e" initialConcentration="0.00781927" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Tim_Protein__c__" name="Triosephosphate isomerase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="O2__e__" name="oxygen" compartment="e" initialConcentration="0.000273010920436817" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set according to ~21% O2 = 160 mmHg [Ref_0019]. Equilbrium constant of solvation is 769.2 L*atm/mol [Ref_0019].</p>
+        </notes>
+      </species>
+      <species id="TRP__c__" name="D-tryptophan" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="SerSer__c__" name="L-seryl-L-serine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="GlyGly__e__" name="L-glycyl-L-glycine" compartment="e" initialConcentration="0.00782989" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="LysLys__e__" name="L-lysyl-L-lysine" compartment="e" initialConcentration="0.00630316" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="F6P__c__" name="D-Fructose 6-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="LeuLeu__c__" name="L-leucyl-L-leucine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="TrpTrp__e__" name="L-trytophanyl-L-trytophan" compartment="e" initialConcentration="0.000313168" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="LysLys__c__" name="L-lysyl-L-lysine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="GMP__c__" name="GMP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Nox_Protein__c__" name="Probable NADH oxidase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="TyrTyr__e__" name="L-tyrosyl-L-tyrosine" compartment="e" initialConcentration="0.00112553" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="TYR__c__" name="D-tyrosine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GLU__c__" name="D-glutamic acid" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="TyrTyr__c__" name="L-tyrosyl-L-tyrosine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="O2__c__" name="oxygen" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set according to ~21% O2 = 160 mmHg [Ref_0019]. Equilbrium constant of solvation is 769.2 L*atm/mol [Ref_0019].</p>
+        </notes>
+      </species>
+      <species id="MetMet__e__" name="L-methionyl-L-methionine" compartment="e" initialConcentration="0.00179497" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="LAC__c__" name="D-lactate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="UMP__c__" name="UMP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="HisHis__e__" name="L-histidyl-L-histidine" compartment="e" initialConcentration="0.00238654" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="LacA_Protein__c__" name="Probable ribose-5-phosphate isomerase B  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IleIle__c__" name="L-isoleucyl-L-isoleucine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="PgiB_Protein__c__" name="Glucose-6-phosphate isomerase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Udk_Protein__c__" name="Uridine kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AlaAla__e__" name="L-alanyl-L-alanine" compartment="e" initialConcentration="0.00727552" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="X5P__c__" name="D-Xylulose 5-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Adk_Protein__c__" name="Adenylate kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GN__e__" name="guanine" compartment="e" initialConcentration="0.00013234" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in minimal media [Ref_0014].</p>
+        </notes>
+      </species>
+      <species id="PeptAbcTransporter_Protein__c__" name="Peptide ABC transporter (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Upp_Protein__c__" name="Uracil phosphoribosyltransferase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ARG__c__" name="D-arginine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="H2O__c__" name="H2O" compartment="c" initialConcentration="55" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to the concentration in Hayflict medium. The composition of Hayflick media was curated from the modified Hayflick recipe used reported by Yus et al., 2009 [Ref_0014], the reported PPLO broth recipe [Ref_0015], and the characterized compositions of beef heart [Ref_0016], horse serum [Ref_0017], and peptone [Ref_0018].</p>
+        </notes>
+      </species>
+      <species id="RL5P__c__" name="D-Ribulose 5-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="LAC__e__" name="D-lactate" compartment="e" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="IleIle__e__" name="L-isoleucyl-L-isoleucine" compartment="e" initialConcentration="0.00406589" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Apt_Protein__c__" name="Adenine phosphoribosyltransferase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="UDP__c__" name="UDP" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="URA__e__" name="uracil" compartment="e" initialConcentration="0.000178433" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to value in minimal media [Ref_0014].</p>
+        </notes>
+      </species>
+      <species id="AMP__c__" name="AMP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="HIS__c__" name="D-histidine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="PhePhe__c__" name="L-phenylalanyl-L-phenylalanine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="ThrThr__c__" name="L-threonyl-L-threonine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="GlnGln__e__" name="L-glutaminyl-L-glutamine" compartment="e" initialConcentration="0.000715127" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="GTP__c__" name="GTP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="H__e__" name="H+" compartment="e" initialConcentration="1.7783e-08" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set corresponding to pH=7.75 typically used to culture Mycoplasma pneumoniae.</p>
+        </notes>
+      </species>
+      <species id="Pi__c__" name="phosphate" compartment="c" initialConcentration="0.005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="ALA__c__" name="D-alanine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="LYS__c__" name="D-lysine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="UTP__c__" name="UTP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Pfk_Protein__c__" name="6-phosphofructokinase /Phosphohexokinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GluGlu__e__" name="L-glutamyl-L-glutamic acid" compartment="e" initialConcentration="0.0134776" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="AD__e__" name="adenine" compartment="e" initialConcentration="0.000148" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Hpt_Protein__c__" name="Hypoxanthine-guanine phosphoribosyltransferase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ValVal__e__" name="L-valyl-L-valine" compartment="e" initialConcentration="0.00587101" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="HisHis__c__" name="L-histidyl-L-histidine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="VAL__c__" name="D-valine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Ldh_Protein__c__" name="L-lactate dehydrogenase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Pgk_Protein__c__" name="Phosphoglycerate kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GlyGly__c__" name="L-glycyl-L-glycine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="PHE__c__" name="D-phenylalanine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="R5P__c__" name="alpha-D-Ribose 5-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ASN__c__" name="D-aspartic acid" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ArgArg__e__" name="L-arginyl-L-arginine" compartment="e" initialConcentration="0.00305544" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="TrpTrp__c__" name="L-trytophanyl-L-trytophan" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="G2P__c__" name="D-Glycerate 2-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="H2O__e__" name="H2O" compartment="e" initialConcentration="55" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to the concentration in Hayflict medium. The composition of Hayflick media was curated from the modified Hayflick recipe used reported by Yus et al., 2009 [Ref_0014], the reported PPLO broth recipe [Ref_0015], and the characterized compositions of beef heart [Ref_0016], horse serum [Ref_0017], and peptone [Ref_0018].</p>
+        </notes>
+      </species>
+      <species id="PhePhe__e__" name="L-phenylalanyl-L-phenylalanine" compartment="e" initialConcentration="0.00340385" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="H__c__" name="H+" compartment="c" initialConcentration="1.122e-08" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set corresponding to pH=7.75 typically used to culture Mycoplasma pneumoniae.</p>
+        </notes>
+      </species>
+      <species id="S7P__c__" name="D-sedoheptulose-7-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ASP__c__" name="D-asparagine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ILE__c__" name="D-isoleucine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="FDP__c__" name="D-Fructose 1,6-bisphosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AsnAsn__e__" name="L-asparaginyl-L-asparagine" compartment="e" initialConcentration="0.0002" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="AspAsp__e__" name="L-aspartyl-L-aspartic Acid" compartment="e" initialConcentration="0.00781962" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="NAD__c__" name="nicotinamide adenine dinucleotide, oxidized" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="ArgArg__c__" name="L-arginyl-L-arginine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Cmk_Protein__c__" name="Cytidylate kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ATP__c__" name="ATP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="T3P1__c__" name="D-glyceraldehdye-3-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AlaAla__c__" name="L-alanyl-L-alanine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="CMP__c__" name="CMP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="CO2__e__" name="carbon dioxide" compartment="e" initialConcentration="0.00170010200612037" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set according to ~5% CO2 = 38 mmHg [Ref_0019]. Equilbrium constant of solvation is 29.49 L*atm/mol [Ref_0019].</p>
+        </notes>
+      </species>
+      <species id="CYS__c__" name="D-cysteine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AsnAsn__c__" name="L-asparaginyl-L-asparagine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="CTP__c__" name="CTP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Pi__e__" name="phosphate" compartment="e" initialConcentration="0.02" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="CysCys__e__" name="L-cysteinyl-L-cysteine" compartment="e" initialConcentration="0.00318137" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="Eno_Protein__c__" name="Enolase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="CYTD__e__" name="cytidine" compartment="e" initialConcentration="0.00025" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="PiAbcTransporter_Protein__c__" name="Phosphate ABC transporter (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AspAsp__c__" name="L-aspartyl-L-aspartic Acid" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="CDP__c__" name="CDP" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Fba_Protein__c__" name="Fructose-biphosphate aldolase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="PYR__c__" name="pyruvate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Gap_Protein__c__" name="Glyceraldehyde-3-phosphate-dehydrogenase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Ppa_Protein__c__" name="Inorganic pyrophosphatase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GDP__c__" name="GDP" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="PPi__c__" name="diphosphate" compartment="c" initialConcentration="0.001" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Gk_Protein__c__" name="Guanylate kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GLC__e__" name="D-Glucose" compartment="e" initialConcentration="0.0550705747828259" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to the concentration in Hayflict medium. The composition of Hayflick media was curated from the modified Hayflick recipe used reported by Yus et al., 2009 [Ref_0014], the reported PPLO broth recipe [Ref_0015], and the characterized compositions of beef heart [Ref_0016], horse serum [Ref_0017], and peptone [Ref_0018].</p>
+        </notes>
+      </species>
+      <species id="CO2__c__" name="carbon dioxide" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set according to ~5% CO2 = 38 mmHg [Ref_0019]. Equilbrium constant of solvation is 29.49 L*atm/mol [Ref_0019].</p>
+        </notes>
+      </species>
+      <species id="PRO__c__" name="D-proline" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GLN__c__" name="D-glutamine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ADP__c__" name="ADP" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="ProPro__e__" name="L-prolyl-L-proline" compartment="e" initialConcentration="0.00824728" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="G6P__c__" name="D-Glucose 6-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Pts_Protein__c__" name="PTS EIIABC (glucose) (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GN__c__" name="guanine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in minimal media [Ref_0014].</p>
+        </notes>
+      </species>
+      <species id="G3P__c__" name="3-Phospho-D-glycerate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Prs_Protein__c__" name="Ribose-phosphate pyrophosphokinase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="CysCys__c__" name="L-cysteinyl-L-cysteine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="E4P__c__" name="D-Erythrose 4-phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="T3P2__c__" name="Dihydroxyacetone phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Pyk_Protein__c__" name="Pyruvate kinase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="CYTD__c__" name="cytidine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration fit to support cellular growth.</p>
+        </notes>
+      </species>
+      <species id="PyrH_Protein__c__" name="Uridylate kinase  (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="AD__c__" name="adenine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="URA__c__" name="uracil" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to value in minimal media [Ref_0014].</p>
+        </notes>
+      </species>
+      <species id="DPG__c__" name="3-Phospho-D-glyceroyl phosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="PRPP__c__" name="5-Phospho-alpha-D-ribose 1-diphosphate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="Rpe_Protein__c__" name="Probable ribulose-phosphate 3-epimerase (Protein)" compartment="c" initialConcentration="3.62571589760398e-06" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="NADH__c__" name="nicotinamide adenine dinucleotide, reduced" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GlnGln__c__" name="L-glutaminyl-L-glutamine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="ProPro__c__" name="L-prolyl-L-proline" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="SER__c__" name="D-serine" compartment="c" initialConcentration="0.0005" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="PEP__c__" name="phosphoenolpyruvate" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/>
+      <species id="GluGlu__c__" name="L-glutamyl-L-glutamic acid" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="SerSer__e__" name="L-seryl-L-serine" compartment="e" initialConcentration="0.0053761" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+      <species id="ValVal__c__" name="L-valyl-L-valine" compartment="c" initialConcentration="0" substanceUnits="mole" hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false">
+        <notes>
+          <p xmlns="http://www.w3.org/1999/xhtml">Media concentration set to concentration in SP4 media [Ref_0013].</p>
+        </notes>
+      </species>
+    </listOfSpecies>
+    <listOfParameters>
+      <parameter id="parameter_carbonExchangeRate" name="Carbon-containing metabolite exchange rate" value="12" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="parameter_nonCarbonExchangeRate" name="Non-carbon-containing metabolite exchange rate" value="20" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AdnTransport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AdnTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AK_AMP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AK_AMP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AK_GTP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AK_GTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AlaAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AlaAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_APRT_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_APRT_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ArgAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ArgAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AsnAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AsnAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AspAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_AspAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CmpK_CMP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CmpK_CMP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CO2Transport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CO2Transport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CysAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CysAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CytdTransport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_CytdTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ala_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ala_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Arg_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Arg_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Asn_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Asn_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Asp_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Asp_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Cys_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Cys_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Gln_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Gln_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Glu_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Glu_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Gly_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Gly_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_His_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_His_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ile_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ile_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Leu_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Leu_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Lys_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Lys_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Met_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Met_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Phe_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Phe_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Pro_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Pro_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ser_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Ser_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Thr_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Thr_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Trp_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Trp_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Tyr_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Tyr_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Val_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Dipeptidase_Val_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Eno_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Eno_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Fba_FDP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Fba_FDP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GapDH_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GapDH_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlcPtsTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlcPtsTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlnAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlnAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GluAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GluAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlyAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GlyAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GnTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GnTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Gpm_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Gpm_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GUK_GMP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_GUK_GMP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_H2OTransport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_H2OTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HisAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HisAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HPRT_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HPRT_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HTransport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_HTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_IleAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_IleAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LacTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LacTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Ldh_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Ldh_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LeuAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LeuAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LysAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_LysAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_MetAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_MetAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_NOX_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_NOX_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_O2Transport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_O2Transport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_ATP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_ATP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_GTP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_GTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_UTP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pfk_UTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgi_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgi_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgk_ATP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgk_ATP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgk_GTP_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pgk_GTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PheAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PheAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PiAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PiAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Ppa_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Ppa_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ProAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ProAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PRPS_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PRPS_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_ATP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_ATP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_CTP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_CTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_GTP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Pyk_GTP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PykUDP_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_PykUDP_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Rpe_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Rpe_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_RpiA_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_RpiA_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_SerAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_SerAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tal_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tal_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ThrAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ThrAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tim_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tim_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tkl_F6P_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tkl_F6P_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tkl_S7P_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Tkl_S7P_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_TrpAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_TrpAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_TyrAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_TyrAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Uck_CYTD_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Uck_CYTD_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Uck_URI_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_Uck_URI_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UmpK_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UmpK_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UPRT_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UPRT_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UraTransport_lower_bound" value="-1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_UraTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ValAbcTransport_lower_bound" value="0" units="mmol_per_gDW_per_hr" constant="true"/>
+      <parameter id="_reaction_ValAbcTransport_upper_bound" value="1000" units="mmol_per_gDW_per_hr" constant="true"/>
+    </listOfParameters>
+    <listOfReactions>
+      <reaction id="AdnTransport" name="Adenine reversible transport via proton symport" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AdnTransport_lower_bound" fbc:upperFluxBound="_reaction_AdnTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AD__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="AD__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="AK_AMP" name="adenylate kinase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AK_AMP_lower_bound" fbc:upperFluxBound="_reaction_AK_AMP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="AK_GTP" name="GTP:AMP phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AK_GTP_lower_bound" fbc:upperFluxBound="_reaction_AK_GTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GTP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="AlaAbcTransport" name="Alanine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AlaAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_AlaAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AlaAla__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="AlaAla__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="APRT" name="AMP:pyrophosphate phosphoribosyltransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_APRT_lower_bound" fbc:upperFluxBound="_reaction_APRT_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PPi__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="AD__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PRPP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="ArgAbcTransport" name="Arginine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_ArgAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_ArgAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ArgArg__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ArgArg__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="AsnAbcTransport" name="Asparagine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AsnAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_AsnAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AsnAsn__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="AsnAsn__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="AspAbcTransport" name="Aspartate transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_AspAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_AspAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AspAsp__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="AspAsp__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="CmpK_CMP" name="ATP:CMP phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_CmpK_CMP_lower_bound" fbc:upperFluxBound="_reaction_CmpK_CMP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CMP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="CO2Transport" name="Carbon dioxide transporter via diffusion" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_CO2Transport_lower_bound" fbc:upperFluxBound="_reaction_CO2Transport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="CO2__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="CO2__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="CysAbcTransport" name="Cysteine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_CysAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_CysAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CysCys__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CysCys__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="CytdTransport" name="Cytidine reversible transport via proton symport" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_CytdTransport_lower_bound" fbc:upperFluxBound="_reaction_CytdTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="CYTD__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="CYTD__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Ala" name="Depeptidase (Ala)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Ala_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Ala_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AlaAla__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ALA__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Arg" name="Depeptidase (Arg)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Arg_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Arg_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ArgArg__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ARG__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Asn" name="Depeptidase (Asn)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Asn_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Asn_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AsnAsn__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ASN__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Asp" name="Depeptidase (Asp)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Asp_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Asp_upper_bound">
+        <listOfReactants>
+          <speciesReference species="AspAsp__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ASP__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Cys" name="Depeptidase (Cys)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Cys_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Cys_upper_bound">
+        <listOfReactants>
+          <speciesReference species="CysCys__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="CYS__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Gln" name="Depeptidase (Gln)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Gln_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Gln_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GlnGln__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GLN__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Glu" name="Depeptidase (Glu)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Glu_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Glu_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GluGlu__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GLU__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Gly" name="Depeptidase (Gly)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Gly_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Gly_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GlyGly__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GLY__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_His" name="Depeptidase (His)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_His_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_His_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="HisHis__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="HIS__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Ile" name="Depeptidase (Ile)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Ile_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Ile_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="IleIle__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ILE__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Leu" name="Depeptidase (Leu)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Leu_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Leu_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LeuLeu__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="LEU__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Lys" name="Depeptidase (Lys)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Lys_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Lys_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LysLys__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="LYS__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Met" name="Depeptidase (Met)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Met_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Met_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="MetMet__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="MET__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Phe" name="Depeptidase (Phe)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Phe_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Phe_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PhePhe__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="PHE__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Pro" name="Depeptidase (Pro)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Pro_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Pro_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ProPro__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="PRO__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Ser" name="Depeptidase (Ser)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Ser_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Ser_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="SerSer__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="SER__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Thr" name="Depeptidase (Thr)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Thr_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Thr_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ThrThr__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="THR__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Trp" name="Depeptidase (Trp)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Trp_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Trp_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TrpTrp__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="TRP__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Tyr" name="Depeptidase (Tyr)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Tyr_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Tyr_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TyrTyr__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="TYR__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Dipeptidase_Val" name="Depeptidase (Val)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Dipeptidase_Val_lower_bound" fbc:upperFluxBound="_reaction_Dipeptidase_Val_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ValVal__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="VAL__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Eno" name="2-Phospho-D-glycerate hydro-lyase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Eno_lower_bound" fbc:upperFluxBound="_reaction_Eno_upper_bound">
+        <listOfReactants>
+          <speciesReference species="G2P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Fba_FDP" name="D-Fructose-1,6-bisphosphate D-glyceraldehyde-3-phosphate-lyase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Fba_FDP_lower_bound" fbc:upperFluxBound="_reaction_Fba_FDP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="FDP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="T3P2__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GapDH" name="D-Glyceraldehyde-3-phosphate:NAD+ oxidoreductase(phosphorylating)" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GapDH_lower_bound" fbc:upperFluxBound="_reaction_GapDH_upper_bound">
+        <listOfReactants>
+          <speciesReference species="NAD__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="DPG__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="NADH__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GlcPtsTransport" name="Glucose transport via phosphoenolpyruvate:pyruvate PTS" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GlcPtsTransport_lower_bound" fbc:upperFluxBound="_reaction_GlcPtsTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GLC__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="G6P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GlnAbcTransport" name="Glutamine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GlnAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_GlnAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GlnGln__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GlnGln__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GluAbcTransport" name="Glutamate transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GluAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_GluAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GluGlu__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GluGlu__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GlyAbcTransport" name="Glycine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GlyAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_GlyAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GlyGly__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GlyGly__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GnTransport" name="Guanine transport via proton symport" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GnTransport_lower_bound" fbc:upperFluxBound="_reaction_GnTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GN__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GN__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Gpm" name="2-Phospho-D-glycerate 2,3-phosphomutase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Gpm_lower_bound" fbc:upperFluxBound="_reaction_Gpm_upper_bound">
+        <listOfReactants>
+          <speciesReference species="G2P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="G3P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="GUK_GMP" name="ATP:GMP phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_GUK_GMP_lower_bound" fbc:upperFluxBound="_reaction_GUK_GMP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GMP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="H2OTransport" name="Water transport via diffusion" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_H2OTransport_lower_bound" fbc:upperFluxBound="_reaction_H2OTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="HisAbcTransport" name="Histidine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_HisAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_HisAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="HisHis__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="HisHis__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="HPRT" name="GMP:pyrophosphate phosphoribosyltransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_HPRT_lower_bound" fbc:upperFluxBound="_reaction_HPRT_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PPi__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GN__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PRPP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="HTransport" name="Hydrogen transport" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_HTransport_lower_bound" fbc:upperFluxBound="_reaction_HTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="IleAbcTransport" name="Isoleucine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_IleAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_IleAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="IleIle__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="IleIle__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="LacTransport" name="Lactate reversible transport via proton symport" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_LacTransport_lower_bound" fbc:upperFluxBound="_reaction_LacTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LAC__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LAC__e__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Ldh" name="(S)-Lactate:NAD+ oxidoreductase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Ldh_lower_bound" fbc:upperFluxBound="_reaction_Ldh_upper_bound">
+        <listOfReactants>
+          <speciesReference species="LAC__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="NAD__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="NADH__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="LeuAbcTransport" name="Leucine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_LeuAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_LeuAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LeuLeu__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LeuLeu__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="LysAbcTransport" name="Lysine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_LysAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_LysAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LysLys__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="LysLys__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="MetAbcTransport" name="Methionine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_MetAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_MetAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="MetMet__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="MetMet__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="NOX" name="NADH oxidase (H2O-forming)" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_NOX_lower_bound" fbc:upperFluxBound="_reaction_NOX_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__c__" stoichiometry="2" constant="true"/>
+          <speciesReference species="NADH__c__" stoichiometry="2" constant="true"/>
+          <speciesReference species="O2__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H2O__c__" stoichiometry="2" constant="true"/>
+          <speciesReference species="NAD__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="O2Transport" name="Oxygen transport via diffusion" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_O2Transport_lower_bound" fbc:upperFluxBound="_reaction_O2Transport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="O2__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="O2__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pfk_ATP" name="ATP:D-fructose-6-phosphate 1-phosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pfk_ATP_lower_bound" fbc:upperFluxBound="_reaction_Pfk_ATP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="FDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pfk_GTP" name="GTP:D-fructose-6-phosphate 1-phosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pfk_GTP_lower_bound" fbc:upperFluxBound="_reaction_Pfk_GTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GTP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="FDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pfk_UTP" name="UTP:D-fructose-6-phosphate 1-phosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pfk_UTP_lower_bound" fbc:upperFluxBound="_reaction_Pfk_UTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UTP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="FDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pgi" name="D-Glucose-6-phosphate ketol-isomerase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pgi_lower_bound" fbc:upperFluxBound="_reaction_Pgi_upper_bound">
+        <listOfReactants>
+          <speciesReference species="G6P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pgk_ATP" name="ATP:3-phospho-D-glycerate 1-phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pgk_ATP_lower_bound" fbc:upperFluxBound="_reaction_Pgk_ATP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="G3P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="DPG__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pgk_GTP" name="GTP:3-phospho-D-glycerate 1-phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pgk_GTP_lower_bound" fbc:upperFluxBound="_reaction_Pgk_GTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="G3P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GTP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="DPG__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="GDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="PheAbcTransport" name="Phenylalanine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_PheAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_PheAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PhePhe__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PhePhe__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="PiAbcTransport" name="Phosphate transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_PiAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_PiAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Ppa" name="Pyrophosphate phosphohydrolase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Ppa_lower_bound" fbc:upperFluxBound="_reaction_Ppa_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PPi__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="Pi__c__" stoichiometry="2" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="ProAbcTransport" name="Proline transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_ProAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_ProAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ProPro__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ProPro__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="PRPS" name="ATP:D-ribose-5-phosphate pyrophosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_PRPS_lower_bound" fbc:upperFluxBound="_reaction_PRPS_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="R5P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="AMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PRPP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pyk_ATP" name="ATP:pyruvate O2-phosphotransferase (R)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pyk_ATP_lower_bound" fbc:upperFluxBound="_reaction_Pyk_ATP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pyk_CTP" name="CTP:pyruvate O2-phosphotransferase (R)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pyk_CTP_lower_bound" fbc:upperFluxBound="_reaction_Pyk_CTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="CDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="CTP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Pyk_GTP" name="GTP:pyruvate O2-phosphotransferase (R)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Pyk_GTP_lower_bound" fbc:upperFluxBound="_reaction_Pyk_GTP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="GDP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="GTP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="PykUDP" name="UTP:pyruvate O2-phosphotransferase (R)" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_PykUDP_lower_bound" fbc:upperFluxBound="_reaction_PykUDP_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PEP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UDP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="PYR__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UTP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Rpe" name="D-Ribulose-5-phosphate 3-epimerase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Rpe_lower_bound" fbc:upperFluxBound="_reaction_Rpe_upper_bound">
+        <listOfReactants>
+          <speciesReference species="RL5P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="X5P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="RpiA" name="D-Ribose-5-phosphate ketol-isomerase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_RpiA_lower_bound" fbc:upperFluxBound="_reaction_RpiA_upper_bound">
+        <listOfReactants>
+          <speciesReference species="R5P__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="RL5P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="SerAbcTransport" name="Serine transport via ABC System" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_SerAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_SerAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="SerSer__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="SerSer__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Tal" name="Sedoheptulose-7-phosphate:D-glyceraldehyde-3-phosphate glycerone transferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Tal_lower_bound" fbc:upperFluxBound="_reaction_Tal_upper_bound">
+        <listOfReactants>
+          <speciesReference species="S7P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="E4P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="ThrAbcTransport" name="Threonine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_ThrAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_ThrAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ThrThr__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ThrThr__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Tim" name="D-Glyceraldehyde-3-phosphate ketol-isomerase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Tim_lower_bound" fbc:upperFluxBound="_reaction_Tim_upper_bound">
+        <listOfReactants>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="T3P2__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Tkl_F6P" name="transketolase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Tkl_F6P_lower_bound" fbc:upperFluxBound="_reaction_Tkl_F6P_upper_bound">
+        <listOfReactants>
+          <speciesReference species="F6P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="E4P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="X5P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Tkl_S7P" name="Sedoheptulose-7-phosphate:D-glyceraldehyde-3-phosphateglycolaldehyde transferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Tkl_S7P_lower_bound" fbc:upperFluxBound="_reaction_Tkl_S7P_upper_bound">
+        <listOfReactants>
+          <speciesReference species="S7P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="T3P1__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="R5P__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="X5P__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="TrpAbcTransport" name="Tryptophan transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_TrpAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_TrpAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TrpTrp__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TrpTrp__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="TyrAbcTransport" name="Tyrosine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_TyrAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_TyrAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TyrTyr__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="TyrTyr__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Uck_CYTD" name="ATP:cytidine 5&apos;-phosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Uck_CYTD_lower_bound" fbc:upperFluxBound="_reaction_Uck_CYTD_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CYTD__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="CMP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="Uck_URI" name="ATP:uridine 5&apos;-phosphotransferase" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_Uck_URI_lower_bound" fbc:upperFluxBound="_reaction_Uck_URI_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="URI__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UMP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="UmpK" name="ATP:UMP phosphotransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_UmpK_lower_bound" fbc:upperFluxBound="_reaction_UmpK_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UMP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UDP__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="UPRT" name="UMP:pyrophosphate phosphoribosyltransferase" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_UPRT_lower_bound" fbc:upperFluxBound="_reaction_UPRT_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="PPi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="UMP__c__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="PRPP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="URA__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="UraTransport" name="Uracil reversible transport via proton symport" reversible="true" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_UraTransport_lower_bound" fbc:upperFluxBound="_reaction_UraTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="H__e__" stoichiometry="1" constant="true"/>
+          <speciesReference species="URA__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="URA__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+      <reaction id="ValAbcTransport" name="Valine transport via ABC system" reversible="false" fast="false" compartment="c" fbc:lowerFluxBound="_reaction_ValAbcTransport_lower_bound" fbc:upperFluxBound="_reaction_ValAbcTransport_upper_bound">
+        <listOfReactants>
+          <speciesReference species="ATP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H2O__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ValVal__e__" stoichiometry="1" constant="true"/>
+        </listOfReactants>
+        <listOfProducts>
+          <speciesReference species="ADP__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="H__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="Pi__c__" stoichiometry="1" constant="true"/>
+          <speciesReference species="ValVal__c__" stoichiometry="1" constant="true"/>
+        </listOfProducts>
+      </reaction>
+    </listOfReactions>
+    <fbc:listOfObjectives fbc:activeObjective="active_objective">
+      <fbc:objective fbc:id="active_objective" fbc:type="maximize">
+        <fbc:listOfFluxObjectives>
+          <fbc:fluxObjective fbc:reaction="AdnTransport" fbc:coefficient="1"/>
+        </fbc:listOfFluxObjectives>
+      </fbc:objective>
+    </fbc:listOfObjectives>
+  </model>
+</sbml>
