@@ -118,6 +118,11 @@ class Writer(object):
             ext = '.sbml'
             (dirname, basename) = split(path)
             files = []
+            import os
+            try:
+                print(dirname, 'contains', os.listdir(dirname))
+            except:
+                print('could not list', dirname)
             for id,sbml_doc in iteritems(sbml_documents):
                 dest = join(dirname, basename + '-' + id + ext)
                 files.append(dest)

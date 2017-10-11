@@ -62,11 +62,6 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml_2(self.document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
 
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml_2(self.document.setIdAttribute, '..')
-        self.assertIn('LibSBML returned error code', str(context.exception))
-        self.assertIn("when executing", str(context.exception))
-
         model = wrap_libsbml_2(self.document.createModel)
         self.assertEqual(
             wrap_libsbml_2(model.setTimeUnits, 'second'), LIBSBML_OPERATION_SUCCESS)
@@ -74,6 +69,23 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml_2(model.setTimeUnits, 'second',
                 debug=True, returns_int=False, other=3), LIBSBML_OPERATION_SUCCESS)
+
+        self.assertEqual(
+            wrap_libsbml_2(self.document.getNumErrors, returns_int=False), 0)
+
+        with self.assertRaises(LibSBMLError) as context:
+            wrap_libsbml_2(self.document.getNumErrors, 'no arg')
+        self.assertIn('Error', str(context.exception))
+        self.assertIn("in libsbml method call", str(context.exception))
+
+        with self.assertRaises(LibSBMLError) as context:
+            wrap_libsbml_2(self.document.setIdAttribute, '..')
+        self.assertIn('LibSBML returned error code', str(context.exception))
+        self.assertIn("when executing", str(context.exception))
+
+        with self.assertRaises(LibSBMLError) as context:
+            wrap_libsbml_2(self.document.getAnnotation)
+        self.assertIn('libsbml returned None when executing', str(context.exception))
 
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)

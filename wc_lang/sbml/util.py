@@ -286,16 +286,6 @@ def wrap_libsbml_pass_text(method, text, returns_int=False, debug=False):
         del frame
 
 def wrap_libsbml_2(method, *args, **kwargs):
-    returns_int = False
-    if 'returns_int' in kwargs:
-        returns_int = kwargs['returns_int']
-    debug = False
-    if 'debug' in kwargs:
-        debug = kwargs['debug']
-    # TODO: report error on unused kwargs
-    return _wrap_libsbml_2(method, returns_int, debug, *args)
-
-def _wrap_libsbml_2(method, returns_int, debug, *args):
     """ Wrap a libsbml method so that errors in return code can be easily handled.
 
     Unfortunately, libsbml methods that do not return data usually report errors via return codes,
@@ -318,8 +308,16 @@ def _wrap_libsbml_2(method, returns_int, debug, *args):
         :obj:`LibSBMLError`: if the `libsbml` call raises an exception, or returns None, or
         returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
     """
+    # process kwargs
+    returns_int = False
+    if 'returns_int' in kwargs:
+        returns_int = kwargs['returns_int']
+    debug = False
+    if 'debug' in kwargs:
+        debug = kwargs['debug']
+    # TODO: report error on unused kwargs
+
     new_args = []
-    print('args', args)
     for arg in args:
         # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG right
         if six.PY2 and isinstance(arg, six.text_type):
@@ -331,7 +329,7 @@ def _wrap_libsbml_2(method, returns_int, debug, *args):
         print('libsbml call:', method)
     try:
         rc = method(*tuple(args))
-    except Exception as error:
+    except BaseException as error:
         raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, method))
     if rc == None:
         raise LibSBMLError("libsbml returned None when executing '{}'.".format(method))
