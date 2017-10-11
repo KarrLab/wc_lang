@@ -125,6 +125,7 @@ class Writer(object):
                 print('could not list', dirname)
             for id,sbml_doc in iteritems(sbml_documents):
                 dest = join(dirname, basename + '-' + id + ext)
+                dest = str(dest)
                 files.append(dest)
                 if not writeSBMLToFile(sbml_doc, dest):
                     raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
