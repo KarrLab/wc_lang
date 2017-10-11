@@ -59,7 +59,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_wrap_libsbml_2(self):
 
-        id = six.u('test_id')
+        id = 'test_id'
         self.assertEqual(
             wrap_libsbml_2(self.document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
         self.assertEqual(
