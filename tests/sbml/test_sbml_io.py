@@ -76,7 +76,7 @@ class TestSbml(unittest.TestCase):
             try:
                 paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=root_path)
             except Exception as e:
-                self.fail("Unexpected sbml_io.Writer.run() exception {}".format(e))
+                self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
             for submodel_id,path in zip(sbml_documents.keys(), paths):
                 document = SBMLReader().readSBML(path)
                 for i in range(wrap_libsbml("document.checkConsistency()")):

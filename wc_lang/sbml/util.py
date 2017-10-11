@@ -317,10 +317,9 @@ def _wrap_libsbml_2(method, returns_int, debug, *args):
     Raises:
         :obj:`LibSBMLError`: if the `libsbml` call raises an exception, or returns None, or
         returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
-
-    2: fn()
     """
     new_args = []
+    print('args', args)
     for arg in args:
         # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG right
         if six.PY2 and isinstance(arg, six.text_type):

@@ -71,6 +71,10 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml_2(model.setTimeUnits, 'second'), LIBSBML_OPERATION_SUCCESS)
 
+        self.assertEqual(
+            wrap_libsbml_2(model.setTimeUnits, 'second',
+                debug=True, returns_int=False, other=3), LIBSBML_OPERATION_SUCCESS)
+
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)
 
