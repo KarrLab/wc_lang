@@ -11,15 +11,16 @@ Representations include
 """
 
 import sys
+from os.path import split, splitext, join
+from six import iteritems
 from libsbml import readSBMLFromString, writeSBMLToFile, SBMLNamespaces, SBMLDocument
 
 from obj_model.core import Validator
-
 from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
-    BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
-
-from wc_lang.sbml.util import wrap_libsbml, wrap_libsbml_pass_text, init_sbml_model, SBML_LEVEL, SBML_VERSION
+    BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference, SubmodelAlgorithm)
+from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, init_sbml_model,
+    SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
 
 '''
 wc_lang to SBML mapping to support FBA modeling
@@ -56,6 +57,7 @@ references              notes, as a Python dict
 class Reader(object):
     """ Read model objects from an SBML representation """
 
+    @staticmethod
     def run(self, objects, models, path=None, get_related=True,
         title=None, description=None, keywords=None, version=None,
         language=None, creator=None):
@@ -77,27 +79,52 @@ class Reader(object):
         pass
 
 class Writer(object):
-    """ Write model objects to an SBML representation """
+    """ Write an SBML representation of a model  """
 
-    def run(self, objects, models, path=None, get_related=True,
-        title=None, description=None, keywords=None, version=None,
-        language=None, creator=None):
-        """ Write a list of model objects to a string or a file in an SBML format.
+    @staticmethod
+    def run(model, algorithms=None, path=None):
+        """ Write the `model`'s submodels in SBML.
+
+        Each `Submodel` in `Model` `model` whose algorithm is in `algorithms`
+        is converted into a separate SBML document.
+        If `path` is None, then the SBML is returned in string(s), otherwise it's written to file(s)
+        which are named `path + submodel.id + suffix'.
 
         Args:
-            objects (:obj:`list`): list of objects
-            models (:obj:`list`): list of model, in the order that they should
-                appear as worksheets; all models which are not in `models` will
-                follow in alphabetical order
-            path (:obj:`str`, optional): path of SBML file to write
-            title (:obj:`str`, optional): title
-            description (:obj:`str`, optional): description
-            keywords (:obj:`str`, optional): keywords
-            version (:obj:`str`, optional): version
-            language (:obj:`str`, optional): language
-            creator (:obj:`str`, optional): creator
+            model (:obj:`Model`): a `Model`
+            algorithms (:obj:`list`, optional): list of `SubmodelAlgorithm` attributes, defaulting
+                to `[SubmodelAlgorithm.dfba]`
+            path (:obj:`str`, optional): prefix of path of SBML file(s) to write
+
+        Returns:
+            :obj:`dict` of `str`:
+                if `path` is None, a dictionary SBML documents as strings, indexed by submodel ids,
+                otherwise a list of SBML file(s) created
         """
-        writeSBMLToFile(sbml_document, path)
+        if algorithms is None:
+            algorithms = [SubmodelAlgorithm.dfba]
+        sbml_documents = {}
+        for submodel in model.get_submodels():
+            if submodel.algorithm in algorithms:
+                objects = [submodel, submodel.objective_function] + \
+                    model.get_compartments() + \
+                    submodel.get_species() + submodel.parameters + submodel.reactions
+                sbml_documents[submodel.id] = SBMLExchange.write(objects)
+        if not sbml_documents:
+            raise ValueError("No submodel.algorithm in algorithms '{}'.".format(algorithms))
+        if path is None:
+            return sbml_documents
+        else:
+            ext = '.sbml'
+            (dirname, basename) = split(path)
+            files = []
+            for id,sbml_doc in iteritems(sbml_documents):
+                dest = join(dirname, basename + '-' + id + ext)
+                files.append(dest)
+                if not writeSBMLToFile(sbml_doc, dest):
+                    raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
+                        id, dest))
+            return files
 
 class SBMLExchange(object):
     """ Exchange `wc_lang` model to/from a libSBML SBML representation """
@@ -123,11 +150,7 @@ class SBMLExchange(object):
             # TODO: elaborate
         """
         # Create an empty SBMLDocument object.
-        try:
-            sbmlns = wrap_libsbml("SBMLNamespaces(SBML_LEVEL, SBML_VERSION, 'fbc', 2)")
-            sbml_document = wrap_libsbml("SBMLDocument(sbmlns)")
-        except LibSBMLError as e:
-            raise ValueError("Could not create SBMLDocumention object: '{}'".format(e))
+        sbml_document = create_sbml_doc_w_fbc()
 
         # Create the SBML Model object inside the SBMLDocument object.
         sbml_model = init_sbml_model(sbml_document)

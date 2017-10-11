@@ -34,16 +34,6 @@ This module also defines numerous classes that serve as attributes of these clas
 """
 
 # todo: replace py_expression.replace(...) with python tokenization, as in multialgorithm_simulation.py
-import six
-
-def check_for_ucode(obj, attrs=None):
-    if not attrs:
-        attrs = 'id name'.split()
-    for a in attrs:
-        if hasattr(obj, a):
-            v = getattr(obj, a)
-            if isinstance(v, six.text_type):
-                print("self.{}=={} is unicode in {}".format(a, v, obj))
 
 from enum import Enum, EnumMeta
 from itertools import chain
@@ -58,7 +48,7 @@ from obj_model.core import (Model as BaseModel,
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, str_to_xmlstr, LibSBMLError,
-    init_sbml_model, create_sbml_parameter, create_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_text)
+    init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_text)
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -695,14 +685,6 @@ class Submodel(BaseModel):
 
         return list(set(species))
 
-    def get_objective_function(self):
-        """ Get this `Submodel`'s `ObjectiveFunction`
-
-        Returns:
-            :obj:`list` of `ObjectiveFunction`: this `Submodel`'s `ObjectiveFunction`
-        """
-        return self.objective_function
-
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
 
@@ -716,7 +698,6 @@ class Submodel(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
-        check_for_ucode(self)
         wrap_libsbml_pass_text("sbml_model.setIdAttribute", self.id)
         if self.name:
             wrap_libsbml_pass_text("sbml_model.setName", self.name)
@@ -893,6 +874,13 @@ class ObjectiveFunction(BaseModel):
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         fbc_model_plugin = wrap_libsbml("sbml_model.getPlugin('fbc')")
         sbml_objective = wrap_libsbml("fbc_model_plugin.createObjective()")
+        wrap_libsbml("sbml_objective.setType('maximize')")
+        # In SBML 3 FBC 2, the 'activeObjective' attribute must be set on ListOfObjectives.
+        # Since a submodel has only one Objective, it must be the active one.
+        ACTIVE_OBJECTIVE = 'active_objective'
+        wrap_libsbml_pass_text("sbml_objective.setIdAttribute", ACTIVE_OBJECTIVE)
+        list_of_objectives = wrap_libsbml("fbc_model_plugin.getListOfObjectives()")
+        wrap_libsbml_pass_text("list_of_objectives.setActiveObjective", ACTIVE_OBJECTIVE)
         for reaction in self.reactions:
             sbml_flux_objective = wrap_libsbml("sbml_objective.createFluxObjective()")
             wrap_libsbml_pass_text("sbml_flux_objective.setReaction", reaction.id)
@@ -944,11 +932,11 @@ class Compartment(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
-        check_for_ucode(self)
         wrap_libsbml_pass_text("sbml_compartment.setIdAttribute", self.id)
         wrap_libsbml_pass_text("sbml_compartment.setName", self.name)
         wrap_libsbml("sbml_compartment.setSpatialDimensions(3)")
         wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
+        wrap_libsbml("sbml_compartment.setConstant({})".format(False))
         if self.comments:
             wrap_libsbml_pass_text("sbml_compartment.appendNotes", str_to_xmlstr(self.comments))
         return sbml_compartment
@@ -1134,8 +1122,9 @@ class Species(BaseModel):
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
         sbml_species = wrap_libsbml("sbml_model.createSpecies()")
+        # initDefaults() isn't wrapped because it returns None
+        sbml_species.initDefaults()
         wrap_libsbml_pass_text("sbml_species.setIdAttribute", self.xml_id())
-        check_for_ucode(self)
 
         # add some SpeciesType data
         wrap_libsbml_pass_text("sbml_species.setName", self.species_type.name)
@@ -1249,9 +1238,10 @@ class Reaction(BaseModel):
 
         # create SBML reaction in SBML document
         sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
-        check_for_ucode(self)
         wrap_libsbml_pass_text("sbml_reaction.setIdAttribute", self.id)
         wrap_libsbml_pass_text("sbml_reaction.setName", self.name)
+        wrap_libsbml("sbml_reaction.setReversible(self.reversible)")
+        wrap_libsbml("sbml_reaction.setFast(False)")
         wrap_libsbml_pass_text("sbml_reaction.setCompartment", self.submodel.compartment.id)
         if self.comments:
             wrap_libsbml_pass_text("sbml_reaction.appendNotes", sbml_reaction.appendNotes)
@@ -1268,6 +1258,7 @@ class Reaction(BaseModel):
                 raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
                     participant.coefficient, self.id))
             wrap_libsbml_pass_text("species_reference.setSpecies", participant.species.xml_id())
+            wrap_libsbml("species_reference.setConstant(True)")
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
@@ -1663,7 +1654,6 @@ class Parameter(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml("sbml_document.getModel()")
-        check_for_ucode(self, attrs=['id'])
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':

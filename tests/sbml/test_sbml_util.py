@@ -14,17 +14,15 @@ import os
 from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString,
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
-from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, create_sbml_unit,
-    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
+from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, create_sbml_doc_w_fbc, wrap_libsbml_2,
+    add_sbml_unit, create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
 
 
 class TestSbml(unittest.TestCase):
 
     def setUp(self):
-        try:
-            self.document = SBMLDocument(SBML_LEVEL, SBML_VERSION)
-        except ValueError:
-            raise SystemExit("'SBMLDocument({}, {})' fails".format(SBML_LEVEL, SBML_VERSION))
+        # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
+        self.document = create_sbml_doc_w_fbc()
 
     def test_SBML_wrap_libsbml(self):
 
@@ -58,6 +56,21 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml_pass_text("model.setTimeUnits", 'second'), LIBSBML_OPERATION_SUCCESS)
 
+    def test_SBML_wrap_libsbml_2(self):
+
+        id = 'x'
+        self.assertEqual(
+            wrap_libsbml_2(self.document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
+
+        with self.assertRaises(LibSBMLError) as context:
+            wrap_libsbml_2(self.document.setIdAttribute, '..')
+        self.assertIn('LibSBML returned error code', str(context.exception))
+        self.assertIn("when executing", str(context.exception))
+
+        model = wrap_libsbml_2(self.document.createModel)
+        self.assertEqual(
+            wrap_libsbml_2(model.setTimeUnits, 'second'), LIBSBML_OPERATION_SUCCESS)
+
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)
 
@@ -75,14 +88,8 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_fbc(self):
 
-        try:
-            # use uses the SBML Level 3 Flux Balance Constraints package
-            sbmlns = SBMLNamespaces(SBML_LEVEL, SBML_VERSION, "fbc", 2);
-            document = SBMLDocument(sbmlns);
-            # mark the fbc package required
-            document.setPackageRequired("fbc", True)
-        except ValueError:
-            raise SystemExit("'SBMLNamespaces({}, {}, 'fbc', 2) fails".format(SBML_LEVEL, SBML_VERSION))
+        # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
+        document = create_sbml_doc_w_fbc()
 
         id = 'x'
         self.assertEqual(
@@ -99,22 +106,26 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.per_second_id = 'per_second'
         self.per_second = wrap_libsbml("self.sbml_model.createUnitDefinition()")
         wrap_libsbml_pass_text("self.per_second.setIdAttribute", self.per_second_id)
-        create_sbml_unit(self.per_second, UNIT_KIND_SECOND, exponent=-1)
+        add_sbml_unit(self.per_second, UNIT_KIND_SECOND, exponent=-1)
 
-    def test_create_sbml_unit(self):
+    def test_add_sbml_unit(self):
         per_second = wrap_libsbml("self.sbml_model.createUnitDefinition()")
+        wrap_libsbml_pass_text("per_second.setIdAttribute", 'per_second')
+        self.assertTrue(wrap_libsbml("per_second.hasRequiredAttributes()"))
         exp = -1
         default_scale=0
         default_multiplier=1.0
-        unit = create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=exp)
+        unit = add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=exp)
         self.assertEqual(wrap_libsbml("unit.getExponent()", returns_int=True), exp)
         self.assertEqual(wrap_libsbml("unit.getKind()"), UNIT_KIND_SECOND)
         self.assertEqual(wrap_libsbml("unit.getScale()"), default_scale)
         self.assertEqual(wrap_libsbml("unit.getMultiplier()"), default_multiplier)
 
         strange_unit = wrap_libsbml("self.sbml_model.createUnitDefinition()")
+        wrap_libsbml_pass_text("strange_unit.setIdAttribute", 'strange_unit')
+        self.assertTrue(wrap_libsbml("strange_unit.hasRequiredAttributes()"))
         exp=-4; scale=3; mult=1.23
-        unit = create_sbml_unit(strange_unit, UNIT_KIND_MOLE,
+        unit = add_sbml_unit(strange_unit, UNIT_KIND_MOLE,
             exponent=exp, scale=scale, multiplier=mult)
         self.assertEqual(wrap_libsbml("unit.getExponent()", returns_int=True), exp)
         self.assertEqual(wrap_libsbml("unit.getKind()"), UNIT_KIND_MOLE)
@@ -122,12 +133,13 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.assertEqual(wrap_libsbml("unit.getMultiplier()"), mult)
 
         with self.assertRaises(LibSBMLError) as context:
-            unit = create_sbml_unit(strange_unit, -1)
+            unit = add_sbml_unit(strange_unit, -1)
         self.assertIn("LibSBML returned error code", str(context.exception))
 
     def test_create_sbml_parameter(self):
         id='id1'; name='name1'; value=13; constant=False
         parameter = create_sbml_parameter(self.sbml_model, id, name=name, value=value, constant=constant)
+        self.assertTrue(wrap_libsbml("parameter.hasRequiredAttributes()"))
         self.assertEqual(wrap_libsbml("parameter.getIdAttribute()"), id)
         self.assertEqual(wrap_libsbml("parameter.getName()"), name)
         self.assertTrue(wrap_libsbml("parameter.isSetValue()"))
@@ -146,6 +158,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         # test units
         id = 'id3'
         parameter = create_sbml_parameter(self.sbml_model, id, units=self.per_second_id)
+        self.assertTrue(wrap_libsbml("parameter.hasRequiredAttributes()"))
         self.assertTrue(wrap_libsbml("parameter.isSetUnits()"))
         self.assertEqual(wrap_libsbml("parameter.getUnits()"), self.per_second_id)
 

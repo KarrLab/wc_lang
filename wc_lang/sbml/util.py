@@ -50,7 +50,7 @@ written permission.
 import sys
 import inspect
 from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
-    UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString)
+    UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
 import six
 
@@ -74,7 +74,6 @@ class LibSBMLError(Error):
         '''Provide the Exception's msg; needed for Python 2.7, although not documented.'''
         return self.msg
 
-
 class LibsbmlInterface(object):
     '''Methods that compactly use libsbml to create SBML objects.
 
@@ -82,8 +81,24 @@ class LibsbmlInterface(object):
     value per call, which creates extremely verbose SBML code. These methods aggregate multiple
     libsbml method calls to enable more compact usage.
     '''
+
     @staticmethod
-    def _create_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
+    def _create_sbml_doc_w_fbc():
+        """ Create an SBMLDocument that uses the 'Flux Balance Constraints' extension, version 2.
+
+        Returns:
+            :obj:`libsbml.Unit`: the new SBML Document
+
+        Raises:
+            :obj:`LibSBMLError`: if one of the libsbml calls fails
+        """
+        sbmlns = wrap_libsbml("SBMLNamespaces(SBML_LEVEL, SBML_VERSION, 'fbc', 2)")
+        sbml_document = wrap_libsbml("SBMLDocument(sbmlns)")
+        wrap_libsbml("sbml_document.setPackageRequired('fbc', False)")
+        return sbml_document
+
+    @staticmethod
+    def _add_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
         """ Add an SBML unit on an existing SBML unit definition.
 
         Provides the SBML level 3 version 1 default values for `exponent=1`, `scale=0`, and `multiplier=1.0`.
@@ -147,7 +162,8 @@ class LibsbmlInterface(object):
             wrap_libsbml("sbml_parameter.setConstant({})".format(constant))
             return sbml_parameter
 
-create_sbml_unit = LibsbmlInterface._create_sbml_unit
+create_sbml_doc_w_fbc = LibsbmlInterface._create_sbml_doc_w_fbc
+add_sbml_unit = LibsbmlInterface._add_sbml_unit
 create_sbml_parameter = LibsbmlInterface._create_sbml_parameter
 
 def __wrap_libsbml(_call, _globals, _locals, _returns_int=False, _debug=False):
@@ -269,6 +285,68 @@ def wrap_libsbml_pass_text(method, text, returns_int=False, debug=False):
     finally:
         del frame
 
+def wrap_libsbml_2(method, *args, returns_int=False, debug=False):
+    """ Wrap a libsbml method so that errors in return code can be easily handled.
+
+    Unfortunately, libsbml methods that do not return data usually report errors via return codes,
+    instead of exceptions, and the generic return codes contain virtually no information.
+    This function wraps these methods and raises useful exceptions when errors occur.
+
+    Args:
+        method (:obj:`obj`): a reference to the `libsbml` method to execute
+        args (:obj:`list` of `obj`): a `list` of arguments to the `libsbml` method
+        returns_int (:obj:`bool`, optional): whether the method returns an integer; if `returns_int`
+            is `True`, then an exception will not be raised if the method call returns an integer
+        debug (:obj:`bool`, optional): whether to print debug output
+
+    Returns:
+        :obj:`obj` or `int`: if the call does not return an error, return the `libsbml`
+        method's return value, either an object that has been created or retrieved, or an integer
+        value, or the `libsbml` success return code, `LIBSBML_OPERATION_SUCCESS`
+
+    Raises:
+        :obj:`LibSBMLError`: if the `libsbml` call raises an exception, or returns None, or
+        returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
+    """
+    new_args = []
+    for arg in args:
+        # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG right
+        if six.PY2 and isinstance(arg, six.text_type):
+            new_args.append(str(arg))
+        else:
+            new_args.append(arg)
+    if debug:
+        # TODO: make a string for arguments
+        print('libsbml call:', method)
+    try:
+        rc = method(*tuple(args))
+    except Exception as error:
+        raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, method))
+    if rc == None:
+        raise LibSBMLError("libsbml returned None when executing '{}'.".format(method))
+    elif type(rc) is int:
+        if rc == LIBSBML_OPERATION_SUCCESS:
+            if debug:
+                print('libsbml returns: LIBSBML_OPERATION_SUCCESS')
+            return rc
+        else:
+            error_code = OperationReturnValue_toString(rc)
+            # Handle libsbml methods that return int as values
+            # TODO: handle this more gracefully
+            if error_code is None or returns_int:
+                if debug:
+                    print("libsbml returns:", rc)
+                return rc
+            else:
+                raise LibSBMLError("LibSBML returned error code '{}' "
+                    "when executing '{}'.\nWARNING: if the libsbml call above returns an int, then this "
+                    "error may be incorrect; pass 'returns_int=True' to wrap_libsbml().".format(error_code, method))
+    else:
+        # return data provided by libsbml method
+        if debug:
+            print('libsbml returns:', rc)
+        return rc
+
 def init_sbml_model(sbml_document):
     """ Create and initialize an SMBL model.
 
@@ -283,6 +361,9 @@ def init_sbml_model(sbml_document):
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
     sbml_model = wrap_libsbml("sbml_document.createModel()")
+    fbc_model_plugin = wrap_libsbml("sbml_model.getPlugin('fbc')")
+    # TODO: set strict to True
+    wrap_libsbml("fbc_model_plugin.setStrict(False)")
 
     # To produce a model with complete units for the reaction rates, we need
     # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
@@ -299,18 +380,18 @@ def init_sbml_model(sbml_document):
     # and 'multiplier' defined.
     per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("per_second.setIdAttribute('per_second')")
-    create_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
+    add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
 
     mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("mmol_per_gDW_per_hr.setIdAttribute('mmol_per_gDW_per_hr')")
-    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
-    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
-    create_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
+    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
+    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
+    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
         multiplier=3600.0)
 
     dimensionless = wrap_libsbml("sbml_model.createUnitDefinition()")
     wrap_libsbml("dimensionless.setIdAttribute('dimensionless_ud')")
-    create_sbml_unit(dimensionless, UNIT_KIND_DIMENSIONLESS)
+    add_sbml_unit(dimensionless, UNIT_KIND_DIMENSIONLESS)
 
     return sbml_model
 

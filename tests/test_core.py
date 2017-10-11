@@ -18,7 +18,7 @@ import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
 from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, init_sbml_model,
-    SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
+    create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
 
 
 class TestCore(unittest.TestCase):
@@ -872,11 +872,7 @@ class TestCore(unittest.TestCase):
 
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        try:
-            sbmlns = wrap_libsbml("SBMLNamespaces(SBML_LEVEL, SBML_VERSION, 'fbc', 2)")
-            document = wrap_libsbml("SBMLDocument(sbmlns)")
-        except ValueError:
-            raise SystemExit('Could not create SBMLDocumention object')
+        document = create_sbml_doc_w_fbc()
 
         # Initialize the SBML document's model
         sbml_model = init_sbml_model(document)
@@ -891,6 +887,7 @@ class TestCore(unittest.TestCase):
         # Write Compartments to the SBML document
         self.comp_0.comments = 'test comment'
         sbml_compartment = self.comp_0.add_to_sbml_doc(document)
+        self.assertTrue(sbml_compartment.hasRequiredAttributes())
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
         self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
@@ -899,6 +896,7 @@ class TestCore(unittest.TestCase):
         # Write species used by the submodel to the SBML document
         for species in self.submdl_2.get_species():
             sbml_species = species.add_to_sbml_doc(document)
+            self.assertTrue(sbml_species.hasRequiredAttributes())
             self.assertEqual(sbml_species.getIdAttribute(), species.xml_id())
             self.assertEqual(sbml_species.getName(), species.species_type.name)
             self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
@@ -908,6 +906,7 @@ class TestCore(unittest.TestCase):
         self.rxn_2.min_flux = 100
         self.rxn_2.max_flux = 200
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
+        self.assertTrue(sbml_reaction.hasRequiredAttributes())
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
         self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
         self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
@@ -932,6 +931,7 @@ class TestCore(unittest.TestCase):
         # Write parameters to the SBML document
         for param in self.parameters:
             sbml_param = param.add_to_sbml_doc(document)
+            self.assertTrue(sbml_param.hasRequiredAttributes())
             self.assertIn(param.id, sbml_param.getIdAttribute())
             self.assertEqual(sbml_param.getName(), param.name)
             self.assertEqual(sbml_param.getValue(), param.value)

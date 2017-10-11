@@ -9,7 +9,8 @@
 import unittest
 import os
 from math import isnan
-from libsbml import readSBMLFromString, writeSBMLToFile
+from libsbml import readSBMLFromString, writeSBMLToFile, SBMLReader
+from six import iteritems
 
 from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
@@ -29,6 +30,7 @@ class TestSbml(unittest.TestCase):
         # TODO: replace with real consistency checking
         for specie in self.model.get_species():
             if specie.concentration is None:
+                # TODO: make this a warning
                 print("setting concentration for {} to 0.0".format(specie.id()))
                 specie.concentrations = Concentration(species=specie, value=0.0)
 
@@ -53,12 +55,36 @@ class TestSbml(unittest.TestCase):
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 sbml_document = sbml_io.SBMLExchange.write(
-                    objects + [submodel, submodel.get_objective_function()])
+                    objects + [submodel, submodel.objective_function])
 
-        # TODO: either compile & use the libsbml source trunk, or install the next release of libsbml
+        # TODO: avoid workaround by installing libsbml>15.5.0
         self.assertEqual(wrap_libsbml("sbml_document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
         workaround_document = wrap_libsbml("readSBMLFromString(sbml_document.toSBML())")
-        self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
         for i in range(wrap_libsbml("workaround_document.checkConsistency()")):
             print(workaround_document.getError(i).getShortMessage())
             print(workaround_document.getError(i).getMessage())
+        self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
+
+        # check some data in sbml document
+        # TODO: check one instance of each class
+
+    def test_Writer(self):
+        root_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model')
+        # for algorithms in [None, [SubmodelAlgorithm.dfba, SubmodelAlgorithm.ssa]]:
+        for algorithms in [None]:
+            sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms, path=None)
+            try:
+                paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=root_path)
+            except Exception as e:
+                self.fail("Unexpected sbml_io.Writer.run() exception {}".format(e))
+            for submodel_id,path in zip(sbml_documents.keys(), paths):
+                document = SBMLReader().readSBML(path)
+                for i in range(wrap_libsbml("document.checkConsistency()")):
+                    print(document.getError(i).getShortMessage())
+                    print(document.getError(i).getMessage())
+                self.assertEqual(wrap_libsbml("document.checkConsistency()"), 0)
+                for i in range(wrap_libsbml("document.getNumErrors()")):
+                    print(document.getError(i).getShortMessage())
+                    print(document.getError(i).getMessage())
+                self.assertEqual(wrap_libsbml("document.getNumErrors()"), 0)
+                self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
