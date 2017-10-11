@@ -8,6 +8,7 @@
 
 import unittest
 import os
+import six
 
 # "from libsbml import *" generates "NameError: Unknown C global variable" in pytest,
 # presumably from the SWIG wrapper: http://web.mit.edu/svn/src/swig-1.3.25/Lib/python/pyinit.swg
@@ -58,13 +59,19 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_wrap_libsbml_2(self):
 
-        id = 'x'
+        id = six.u('test_id')
         self.assertEqual(
             wrap_libsbml_2(self.document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
+        self.assertEqual(
+            wrap_libsbml_2(self.document.getIdAttribute), id)
 
         model = wrap_libsbml_2(self.document.createModel)
         self.assertEqual(
             wrap_libsbml_2(model.setTimeUnits, 'second'), LIBSBML_OPERATION_SUCCESS)
+
+        self.assertEqual(
+            wrap_libsbml_2(model.setTimeUnits, 'second',
+                debug=True, returns_int=False, other=3), LIBSBML_OPERATION_SUCCESS)
 
         self.assertEqual(
             wrap_libsbml_2(model.setTimeUnits, 'second',

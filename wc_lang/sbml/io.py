@@ -11,6 +11,7 @@ Representations include
 """
 
 import sys
+import os
 from os.path import split, splitext, join
 from six import iteritems
 from libsbml import readSBMLFromString, writeSBMLToFile, SBMLNamespaces, SBMLDocument
@@ -78,6 +79,7 @@ class Reader(object):
         """
         pass
 
+
 class Writer(object):
     """ Write an SBML representation of a model  """
 
@@ -118,11 +120,8 @@ class Writer(object):
             ext = '.sbml'
             (dirname, basename) = split(path)
             files = []
-            import os
-            try:
-                print(dirname, 'contains', os.listdir(dirname))
-            except:
-                print('could not list', dirname)
+            if not os.access(dirname, os.W_OK):
+                raise ValueError("Writer.run() cannot write to directory '{}'.".format(dirname))
             for id,sbml_doc in iteritems(sbml_documents):
                 dest = join(dirname, basename + '-' + id + ext)
                 dest = str(dest)

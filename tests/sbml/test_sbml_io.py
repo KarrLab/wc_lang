@@ -31,7 +31,7 @@ class TestSbml(unittest.TestCase):
         for specie in self.model.get_species():
             if specie.concentration is None:
                 # TODO: make this a warning
-                print("setting concentration for {} to 0.0".format(specie.id()))
+                # print("setting concentration for {} to 0.0".format(specie.id()))
                 specie.concentrations = Concentration(species=specie, value=0.0)
 
         # TODO: replace with real code for setting bounds
@@ -68,7 +68,7 @@ class TestSbml(unittest.TestCase):
         # check some data in sbml document
         # TODO: check one instance of each class
 
-    def test_Writer(self):
+    def test_writer(self):
         root_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model')
         # for algorithms in [None, [SubmodelAlgorithm.dfba, SubmodelAlgorithm.ssa]]:
         for algorithms in [None]:
@@ -88,3 +88,11 @@ class TestSbml(unittest.TestCase):
                     print(document.getError(i).getMessage())
                 self.assertEqual(wrap_libsbml("document.getNumErrors()"), 0)
                 self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
+
+
+    def test_writer_errors(self):
+        root_path = os.path.join(os.path.dirname(__file__), 'no_such_dir', 'example-model')
+        with self.assertRaises(ValueError) as context:
+            sbml_io.Writer.run(self.model, path=root_path)
+        self.assertIn('cannot write to directory', str(context.exception))
+        self.assertIn('no_such_dir', str(context.exception))
