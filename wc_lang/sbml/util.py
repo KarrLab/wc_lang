@@ -206,12 +206,8 @@ def wrap_libsbml(method, *args, **kwargs):
         # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG right
         if six.PY2 and isinstance(arg, six.text_type):
             new_args.append(str(arg))
-            if len(str(arg))<100:
-                print("PY2 text_type: {}".format(arg))
         else:
             new_args.append(arg)
-            if len(str(arg))<100:
-                print("not PY2 text_type: {}".format(arg))
     if debug:
         # TODO: make a string for arguments
         print('libsbml call:', method)
@@ -229,7 +225,6 @@ def wrap_libsbml(method, *args, **kwargs):
         else:
             error_code = OperationReturnValue_toString(rc)
             # Handle libsbml methods that return int as values
-            # TODO: handle this more gracefully
             if error_code is None or returns_int:
                 if debug:
                     print("libsbml returns:", rc)
