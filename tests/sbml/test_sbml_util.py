@@ -15,8 +15,8 @@ import six
 from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString,
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
-from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, wrap_libsbml,
-    add_sbml_unit, create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
+from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, add_sbml_unit,
+    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
 
 
 class TestSbml(unittest.TestCase):
@@ -87,42 +87,42 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml(document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
 
-@unittest.skip("showing class skipping")
+
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = wrap_libsbml('SBMLNamespaces({}, {}, "fbc", 2)'.format(SBML_LEVEL, SBML_VERSION))
-        self.sbml_document = wrap_libsbml('SBMLDocument(sbmlns)')
-        self.sbml_model = wrap_libsbml("self.sbml_document.createModel()")
+        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, "fbc", 2)
+        self.sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
+        self.sbml_model = wrap_libsbml(self.sbml_document.createModel)
 
         self.per_second_id = 'per_second'
-        self.per_second = wrap_libsbml("self.sbml_model.createUnitDefinition()")
-        wrap_libsbml_pass_text("self.per_second.setIdAttribute", self.per_second_id)
+        self.per_second = wrap_libsbml(self.sbml_model.createUnitDefinition)
+        wrap_libsbml(self.per_second.setIdAttribute, self.per_second_id)
         add_sbml_unit(self.per_second, UNIT_KIND_SECOND, exponent=-1)
 
     def test_add_sbml_unit(self):
-        per_second = wrap_libsbml("self.sbml_model.createUnitDefinition()")
-        wrap_libsbml_pass_text("per_second.setIdAttribute", 'per_second')
-        self.assertTrue(wrap_libsbml("per_second.hasRequiredAttributes()"))
+        per_second = wrap_libsbml(self.sbml_model.createUnitDefinition)
+        wrap_libsbml(per_second.setIdAttribute, 'per_second')
+        self.assertTrue(wrap_libsbml(per_second.hasRequiredAttributes))
         exp = -1
         default_scale=0
         default_multiplier=1.0
         unit = add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=exp)
-        self.assertEqual(wrap_libsbml("unit.getExponent()", returns_int=True), exp)
-        self.assertEqual(wrap_libsbml("unit.getKind()"), UNIT_KIND_SECOND)
-        self.assertEqual(wrap_libsbml("unit.getScale()"), default_scale)
-        self.assertEqual(wrap_libsbml("unit.getMultiplier()"), default_multiplier)
+        self.assertEqual(wrap_libsbml(unit.getExponent, returns_int=True), exp)
+        self.assertEqual(wrap_libsbml(unit.getKind), UNIT_KIND_SECOND)
+        self.assertEqual(wrap_libsbml(unit.getScale), default_scale)
+        self.assertEqual(wrap_libsbml(unit.getMultiplier), default_multiplier)
 
-        strange_unit = wrap_libsbml("self.sbml_model.createUnitDefinition()")
-        wrap_libsbml_pass_text("strange_unit.setIdAttribute", 'strange_unit')
-        self.assertTrue(wrap_libsbml("strange_unit.hasRequiredAttributes()"))
+        strange_unit = wrap_libsbml(self.sbml_model.createUnitDefinition)
+        wrap_libsbml(strange_unit.setIdAttribute, 'strange_unit')
+        self.assertTrue(wrap_libsbml(strange_unit.hasRequiredAttributes))
         exp=-4; scale=3; mult=1.23
         unit = add_sbml_unit(strange_unit, UNIT_KIND_MOLE,
             exponent=exp, scale=scale, multiplier=mult)
-        self.assertEqual(wrap_libsbml("unit.getExponent()", returns_int=True), exp)
-        self.assertEqual(wrap_libsbml("unit.getKind()"), UNIT_KIND_MOLE)
-        self.assertEqual(wrap_libsbml("unit.getScale()"), scale)
-        self.assertEqual(wrap_libsbml("unit.getMultiplier()"), mult)
+        self.assertEqual(wrap_libsbml(unit.getExponent, returns_int=True), exp)
+        self.assertEqual(wrap_libsbml(unit.getKind), UNIT_KIND_MOLE)
+        self.assertEqual(wrap_libsbml(unit.getScale), scale)
+        self.assertEqual(wrap_libsbml(unit.getMultiplier), mult)
 
         with self.assertRaises(LibSBMLError) as context:
             unit = add_sbml_unit(strange_unit, -1)
@@ -131,42 +131,30 @@ class TestLibsbmlInterface(unittest.TestCase):
     def test_create_sbml_parameter(self):
         id='id1'; name='name1'; value=13; constant=False
         parameter = create_sbml_parameter(self.sbml_model, id, name=name, value=value, constant=constant)
-        self.assertTrue(wrap_libsbml("parameter.hasRequiredAttributes()"))
-        self.assertEqual(wrap_libsbml("parameter.getIdAttribute()"), id)
-        self.assertEqual(wrap_libsbml("parameter.getName()"), name)
-        self.assertTrue(wrap_libsbml("parameter.isSetValue()"))
-        self.assertFalse(wrap_libsbml("parameter.isSetUnits()"))
-        self.assertEqual(wrap_libsbml("parameter.getValue()"), value)
-        self.assertEqual(wrap_libsbml("parameter.getConstant()"), constant)
+        self.assertTrue(wrap_libsbml(parameter.hasRequiredAttributes))
+        self.assertEqual(wrap_libsbml(parameter.getIdAttribute), id)
+        self.assertEqual(wrap_libsbml(parameter.getName), name)
+        self.assertTrue(wrap_libsbml(parameter.isSetValue))
+        self.assertFalse(wrap_libsbml(parameter.isSetUnits))
+        self.assertEqual(wrap_libsbml(parameter.getValue), value)
+        self.assertEqual(wrap_libsbml(parameter.getConstant), constant)
 
         # test defaults
         id = 'id2'
         parameter = create_sbml_parameter(self.sbml_model, id)
-        self.assertEqual(wrap_libsbml("parameter.getIdAttribute()"), id)
-        self.assertEqual(wrap_libsbml("parameter.getName()"), '')
-        self.assertFalse(wrap_libsbml("parameter.isSetValue()"))
-        self.assertEqual(wrap_libsbml("parameter.getConstant()"), True)
+        self.assertEqual(wrap_libsbml(parameter.getIdAttribute), id)
+        self.assertEqual(wrap_libsbml(parameter.getName), '')
+        self.assertFalse(wrap_libsbml(parameter.isSetValue))
+        self.assertEqual(wrap_libsbml(parameter.getConstant), True)
 
         # test units
         id = 'id3'
         parameter = create_sbml_parameter(self.sbml_model, id, units=self.per_second_id)
-        self.assertTrue(wrap_libsbml("parameter.hasRequiredAttributes()"))
-        self.assertTrue(wrap_libsbml("parameter.isSetUnits()"))
-        self.assertEqual(wrap_libsbml("parameter.getUnits()"), self.per_second_id)
+        self.assertTrue(wrap_libsbml(parameter.hasRequiredAttributes))
+        self.assertTrue(wrap_libsbml(parameter.isSetUnits))
+        self.assertEqual(wrap_libsbml(parameter.getUnits), self.per_second_id)
 
         # test Parameter id collision
         with self.assertRaises(ValueError) as context:
             parameter = create_sbml_parameter(self.sbml_model, id)
         self.assertIn("is already in use as a Parameter id", str(context.exception))
-
-    def test_wrap_libsbml_pass_text(self):
-        triple_double = '""" I can\'t mom """'
-        triple_single = "''' hi mom '''"
-        def f(a):
-            return a
-        self.assertEqual(wrap_libsbml_pass_text("f", triple_double), triple_double)
-        self.assertEqual(wrap_libsbml_pass_text("f", triple_single), triple_single)
-
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml_pass_text(None, 3)
-        self.assertIn("3 isn't textual data", str(context.exception))
