@@ -20,8 +20,7 @@ from obj_model.core import Validator
 from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference, SubmodelAlgorithm)
-from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, init_sbml_model,
-    SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
+from wc_lang.sbml.util import (init_sbml_model, SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
 
 '''
 wc_lang to SBML mapping to support FBA modeling

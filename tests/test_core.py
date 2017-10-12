@@ -17,8 +17,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
 import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
-from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, LibSBMLError, init_sbml_model,
-    create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
+from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
+    create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
 
 
 class TestCore(unittest.TestCase):
@@ -950,14 +950,14 @@ class TestCore(unittest.TestCase):
         self.submdl_2.objective_function = of
         #   write ObjectiveFunction to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
-        self.assertEqual(wrap_libsbml("sbml_objective.getNumFluxObjectives()"), 1)
-        self.assertEqual(wrap_libsbml("len(sbml_objective.getListOfFluxObjectives())"), 1)
+        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives), 1)
+        self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 1)
         flux_objective = sbml_objective.getFluxObjective(0)
         self.assertEqual(flux_objective.getReaction(), rxn_id)
         self.assertEqual(flux_objective.getCoefficient(), 1.0)
 
         # Check the SBML document
-        self.assertEqual(wrap_libsbml("document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
+        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(document)), 0)
 
         '''
         document.checkConsistency() does not properly handle fbc_model_plugin.createObjective()
@@ -967,8 +967,9 @@ class TestCore(unittest.TestCase):
         workaround: write the sbml document to a string, read it back, and check that
         '''
         # TODO: either compile & use the libsbml source trunk, or install the next release of libsbml
-        workaround_document = wrap_libsbml("readSBMLFromString(document.toSBML())")
-        self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
+        sbml_string = wrap_libsbml(document.toSBML)
+        workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
+        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)
         for i in range(workaround_document.checkConsistency()):
             print(workaround_document.getError(i).getShortMessage())
             print(workaround_document.getError(i).getMessage())

@@ -16,7 +16,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, wrap_libsbml,
-    add_sbml_unit, create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, SBML_COMPATIBILITY_METHOD)
+    add_sbml_unit, create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
 
 
 class TestSbml(unittest.TestCase):
@@ -24,39 +24,6 @@ class TestSbml(unittest.TestCase):
     def setUp(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         self.document = create_sbml_doc_w_fbc()
-
-    @unittest.skip("demonstrating skipping")
-    def test_SBML_wrap_libsbml_old(self):
-
-        self.assertEqual(wrap_libsbml("LIBSBML_OPERATION_SUCCESS"), LIBSBML_OPERATION_SUCCESS)
-
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml("1 +")
-        self.assertIn("Syntax error in libsbml method", str(context.exception))
-
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml("x")
-        self.assertIn("NameError", str(context.exception))
-        self.assertIn("'x' is not defined", str(context.exception))
-
-        id = 'x'
-        self.assertEqual(
-            wrap_libsbml_pass_text("self.document.setIdAttribute", id), LIBSBML_OPERATION_SUCCESS)
-
-        call = "self.document.setIdAttribute('..')"
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml(call)
-        self.assertIn('LibSBML returned error code', str(context.exception))
-        self.assertIn("when executing '{}'".format(call), str(context.exception))
-
-        call = "self.document.appendAnnotation(5)"
-        with self.assertRaises(LibSBMLError) as context:
-            wrap_libsbml(call)
-        self.assertIn("in libsbml method call '{}'".format(call), str(context.exception))
-
-        model = wrap_libsbml("self.document.createModel()")
-        self.assertEqual(
-            wrap_libsbml_pass_text("model.setTimeUnits", 'second'), LIBSBML_OPERATION_SUCCESS)
 
     def test_SBML_wrap_libsbml(self):
 
@@ -96,23 +63,21 @@ class TestSbml(unittest.TestCase):
             wrap_libsbml(self.document.getAnnotation)
         self.assertIn('libsbml returned None when executing', str(context.exception))
 
-    @unittest.skip("skip")
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)
 
         # check the SBML document
-        self.assertEqual(wrap_libsbml("self.document.checkConsistency()"), 0)
-        self.assertEqual(wrap_libsbml("self.document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
+        self.assertEqual(wrap_libsbml(self.document.checkConsistency), 0)
+        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(self.document)), 0)
 
         # check mmol_per_gDW_per_hr
-        mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.getUnitDefinition('mmol_per_gDW_per_hr')")
-        printed_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr)")
-        compact_mmol_per_gDW_per_hr = wrap_libsbml("UnitDefinition.printUnits(mmol_per_gDW_per_hr, True)")
+        mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.getUnitDefinition, 'mmol_per_gDW_per_hr')
+        printed_mmol_per_gDW_per_hr = wrap_libsbml(UnitDefinition.printUnits, mmol_per_gDW_per_hr)
+        compact_mmol_per_gDW_per_hr = wrap_libsbml(UnitDefinition.printUnits, mmol_per_gDW_per_hr, True)
         self.assertIn('(0.001 mole)^1', compact_mmol_per_gDW_per_hr)
         self.assertIn('(3600 second)^-1', compact_mmol_per_gDW_per_hr)
         self.assertIn('(1 gram)^-1', compact_mmol_per_gDW_per_hr)
 
-    @unittest.skip("skip")
     def test_SBML_fbc(self):
 
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
@@ -120,7 +85,7 @@ class TestSbml(unittest.TestCase):
 
         id = 'x'
         self.assertEqual(
-            wrap_libsbml_pass_text("document.setIdAttribute", id), LIBSBML_OPERATION_SUCCESS)
+            wrap_libsbml(document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
 
 @unittest.skip("showing class skipping")
 class TestLibsbmlInterface(unittest.TestCase):

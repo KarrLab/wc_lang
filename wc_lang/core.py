@@ -47,8 +47,8 @@ from obj_model.core import (Model as BaseModel,
                             InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_lang.sbml.util import (wrap_libsbml, wrap_libsbml_pass_text, str_to_xmlstr, LibSBMLError,
-    init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS, wrap_libsbml_pass_text)
+from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
+    init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -697,13 +697,13 @@ class Submodel(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
-        wrap_libsbml_pass_text("sbml_model.setIdAttribute", self.id)
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+        wrap_libsbml(sbml_model.setIdAttribute, self.id)
         if self.name:
-            wrap_libsbml_pass_text("sbml_model.setName", self.name)
+            wrap_libsbml(sbml_model.setName, self.name)
         # compartment, objective_function, and parameters are created separately
         if self.comments:
-            wrap_libsbml_pass_text("sbml_model.appendNotes", str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_model.appendNotes, str_to_xmlstr(self.comments))
         return sbml_model
 
 
@@ -871,21 +871,21 @@ class ObjectiveFunction(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
-        fbc_model_plugin = wrap_libsbml("sbml_model.getPlugin('fbc')")
-        sbml_objective = wrap_libsbml("fbc_model_plugin.createObjective()")
-        wrap_libsbml("sbml_objective.setType('maximize')")
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+        fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
+        sbml_objective = wrap_libsbml(fbc_model_plugin.createObjective)
+        wrap_libsbml(sbml_objective.setType, 'maximize')
         # In SBML 3 FBC 2, the 'activeObjective' attribute must be set on ListOfObjectives.
         # Since a submodel has only one Objective, it must be the active one.
         ACTIVE_OBJECTIVE = 'active_objective'
-        wrap_libsbml_pass_text("sbml_objective.setIdAttribute", ACTIVE_OBJECTIVE)
-        list_of_objectives = wrap_libsbml("fbc_model_plugin.getListOfObjectives()")
-        wrap_libsbml_pass_text("list_of_objectives.setActiveObjective", ACTIVE_OBJECTIVE)
+        wrap_libsbml(sbml_objective.setIdAttribute, ACTIVE_OBJECTIVE)
+        list_of_objectives = wrap_libsbml(fbc_model_plugin.getListOfObjectives)
+        wrap_libsbml(list_of_objectives.setActiveObjective, ACTIVE_OBJECTIVE)
         for reaction in self.reactions:
-            sbml_flux_objective = wrap_libsbml("sbml_objective.createFluxObjective()")
-            wrap_libsbml_pass_text("sbml_flux_objective.setReaction", reaction.id)
+            sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
+            wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
             # TODO: use actual coefficient
-            wrap_libsbml("sbml_flux_objective.setCoefficient(1.0)")
+            wrap_libsbml(sbml_flux_objective.setCoefficient, 1.0)
 
         return sbml_objective
 
@@ -930,15 +930,15 @@ class Compartment(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
-        sbml_compartment = wrap_libsbml("sbml_model.createCompartment()")
-        wrap_libsbml_pass_text("sbml_compartment.setIdAttribute", self.id)
-        wrap_libsbml_pass_text("sbml_compartment.setName", self.name)
-        wrap_libsbml("sbml_compartment.setSpatialDimensions(3)")
-        wrap_libsbml("sbml_compartment.setSize(self.initial_volume)")
-        wrap_libsbml("sbml_compartment.setConstant({})".format(False))
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+        sbml_compartment = wrap_libsbml(sbml_model.createCompartment)
+        wrap_libsbml(sbml_compartment.setIdAttribute, self.id)
+        wrap_libsbml(sbml_compartment.setName, self.name)
+        wrap_libsbml(sbml_compartment.setSpatialDimensions, 3)
+        wrap_libsbml(sbml_compartment.setSize, self.initial_volume)
+        wrap_libsbml(sbml_compartment.setConstant, False)
         if self.comments:
-            wrap_libsbml_pass_text("sbml_compartment.appendNotes", str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_compartment.appendNotes, str_to_xmlstr(self.comments))
         return sbml_compartment
 
 
@@ -1120,22 +1120,22 @@ class Species(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
-        sbml_species = wrap_libsbml("sbml_model.createSpecies()")
-        # initDefaults() isn't wrapped because it returns None
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+        sbml_species = wrap_libsbml(sbml_model.createSpecies)
+        # initDefaults() isn't wrapped in wrap_libsbml because it returns None
         sbml_species.initDefaults()
-        wrap_libsbml_pass_text("sbml_species.setIdAttribute", self.xml_id())
+        wrap_libsbml(sbml_species.setIdAttribute, self.xml_id())
 
         # add some SpeciesType data
-        wrap_libsbml_pass_text("sbml_species.setName", self.species_type.name)
+        wrap_libsbml(sbml_species.setName, self.species_type.name)
         if self.species_type.comments:
-            wrap_libsbml_pass_text("sbml_species.appendNotes", str_to_xmlstr(self.species_type.comments))
+            wrap_libsbml(sbml_species.appendNotes, str_to_xmlstr(self.species_type.comments))
 
         # set Compartment, which must already be in the SBML document
-        wrap_libsbml_pass_text("sbml_species.setCompartment", self.compartment.id)
+        wrap_libsbml(sbml_species.setCompartment, self.compartment.id)
 
         # set the Initial Concentration
-        wrap_libsbml("sbml_species.setInitialConcentration(self.concentration.value)")
+        wrap_libsbml(sbml_species.setInitialConcentration, self.concentration.value)
 
         return sbml_species
 
@@ -1234,47 +1234,47 @@ class Reaction(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
+        sbml_model = wrap_libsbml(sbml_document.getModel)
 
         # create SBML reaction in SBML document
-        sbml_reaction = wrap_libsbml("sbml_model.createReaction()")
-        wrap_libsbml_pass_text("sbml_reaction.setIdAttribute", self.id)
-        wrap_libsbml_pass_text("sbml_reaction.setName", self.name)
-        wrap_libsbml("sbml_reaction.setReversible(self.reversible)")
-        wrap_libsbml("sbml_reaction.setFast(False)")
-        wrap_libsbml_pass_text("sbml_reaction.setCompartment", self.submodel.compartment.id)
+        sbml_reaction = wrap_libsbml(sbml_model.createReaction)
+        wrap_libsbml(sbml_reaction.setIdAttribute, self.id)
+        wrap_libsbml(sbml_reaction.setName, self.name)
+        wrap_libsbml(sbml_reaction.setReversible, self.reversible)
+        wrap_libsbml(sbml_reaction.setFast, False)
+        wrap_libsbml(sbml_reaction.setCompartment, self.submodel.compartment.id)
         if self.comments:
-            wrap_libsbml_pass_text("sbml_reaction.appendNotes", sbml_reaction.appendNotes)
+            wrap_libsbml(sbml_reaction.appendNotes, sbml_reaction.appendNotes)
 
         # write reaction participants to SBML document
         for participant in self.participants:
             if participant.coefficient<0:
-                species_reference = wrap_libsbml("sbml_reaction.createReactant()")
-                wrap_libsbml("species_reference.setStoichiometry(-participant.coefficient)")
+                species_reference = wrap_libsbml(sbml_reaction.createReactant)
+                wrap_libsbml(species_reference.setStoichiometry, -participant.coefficient)
             elif 0<participant.coefficient:
-                species_reference = wrap_libsbml("sbml_reaction.createProduct()")
-                wrap_libsbml("species_reference.setStoichiometry(participant.coefficient)")
+                species_reference = wrap_libsbml(sbml_reaction.createProduct)
+                wrap_libsbml(species_reference.setStoichiometry, participant.coefficient)
             else:
                 raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
                     participant.coefficient, self.id))
-            wrap_libsbml_pass_text("species_reference.setSpecies", participant.species.xml_id())
-            wrap_libsbml("species_reference.setConstant(True)")
+            wrap_libsbml(species_reference.setSpecies, participant.species.xml_id())
+            wrap_libsbml(species_reference.setConstant, True)
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
         if self.submodel.algorithm == SubmodelAlgorithm.dfba:
-            fbc_reaction_plugin = wrap_libsbml("sbml_reaction.getPlugin('fbc')")
+            fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
                 param_id = "_reaction_{}_{}_bound".format(self.id, bound)
                 param = create_sbml_parameter(sbml_model, id=param_id, units='mmol_per_gDW_per_hr',
                     value=self.min_flux)
                 if bound == 'lower':
-                    wrap_libsbml("param.setValue({})".format(self.min_flux))
-                    wrap_libsbml_pass_text("fbc_reaction_plugin.setLowerFluxBound", param_id)
+                    wrap_libsbml(param.setValue, self.min_flux)
+                    wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
                 if bound == 'upper':
-                    wrap_libsbml("param.setValue({})".format(self.max_flux))
-                    wrap_libsbml_pass_text("fbc_reaction_plugin.setUpperFluxBound", param_id)
+                    wrap_libsbml(param.setValue, self.max_flux)
+                    wrap_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
         return sbml_reaction
 
 
@@ -1653,7 +1653,7 @@ class Parameter(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
-        sbml_model = wrap_libsbml("sbml_document.getModel()")
+        sbml_model = wrap_libsbml(sbml_document.getModel)
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':

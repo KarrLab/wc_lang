@@ -15,7 +15,7 @@ from six import iteritems
 from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
-from wc_lang.sbml.util import wrap_libsbml, SBML_COMPATIBILITY_METHOD
+from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
 import wc_lang.sbml.io as sbml_io
 
@@ -58,12 +58,13 @@ class TestSbml(unittest.TestCase):
                     objects + [submodel, submodel.objective_function])
 
         # TODO: avoid workaround by installing libsbml>15.5.0
-        self.assertEqual(wrap_libsbml("sbml_document.{}".format(SBML_COMPATIBILITY_METHOD)), 0)
-        workaround_document = wrap_libsbml("readSBMLFromString(sbml_document.toSBML())")
-        for i in range(wrap_libsbml("workaround_document.checkConsistency()")):
+        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document)), 0)
+        sbml_string = wrap_libsbml(sbml_document.toSBML)
+        workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
+        for i in range(wrap_libsbml(workaround_document.checkConsistency)):
             print(workaround_document.getError(i).getShortMessage())
             print(workaround_document.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml("workaround_document.checkConsistency()"), 0)
+        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)
 
         # check some data in sbml document
         # TODO: check one instance of each class
@@ -79,14 +80,14 @@ class TestSbml(unittest.TestCase):
                 self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
             for submodel_id,path in zip(sbml_documents.keys(), paths):
                 document = SBMLReader().readSBML(path)
-                for i in range(wrap_libsbml("document.checkConsistency()")):
+                for i in range(wrap_libsbml(document.checkConsistency)):
                     print(document.getError(i).getShortMessage())
                     print(document.getError(i).getMessage())
-                self.assertEqual(wrap_libsbml("document.checkConsistency()"), 0)
-                for i in range(wrap_libsbml("document.getNumErrors()")):
+                self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
+                for i in range(wrap_libsbml(document.getNumErrors)):
                     print(document.getError(i).getShortMessage())
                     print(document.getError(i).getMessage())
-                self.assertEqual(wrap_libsbml("document.getNumErrors()"), 0)
+                self.assertEqual(wrap_libsbml(document.getNumErrors), 0)
                 self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
 
 

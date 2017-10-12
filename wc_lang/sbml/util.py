@@ -57,7 +57,10 @@ import six
 # SBML level and version being used
 SBML_LEVEL = 3
 SBML_VERSION = 1
-SBML_COMPATIBILITY_METHOD = 'checkL3v1Compatibility()'
+
+def get_SBML_compatibility_method(sbml_document):
+    return sbml_document.checkL3v1Compatibility
+    
 
 class Error(Exception):
     '''Base class libsbml exceptions.'''
@@ -118,11 +121,11 @@ class LibsbmlInterface(object):
         Raises:
             :obj:`LibSBMLError`: if one of the libsbml calls fails
         """
-        unit = wrap_libsbml("unit_definition.createUnit()")
-        wrap_libsbml("unit.setKind({})".format(unit_kind))
-        wrap_libsbml("unit.setExponent({})".format(exponent))
-        wrap_libsbml("unit.setScale({})".format(scale))
-        wrap_libsbml("unit.setMultiplier({})".format(multiplier))
+        unit = wrap_libsbml(unit_definition.createUnit)
+        wrap_libsbml(unit.setKind, unit_kind)
+        wrap_libsbml(unit.setExponent, exponent)
+        wrap_libsbml(unit.setScale, scale)
+        wrap_libsbml(unit.setMultiplier, multiplier)
         return unit
 
     @staticmethod
@@ -148,18 +151,18 @@ class LibsbmlInterface(object):
             :obj:`ValueError`: if the Parameter `id` is already in use
         """
         try:
-            wrap_libsbml_pass_text("sbml_model.getParameter", id)
+            wrap_libsbml(sbml_model.getParameter, id)
             raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
         except LibSBMLError as e:
-            sbml_parameter = wrap_libsbml("sbml_model.createParameter()")
-            wrap_libsbml_pass_text("sbml_parameter.setIdAttribute", id)
+            sbml_parameter = wrap_libsbml(sbml_model.createParameter)
+            wrap_libsbml(sbml_parameter.setIdAttribute, id)
             if not name is None:
-                wrap_libsbml_pass_text("sbml_parameter.setName", name)
+                wrap_libsbml(sbml_parameter.setName, name)
             if not value is None:
-                wrap_libsbml("sbml_parameter.setValue({})".format(value))
+                wrap_libsbml(sbml_parameter.setValue, value)
             if not units is None:
-                wrap_libsbml_pass_text("sbml_parameter.setUnits", units)
-            wrap_libsbml("sbml_parameter.setConstant({})".format(constant))
+                wrap_libsbml(sbml_parameter.setUnits, units)
+            wrap_libsbml(sbml_parameter.setConstant, constant)
             return sbml_parameter
 
 create_sbml_doc_w_fbc = LibsbmlInterface._create_sbml_doc_w_fbc
@@ -334,37 +337,37 @@ def init_sbml_model(sbml_document):
         :obj:`LibSBMLError`: if calling `libsbml` raises an error
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
-    sbml_model = wrap_libsbml("sbml_document.createModel()")
-    fbc_model_plugin = wrap_libsbml("sbml_model.getPlugin('fbc')")
+    sbml_model = wrap_libsbml(sbml_document.createModel)
+    fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
     # TODO: set strict to True
-    wrap_libsbml("fbc_model_plugin.setStrict(False)")
+    wrap_libsbml(fbc_model_plugin.setStrict, False)
 
     # To produce a model with complete units for the reaction rates, we need
     # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
     # set 'substanceUnits' too, for good measure, though it's not strictly
     # necessary here because we also set the units for invididual species
     # in their definitions.
-    wrap_libsbml("sbml_model.setTimeUnits('second')")
-    wrap_libsbml("sbml_model.setExtentUnits('mole')")
-    wrap_libsbml("sbml_model.setSubstanceUnits('mole')")
-    wrap_libsbml("sbml_model.setVolumeUnits('litre')")
+    wrap_libsbml(sbml_model.setTimeUnits, 'second')
+    wrap_libsbml(sbml_model.setExtentUnits, 'mole')
+    wrap_libsbml(sbml_model.setSubstanceUnits, 'mole')
+    wrap_libsbml(sbml_model.setVolumeUnits, 'litre')
 
     # Create a unit definition we will need later.  Note that SBML Unit
     # objects must have all four attributes 'kind', 'exponent', 'scale'
     # and 'multiplier' defined.
-    per_second = wrap_libsbml("sbml_model.createUnitDefinition()")
-    wrap_libsbml("per_second.setIdAttribute('per_second')")
+    per_second = wrap_libsbml(sbml_model.createUnitDefinition)
+    wrap_libsbml(per_second.setIdAttribute, 'per_second')
     add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
 
-    mmol_per_gDW_per_hr = wrap_libsbml("sbml_model.createUnitDefinition()")
-    wrap_libsbml("mmol_per_gDW_per_hr.setIdAttribute('mmol_per_gDW_per_hr')")
+    mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
+    wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
         multiplier=3600.0)
 
-    dimensionless = wrap_libsbml("sbml_model.createUnitDefinition()")
-    wrap_libsbml("dimensionless.setIdAttribute('dimensionless_ud')")
+    dimensionless = wrap_libsbml(sbml_model.createUnitDefinition)
+    wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
     add_sbml_unit(dimensionless, UNIT_KIND_DIMENSIONLESS)
 
     return sbml_model
