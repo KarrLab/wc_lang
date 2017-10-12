@@ -92,9 +92,9 @@ class LibsbmlInterface(object):
         Raises:
             :obj:`LibSBMLError`: if one of the libsbml calls fails
         """
-        sbmlns = wrap_libsbml("SBMLNamespaces(SBML_LEVEL, SBML_VERSION, 'fbc', 2)")
-        sbml_document = wrap_libsbml("SBMLDocument(sbmlns)")
-        wrap_libsbml("sbml_document.setPackageRequired('fbc', False)")
+        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', 2)
+        sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
+        wrap_libsbml(sbml_document.setPackageRequired, 'fbc', False)
         return sbml_document
 
     @staticmethod
@@ -166,6 +166,7 @@ create_sbml_doc_w_fbc = LibsbmlInterface._create_sbml_doc_w_fbc
 add_sbml_unit = LibsbmlInterface._add_sbml_unit
 create_sbml_parameter = LibsbmlInterface._create_sbml_parameter
 
+'''
 def __wrap_libsbml(_call, _globals, _locals, _returns_int=False, _debug=False):
     """ Wrap a libsbml method and properly handle errors.
 
@@ -247,45 +248,9 @@ def wrap_libsbml(call, returns_int=False, debug=False):
             returns_int, debug)
     finally:
         del frame
+'''
 
-def wrap_libsbml_pass_text(method, text, returns_int=False, debug=False):
-    """ To workaround a SWIG / Python 2 bug wrap a libsbml method that passes text.
-
-    Under Python 2, SWIG (which libsbml uses) fails to pass unicode text, generating this error:
-    "invalid null reference in method ..., argument 2 of type 'std::string const &'"
-    See https://github.com/swig/swig/issues/620
-
-    Args:
-        method (:obj:`str`): the libsbml method to call
-        text (:obj:`str`): textual data that's the argument to `method`
-        returns_int (:obj:`bool`, optional): whether the method returns an int
-        debug (:obj:`bool`, optional): whether to print debug output
-
-    Returns:
-        :obj:`obj` or `int`: return the libsbml method's return value, either
-        an object that has been created or retrieved, or an integer return code
-
-    Raises:
-        :obj:`LibSBMLError`: if `call` contains an error, or the libsbml call returns None,
-        or `text` isn't textual data, or the libsbml call returns a code != LIBSBML_OPERATION_SUCCESS
-    """
-    frame = inspect.currentframe()
-    try:
-        if not isinstance(text, six.string_types):
-            raise LibSBMLError("{} isn't textual data".format(text))
-        if six.PY2:
-            if isinstance(text, six.text_type):
-                text = str(text)
-        text = text.replace("'", r"\'")
-        call = "{}('{}')".format(method, text)
-        return __wrap_libsbml(call,
-            frame.f_back.f_globals,
-            frame.f_back.f_locals,
-            returns_int, debug)
-    finally:
-        del frame
-
-def wrap_libsbml_2(method, *args, **kwargs):
+def wrap_libsbml(method, *args, **kwargs):
     """ Wrap a libsbml method so that errors in return code can be easily handled.
 
     Unfortunately, libsbml methods that do not return data usually report errors via return codes,
