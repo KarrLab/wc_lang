@@ -216,7 +216,7 @@ def wrap_libsbml(method, *args, **kwargs):
         # TODO: make a string for arguments
         print('libsbml call:', method)
     try:
-        rc = method(*tuple(args))
+        rc = method(*tuple(new_args))
     except BaseException as error:
         raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, method))
     if rc == None:
