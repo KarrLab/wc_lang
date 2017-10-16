@@ -53,6 +53,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE
     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
 from warnings import warn
+import traceback
 import six
 
 # Centralize code that depends on SBML level and version
@@ -236,6 +237,9 @@ def wrap_libsbml(method, *args, **kwargs):
             if error_code is None or returns_int:
                 if debug:
                     print("libsbml returns:", rc)
+                # print stack
+                # print("\nstack:")
+                # traceback.print_stack()
                 return rc
             else:
                 raise LibSBMLError("LibSBML returned error code '{}' "

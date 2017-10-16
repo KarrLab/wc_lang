@@ -52,7 +52,10 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml(self.document.getNumErrors, returns_int=False), 0)
 
-        # TODO: test returns_int=False
+        # TODO test returns_int=True
+        #self.assertEqual(wrap_libsbml(unit.getExponent, returns_int=True), exp)
+        # self.assertEqual(wrap_libsbml(unit.getExponent, 3, returns_int=True), exp)
+
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(self.document.getNumErrors, 'no arg')
         self.assertIn('Error', str(context.exception))

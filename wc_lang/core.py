@@ -1108,6 +1108,15 @@ class Species(BaseModel):
             self.species_type.get_primary_attribute(),
             self.compartment.get_primary_attribute())
 
+    @staticmethod
+    def xml_id_to_id(xml_id):
+        """ Convert an `xml_id` to its species id.
+
+        Returns:
+            :obj:`str`: a species id
+        """
+        return xml_id.replace('__', '[', 1).replace('__', ']', 1)
+
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Species to a libsbml SBML document.
 
@@ -1266,6 +1275,7 @@ class Reaction(BaseModel):
             fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
+                # ids for wc_lang Parameters all start with 'parameter'
                 param_id = "_reaction_{}_{}_bound".format(self.id, bound)
                 param = create_sbml_parameter(sbml_model, id=param_id, units='mmol_per_gDW_per_hr',
                     value=self.min_flux)
@@ -1654,6 +1664,7 @@ class Parameter(BaseModel):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
+        # prefix id with 'parameter' so ids for wc_lang Parameters don't collide with ids for other libsbml parameters
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':
