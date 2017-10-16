@@ -52,12 +52,15 @@ import inspect
 from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
+from warnings import warn
 import six
 
+# Centralize code that depends on SBML level and version
 # SBML level and version being used
 SBML_LEVEL = 3
 SBML_VERSION = 1
 
+# SBML compatibility method for the version being used
 def get_SBML_compatibility_method(sbml_document):
     return sbml_document.checkL3v1Compatibility
     
@@ -179,6 +182,7 @@ def wrap_libsbml(method, *args, **kwargs):
     Args:
         method (:obj:`obj`): a reference to the `libsbml` method to execute
         args (:obj:`list` of `obj`): a `list` of arguments to the `libsbml` method
+        kwargs (:obj:`dict` of `obj`): a `dict` of options:
         returns_int (:obj:`bool`, optional): whether the method returns an integer; if `returns_int`
             is `True`, then an exception will not be raised if the method call returns an integer
         debug (:obj:`bool`, optional): whether to print debug output
@@ -199,17 +203,21 @@ def wrap_libsbml(method, *args, **kwargs):
     debug = False
     if 'debug' in kwargs:
         debug = kwargs['debug']
-    # TODO: report error on unused kwargs
+
+    # warn about unused kwargs
+    for k in kwargs.keys():
+        if k not in ['returns_int', 'debug']:
+            warn("wrap_libsbml: unknown kwargs key '{}'".format(k))
 
     new_args = []
     for arg in args:
-        # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG right
+        # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG_PYTHON_2_UNICODE
         if six.PY2 and isinstance(arg, six.text_type):
             new_args.append(str(arg))
         else:
             new_args.append(arg)
     if debug:
-        # TODO: make a string for arguments
+        # TODO: make a string for new_args
         print('libsbml call:', method)
     try:
         rc = method(*tuple(new_args))

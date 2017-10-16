@@ -9,6 +9,7 @@
 import unittest
 import os
 import six
+import warnings
 
 # "from libsbml import *" generates "NameError: Unknown C global variable" in pytest,
 # presumably from the SWIG wrapper: http://web.mit.edu/svn/src/swig-1.3.25/Lib/python/pyinit.swg
@@ -27,7 +28,6 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_wrap_libsbml(self):
 
-        # id = 'test_id'
         id = u'test_id'
         self.assertEqual(
             wrap_libsbml(self.document.setIdAttribute, id), LIBSBML_OPERATION_SUCCESS)
@@ -40,15 +40,19 @@ class TestSbml(unittest.TestCase):
 
         self.assertEqual(
             wrap_libsbml(model.setTimeUnits, 'second',
-                debug=True, returns_int=False, other=3), LIBSBML_OPERATION_SUCCESS)
+                debug=True, returns_int=False), LIBSBML_OPERATION_SUCCESS)
 
-        self.assertEqual(
-            wrap_libsbml(model.setTimeUnits, 'second',
-                debug=True, returns_int=False, other=3), LIBSBML_OPERATION_SUCCESS)
+        with warnings.catch_warnings(record=True) as w:
+            self.assertEqual(
+                wrap_libsbml(model.setTimeUnits, 'second',
+                    returns_int=True, other=3), LIBSBML_OPERATION_SUCCESS)
+            self.assertEqual(len(w), 1)
+            self.assertIn("unknown kwargs key 'other'", str(w[-1].message))
 
         self.assertEqual(
             wrap_libsbml(self.document.getNumErrors, returns_int=False), 0)
 
+        # TODO: test returns_int=False
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(self.document.getNumErrors, 'no arg')
         self.assertIn('Error', str(context.exception))
