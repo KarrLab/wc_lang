@@ -950,7 +950,7 @@ class TestCore(unittest.TestCase):
         self.submdl_2.objective_function = of
         #   write ObjectiveFunction to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
-        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives), 1)
+        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 1)
         self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 1)
         flux_objective = sbml_objective.getFluxObjective(0)
         self.assertEqual(flux_objective.getReaction(), rxn_id)

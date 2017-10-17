@@ -53,7 +53,6 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE
     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
 from warnings import warn
-import traceback
 import six
 
 # Centralize code that depends on SBML level and version
@@ -106,7 +105,7 @@ class LibsbmlInterface(object):
 
     @staticmethod
     def _add_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
-        """ Add an SBML unit on an existing SBML unit definition.
+        """ Add an SBML Unit on an existing SBML UnitDefinition.
 
         Provides the SBML level 3 version 1 default values for `exponent=1`, `scale=0`, and `multiplier=1.0`.
         See http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_unit_definition.html
@@ -180,6 +179,9 @@ def wrap_libsbml(method, *args, **kwargs):
     instead of exceptions, and the generic return codes contain virtually no information.
     This function wraps these methods and raises useful exceptions when errors occur.
 
+    Set `returns_int` `True` to avoid raising false exceptions or warnings from methods that return
+    integer values.
+
     Args:
         method (:obj:`obj`): a reference to the `libsbml` method to execute
         args (:obj:`list` of `obj`): a `list` of arguments to the `libsbml` method
@@ -217,34 +219,45 @@ def wrap_libsbml(method, *args, **kwargs):
             new_args.append(str(arg))
         else:
             new_args.append(arg)
+    if new_args:
+        new_args_str = ', '.join([str(a) for a in new_args])
+        call_str = "method: {}; args: {}".format(method, new_args_str)
+    else:
+        call_str = "method: {}".format(method)
     if debug:
-        # TODO: make a string for new_args
-        print('libsbml call:', method)
+        print('libsbml call:', call_str)
     try:
         rc = method(*tuple(new_args))
     except BaseException as error:
-        raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, method))
+        raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, call_str))
     if rc == None:
-        raise LibSBMLError("libsbml returned None when executing '{}'.".format(method))
+        raise LibSBMLError("libsbml returned None when executing '{}'.".format(call_str))
     elif type(rc) is int:
+
+        # if `method` returns an int value, do not interpret rc as an error code
+        if returns_int:
+            if debug:
+                print('libsbml returns an int:', rc)
+            return rc
+
         if rc == LIBSBML_OPERATION_SUCCESS:
             if debug:
                 print('libsbml returns: LIBSBML_OPERATION_SUCCESS')
             return rc
         else:
             error_code = OperationReturnValue_toString(rc)
-            # Handle libsbml methods that return int as values
-            if error_code is None or returns_int:
+            if error_code is None:
+                warn("wrap_libsbml: unknown error code {} returned by '{}'."
+                "\nPerhaps an integer value is being returned; if so, to avoid this warning "
+                "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str))
                 if debug:
                     print("libsbml returns:", rc)
-                # print stack
-                # print("\nstack:")
-                # traceback.print_stack()
                 return rc
             else:
-                raise LibSBMLError("LibSBML returned error code '{}' "
-                    "when executing '{}'.\nWARNING: if the libsbml call above returns an int, then this "
-                    "error may be incorrect; pass 'returns_int=True' to wrap_libsbml().".format(error_code, method))
+                raise LibSBMLError("LibSBML returned error code '{}' when executing '{}'."
+                    "\nWARNING: if this libsbml call returns an int value, then this error may be "
+                    "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
+                        error_code, call_str))
     else:
         # return data provided by libsbml method
         if debug:
