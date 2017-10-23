@@ -21,6 +21,7 @@ from obj_model.utils import get_component_by_id
 from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
     BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
+from wc_lang.prepare import PrepareModel, CheckModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
@@ -87,26 +88,8 @@ class TestSbml(unittest.TestCase):
     def setUp(self):
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-
-        # hack in concentration of 0 until we have real consistency checking
-        # TODO: replace with real consistency checking
-        for specie in self.model.get_species():
-            if specie.concentration is None:
-                # TODO: make this a warning
-                # print("setting concentration for {} to 0.0".format(specie.id()))
-                specie.concentrations = Concentration(species=specie, value=0.0)
-
-        # TODO: replace with real code for setting bounds
-        default_min_flux_bound = 0
-        default_max_flux_bound = 1000
-        for rxn in self.model.get_reactions():
-            if isnan(rxn.min_flux):
-                if rxn.reversible:
-                    rxn.min_flux = -default_max_flux_bound
-                else:
-                    rxn.min_flux = default_min_flux_bound
-            if isnan(rxn.max_flux):
-                rxn.max_flux = default_max_flux_bound
+        PrepareModel(self.model).run()
+        CheckModel(self.model).run()
 
     def test_SBML_Exchange(self):
         objects = \

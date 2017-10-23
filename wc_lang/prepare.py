@@ -8,9 +8,11 @@
 
 from math import ceil, floor, exp, log, log10, isnan
 from obj_model import utils
+from warnings import warn
+
 from wc_utils.util.list import difference
 from wc_lang.core import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-    Species, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
+    Species, Concentration, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
 from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration
@@ -27,6 +29,7 @@ class PrepareModel(object):
     the addition of default and statically computed data to a `Model`.
 
     Currently added data:
+        Missing concentrations
         Fill gaps in dFBA submodel reaction networks
         Ensure that dFBA submodels have objective functions
         Apply default flux bounds to the reactions in dFBA submodels
@@ -40,6 +43,7 @@ class PrepareModel(object):
                 reactions_created = self.fill_dfba_submodel_reaction_gaps(submodel)
                 self.confirm_dfba_submodel_obj_func(submodel)
                 (min_bounds_set, min_bounds_set) = self.apply_default_dfba_submodel_flux_bounds(submodel)
+        self.init_concentrations()
 
     def fill_dfba_submodel_reaction_gaps(self, submodel):
         '''Create reactions to fill gaps in a dFBA submodel's reaction network.
@@ -58,7 +62,6 @@ class PrepareModel(object):
 
         Raises:
             ValueError: if `submodel` is not a dFBA submodel
-            ValueError: if some species in `submodel` are neither produced nor consumed
 
         Returns:
             (:obj:`int`): the number of reactions created
@@ -84,7 +87,7 @@ class PrepareModel(object):
                         species_not_produced.discard(part.species)
 
         if species_not_produced & species_not_consumed:
-            raise ValueError("some species in submodel '{}' are neither produced nor consumed: {}".format(
+            warn("some species in submodel '{}' are neither produced nor consumed: {}".format(
                 submodel.id,
                 sorted([s.id() for s in species_not_produced & species_not_consumed])))
 
@@ -201,6 +204,12 @@ class PrepareModel(object):
                 rxn.max_flux = default_max_flux_bound
         return (num_default_min_flux_bounds, num_default_max_flux_bounds)
 
+    def init_concentrations(self):
+        """ Initialize missing concentration values to 0 """
+        for specie in self.model.get_species():
+            if specie.concentration is None:
+                warn("setting concentration for {} to 0.0".format(specie.id()))
+                specie.concentrations = Concentration(species=specie, value=0.0)
 
 class CheckModel(object):
     '''Statically check a model
