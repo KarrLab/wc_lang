@@ -220,8 +220,7 @@ class CheckModel(object):
         All Species used in reactions have concentration values
         Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
             for the reactions participate in at least one reaction in the submodel
-
-    # TODO: implement these, and expand the list of properties
+        # TODO: implement these, and expand the list of properties
     '''
     def __init__(self, model):
         self.model = model
@@ -323,11 +322,11 @@ class CheckModel(object):
                 if getattr(rate_law, 'equation', None) is None:
                     continue
                 try:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law, species)
+                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species)
                 except Exception as error:
                     errors.append(str(error))
             try:
-                rates = RateLawUtils.eval_rate_laws(reaction, species_concentrations)
+                rates = RateLawUtils.eval_reaction_rate_laws(reaction, species_concentrations)
             except Exception as error:
                 errors.append(str(error))
         return errors

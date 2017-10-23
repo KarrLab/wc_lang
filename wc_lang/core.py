@@ -1537,6 +1537,7 @@ class RateLawEquation(BaseModel):
             return InvalidObject(self, [attr_err])
 
         """ Check that rate law evaluates """
+        # TODO: replace this buggy code with a call to RateLawUtils.eval_rate_law()
         # setup name space and format expression for python evaluation
         local_ns = {f.__name__: f for f in self.__class__.Meta.valid_functions}
 

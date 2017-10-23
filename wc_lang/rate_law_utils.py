@@ -17,20 +17,20 @@ class RateLawUtils(object):
     '''A set of static rate_law methods '''
 
     @staticmethod
-    def transcode(rate_law, species):
-        '''Translate a `RateLaw` into a python expression that can be evaluated
+    def transcode(rate_law_equation, species):
+        '''Translate a `RateLawEquation` into a python expression that can be evaluated
         during a simulation.
 
         Args:
-            rate_law (:obj:`RateLaw`): a rate law
+            rate_law_equation (:obj:`RateLawEquation`): a rate law equation
             species (:obj:`set` of `Species`): the species that use the rate law
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
 
         Raises:
-            ValueError: If `rate_law` contains `__`, which increases its security risk, or
-            if `rate_law` refers to species not in `species`
+            ValueError: If `rate_law_equation` contains `__`, which increases its security risk, or
+            if `rate_law_equation` refers to species not in `species`
         '''
         def possible_specie_id(tokens):
             '''Determine whether `tokens` contains a specie id of the form 'string[string]'
@@ -77,9 +77,6 @@ class RateLawUtils(object):
                 raise ValueError("'{}' not a known specie in rate law".format(
                     parsed_id, rate_law_expression))
 
-        if getattr(rate_law, 'equation', None) is None:
-            return
-        rate_law_equation = rate_law.equation
         if '__' in rate_law_equation.expression:
             raise ValueError("Security risk: rate law expression '{}' contains '__'.".format(
                 rate_law_equation.expression))
@@ -121,11 +118,12 @@ class RateLawUtils(object):
         for submodel in model.get_submodels():
             for reaction in submodel.reactions:
                 for rate_law in reaction.rate_laws:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law, 
-                        submodel.get_species())
+                    if hasattr(rate_law, 'equation'):
+                        rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation,
+                            submodel.get_species())
 
     @staticmethod
-    def eval_rate_laws(reaction, concentrations):
+    def eval_reaction_rate_laws(reaction, concentrations):
         '''Evaluate a reaction's rate laws at the given species concentrations
 
         Args:
@@ -144,24 +142,44 @@ class RateLawUtils(object):
         '''
         rates = []
         for rate_law in reaction.rate_laws:
-            transcoded_reaction = rate_law.equation.transcoded
-
-            local_ns = {func.__name__: func for func in RateLawEquation.Meta.valid_functions}
-            if hasattr(rate_law, 'k_cat') and not isnan(rate_law.k_cat):
-                local_ns['k_cat'] = rate_law.k_cat
-            if hasattr(rate_law, 'k_m') and not isnan(rate_law.k_m):
-                local_ns['k_m'] = rate_law.k_m
-            local_ns[CONCENTRATIONS_DICT] = concentrations
-
-            try:
-                rates.append(eval(transcoded_reaction, {}, local_ns))
-            except SyntaxError as error:
-                raise ValueError("Error: reaction '{}' has syntax error in transcoded rate law '{}'.".format(
-                    reaction.id, transcoded_reaction))
-            except NameError as error:
-                raise NameError("Error: NameError in transcoded rate law '{}' of reaction '{}': '{}'".format(
-                    transcoded_reaction, reaction.id, error))
-            except Exception as error:
-                raise Exception("Error: error in transcoded rate law '{}' of reaction '{}': '{}'".format(
-                    transcoded_reaction, reaction.id, error))
+            rates.append(RateLawUtils.eval_rate_law(rate_law, concentrations))
         return rates
+
+    @staticmethod
+    def eval_rate_law(rate_law, concentrations):
+        '''Evaluate a rate law at the given species concentrations
+
+        Args:
+            rate_law (:obj:`RateLaw`): a RateLaw instance
+            concentrations (:obj:`dict` of :obj:`species_id` -> `float`):
+                a dictionary of species concentrations
+
+        Returns:
+            (:obj:`float`): the rate law's rate
+
+        Raises:
+            ValueError: if the rate law has a syntax error
+            NameError: if the rate law references a specie whose concentration is not provided in
+                `concentrations`
+            Exception: if the rate law has other errors, such as a reference to an unknown function
+        '''
+        transcoded_reaction = rate_law.equation.transcoded
+
+        local_ns = {func.__name__: func for func in RateLawEquation.Meta.valid_functions}
+        if hasattr(rate_law, 'k_cat') and not isnan(rate_law.k_cat):
+            local_ns['k_cat'] = rate_law.k_cat
+        if hasattr(rate_law, 'k_m') and not isnan(rate_law.k_m):
+            local_ns['k_m'] = rate_law.k_m
+        local_ns[CONCENTRATIONS_DICT] = concentrations
+
+        try:
+            return eval(transcoded_reaction, {}, local_ns)
+        except SyntaxError as error:
+            raise ValueError("Error: reaction '{}' has syntax error in transcoded rate law '{}'.".format(
+                rate_law.reaction.id, transcoded_reaction))
+        except NameError as error:
+            raise NameError("Error: NameError in transcoded rate law '{}' of reaction '{}': '{}'".format(
+                transcoded_reaction, rate_law.reaction.id, error))
+        except Exception as error:
+            raise Exception("Error: error in transcoded rate law '{}' of reaction '{}': '{}'".format(
+                transcoded_reaction, rate_law.reaction.id, error))

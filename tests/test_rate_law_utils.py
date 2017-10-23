@@ -14,8 +14,8 @@ from wc_lang.rate_law_utils import RateLawUtils
 
 class TestRateLawUtils(unittest.TestCase):
 
-    # test_model_bad_species_names.xlsx contains the species names 'specie_1' and 'xspecie_1'
-    # which are prefixes of each other and would fail to be transcoded by the RE method
+    # test_model_bad_species_names.xlsx contains the species names 'specie_1' and 'xspecie_1'.
+    # the former is a prefix of the latter and would fail to be transcoded by the RE method
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures',
         'test_model_bad_species_names.xlsx')
     
@@ -26,7 +26,6 @@ class TestRateLawUtils(unittest.TestCase):
     
         # transcode rate laws
         RateLawUtils.transcode_rate_laws(self.model)
-        # TODO: fix longstanding transcode bug in wc_lang
         concentrations = {}
         for specie in self.model.get_species():
             try:
@@ -42,7 +41,7 @@ class TestRateLawUtils(unittest.TestCase):
         expected['reaction_4'] = [0.0005]
         expected['biomass'] = []
         for reaction in self.model.get_reactions():
-            rates = RateLawUtils.eval_rate_laws(reaction, concentrations)
+            rates = RateLawUtils.eval_reaction_rate_laws(reaction, concentrations)
             self.assertEqual(rates, expected[reaction.id])
 
     def test_eval_rate_law_exceptions(self):
@@ -61,11 +60,11 @@ class TestRateLawUtils(unittest.TestCase):
         )
         rate_law_equation.transcoded='foo foo'
         with self.assertRaises(ValueError) as context:
-            RateLawUtils.eval_rate_laws(reaction, {})
+            RateLawUtils.eval_reaction_rate_laws(reaction, {})
         rate_law_equation.transcoded='cos(1.)'
         with self.assertRaises(NameError) as context:
-            RateLawUtils.eval_rate_laws(reaction, {})
+            RateLawUtils.eval_reaction_rate_laws(reaction, {})
         rate_law_equation.transcoded='log(1.)'
-        self.assertEqual(RateLawUtils.eval_rate_laws(reaction, {}), [0])
+        self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}), [0])
         # TODO: test the remaining errors in RateLawUtils
 
