@@ -11,7 +11,7 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from wc_lang.core import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
     Species, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
-from wc_sim.multialgorithm.model_utilities import ModelUtilities
+from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration
 from wc_utils.config.core import ConfigManager
@@ -308,9 +308,6 @@ class CheckModel(object):
         '''Transcode and evaluate all rate law equations in a model
 
         Ensure that all rate law equations can be transcoded and evaluated.
-        # TODO: avoid this redundancy:
-        This method is deliberately redundant with `MultialgorithmSimulation.transcode_rate_laws()`,
-        which does not report errors.
 
         Returns:
             :obj:`list` of `str`: if no errors, returns an empty `list`, otherwise a `list` of
@@ -326,11 +323,11 @@ class CheckModel(object):
                 if getattr(rate_law, 'equation', None) is None:
                     continue
                 try:
-                    rate_law.equation.transcoded = ModelUtilities.transcode(rate_law, species)
+                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law, species)
                 except Exception as error:
                     errors.append(str(error))
             try:
-                rates = ModelUtilities.eval_rate_laws(reaction, species_concentrations)
+                rates = RateLawUtils.eval_rate_laws(reaction, species_concentrations)
             except Exception as error:
                 errors.append(str(error))
         return errors
