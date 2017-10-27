@@ -33,8 +33,6 @@ This module also defines numerous classes that serve as attributes of these clas
 :License: MIT
 """
 
-# todo: replace py_expression.replace(...) with python tokenization, as in multialgorithm_simulation.py
-
 from enum import Enum, EnumMeta
 from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
@@ -49,6 +47,7 @@ import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
     init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
+from wc_lang.rate_law_utils import RateLawUtils
 from libsbml import (XMLNode,)
 import re
 import sys
@@ -1437,6 +1436,30 @@ class RateLaw(BaseModel):
         """
         return '{}.{}'.format(self.reaction.serialize(), self.direction.name)
 
+    def validate(self):
+        """ Determine whether this `RateLaw` is valid
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+
+        """ Check that rate law evaluates """
+        try:
+            transcoded = RateLawUtils.transcode(self.equation, self.equation.modifiers)
+            concentrations = {}
+            for s in self.equation.modifiers:
+                concentrations[s.id()] = 1.0
+            RateLawUtils.eval_rate_law(self, concentrations, transcoded_equation=transcoded)
+        except Exception as error:
+            msg = str(error)
+            attr = self.__class__.Meta.attributes['equation']
+            attr_err = InvalidAttribute(attr, [msg])
+            return InvalidObject(self, [attr_err])
+
+        """ return `None` to indicate valid object """
+        return None
+
 
 class RateLawEquation(BaseModel):
     """ Rate law equation
@@ -1535,38 +1558,6 @@ class RateLawEquation(BaseModel):
             attr = self.__class__.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
             return InvalidObject(self, [attr_err])
-
-        """ Check that rate law evaluates """
-        # TODO: replace this buggy code with a call to RateLawUtils.eval_rate_law()
-        # setup name space and format expression for python evaluation
-        local_ns = {f.__name__: f for f in self.__class__.Meta.valid_functions}
-
-        if self.rate_law:
-            if not isnan(self.rate_law.k_cat):
-                local_ns['k_cat'] = self.rate_law.k_cat
-
-            if not isnan(self.rate_law.k_m):
-                local_ns['k_m'] = self.rate_law.k_m
-
-        local_ns['s'] = []
-        py_expression = self.expression
-        for i_species, species_id in enumerate(set([x[1] for x in re.findall(pattern, self.expression, flags=re.I)])):
-            local_ns['s'].append(1.)
-            # warning: if a specie name matches the suffix of another this string replace may fail
-            py_expression = py_expression.replace(species_id, 's[{}]'.format(i_species))
-
-        # try evaluating law
-        try:
-            eval(py_expression, {'__builtins__': None}, local_ns)
-        # todo: distinguish between SyntaxError, NameError, and other exceptions
-        except Exception as error:
-            msg = 'Invalid function: {}\n  {}'.format(self.expression, str(error).replace('\n', '\n  '))
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, [msg])
-            return InvalidObject(self, [attr_err])
-
-        """ return `None` to indicate valid object """
-        return None
 
 
 class BiomassComponent(BaseModel):

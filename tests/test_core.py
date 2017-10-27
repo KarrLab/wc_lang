@@ -527,6 +527,66 @@ class TestCore(unittest.TestCase):
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
+    def test_rate_law_validate(self):
+        species_types = [
+            SpeciesType(id='spec_0'),
+            SpeciesType(id='spec_1'),
+        ]
+        compartments = [
+            Compartment(id='c_0'),
+            Compartment(id='c_1'),
+        ]
+
+        # unknown specie error
+        expression = 'spec_x[c_0]'
+        equation = RateLawEquation(
+            expression=expression,
+            modifiers=[
+                Species(species_type=species_types[0], compartment=compartments[0])
+            ])
+        rate_law = RateLaw(
+            equation = equation,
+        )
+        self.assertNotEqual(rate_law.validate(), None)
+
+        # Name error
+        expression = 'not_k_cat * spec_0[c_0]'
+        equation = RateLawEquation(
+            expression=expression,
+            modifiers=[
+                Species(species_type=species_types[0], compartment=compartments[0])
+            ])
+        rate_law = RateLaw(
+            equation = equation
+        )
+        self.assertNotEqual(rate_law.validate(), None)
+
+        # syntax error
+        expression = '* spec_0[c_0]'
+        equation = RateLawEquation(
+            expression=expression,
+            modifiers=[
+                Species(species_type=species_types[0], compartment=compartments[0])
+            ])
+        rate_law = RateLaw(
+            equation = equation
+        )
+        self.assertNotEqual(rate_law.validate(), None)
+
+        # No error
+        expression = 'k_cat * spec_0[c_0]'
+        equation = RateLawEquation(
+            expression=expression,
+            modifiers=[
+                Species(species_type=species_types[0], compartment=compartments[0])
+            ])
+        rate_law = RateLaw(
+            k_cat = 2,
+            k_m = 1,
+            equation = equation
+        )
+        self.assertEqual(rate_law.validate(), None)
+
     def test_rate_law_equation_validate(self):
         species_types = [
             SpeciesType(id='spec_0'),
@@ -553,23 +613,6 @@ class TestCore(unittest.TestCase):
             modifiers=[
                 Species(species_type=species_types[0], compartment=compartments[0]),
                 Species(species_type=species_types[1], compartment=compartments[2]),
-            ])
-        self.assertEqual(equation.validate(), None)
-
-        expression = 'k_cat * spec_0[c_0]'
-        equation = RateLawEquation(
-            expression=expression,
-            modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
-            ])
-        self.assertNotEqual(equation.validate(), None)
-
-        expression = 'k_cat * spec_0[c_0]'
-        equation = RateLawEquation(
-            rate_law=RateLaw(k_cat=1, k_m=1),
-            expression=expression,
-            modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
             ])
         self.assertEqual(equation.validate(), None)
 

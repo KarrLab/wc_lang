@@ -9,7 +9,7 @@ import tokenize, token
 from six.moves import cStringIO
 from math import isnan
 
-from wc_lang.core import RateLaw, RateLawEquation, Species, Reaction, Model
+import wc_lang.core
 
 CONCENTRATIONS_DICT = 'concentrations'
 
@@ -18,12 +18,12 @@ class RateLawUtils(object):
 
     @staticmethod
     def transcode(rate_law_equation, species):
-        '''Translate a `RateLawEquation` into a python expression that can be evaluated
+        '''Translate a `wc_lang.core.RateLawEquation` into a python expression that can be evaluated
         during a simulation.
 
         Args:
-            rate_law_equation (:obj:`RateLawEquation`): a rate law equation
-            species (:obj:`set` of `Species`): the species that use the rate law
+            rate_law_equation (:obj:`wc_lang.core.RateLawEquation`): a rate law equation
+            species (:obj:`set` of `wc_lang.core.Species`): the species that use the rate law
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
@@ -35,7 +35,7 @@ class RateLawUtils(object):
         def possible_specie_id(tokens):
             '''Determine whether `tokens` contains a specie id of the form 'string[string]'
 
-            See `Species.serialize()` for the format of specie ids.
+            See `wc_lang.core.Species.serialize()` for the format of specie ids.
 
             Args:
                 tokens (:obj:`list` of (token_num, token_val)): a list of Python tokens
@@ -74,7 +74,7 @@ class RateLawUtils(object):
             if parsed_id in species_ids:
                 return " {}['{}']".format(CONCENTRATIONS_DICT, parsed_id)
             else:
-                raise ValueError("'{}' not a known specie in rate law".format(
+                raise ValueError("'{}' not a known specie in rate law '{}'".format(
                     parsed_id, rate_law_expression))
 
         if '__' in rate_law_equation.expression:
@@ -110,7 +110,7 @@ class RateLawUtils(object):
         '''Transcode all of `model`'s rate law expressions into Python expressions
 
         Args:
-            model (:obj:`Model`): a `Model`
+            model (:obj:`wc_lang.core.Model`): a `wc_lang.core.Model`
 
         Raises:
             ValueError: If a rate law cannot be transcoded
@@ -127,7 +127,7 @@ class RateLawUtils(object):
         '''Evaluate a reaction's rate laws at the given species concentrations
 
         Args:
-            reaction (:obj:`Reaction`): a Reaction instance
+            reaction (:obj:`wc_lang.core.Reaction`): a Reaction instance
             concentrations (:obj:`dict` of :obj:`species_id` -> `float`):
                 a dictionary of species concentrations
 
@@ -146,13 +146,15 @@ class RateLawUtils(object):
         return rates
 
     @staticmethod
-    def eval_rate_law(rate_law, concentrations):
+    def eval_rate_law(rate_law, concentrations, transcoded_equation=None):
         '''Evaluate a rate law at the given species concentrations
 
         Args:
-            rate_law (:obj:`RateLaw`): a RateLaw instance
+            rate_law (:obj:`wc_lang.core.RateLaw`): a RateLaw instance
             concentrations (:obj:`dict` of :obj:`species_id` -> `float`):
                 a dictionary of species concentrations
+            transcoded_equation (:obj:`str`, optional): the rate law's transcoded_equation; if not
+                provided, will be taken from rate_law.equation.transcoded
 
         Returns:
             (:obj:`float`): the rate law's rate
@@ -163,9 +165,10 @@ class RateLawUtils(object):
                 `concentrations`
             Exception: if the rate law has other errors, such as a reference to an unknown function
         '''
-        transcoded_reaction = rate_law.equation.transcoded
+        if not transcoded_equation:
+            transcoded_equation = rate_law.equation.transcoded
 
-        local_ns = {func.__name__: func for func in RateLawEquation.Meta.valid_functions}
+        local_ns = {func.__name__: func for func in wc_lang.core.RateLawEquation.Meta.valid_functions}
         if hasattr(rate_law, 'k_cat') and not isnan(rate_law.k_cat):
             local_ns['k_cat'] = rate_law.k_cat
         if hasattr(rate_law, 'k_m') and not isnan(rate_law.k_m):
@@ -173,13 +176,12 @@ class RateLawUtils(object):
         local_ns[CONCENTRATIONS_DICT] = concentrations
 
         try:
-            return eval(transcoded_reaction, {}, local_ns)
+            return eval(transcoded_equation, {}, local_ns)
         except SyntaxError as error:
-            raise ValueError("Error: reaction '{}' has syntax error in transcoded rate law '{}'.".format(
-                rate_law.reaction.id, transcoded_reaction))
+            raise ValueError("Error: syntax error in transcoded rate law '{}'.".format(transcoded_equation))
         except NameError as error:
-            raise NameError("Error: NameError in transcoded rate law '{}' of reaction '{}': '{}'".format(
-                transcoded_reaction, rate_law.reaction.id, error))
+            raise NameError("Error: NameError in transcoded rate law '{}': '{}'".format(
+                transcoded_equation, error))
         except Exception as error:
-            raise Exception("Error: error in transcoded rate law '{}' of reaction '{}': '{}'".format(
-                transcoded_reaction, rate_law.reaction.id, error))
+            raise Exception("Error: error in transcoded rate law '{}': '{}'".format(
+                transcoded_equation, error))
