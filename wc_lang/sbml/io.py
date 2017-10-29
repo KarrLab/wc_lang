@@ -137,11 +137,13 @@ class SBMLExchange(object):
     def write(objects):
         """ Write the `wc_lang` model described by `objects` to a libSBML `SBMLDocument`.
 
-        Warning: `wc_lang` and SBML semantics are not equivalent. Thus, this
-        `wc_lang` information will not be written:
-        * xxx
+        Warning: `wc_lang` and SBML semantics are not equivalent.
 
-        # TODO: elaborate
+        Algorithm:
+            * validate objects
+            * (do not add related objects, as only certain model types can be written to SBML)
+            * group objects by model class
+            * add objects to the SBML document in dependent order
 
         Args:
             objects (:obj:`list`): list of objects
@@ -150,8 +152,7 @@ class SBMLExchange(object):
             :obj:`SBMLDocument`: an SBMLDocument containing `objects`
 
         Raises:
-            :obj:`ValueError`: if the SBMLDocument cannot be created
-            # TODO: elaborate
+            :obj:`LibSBMLError`: if the SBMLDocument cannot be created
         """
         # Create an empty SBMLDocument object.
         sbml_document = create_sbml_doc_w_fbc()
@@ -159,13 +160,6 @@ class SBMLExchange(object):
         # Create the SBML Model object inside the SBMLDocument object.
         sbml_model = init_sbml_model(sbml_document)
 
-        '''
-        Algorithm:
-            * validate objects
-            * (do not add related objects, as only certain model types can be written to SBML)
-            * group objects by model class
-            * add objects to the SBML document in dependent order
-        '''
         error = Validator().run(objects)
         if error:
             warn('Some data will not be written because objects are not valid:\n  {}'.format(
@@ -179,7 +173,7 @@ class SBMLExchange(object):
             if obj not in grouped_objects[obj_class]:
                 grouped_objects[obj_class].append(obj)
 
-        # Dependencies among models create a partial order constraint on writing them:
+        # dependencies among libSBML model classes constrain the order in which they're written:
         #     Submodel depends on nothing
         #     Compartment depends on nothing
         #     Parameter depends on nothing
@@ -197,6 +191,30 @@ class SBMLExchange(object):
                     obj.add_to_sbml_doc(sbml_document)
 
         return sbml_document
+
+    @staticmethod
+    def write_submodel(submodel):
+        """ Create a libSBML `SBMLDocument` containing `submodel`.
+
+        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
+        submodels export one `wc_lang.Submodel` into one libSBML model.
+
+        Args:
+            submodel (:obj:`Submodel`): a submodel
+
+        Returns:
+            :obj:`SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
+
+        Raises:
+            :obj:`ValueError`: if the SBMLDocument cannot be created
+        """
+        objects = [submodel, \
+            submodel.objective_function] + \
+            submodel.get_species() + \
+            submodel.reactions + \
+            submodel.model.get_compartments() + \
+            submodel.model.get_parameters()
+        return SBMLExchange.write(objects)
 
     @staticmethod
     def read(document):

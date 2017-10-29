@@ -91,27 +91,32 @@ class TestSbml(unittest.TestCase):
         PrepareModel(self.model).run()
         CheckModel(self.model).run()
 
+    def check_sbml_doc(self, sbml_doc):
+
+        # if checkConsistency() returns some errors, print them
+        for i in range(wrap_libsbml(sbml_doc.checkConsistency, returns_int=True)):
+            print(sbml_doc.getError(i).getShortMessage())
+            print(sbml_doc.getError(i).getMessage())
+        self.assertEqual(wrap_libsbml(sbml_doc.checkConsistency, returns_int=True), 0)
+
+        # if 0<getNumErrors, print them
+        for i in range(wrap_libsbml(sbml_doc.getNumErrors, returns_int=True)):
+            print(sbml_doc.getError(i).getShortMessage())
+            print(sbml_doc.getError(i).getMessage())
+        self.assertEqual(wrap_libsbml(sbml_doc.getNumErrors, returns_int=True), 0)
+
     def test_SBML_Exchange(self):
-        objects = \
-            self.model.get_compartments() + \
-            self.model.get_species() + \
-            self.model.get_reactions() + \
-            self.model.get_parameters()
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
-                sbml_document = sbml_io.SBMLExchange.write(
-                    objects + [submodel, submodel.objective_function])
+                sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
-        # TODO: avoid workaround by installing libsbml>15.5.0
-        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document), returns_int=True), 0)
-        sbml_string = wrap_libsbml(sbml_document.toSBML)
-        workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
-        # if checkConsistency() returns some errors, print them
-        for i in range(wrap_libsbml(workaround_document.checkConsistency, returns_int=True)):
-            print(workaround_document.getError(i).getShortMessage())
-            print(workaround_document.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency, returns_int=True), 0)
-        check_document_against_model(sbml_document, self.model, self)
+                # TODO: avoid workaround by installing libsbml>15.5.0
+                self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
+                    returns_int=True), 0)
+                sbml_string = wrap_libsbml(sbml_document.toSBML)
+                workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
+                self.check_sbml_doc(workaround_document)
+                check_document_against_model(sbml_document, self.model, self)
 
     def test_writer(self):
         root_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model')
@@ -122,15 +127,10 @@ class TestSbml(unittest.TestCase):
             except Exception as e:
                 self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
             for submodel_id,path in zip(sbml_documents.keys(), paths):
+
                 document = SBMLReader().readSBML(path)
-                for i in range(wrap_libsbml(document.checkConsistency, returns_int=True)):
-                    print(document.getError(i).getShortMessage())
-                    print(document.getError(i).getMessage())
-                self.assertEqual(wrap_libsbml(document.checkConsistency, returns_int=True), 0)
-                for i in range(wrap_libsbml(document.getNumErrors, returns_int=True)):
-                    print(document.getError(i).getShortMessage())
-                    print(document.getError(i).getMessage())
-                self.assertEqual(wrap_libsbml(document.getNumErrors, returns_int=True), 0)
+                self.check_sbml_doc(document)
+
                 self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
                 check_document_against_model(document, self.model, self)
 

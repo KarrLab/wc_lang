@@ -18,7 +18,8 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
     UNIT_KIND_AVOGADRO)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, add_sbml_unit,
-    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
+    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, FBC_VERSION,
+    get_SBML_compatibility_method)
 
 
 class TestSbml(unittest.TestCase):
@@ -148,7 +149,7 @@ class TestSbml(unittest.TestCase):
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, "fbc", 2)
+        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, "fbc", FBC_VERSION)
         self.sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
         self.sbml_model = wrap_libsbml(self.sbml_document.createModel)
 

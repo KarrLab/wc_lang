@@ -66,5 +66,3 @@ class TestRateLawUtils(unittest.TestCase):
             RateLawUtils.eval_reaction_rate_laws(reaction, {})
         rate_law_equation.transcoded='log(1.)'
         self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}), [0])
-        # TODO: test the remaining errors in RateLawUtils
-

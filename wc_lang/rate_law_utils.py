@@ -84,12 +84,15 @@ class RateLawUtils(object):
         rate_law_expression = rate_law_equation.expression
         species_ids = set([specie.serialize() for specie in species])
         
-        # Rate laws should be tokenized to properly construct a Python expression.
-        # Simple pattern matching in which one specie name matches the suffix of another will fail.
-        # Consider this string replace:
-        #   py_expression = py_expression.replace(id, "concentrations['{}']".format(id))
-        #   If these are two species: AB[c], CAB[c], then replace would produce Cconcentrations['AB[c]']
-        #   which could not be evaluated.
+        # Rate laws must be tokenized to properly construct a Python expression.
+        # A prior implementation which used REs and string replace() contained a subtle bug that
+        # was triggered when one species name matched the suffix of another.
+        # For example consider a rate law with
+        #   expression = 'xy[c] + y[c]'
+        # Replacing the species 'y[c]' in this expression with "concentration['y[c]']" like this
+        #   expression.replace('y[c]', "concentration['y[c]']")
+        # would erroneously generate
+        #   "xconcentration['y[c]'] + concentration['y[c]']"
         g = tokenize.generate_tokens(cStringIO(rate_law_equation.expression).readline)
         tokens = [(toknum, tokval) for toknum, tokval, _, _, _ in g]
         result = []

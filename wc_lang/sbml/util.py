@@ -55,10 +55,12 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE
 from warnings import warn
 import six
 
-# Centralize code that depends on SBML level and version
-# SBML level and version being used
+# Centralize code that depends on levels and versions
+# SBML level and version
 SBML_LEVEL = 3
 SBML_VERSION = 1
+# Flux balance constraints (fbc) version
+FBC_VERSION = 2
 
 # SBML compatibility method for the version being used
 def get_SBML_compatibility_method(sbml_document):
@@ -90,7 +92,7 @@ class LibsbmlInterface(object):
 
     @staticmethod
     def _create_sbml_doc_w_fbc():
-        """ Create an SBMLDocument that uses the 'Flux Balance Constraints' extension, version 2.
+        """ Create an SBMLDocument that uses the 'Flux Balance Constraints' extension.
 
         Returns:
             :obj:`libsbml.Unit`: the new SBML Document
@@ -98,7 +100,7 @@ class LibsbmlInterface(object):
         Raises:
             :obj:`LibSBMLError`: if one of the libsbml calls fails
         """
-        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', 2)
+        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', FBC_VERSION)
         sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
         wrap_libsbml(sbml_document.setPackageRequired, 'fbc', False)
         return sbml_document
@@ -279,8 +281,7 @@ def init_sbml_model(sbml_document):
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
     sbml_model = wrap_libsbml(sbml_document.createModel)
     fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
-    # TODO: set strict to True
-    wrap_libsbml(fbc_model_plugin.setStrict, False)
+    wrap_libsbml(fbc_model_plugin.setStrict, True)
 
     # To produce a model with complete units for the reaction rates, we need
     # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
