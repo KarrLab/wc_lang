@@ -57,7 +57,7 @@ class TestSbml(unittest.TestCase):
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(self.document.getNumErrors, 'no arg')
         self.assertIn('Error', str(context.exception))
-        self.assertIn("in libsbml method call", str(context.exception))
+        self.assertIn("in libSBML method call", str(context.exception))
 
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(self.document.setIdAttribute, '..')
@@ -66,7 +66,7 @@ class TestSbml(unittest.TestCase):
 
         with self.assertRaises(LibSBMLError) as context:
             wrap_libsbml(self.document.getAnnotation)
-        self.assertIn('libsbml returned None when executing', str(context.exception))
+        self.assertIn('libSBML returned None when executing', str(context.exception))
 
     def test_returns_int(self):
         sbml_model = wrap_libsbml(self.document.createModel)
@@ -118,7 +118,7 @@ class TestSbml(unittest.TestCase):
         with self.assertRaises(LibSBMLError) as context:
             unit_kind = -1
             wrap_libsbml(unit.setKind, unit_kind)
-        self.assertIn("WARNING: if this libsbml call returns an int value, then this error may be incorrect",
+        self.assertIn("WARNING: if this libSBML call returns an int value, then this error may be incorrect",
             str(context.exception))
 
     def test_init_sbml_model(self):

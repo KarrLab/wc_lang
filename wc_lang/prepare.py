@@ -38,6 +38,8 @@ class PrepareModel(object):
         self.model = model
 
     def run(self):
+        """ Statically prepare a model by executing all `Prepare` methods.
+        """
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 reactions_created = self.fill_dfba_submodel_reaction_gaps(submodel)

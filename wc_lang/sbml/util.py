@@ -48,7 +48,6 @@ written permission.
 """
 
 import sys
-import inspect
 from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
@@ -68,12 +67,12 @@ def get_SBML_compatibility_method(sbml_document):
     
 
 class Error(Exception):
-    '''Base class libsbml exceptions.'''
+    '''Base class libSBML exceptions.'''
     pass
 
 
 class LibSBMLError(Error):
-    '''Exception raised when libsbml returns an error.'''
+    '''Exception raised when libSBML returns an error.'''
 
     def __init__(self, msg):
         self.msg = msg
@@ -83,11 +82,11 @@ class LibSBMLError(Error):
         return self.msg
 
 class LibsbmlInterface(object):
-    '''Methods that compactly use libsbml to create SBML objects.
+    '''Methods that compactly use libSBML to create SBML objects.
 
-    The libsbml method calls provide horribly narrow interfaces, typically exchanging one
+    The libSBML method calls provide horribly narrow interfaces, typically exchanging one
     value per call, which creates extremely verbose SBML code. These methods aggregate multiple
-    libsbml method calls to enable more compact usage.
+    libSBML method calls to enable more compact usage.
     '''
 
     @staticmethod
@@ -98,7 +97,7 @@ class LibsbmlInterface(object):
             :obj:`libsbml.Unit`: the new SBML Document
 
         Raises:
-            :obj:`LibSBMLError`: if one of the libsbml calls fails
+            :obj:`LibSBMLError`: if a libSBML calls fails
         """
         sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', FBC_VERSION)
         sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
@@ -107,14 +106,15 @@ class LibsbmlInterface(object):
 
     @staticmethod
     def _add_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
-        """ Add an SBML Unit on an existing SBML UnitDefinition.
+        """ Add an SBML `Unit` to an existing SBML `UnitDefinition`.
 
         Provides the SBML level 3 version 1 default values for `exponent=1`, `scale=0`, and `multiplier=1.0`.
-        See http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_unit_definition.html
-        in the libsbml documentation and the SBML specs for details.
+        See the `libSBML documentation
+        <http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_unit_definition.html/>`_
+        and the SBML specs for details.
 
         Args:
-            unit_definition (:obj:`libsbml.UnitDefinition`): a libsbml UnitDefinition
+            unit_definition (:obj:`libsbml.UnitDefinition`): a libSBML `UnitDefinition`
             unit_kind (:obj:`libsbml.UnitDefinition`): the unit kind code for the SBML unit
             exponent (:obj:`int`, optional): the exponent on the SBML unit
             scale (:obj:`int`, optional): the scale of the SBML unit
@@ -124,7 +124,7 @@ class LibsbmlInterface(object):
             :obj:`libsbml.Unit`: the new SBML Unit
 
         Raises:
-            :obj:`LibSBMLError`: if one of the libsbml calls fails
+            :obj:`LibSBMLError`: if a libSBML calls fails
         """
         unit = wrap_libsbml(unit_definition.createUnit)
         wrap_libsbml(unit.setKind, unit_kind)
@@ -137,11 +137,12 @@ class LibsbmlInterface(object):
     def _create_sbml_parameter(sbml_model, id, name=None, value=None, units=None, constant=True):
         """ Add an SBML Parameter to an SBML model.
 
-        See http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_parameter.html
-        in the libsbml documentation and the SBML specs for details.
+        See the `libSBML documentation
+        <http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_parameter.html/>`_
+        and the SBML specs for details.
 
         Args:
-            sbml_model (:obj:`libsbml.Model`): a libsbml Model
+            sbml_model (:obj:`libsbml.Model`): a libSBML Model
             id (:obj:`str`): the id of the new SBML Parameter
             name (:obj:`str`, optional): the name of the new SBML Parameter
             value (:obj:`obj`, optional): the value of the new SBML Parameter
@@ -152,8 +153,8 @@ class LibsbmlInterface(object):
             :obj:`libsbml.Parameter`: the new SBML Parameter
 
         Raises:
-            :obj:`LibSBMLError`: if one of the libsbml calls fails
-            :obj:`ValueError`: if the Parameter `id` is already in use
+            :obj:`LibSBMLError`: if a libSBML calls fails
+            :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
         try:
             wrap_libsbml(sbml_model.getParameter, id)
@@ -175,9 +176,9 @@ add_sbml_unit = LibsbmlInterface._add_sbml_unit
 create_sbml_parameter = LibsbmlInterface._create_sbml_parameter
 
 def wrap_libsbml(method, *args, **kwargs):
-    """ Wrap a libsbml method so that errors in return code can be easily handled.
+    """ Wrap a libSBML method so that errors in return code can be easily handled.
 
-    Unfortunately, libsbml methods that do not return data usually report errors via return codes,
+    Unfortunately, libSBML methods that do not return data usually report errors via return codes,
     instead of exceptions, and the generic return codes contain virtually no information.
     This function wraps these methods and raises useful exceptions when errors occur.
 
@@ -216,7 +217,7 @@ def wrap_libsbml(method, *args, **kwargs):
 
     new_args = []
     for arg in args:
-        # if on Python 2, convert unicode text to str(), because libsbml doesn't use SWIG_PYTHON_2_UNICODE
+        # if on Python 2, convert unicode text to str(), because libSBML doesn't use SWIG_PYTHON_2_UNICODE
         if six.PY2 and isinstance(arg, six.text_type):
             new_args.append(str(arg))
         else:
@@ -227,24 +228,24 @@ def wrap_libsbml(method, *args, **kwargs):
     else:
         call_str = "method: {}".format(method)
     if debug:
-        print('libsbml call:', call_str)
+        print('libSBML call:', call_str)
     try:
         rc = method(*tuple(new_args))
     except BaseException as error:
-        raise LibSBMLError("Error '{}' in libsbml method call '{}'.".format(error, call_str))
+        raise LibSBMLError("Error '{}' in libSBML method call '{}'.".format(error, call_str))
     if rc == None:
-        raise LibSBMLError("libsbml returned None when executing '{}'.".format(call_str))
+        raise LibSBMLError("libSBML returned None when executing '{}'.".format(call_str))
     elif type(rc) is int:
 
         # if `method` returns an int value, do not interpret rc as an error code
         if returns_int:
             if debug:
-                print('libsbml returns an int:', rc)
+                print('libSBML returns an int:', rc)
             return rc
 
         if rc == LIBSBML_OPERATION_SUCCESS:
             if debug:
-                print('libsbml returns: LIBSBML_OPERATION_SUCCESS')
+                print('libSBML returns: LIBSBML_OPERATION_SUCCESS')
             return rc
         else:
             error_code = OperationReturnValue_toString(rc)
@@ -253,17 +254,17 @@ def wrap_libsbml(method, *args, **kwargs):
                 "\nPerhaps an integer value is being returned; if so, to avoid this warning "
                 "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str))
                 if debug:
-                    print("libsbml returns:", rc)
+                    print("libSBML returns:", rc)
                 return rc
             else:
                 raise LibSBMLError("LibSBML returned error code '{}' when executing '{}'."
-                    "\nWARNING: if this libsbml call returns an int value, then this error may be "
+                    "\nWARNING: if this libSBML call returns an int value, then this error may be "
                     "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
                         error_code, call_str))
     else:
-        # return data provided by libsbml method
+        # return data provided by libSBML method
         if debug:
-            print('libsbml returns:', rc)
+            print('libSBML returns:', rc)
         return rc
 
 def init_sbml_model(sbml_document):
@@ -323,5 +324,5 @@ def str_to_xmlstr(str):
     Returns:
         :obj:`str`: an XML string that can be stored as a Note in an SBML Document
     """
-    # TODO: GET libsbml to do this XML crap, but none of the obvious methods work
+    # TODO: GET libSBML to do this XML crap, but none of the obvious methods work
     return "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(str)

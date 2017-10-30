@@ -220,17 +220,6 @@ class SBMLExchange(object):
     def read(document):
         """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
 
-        Warning: `wc_lang` and SBML semantics are not equivalent. Thus, this
-        SBML information will not be read:
-        * xxx
-
-        Args:
-            document (:obj:`SBMLDocument`): representation of an SBML model
-
-        Returns:
-            :obj:`dict`: model objects grouped by `Model`
-
-        Raises:
-            :obj:`ValueError`: if ...
+        Warning: this is an unimplemented placeholder.
         """
         pass
