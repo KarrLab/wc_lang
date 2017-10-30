@@ -188,31 +188,31 @@ class TestLibsbmlInterface(unittest.TestCase):
 
     def test_create_sbml_parameter(self):
         id='id1'; name='name1'; value=13.0; constant=False
-        parameter = create_sbml_parameter(self.sbml_model, id, name=name, value=value, constant=constant)
+        parameter = create_sbml_parameter(self.sbml_model, id, value, 'dimensionless_ud', name=name,
+            constant=constant)
         self.assertTrue(wrap_libsbml(parameter.hasRequiredAttributes))
         self.assertEqual(wrap_libsbml(parameter.getIdAttribute), id)
         self.assertEqual(wrap_libsbml(parameter.getName), name)
         self.assertTrue(wrap_libsbml(parameter.isSetValue))
-        self.assertFalse(wrap_libsbml(parameter.isSetUnits))
+        self.assertTrue(wrap_libsbml(parameter.isSetUnits))
         self.assertEqual(wrap_libsbml(parameter.getValue), value)
         self.assertEqual(wrap_libsbml(parameter.getConstant), constant)
 
         # test defaults
         id = 'id2'
-        parameter = create_sbml_parameter(self.sbml_model, id)
+        parameter = create_sbml_parameter(self.sbml_model, id, value, 'dimensionless_ud')
         self.assertEqual(wrap_libsbml(parameter.getIdAttribute), id)
         self.assertEqual(wrap_libsbml(parameter.getName), '')
-        self.assertFalse(wrap_libsbml(parameter.isSetValue))
         self.assertEqual(wrap_libsbml(parameter.getConstant), True)
 
         # test units
         id = 'id3'
-        parameter = create_sbml_parameter(self.sbml_model, id, units=self.per_second_id)
+        parameter = create_sbml_parameter(self.sbml_model, id, value, units=self.per_second_id)
         self.assertTrue(wrap_libsbml(parameter.hasRequiredAttributes))
         self.assertTrue(wrap_libsbml(parameter.isSetUnits))
         self.assertEqual(wrap_libsbml(parameter.getUnits), self.per_second_id)
 
         # test Parameter id collision
         with self.assertRaises(ValueError) as context:
-            parameter = create_sbml_parameter(self.sbml_model, id)
+            parameter = create_sbml_parameter(self.sbml_model, id, value, units=self.per_second_id)
         self.assertIn("is already in use as a Parameter id", str(context.exception))

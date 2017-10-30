@@ -1276,8 +1276,8 @@ class Reaction(BaseModel):
                 # make a unique ID for each flux bound parameter
                 # ids for wc_lang Parameters all start with 'parameter'
                 param_id = "_reaction_{}_{}_bound".format(self.id, bound)
-                param = create_sbml_parameter(sbml_model, id=param_id, units='mmol_per_gDW_per_hr',
-                    value=self.min_flux)
+                param = create_sbml_parameter(sbml_model, id=param_id, value=self.min_flux,
+                    units='mmol_per_gDW_per_hr')
                 if bound == 'lower':
                     wrap_libsbml(param.setValue, self.min_flux)
                     wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
@@ -1660,16 +1660,17 @@ class Parameter(BaseModel):
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
         if self.units == 'dimensionless':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
-                value=self.value, units='dimensionless_ud')
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                name=self.name)
         elif self.units == 's':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
-                value=self.value, units='second')
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'second',
+                name=self.name)
         elif self.units == 'mmol/gDCW/h':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name,
-                value=self.value, units='mmol_per_gDW_per_hr')
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
+                name=self.name)
         else:
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, name=self.name, value=self.value)
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                name=self.name)
 
         return sbml_parameter
 

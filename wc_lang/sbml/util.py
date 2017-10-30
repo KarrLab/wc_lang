@@ -134,7 +134,7 @@ class LibsbmlInterface(object):
         return unit
 
     @staticmethod
-    def _create_sbml_parameter(sbml_model, id, name=None, value=None, units=None, constant=True):
+    def _create_sbml_parameter(sbml_model, id, value, units, name=None, constant=True):
         """ Add an SBML Parameter to an SBML model.
 
         See the `libSBML documentation
@@ -144,9 +144,9 @@ class LibsbmlInterface(object):
         Args:
             sbml_model (:obj:`libsbml.Model`): a libSBML Model
             id (:obj:`str`): the id of the new SBML Parameter
+            value (:obj:`obj`): the value of the new SBML Parameter
+            units (:obj:`str`): the units of the new SBML Parameter
             name (:obj:`str`, optional): the name of the new SBML Parameter
-            value (:obj:`obj`, optional): the value of the new SBML Parameter
-            units (:obj:`str`, optional): the units of the new SBML Parameter
             constant (:obj:`str`, optional): whether the new SBML Parameter is a constant
 
         Returns:
