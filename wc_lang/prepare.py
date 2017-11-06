@@ -61,28 +61,6 @@ class PrepareModel(object):
 
         self.init_concentrations()
 
-    @staticmethod
-    def assign_linear_objective_fn(submodel, reactions, biomass_reactions):
-        '''Assign a linear objective function to a submodel
-
-        Assign a linear objective function parsed by `parse_dfba_submodel_obj_func` to a submodel's
-        attributes.
-
-        Args:
-            submodel (`Submodel`): a dFBA submodel
-            reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for reactions
-            biomass_reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for
-                biomass reactions
-
-        Raises:
-            ValueError: if `submodel` is not a dFBA submodel
-        '''
-        of = submodel.objective_function
-        of.reactions = [Reaction.objects.get_one(id=id) for coeff,id in reactions]
-        of.reaction_coefficients = [coeff for coeff,id in reactions]
-        of.biomass_reactions = [BiomassReaction.objects.get_one(id=id) for coeff,id in biomass_reactions]
-        of.biomass_reaction_coefficients = [coeff for coeff,id in biomass_reactions]
-
     def fill_dfba_submodel_reaction_gaps(self, submodel):
         '''Create reactions to fill gaps in a dFBA submodel's reaction network.
 
@@ -319,6 +297,28 @@ class PrepareModel(object):
             raise ValueError("Unknown reaction id '{}' in objective function '{}'.".format(id,
                 objective_function.expression))
         return (reactions, biomass_reactions)
+
+    @staticmethod
+    def assign_linear_objective_fn(submodel, reactions, biomass_reactions):
+        '''Assign a linear objective function to a submodel
+
+        Assign a linear objective function parsed by `parse_dfba_submodel_obj_func` to a submodel's
+        attributes.
+
+        Args:
+            submodel (`Submodel`): a dFBA submodel
+            reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for reactions
+            biomass_reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for
+                biomass reactions
+
+        Raises:
+            ValueError: if `submodel` is not a dFBA submodel
+        '''
+        of = submodel.objective_function
+        of.reactions = [Reaction.objects.get_one(id=id) for coeff,id in reactions]
+        of.reaction_coefficients = [coeff for coeff,id in reactions]
+        of.biomass_reactions = [BiomassReaction.objects.get_one(id=id) for coeff,id in biomass_reactions]
+        of.biomass_reaction_coefficients = [coeff for coeff,id in biomass_reactions]
 
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
         ''' Apply default flux bounds to a dFBA submodel's reactions
