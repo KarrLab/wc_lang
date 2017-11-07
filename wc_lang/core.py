@@ -207,8 +207,8 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super(OneToOneSpeciesAttribute, self).__init__('Species',
-                                                       related_name=related_name, min_related=1, min_related_rev=0,
-                                                       verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+            related_name=related_name, min_related=1, min_related_rev=0,
+            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, value):
         """ Serialize related object
@@ -531,6 +531,18 @@ class Model(BaseModel):
             reactions.extend(submodel.reactions)
         return reactions
 
+    def get_biomass_reactions(self):
+        """ Get all biomass reactions used by submodels
+
+        Returns:
+            :obj:`list` of `BiomassReaction`: biomass reactions
+        """
+        biomass_reactions = []
+        for submodel in self.submodels:
+            if submodel.biomass_reaction:
+                biomass_reactions.append(submodel.biomass_reaction)
+        return biomass_reactions
+
     def get_rate_laws(self):
         """ Get all rate laws from reactions
 
@@ -602,7 +614,7 @@ class Model(BaseModel):
         """
         types = ['compartment', 'species_type', 'submodel', 'reaction', 'parameter', 'reference']
         if type not in types:
-            raise ValueError('Type must be one of {}'.format(', '.join(types)))
+            raise ValueError("Type '{}' not one of '{}'".format(type, ', '.join(types)))
 
         components = getattr(self, 'get_{}s'.format(type))()
         return next((c for c in components if c.id == id), None)
@@ -711,13 +723,18 @@ class ObjectiveFunction(BaseModel):
 
     Attributes:
         expression (:obj:`str`): input mathematical expression of the objective function
+        linear (:obj:`bool`): indicates whether objective function is linear function of reaction fluxes
         reactions (:obj:`list` of `Reaction`): reactions whose fluxes are used in the objective function
+        reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for reactions
         biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions whose fluxes are used
             in the objective function
+        biomass_reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for
+            reactions in biomass_reactions
 
         submodel (:obj:`Submodel`): the `Submodel` which uses this `ObjectiveFunction`
     """
     expression = LongStringAttribute()
+    linear = BooleanAttribute()
     reactions = ManyToManyAttribute('Reaction', related_name='objective_functions')
     biomass_reactions = ManyToManyAttribute('BiomassReaction', related_name='objective_functions')
 
@@ -729,7 +746,7 @@ class ObjectiveFunction(BaseModel):
         """
         attribute_order = ('expression', 'reactions', 'biomass_reactions')
         tabular_orientation = TabularOrientation.inline
-        # objective functions must be continuous
+        # because objective functions must be continuous, the functions they use must be as well
         valid_functions = (exp, pow, log, log10)
 
     def serialize(self):
@@ -752,10 +769,9 @@ class ObjectiveFunction(BaseModel):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        # TODO: document the allowed syntax and semantics of an ObjectiveFunction
         # if value is None don't create an ObjectiveFunction
-        # TODO: detect and store linear objective functions and their constant coefficient for SBML
         if value is None:
+            # wc_lang.prepare.Prepare() will instantiate an ObjectiveFunction with the biomass reaction
             return (None, None)
 
         # parse identifiers
@@ -764,7 +780,7 @@ class ObjectiveFunction(BaseModel):
         for match in re.findall(pattern, value, flags=re.I):
             identifiers.append(match[1])
 
-        # allocate identifiers between reactions and biomass reactions
+        # allocate identifiers between reactions and biomass_reactions
         reactions_dict = objects[Reaction]
         reaction_ids = reactions_dict.keys()
         reactions = []
@@ -790,15 +806,16 @@ class ObjectiveFunction(BaseModel):
                 continue
 
             is_reaction = id in reaction_ids
-            is_biomass_reactions = id in biomass_reaction_ids
+            is_biomass_reaction = id in biomass_reaction_ids
 
             # redundant names
-            if is_reaction and is_biomass_reactions:
+            # TODO: prevent this in a check method
+            if is_reaction and is_biomass_reaction:
                 errors.append("id '{}' ambiguous between a Reaction and a "
                     "BiomassReaction in '{}'".format(id, value))
 
             # missing reaction
-            if not (is_reaction or is_biomass_reactions):
+            if not (is_reaction or is_biomass_reaction):
                 errors.append("id '{}' not a Reaction or a "
                     "BiomassReaction identifier in '{}'".format(id, value))
 
@@ -807,7 +824,7 @@ class ObjectiveFunction(BaseModel):
                 if reactions_dict[id] not in reactions:
                     reactions.append(reactions_dict[id])
 
-            if is_biomass_reactions:
+            if is_biomass_reaction:
                 if biomass_reactions_dict[id] not in biomass_reactions:
                     biomass_reactions.append(biomass_reactions_dict[id])
 
@@ -855,11 +872,12 @@ class ObjectiveFunction(BaseModel):
         """ return `None` to indicate valid object """
         return None
 
+    ACTIVE_OBJECTIVE = 'active_objective'
     def add_to_sbml_doc(self, sbml_document):
         """ Add this ObjectiveFunction to a libsbml SBML document in a `libsbml.model.ListOfObjectives`.
 
         This uses version 2 of the 'Flux Balance Constraints' extension. SBML assumes that an
-        ObjectiveFunction is a linear combination of the fluxes of reactions.
+        ObjectiveFunction is a linear combination of reaction fluxes.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
@@ -870,21 +888,28 @@ class ObjectiveFunction(BaseModel):
         Raises:
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
+        # issue warning if objective function not linear
+        if not self.linear:
+            warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
+                self.submodel.id))
+            return
         sbml_model = wrap_libsbml(sbml_document.getModel)
         fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
         sbml_objective = wrap_libsbml(fbc_model_plugin.createObjective)
         wrap_libsbml(sbml_objective.setType, 'maximize')
         # In SBML 3 FBC 2, the 'activeObjective' attribute must be set on ListOfObjectives.
         # Since a submodel has only one Objective, it must be the active one.
-        ACTIVE_OBJECTIVE = 'active_objective'
-        wrap_libsbml(sbml_objective.setIdAttribute, ACTIVE_OBJECTIVE)
+        wrap_libsbml(sbml_objective.setIdAttribute, ObjectiveFunction.ACTIVE_OBJECTIVE)
         list_of_objectives = wrap_libsbml(fbc_model_plugin.getListOfObjectives)
-        wrap_libsbml(list_of_objectives.setActiveObjective, ACTIVE_OBJECTIVE)
-        for reaction in self.reactions:
+        wrap_libsbml(list_of_objectives.setActiveObjective, ObjectiveFunction.ACTIVE_OBJECTIVE)
+        for idx,reaction in enumerate(self.reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
             wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
-            # TODO: use actual coefficient
-            wrap_libsbml(sbml_flux_objective.setCoefficient, 1.0)
+            wrap_libsbml(sbml_flux_objective.setCoefficient, self.reaction_coefficients[idx])
+        for idx,biomass_reaction in enumerate(self.biomass_reactions):
+            sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
+            wrap_libsbml(sbml_flux_objective.setReaction, biomass_reaction.id)
+            wrap_libsbml(sbml_flux_objective.setCoefficient, self.biomass_reaction_coefficients[idx])
 
         return sbml_objective
 
@@ -903,6 +928,8 @@ class Compartment(BaseModel):
         cross_references (:obj:`list` of `CrossReference`): cross references
         concentrations (:obj:`list` of `Concentration`): concentrations
         reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
+        biomass_reactions (:obj:`list` of `BiomassReaction`): biomas reactions defined for this
+            compartment
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1096,6 +1123,19 @@ class Species(BaseModel):
     def xml_id(self):
         """ Make a Species id that satisfies the SBML string id syntax.
 
+        Use `make_xml_id()` to make a SBML id.
+
+        Returns:
+            :obj:`str`: an SBML id
+        """
+        return Species.make_xml_id(
+            self.species_type.get_primary_attribute(),
+            self.compartment.get_primary_attribute())
+
+    @staticmethod
+    def make_xml_id(species_type_id, compartment_id):
+        """ Make a Species id that satisfies the SBML string id syntax.
+
         Replaces the '[' and ']' in Species.id() with double-underscores '__'.
         See Finney and Hucka, "Systems Biology Markup Language (SBML) Level 2: Structures and
         Facilities for Model Definitions", 2003, section 3.4.
@@ -1103,9 +1143,7 @@ class Species(BaseModel):
         Returns:
             :obj:`str`: an SBML id
         """
-        return '{}__{}__'.format(
-            self.species_type.get_primary_attribute(),
-            self.compartment.get_primary_attribute())
+        return '{}__{}__'.format(species_type_id, compartment_id)
 
     @staticmethod
     def xml_id_to_id(xml_id):
@@ -1252,7 +1290,7 @@ class Reaction(BaseModel):
         wrap_libsbml(sbml_reaction.setFast, False)
         wrap_libsbml(sbml_reaction.setCompartment, self.submodel.compartment.id)
         if self.comments:
-            wrap_libsbml(sbml_reaction.appendNotes, sbml_reaction.appendNotes)
+            wrap_libsbml(sbml_reaction.appendNotes, str_to_xmlstr(self.comments))
 
         # write reaction participants to SBML document
         for participant in self.participants:
@@ -1262,9 +1300,6 @@ class Reaction(BaseModel):
             elif 0<participant.coefficient:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
                 wrap_libsbml(species_reference.setStoichiometry, participant.coefficient)
-            else:
-                raise ValueError('coefficient is 0 for participant {} in reaction {}'.format(
-                    participant.coefficient, self.id))
             wrap_libsbml(species_reference.setSpecies, participant.species.xml_id())
             wrap_libsbml(species_reference.setConstant, True)
 
@@ -1598,21 +1633,84 @@ class BiomassReaction(BaseModel):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
+        compartment (:obj:`Compartment`): the compartment containing this BiomassReaction's species
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        submodels (:obj:`Submodel`): the submodel that uses this biomass reaction
+        submodels (:obj:`list` of `Submodel`): submodels that use this biomass reaction
+        objective_functions (:obj:`list` of `ObjectiveFunction`): objective functions that use this
+            biomass reaction
         biomass_components (:obj:`list` of `BiomassComponent`): the components of this biomass reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
+    compartment = ManyToOneAttribute('Compartment', related_name='biomass_reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
 
     class Meta(BaseModel.Meta):
-        attribute_order = ('id', 'name', 'comments', 'references')
+        attribute_order = ('id', 'name', 'compartment', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add a BiomassReaction to a libsbml SBML document.
+
+        BiomassReactions are added to the SBML document because they can be used in a dFBA submodel's
+        objective function. In fact the default objective function is the submodel's biomass reaction.
+        Since SBML does not define BiomassReaction as a separate class, BiomassReactions are added
+        to the SBML model as SBML reactions.
+        CheckModel ensures that wc_lang BiomassReactions and Reactions have distinct ids.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.reaction`: the libsbml reaction that's created
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+
+        # create SBML reaction in SBML document
+        sbml_reaction = wrap_libsbml(sbml_model.createReaction)
+        wrap_libsbml(sbml_reaction.setIdAttribute, self.id)
+        wrap_libsbml(sbml_reaction.setName, self.name)
+        wrap_libsbml(sbml_reaction.setCompartment, self.compartment.id)
+        wrap_libsbml(sbml_reaction.setReversible, False)
+        wrap_libsbml(sbml_reaction.setFast, False)
+        if self.comments:
+            wrap_libsbml(sbml_reaction.appendNotes, str_to_xmlstr(self.comments))
+
+        # write biomass reaction participants to SBML document
+        for biomass_component in self.biomass_components:
+            if biomass_component.coefficient<0:
+                species_reference = wrap_libsbml(sbml_reaction.createReactant)
+                wrap_libsbml(species_reference.setStoichiometry, -biomass_component.coefficient)
+            elif 0<biomass_component.coefficient:
+                species_reference = wrap_libsbml(sbml_reaction.createProduct)
+                wrap_libsbml(species_reference.setStoichiometry, biomass_component.coefficient)
+            id = Species.make_xml_id(
+                biomass_component.species_type.get_primary_attribute(),
+                self.compartment.id)
+            wrap_libsbml(species_reference.setSpecies, id)
+            wrap_libsbml(species_reference.setConstant, True)
+
+        # the biomass reaction does not constrain the optimization, so set its bounds to 0 and INF
+        fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
+        for bound in ['lower', 'upper']:
+            # make a unique ID for each flux bound parameter
+            # ids for wc_lang Parameters all start with 'parameter'
+            param_id = "_biomass_reaction_{}_{}_bound".format(self.id, bound)
+            param = create_sbml_parameter(sbml_model, id=param_id, value=0,
+                units='mmol_per_gDW_per_hr')
+            if bound == 'lower':
+                wrap_libsbml(param.setValue, 0)
+                wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
+            if bound == 'upper':
+                wrap_libsbml(param.setValue, float('inf'))
+                wrap_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
+        return sbml_reaction
 
 class Parameter(BaseModel):
     """ Parameter

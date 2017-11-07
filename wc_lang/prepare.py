@@ -12,6 +12,7 @@ import ast
 
 from obj_model import utils
 from wc_utils.util.list import difference
+from obj_model.utils import get_component_by_id
 from wc_lang.core import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
     Species, Concentration, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
 from wc_lang.rate_law_utils import RateLawUtils
@@ -286,15 +287,17 @@ class PrepareModel(object):
 
         for coeff,id in linear_expr:
 
-            if Reaction.objects.get_one(id=id):
+            reaction = get_component_by_id(submodel.model.get_reactions(), id)
+            if reaction:
                 reactions.append((coeff,id),)
                 continue
 
-            if BiomassReaction.objects.get_one(id=id):
+            biomass_reaction = get_component_by_id(submodel.model.get_biomass_reactions(), id)
+            if biomass_reaction:
                 biomass_reactions.append((coeff,id),)
                 continue
 
-            raise ValueError("Unknown reaction id '{}' in objective function '{}'.".format(id,
+            raise ValueError("Unknown reaction or biomass reaction id '{}' in objective function '{}'.".format(id,
                 objective_function.expression))
         return (reactions, biomass_reactions)
 
@@ -315,9 +318,10 @@ class PrepareModel(object):
             ValueError: if `submodel` is not a dFBA submodel
         '''
         of = submodel.objective_function
-        of.reactions = [Reaction.objects.get_one(id=id) for coeff,id in reactions]
+        of.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff,id in reactions]
         of.reaction_coefficients = [coeff for coeff,id in reactions]
-        of.biomass_reactions = [BiomassReaction.objects.get_one(id=id) for coeff,id in biomass_reactions]
+        of.biomass_reactions = [get_component_by_id(submodel.model.get_biomass_reactions(), id)
+            for coeff,id in biomass_reactions]
         of.biomass_reaction_coefficients = [coeff for coeff,id in biomass_reactions]
 
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
@@ -432,6 +436,7 @@ class CheckModel(object):
         Ensure that:
             * All regular DFBA reactions have min flux and max flux with appropriate values
             * The DFBA submodel contains a biomass reaction and an objective function
+            * All species used in biomass reactions are defined
 
         Args:
             submodel (`Submodel`): a DFBA submodel
@@ -456,11 +461,21 @@ class CheckModel(object):
                     errors.append("Error: 0 < min_flux ({}) for reversible reaction '{}' in submodel '{}'".format(
                         reaction.min_flux, reaction.name, submodel.name))
 
+        if submodel.objective_function is None:
+            errors.append("Error: submodel '{}' uses dfba but lacks an objective function".format(submodel.name))
+
         if submodel.biomass_reaction is None or not submodel.biomass_reaction.biomass_components:
             errors.append("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(submodel.name))
 
-        if submodel.objective_function is None:
-            errors.append("Error: submodel '{}' uses dfba but lacks an objective function".format(submodel.name))
+        else:
+            submodel_species_ids = set([s.id() for s in submodel.get_species()])
+            for biomass_component in submodel.biomass_reaction.biomass_components:
+                # TODO: again, need centralized species id formatting
+                species_id = "{}[{}]".format(biomass_component.species_type.id,
+                    submodel.biomass_reaction.compartment.id)
+                if species_id not in submodel_species_ids:
+                    errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
+                        "submodel '{}'.".format(species_id, submodel.biomass_reaction.name, submodel.name))
 
         return errors
 

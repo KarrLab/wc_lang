@@ -14,6 +14,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           BiomassReaction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
                           InvalidObject)
+from wc_lang.prepare import PrepareModel
 import unittest
 from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
 import libsbml
@@ -24,6 +25,9 @@ from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
 class TestCore(unittest.TestCase):
 
     def setUp(self):
+        Reaction.objects.reset()
+        BiomassReaction.objects.reset()
+
         self.model = mdl = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1b')
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
@@ -57,25 +61,30 @@ class TestCore(unittest.TestCase):
             conc = Concentration(species=spec, value=3 * i)
             concentrations.append(conc)
 
-        self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
-        self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
-        self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba, compartment=comp_0)
-        self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
-
         self.biomass_reaction = biomass_reaction = BiomassReaction(id='biomass_reaction_1',
-            name='biomass reaction')
+            name='biomass reaction',
+            compartment=comp_0,
+            comments="Nobody will ever deprive the American people of the right to vote except the "\
+            "American people themselves")
+        BiomassReaction.get_manager().insert_all_new()
 
         biomass_components=[]
         for i in range(2):
             biomass_components.append(
                 biomass_reaction.biomass_components.create(
                     id = 'biomass_comp_{}'.format(i+1),
-                    coefficient = float(i+1),
+                    coefficient = 2*(float(i)-0.5),     # create a reactant and a product
                     species_type = species_types[i]))
         self.biomass_components = biomass_components
+
+        self.submdl_0 = submdl_0 = mdl.submodels.create(
+            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
+        self.submdl_1 = submdl_1 = mdl.submodels.create(
+            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
+        self.submdl_2 = submdl_2 = mdl.submodels.create(
+            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba, compartment=comp_0,
+            biomass_reaction=biomass_reaction)
+        self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
         rxn_0.participants.create(species=species[0], coefficient=-2)
@@ -103,6 +112,8 @@ class TestCore(unittest.TestCase):
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])
         rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+
+        Reaction.get_manager().insert_all_new()
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
@@ -953,7 +964,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
         self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
         self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
-        self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
         fbc_plugin = sbml_reaction.getPlugin('fbc')
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),
@@ -971,6 +981,21 @@ class TestCore(unittest.TestCase):
                 if product.getSpecies() == participant.species.xml_id():
                     self.assertEqual(product.getStoichiometry(), participant.coefficient)
 
+        # Write the biomass reaction to the SBML document
+        sbml_biomass_reaction = self.biomass_reaction.add_to_sbml_doc(document)
+        self.assertTrue(sbml_biomass_reaction.hasRequiredAttributes())
+        self.assertEqual(sbml_biomass_reaction.getIdAttribute(), self.biomass_reaction.id)
+        self.assertEqual(sbml_biomass_reaction.getName(), self.biomass_reaction.name)
+        self.assertIn(self.biomass_reaction.comments, sbml_biomass_reaction.getNotesString())
+        fbc_plugin = sbml_biomass_reaction.getPlugin('fbc')
+        sbml_model = document.getModel()
+        self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(), 0)
+        self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
+            float('inf'))
+        self.assertEqual(len(sbml_biomass_reaction.getListOfReactants()) +
+            len(sbml_biomass_reaction.getListOfProducts()),
+            len(self.biomass_reaction.biomass_components))
+
         # Write parameters to the SBML document
         for param in self.parameters:
             sbml_param = param.add_to_sbml_doc(document)
@@ -983,21 +1008,33 @@ class TestCore(unittest.TestCase):
         #   create objectiveFunction
         attr = ObjectiveFunction.Meta.attributes['expression']
         rxn_id = 'rxn_2'
+        biomass_reaction_id = 'biomass_reaction_1'
         objs = {
             Reaction: { 
                 rxn_id: self.rxn_2,
             },
-            BiomassReaction: { },
+            BiomassReaction: {
+                biomass_reaction_id: self.biomass_reaction},
         }
-        (of, _) = ObjectiveFunction.deserialize(attr, rxn_id, objs)
+        (of, _) = ObjectiveFunction.deserialize(attr, 'biomass_reaction_1 + 2*rxn_2', objs)
         self.submdl_2.objective_function = of
+
+        prepare_model = PrepareModel(self.model)
+        (reactions, biomass_reactions) = prepare_model.parse_dfba_submodel_obj_func(self.submdl_2)
+        PrepareModel.assign_linear_objective_fn(self.submdl_2, reactions, biomass_reactions)
+        self.submdl_2.objective_function.linear = True
+
         #   write ObjectiveFunction to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
-        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 1)
-        self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 1)
-        flux_objective = sbml_objective.getFluxObjective(0)
-        self.assertEqual(flux_objective.getReaction(), rxn_id)
-        self.assertEqual(flux_objective.getCoefficient(), 1.0)
+        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
+        self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
+        for flux_objective in wrap_libsbml(sbml_objective.getListOfFluxObjectives):
+            if wrap_libsbml(flux_objective.getReaction) == rxn_id:
+                self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 2.0)
+            elif wrap_libsbml(flux_objective.getReaction) == biomass_reaction_id:
+                self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 1.0)
+            else:
+                self.fail("reaction {} unexpected".format(wrap_libsbml(flux_objective.getReaction)))
 
         # Check the SBML document
         self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(document)), 0)
@@ -1009,10 +1046,10 @@ class TestCore(unittest.TestCase):
 
         workaround: write the sbml document to a string, read it back, and check that
         '''
-        # TODO: either compile & use the libsbml source trunk, or install the next release of libsbml
+        # TODO: avoid workaround by installing libsbml>15.5.0
         sbml_string = wrap_libsbml(document.toSBML)
         workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
-        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)
         for i in range(workaround_document.checkConsistency()):
             print(workaround_document.getError(i).getShortMessage())
             print(workaround_document.getError(i).getMessage())
+        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)

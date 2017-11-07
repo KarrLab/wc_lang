@@ -111,7 +111,7 @@ class TestPrepareModel(unittest.TestCase):
             ('reaction_1 + (reaction_1 - reaction_1)', 'Cannot parse'),
             ('reaction_1 + 3*reaction_1', 'Multiple uses'),
             ('reaction_1 , reaction_2', 'Cannot parse'),
-            ('x', 'Unknown reaction id'),
+            ('x', 'Unknown reaction or biomass reaction id'),
         ]
         for error_input,msg in error_inputs:
             of.expression = error_input
@@ -214,6 +214,21 @@ class TestCheckModel(unittest.TestCase):
         errors = self.check_model.check_dfba_submodel(dfba_submodel)
         self.assertIn("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(dfba_submodel.name),
             errors[0])
+
+        # remove the objective function
+        dfba_submodel.objective_function = None
+        errors = self.check_model.check_dfba_submodel(dfba_submodel)
+        self.assertIn("Error: submodel '{}' uses dfba but lacks an objective function".format(dfba_submodel.name),
+            errors[0])
+
+    def test_check_dfba_submodel_4(self):
+        dfba_submodel = Submodel.objects.get_one(id='dfba_submodel')
+
+        # remove a reaction to test that all species used in biomass reactions are defined
+        del dfba_submodel.reactions[-1]
+        errors = self.check_model.check_dfba_submodel(dfba_submodel)
+        self.assertEquals(len(errors), 1)
+        self.assertRegex(errors[0], "Error: undefined species '.*' in biomass reaction '.*' used by submodel")
 
     def test_check_dynamic_submodel(self):
         ssa_submodel = Submodel.objects.get_one(id='ssa_submodel')

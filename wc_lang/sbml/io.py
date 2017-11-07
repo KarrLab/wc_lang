@@ -107,7 +107,7 @@ class Writer(object):
         sbml_documents = {}
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:
-                objects = [submodel, submodel.objective_function] + \
+                objects = [submodel, submodel.objective_function, submodel.biomass_reaction] + \
                     model.get_compartments() + \
                     submodel.get_species() + submodel.parameters + submodel.reactions
                 sbml_documents[submodel.id] = SBMLExchange.write(objects)
@@ -173,16 +173,20 @@ class SBMLExchange(object):
             if obj not in grouped_objects[obj_class]:
                 grouped_objects[obj_class].append(obj)
 
-        # dependencies among libSBML model classes constrain the order in which they're written:
+        # dependencies among libSBML model classes constrain the order
+        # in which wc_lang classes must be written to SBML:
         #     Submodel depends on nothing
         #     Compartment depends on nothing
         #     Parameter depends on nothing
         #     Compartment must precede Species
         #     Compartment must precede Reaction
         #     Species must precede Reaction
+        #     Species must precede BiomassReaction
         #     Reaction must precede ObjectiveFunction
+        #     BiomassReaction must precede ObjectiveFunction
         # This partial order is satisfied by this sequence:
-        model_order = [Submodel, Compartment, Parameter, Species, Reaction, ObjectiveFunction]
+        model_order = [Submodel, Compartment, Parameter, Species,
+            Reaction, BiomassReaction, ObjectiveFunction]
 
         # add objects into SBMLDocument
         for model in model_order:
@@ -208,8 +212,7 @@ class SBMLExchange(object):
         Raises:
             :obj:`ValueError`: if the SBMLDocument cannot be created
         """
-        objects = [submodel, \
-            submodel.objective_function] + \
+        objects = [submodel, submodel.objective_function, submodel.biomass_reaction] + \
             submodel.get_species() + \
             submodel.reactions + \
             submodel.model.get_compartments() + \
