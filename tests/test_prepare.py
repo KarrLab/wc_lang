@@ -228,7 +228,8 @@ class TestCheckModel(unittest.TestCase):
         del dfba_submodel.reactions[-1]
         errors = self.check_model.check_dfba_submodel(dfba_submodel)
         self.assertEquals(len(errors), 1)
-        self.assertRegex(errors[0], "Error: undefined species '.*' in biomass reaction '.*' used by submodel")
+        six.assertRegex(self, errors[0],
+            "Error: undefined species '.*' in biomass reaction '.*' used by submodel")
 
     def test_check_dynamic_submodel(self):
         ssa_submodel = Submodel.objects.get_one(id='ssa_submodel')

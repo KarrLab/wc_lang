@@ -11,6 +11,7 @@ import os
 from math import isnan
 from six import iteritems
 import tempfile
+import shutil
 
 from libsbml import readSBMLFromString, writeSBMLToFile, SBMLReader, SBMLDocument
 from libsbml import Compartment as libsbmlCompartment
@@ -126,10 +127,14 @@ class TestSbml(unittest.TestCase):
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), '..', 'fixtures', 'example-model.xlsx')
 
     def setUp(self):
+        self.dirname = tempfile.mkdtemp()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
         PrepareModel(self.model).run()
         CheckModel(self.model).run()
+
+    def tearDown(self):
+        shutil.rmtree(self.dirname)
 
     def check_sbml_doc(self, sbml_doc):
 
@@ -158,21 +163,21 @@ class TestSbml(unittest.TestCase):
                 self.check_sbml_doc(workaround_document)
                 check_document_against_model(sbml_document, self.model, self)
 
+
     def test_writer(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            for algorithms in [None, [SubmodelAlgorithm.dfba]]:
-                sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms)
-                try:
-                    paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=tmpdirname)
-                except Exception as e:
-                    self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
-                for submodel_id,path in zip(sbml_documents.keys(), paths):
+        for algorithms in [None, [SubmodelAlgorithm.dfba]]:
+            sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms)
+            try:
+                paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=self.dirname)
+            except Exception as e:
+                self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
+            for submodel_id,path in zip(sbml_documents.keys(), paths):
 
-                    document = SBMLReader().readSBML(path)
-                    self.check_sbml_doc(document)
+                document = SBMLReader().readSBML(path)
+                self.check_sbml_doc(document)
 
-                    self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
-                    check_document_against_model(document, self.model, self)
+                self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
+                check_document_against_model(document, self.model, self)
 
     def test_writer_errors(self):
         root_path = os.path.join(os.path.dirname(__file__), 'no_such_dir', 'example-model')
