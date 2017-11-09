@@ -10,12 +10,16 @@ import unittest
 import os
 from math import isnan
 from six import iteritems
+import tempfile
+import shutil
 
 from libsbml import readSBMLFromString, writeSBMLToFile, SBMLReader, SBMLDocument
 from libsbml import Compartment as libsbmlCompartment
 from libsbml import Species as libsbmlSpecies
 from libsbml import Parameter as libsbmlParameter
 from libsbml import Reaction as libsbmlReaction
+from libsbml import Model as libsbmlModel
+from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
 from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
@@ -27,6 +31,10 @@ from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
 import wc_lang.sbml.io as sbml_io
 
+# ignore 'setting concentration' warnings
+import warnings
+warnings.filterwarnings('ignore', '.*setting concentration.*', )
+
 def check_document_against_model(sbml_document, wc_lang_model, test_case):
     """ Compare an SBML document against a wc lang model.
 
@@ -36,9 +44,10 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
     Args:
         sbml_document (:obj:`SBMLDocument`): a libsbml SBMLDocument
         wc_lang_model (:obj:`Model`): a wc lang `Model` with species, reactions, compartments or parameters
-        test_case (:obj:`unittest.TestCase`): a TestCase
+        test_case (:obj:`unittest.TestCase`): a unittest TestCase
     """
     for element in sbml_document.getListOfAllElements():
+
         # compartments
         if isinstance(element, libsbmlCompartment):
             wc_lang_compartment = get_component_by_id(wc_lang_model.get_compartments(),
@@ -46,10 +55,11 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             test_case.assertEqual(element.getName(), wc_lang_compartment.name)
             test_case.assertEqual(element.getSpatialDimensions(), 3)
             test_case.assertEqual(element.getSize(), wc_lang_compartment.initial_volume)
+            continue
             # not checking: comments
 
         # parameters
-        elif isinstance(element, libsbmlParameter):
+        if isinstance(element, libsbmlParameter):
             prefix = 'parameter_'
             if element.getIdAttribute().startswith(prefix):
                 # only parameters that start with 'parameter' are wc_lang Parameters
@@ -57,9 +67,10 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 wc_lang_parameter = get_component_by_id(wc_lang_model.get_parameters(), wc_lang_id)
                 test_case.assertEqual(element.getName(), wc_lang_parameter.name)
                 test_case.assertEqual(element.getValue(), wc_lang_parameter.value)
+            continue
             # not checking: units, SBML parameters not in wc_lang Parameters
 
-        elif isinstance(element, libsbmlSpecies):
+        if isinstance(element, libsbmlSpecies):
             # because Species.id() is a method, get_component_by_id() cannot search it
             species_index = {species.id(): species for species in wc_lang_model.get_species()}
             wc_lang_id = Species.xml_id_to_id(element.getIdAttribute())
@@ -69,27 +80,61 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
             test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.value)
+            continue
             # not checking: comments
 
-        elif isinstance(element, libsbmlReaction):
+        if isinstance(element, libsbmlReaction):
             wc_lang_reaction = get_component_by_id(wc_lang_model.get_reactions(), element.getIdAttribute())
-            test_case.assertEqual(element.getName(), wc_lang_reaction.name)
-            test_case.assertEqual(element.getReversible(), wc_lang_reaction.reversible)
-            test_case.assertEqual(element.getFast(), False)
-            test_case.assertEqual(element.getCompartment(), wc_lang_reaction.submodel.compartment.id)
-            # not checking: participants and flux bounds
+            # test Reaction
+            if wc_lang_reaction:
+                test_case.assertEqual(element.getName(), wc_lang_reaction.name)
+                test_case.assertEqual(element.getReversible(), wc_lang_reaction.reversible)
+                test_case.assertEqual(element.getFast(), False)
+                test_case.assertEqual(element.getCompartment(), wc_lang_reaction.submodel.compartment.id)
+                continue
+                # not checking: participants and flux bounds
 
-            # TODO: check remaining elements, and ObjectiveFunction
+            wc_lang_biomass_reaction = get_component_by_id(wc_lang_model.get_biomass_reactions(),
+                    element.getIdAttribute())
+            # test BiomassReaction
+            if wc_lang_biomass_reaction:
+                test_case.assertEqual(element.getName(), wc_lang_biomass_reaction.name)
+                test_case.assertEqual(element.getReversible(), False)
+                test_case.assertEqual(element.getFast(), False)
+                test_case.assertEqual(element.getCompartment(), wc_lang_biomass_reaction.compartment.id)
+                continue
+                # not checking: components, flux bounds, and comments
+
+        if isinstance(element, libsbmlModel):
+            # test a submodel
+            wc_lang_submodel = get_component_by_id(wc_lang_model.get_submodels(), element.getIdAttribute())
+            if wc_lang_submodel.name:
+                test_case.assertEqual(element.getName(), wc_lang_submodel.name)
+            continue
+            # not checking: comments
+
+        if isinstance(element, libsbmlObjective):
+            # test an ObjectiveFunction
+            test_case.assertEqual(element.getType(), 'maximize')
+            test_case.assertEqual(element.getIdAttribute(), ObjectiveFunction.ACTIVE_OBJECTIVE)
+            continue
+            # not checking: reactions, or biomass_reactions
+
+            # TODO: check remaining elements
 
 class TestSbml(unittest.TestCase):
 
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), '..', 'fixtures', 'example-model.xlsx')
 
     def setUp(self):
+        self.dirname = tempfile.mkdtemp()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
         PrepareModel(self.model).run()
         CheckModel(self.model).run()
+
+    def tearDown(self):
+        shutil.rmtree(self.dirname)
 
     def check_sbml_doc(self, sbml_doc):
 
@@ -118,12 +163,12 @@ class TestSbml(unittest.TestCase):
                 self.check_sbml_doc(workaround_document)
                 check_document_against_model(sbml_document, self.model, self)
 
+
     def test_writer(self):
-        root_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model')
         for algorithms in [None, [SubmodelAlgorithm.dfba]]:
-            sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms, path=None)
+            sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms)
             try:
-                paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=root_path)
+                paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=self.dirname)
             except Exception as e:
                 self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
             for submodel_id,path in zip(sbml_documents.keys(), paths):
