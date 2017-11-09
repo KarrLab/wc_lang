@@ -145,21 +145,25 @@ class PrepareModel(object):
             raise ValueError("submodel '{}' cannot use biomass reaction '{}' as an objective function: "
                 "{}".format(submodel.name, submodel.biomass_reaction.id, invalid_attribute.messages[0]))
         submodel.objective_function = of
-
-    # TODO: doublecheck Sphinx formatting
+    
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
         ''' Apply default flux bounds to a dFBA submodel's reactions
 
         The FBA optimizer needs min and max flux bounds for each dFBA submodel reaction.
         If bounds are not provided in some reactions, and default bounds are provided in a config file,
         then apply the defaults to the reactions.
+
         Specifically, min and max default bounds are applied as follows:
-            reversible reactions:
-                min_flux = -default_max_flux_bound
-                max_flux = default_max_flux_bound
-            irreversible reactions:
-                min_flux = default_min_flux_bound
-                max_flux = default_max_flux_bound
+
+            * reversible reactions:
+
+                * `min_flux` = `-default_max_flux_bound`
+                * `max_flux` = `default_max_flux_bound`
+
+            * irreversible reactions:
+
+                * `min_flux` = `default_min_flux_bound`
+                * `max_flux` = `default_max_flux_bound`
 
         Args:
             submodel (`Submodel`): a dFBA submodel
@@ -220,18 +224,21 @@ class CheckModel(object):
     to be used. `CheckModel` evaluates these properties.
 
     Currently checked properties:
-        DFBA submodels contain a biomass reaction and an objective function
-        Rate laws transcode and evaluate without error
-        All reactants in each submodel's reactions are in the submodel's compartment
+
+        * DFBA submodels contain a biomass reaction and an objective function
+        * Rate laws transcode and evaluate without error
+        * All reactants in each submodel's reactions are in the submodel's compartment
 
     Other properties to check:
-        The model does not contain dead-end species which are only consumed or produced
-        Reactions are balanced
-        Reactions in dynamic submodels contain fully specified rate laws
-        All Species used in reactions have concentration values
-        Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
-            for the reactions participate in at least one reaction in the submodel
-        # TODO: implement these, and expand the list of properties
+        
+        * The model does not contain dead-end species which are only consumed or produced
+        * Reactions are balanced
+        * Reactions in dynamic submodels contain fully specified rate laws
+        * All Species used in reactions have concentration values
+        * Consider the reactions modeled by a submodel -- all modifier species used by the rate laws 
+          for the reactions participate in at least one reaction in the submodel
+        
+    # TODO: implement these, and expand the list of properties
     '''
     def __init__(self, model):
         self.model = model

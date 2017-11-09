@@ -89,7 +89,7 @@ class Writer(object):
         Each `Submodel` in `Model` `model` whose algorithm is in `algorithms`
         is converted into a separate SBML document.
         If `path` is None, then the SBML is returned in string(s), otherwise it's written to file(s)
-        which are named `path + submodel.id + suffix'.
+        which are named `path + submodel.id + suffix`.
 
         Args:
             model (:obj:`Model`): a `Model`
