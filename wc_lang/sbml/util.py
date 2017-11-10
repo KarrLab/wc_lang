@@ -206,9 +206,11 @@ def wrap_libsbml(method, *args, **kwargs):
     returns_int = False
     if 'returns_int' in kwargs:
         returns_int = kwargs['returns_int']
+        del kwargs['returns_int']
     debug = False
     if 'debug' in kwargs:
         debug = kwargs['debug']
+        del kwargs['debug']
 
     # warn about unused kwargs
     for k in kwargs.keys():
