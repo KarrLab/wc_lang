@@ -16,7 +16,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           InvalidObject)
 from wc_lang.prepare import PrepareModel
 import unittest
-from libsbml import (SBMLNamespaces, SBMLDocument, XMLNode, readSBMLFromString)
+from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
 import libsbml
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
     create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
@@ -936,7 +936,7 @@ class TestCore(unittest.TestCase):
         sbml_model = self.submdl_2.add_to_sbml_doc(document)
         self.assertEqual(sbml_model.getIdAttribute(), self.submdl_2.id)
         self.assertEqual(sbml_model.getName(), self.submdl_2.name)
-        self.assertIn(self.submdl_2.comments, XMLNode.convertXMLNodeToString(sbml_model.getNotes()))
+        self.assertIn(self.submdl_2.comments, sbml_model.getNotesString())
 
         # Write Compartments to the SBML document
         self.comp_0.comments = 'test comment'
@@ -945,7 +945,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
         self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
-        self.assertIn(self.comp_0.comments, XMLNode.convertXMLNodeToString(sbml_compartment.getNotes()))
+        self.assertIn(self.comp_0.comments, sbml_compartment.getNotesString())
 
         # Write species used by the submodel to the SBML document
         for species in self.submdl_2.get_species():
