@@ -964,7 +964,7 @@ class Compartment(BaseModel):
         wrap_libsbml(sbml_compartment.setSize, self.initial_volume)
         wrap_libsbml(sbml_compartment.setConstant, False)
         if self.comments:
-            wrap_libsbml(sbml_compartment.appendNotes, str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_compartment.setNotes, self.comments, True)
         return sbml_compartment
 
 
@@ -1175,7 +1175,7 @@ class Species(BaseModel):
         # add some SpeciesType data
         wrap_libsbml(sbml_species.setName, self.species_type.name)
         if self.species_type.comments:
-            wrap_libsbml(sbml_species.appendNotes, str_to_xmlstr(self.species_type.comments))
+            wrap_libsbml(sbml_species.setNotes, self.species_type.comments, True)
 
         # set Compartment, which must already be in the SBML document
         wrap_libsbml(sbml_species.setCompartment, self.compartment.id)
@@ -1290,7 +1290,7 @@ class Reaction(BaseModel):
         wrap_libsbml(sbml_reaction.setFast, False)
         wrap_libsbml(sbml_reaction.setCompartment, self.submodel.compartment.id)
         if self.comments:
-            wrap_libsbml(sbml_reaction.appendNotes, str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 
         # write reaction participants to SBML document
         for participant in self.participants:
@@ -1680,7 +1680,7 @@ class BiomassReaction(BaseModel):
         wrap_libsbml(sbml_reaction.setReversible, False)
         wrap_libsbml(sbml_reaction.setFast, False)
         if self.comments:
-            wrap_libsbml(sbml_reaction.appendNotes, str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 
         # write biomass reaction participants to SBML document
         for biomass_component in self.biomass_components:
