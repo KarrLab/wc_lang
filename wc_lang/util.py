@@ -40,13 +40,15 @@ def get_model_summary(model):
         :obj:`str`: textual summary of the model
     """
     return "Model with:" \
-        + "\n-{:d} submodels".format(len(model.get_submodels())) \
-        + "\n-{:d} compartments".format(len(model.get_compartments())) \
-        + "\n-{:d} species types".format(len(model.get_species_types())) \
-        + "\n-{:d} species".format(len(model.get_species())) \
-        + "\n-{:d} parameters".format(len(model.get_parameters())) \
-        + "\n-{:d} references".format(len(model.get_references())) \
-        + "\n-{:d} reactions".format(len(model.get_reactions()))
+        + "\n{:d} submodels".format(len(model.get_submodels())) \
+        + "\n{:d} compartments".format(len(model.get_compartments())) \
+        + "\n{:d} species types".format(len(model.get_species_types())) \
+        + "\n{:d} species".format(len(model.get_species())) \
+        + "\n{:d} parameters".format(len(model.get_parameters())) \
+        + "\n{:d} references".format(len(model.get_references())) \
+        + "\n{:d} biomass reactions".format(len(model.get_biomass_reactions())) \
+        + "\n{:d} reactions".format(len(model.get_reactions())) \
+        + "\n{:d} rate laws".format(len(model.get_rate_laws()))
 
 
 def get_reaction_string(reaction):

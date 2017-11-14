@@ -48,7 +48,6 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
     init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.rate_law_utils import RateLawUtils
-from libsbml import (XMLNode,)
 import re
 import sys
 
@@ -612,7 +611,8 @@ class Model(BaseModel):
         Returns:
             :obj:`BaseModel`: component with `id`, or `None` if there is no component with `id`=`id`
         """
-        types = ['compartment', 'species_type', 'submodel', 'reaction', 'parameter', 'reference']
+        types = ['compartment', 'species_type', 'submodel', 'reaction', 'biomass_reaction',
+            'parameter', 'reference']
         if type not in types:
             raise ValueError("Type '{}' not one of '{}'".format(type, ', '.join(types)))
 

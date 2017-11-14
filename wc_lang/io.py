@@ -1,6 +1,7 @@
 """ Reading and writing models to/from files.
 
 Supported file types:
+
 * Comma separated values (.csv)
 * Excel (.xlsx)
 * Tab separated values (.tsv)
@@ -74,10 +75,14 @@ class Reader(object):
 
 
 def convert(source, destination):
-    """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv)
+    """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated model formats (.tsv)
+
+    Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
+    delimiter separated set of models must be represented by a Unix glob pattern (with a \*) that
+    matches all delimiter separated files.
 
     Args:
-        source (:obj:`str`): path to source file
+        source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
     """
     io.convert(source, destination, models=Writer.model_order)

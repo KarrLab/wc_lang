@@ -183,6 +183,7 @@ class TestExampleModel(unittest.TestCase):
         Writer().run(self.filename, model)
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
+        # note that models must be sorted by id for this assertion to hold
         self.assertEqual(copy, original)
 
         # compare models
