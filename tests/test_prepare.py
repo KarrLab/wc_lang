@@ -22,6 +22,7 @@ from wc_lang.config import paths as config_paths_wc_lang
 config_wc_lang = \
     ConfigManager(config_paths_wc_lang.core).get_config()['wc_lang']
 
+
 class TestPrepareModel(unittest.TestCase):
 
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
@@ -34,27 +35,29 @@ class TestPrepareModel(unittest.TestCase):
         self.model = Reader().run(self.MODEL_FILENAME)
         self.prepare_model = PrepareModel(self.model)
 
-    def test_fill_dfba_submodel_reaction_gaps(self):
+    def test_create_dfba_exchange_rxns(self):
         dfba_submodel = Submodel.objects.get_one(id='submodel_1')
+        EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
+
         self.assertEqual(
-            self.prepare_model.fill_dfba_submodel_reaction_gaps(dfba_submodel), 3)
+            self.prepare_model.create_dfba_exchange_rxns(dfba_submodel, EXTRACELLULAR_COMPARTMENT_ID), 2)
 
-        produced = set()
-        consumed = set()
-        GAP_FILLING_RXN_ID_PREFIX = config_wc_lang['GAP_FILLING_RXN_ID_PREFIX']
-        GAP_FILLING_RXN_NAME_PREFIX = config_wc_lang['GAP_FILLING_RXN_NAME_PREFIX']
+        # should add these exchange reactions:
+        # -> specie_1[e]
+        # -> specie_2[e]
+        EXCHANGE_RXN_ID_PREFIX = config_wc_lang['EXCHANGE_RXN_ID_PREFIX']
+        species_found = set()
         for rxn in dfba_submodel.reactions:
-            if rxn.id.startswith(GAP_FILLING_RXN_ID_PREFIX):
-                for part in rxn.participants:
-                    if part.coefficient<0:
-                        consumed.add(part.species)
-                    elif 0<part.coefficient:
-                        produced.add(part.species)
+            if EXCHANGE_RXN_ID_PREFIX in rxn.id:
+                self.assertEqual(-float('inf'), rxn.min_flux)
+                self.assertEqual(float('inf'), rxn.max_flux)
+                self.assertEqual(1, len(rxn.participants))
+                for participant in rxn.participants:
+                    self.assertEqual(1, participant.coefficient)
+                    species_found.add(participant.species)
 
-        expected_produced = Species.get(['specie_1[e]', 'specie_2[e]'], dfba_submodel.get_species())
-        expected_consumed = Species.get(['specie_1[c]'], dfba_submodel.get_species())
-        self.assertEqual(produced, set(expected_produced))
-        self.assertEqual(consumed, set(expected_consumed))
+        self.assertEqual(species_found,
+            set(Species.get(['specie_1[e]', 'specie_2[e]'], dfba_submodel.get_species())))
 
     def test_confirm_dfba_submodel_obj_func(self):
         dfba_submodel = Submodel.objects.get_one(id='submodel_1')
