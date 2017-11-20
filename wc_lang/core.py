@@ -497,14 +497,20 @@ class Model(BaseModel):
             :obj:`list` of `Species`: species
         """
         species = []
+        species_set = set()
 
         for submodel in self.submodels:
-            species.extend(submodel.get_species())
+            for specie in submodel.get_species():
+                if not specie in species_set:
+                    species.append(specie)
+                    species_set.add(specie)
 
         for concentation in self.get_concentrations():
-            species.append(concentation.species)
+            if not concentation.species in species_set:
+                species.append(concentation.species)
+                species_set.add(concentation.species)
 
-        return list(set(species))
+        return species
 
     def get_concentrations(self):
         """ Get all concentrations from species types
@@ -690,11 +696,15 @@ class Submodel(BaseModel):
             :obj:`list` of `Species`: species in reactions
         """
         species = []
+        species_set = set()
 
         for rxn in self.reactions:
-            species.extend(rxn.get_species())
+            for specie in rxn.get_species():
+                if not specie in species_set:
+                    species.append(specie)
+                    species_set.add(specie)
 
-        return list(set(species))
+        return species
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
@@ -928,7 +938,7 @@ class Compartment(BaseModel):
         cross_references (:obj:`list` of `CrossReference`): cross references
         concentrations (:obj:`list` of `Concentration`): concentrations
         reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
-        biomass_reactions (:obj:`list` of `BiomassReaction`): biomas reactions defined for this
+        biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions defined for this
             compartment
     """
     id = SlugAttribute()
@@ -1263,10 +1273,14 @@ class Reaction(BaseModel):
         for part in self.participants:
             species.append(part.species)
 
+        species_set = set()
         for rate_law in self.rate_laws:
-            species.extend(rate_law.equation.modifiers)
+            for specie in rate_law.equation.modifiers:
+                if not specie in species_set:
+                    species.append(specie)
+                    species_set.add(specie)
 
-        return list(set(species))
+        return species
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Reaction to a libsbml SBML document.
