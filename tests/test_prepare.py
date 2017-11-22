@@ -14,7 +14,7 @@ from wc_lang.core import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesT
     Compartment, ReactionParticipant, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
     Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType)
 from wc_lang.io import Reader
-from wc_lang.prepare import PrepareModel, CheckModel
+from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
 
 # configuration
 from wc_utils.config.core import ConfigManager
@@ -162,7 +162,7 @@ class TestPrepareModel(unittest.TestCase):
         self.assertFalse(of.linear)
 
 
-class TestGapFinding(unittest.TestCase):
+class TestAnalyzeModel(unittest.TestCase):
 
     def setUp(self):
         # make model
@@ -178,7 +178,7 @@ class TestGapFinding(unittest.TestCase):
             id='metabolism', algorithm=SubmodelAlgorithm.dfba)
 
         self.id_idx = 0
-        self.prepare_model = PrepareModel(self.model)
+        self.analyze_model = AnalyzeModel(self.model)
 
     def next_id(self):
         self.id_idx += 1
@@ -209,19 +209,19 @@ class TestGapFinding(unittest.TestCase):
         self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':3, 'reversible':False})
 
         # no dead end species -> no inactive reactions
-        self.assertEqual(self.prepare_model.get_inactive_reactions(self.dfba_submodel, (set(), set())), [])
+        self.assertEqual(self.analyze_model.get_inactive_reactions(self.dfba_submodel, (set(), set())), [])
 
         # one dead end species -> 2 inactive reactions
         first_specie = self.species[0]
         dead_end_species = set([first_specie])
-        inactive_reactions = self.prepare_model.get_inactive_reactions(self.dfba_submodel,
+        inactive_reactions = self.analyze_model.get_inactive_reactions(self.dfba_submodel,
             (set(), dead_end_species))
         self.assertEqual(len(inactive_reactions), 2)
         self.assertIn(self.dfba_submodel.reactions[0], inactive_reactions)
         self.assertIn(self.dfba_submodel.reactions[-1], inactive_reactions)
 
     def test_find_dead_end_species(self):
-        prep_mdl = self.prepare_model
+        prep_mdl = self.analyze_model
 
         # make ring of 4 irreversible reactions
         self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':4, 'reversible':False})
@@ -267,7 +267,7 @@ class TestGapFinding(unittest.TestCase):
         self.assertFalse(species_not_produced)
 
     def test_identify_dfba_submodel_rxn_gaps(self):
-        prep_mdl = self.prepare_model
+        prep_mdl = self.analyze_model
         size = 4
         kwargs = {'size':size, 'reversible':False}
         # ring of 4 irreversible reactions -> no dead end species or inactive reactions
