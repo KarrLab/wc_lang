@@ -3,7 +3,18 @@ pip.main(['install', 'git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils']
 
 from setuptools import setup, find_packages
 from wc_utils.util.install import parse_requirements, install_dependencies
-import wc_lang
+import os
+
+# get long description
+if os.path.isfile('README.rst'):
+    with open('README.rst', 'r') as file:
+        long_description = file.read()
+else:
+    long_description = ''
+
+# get version
+with open('wc_lang/VERSION', 'r') as file:
+    version = file.read().strip()
 
 # parse dependencies and links from requirements.txt files
 with open('requirements.txt', 'r') as file:
@@ -18,10 +29,11 @@ install_dependencies(dependency_links)
 # install package
 setup(
     name="wc_lang",
-    version=wc_lang.__version__,
+    version=version,
     description="Language for describing whole-cell models",
+    long_description=long_description,
     url="https://github.com/KarrLab/wc_lang",
-    download_url='https://github.com/KarrLab/wc_lang/tarball/{}'.format(wc_lang.__version__),
+    download_url='https://github.com/KarrLab/wc_lang',
     author="Jonathan Karr",
     author_email="jonrkarr@gmail.com",
     license="MIT",
@@ -29,6 +41,7 @@ setup(
     packages=find_packages(exclude=['tests', 'tests.*']),
     package_data={
         'wc_lang': [
+            'VERSION',
         ],
     },
     install_requires=install_requires,

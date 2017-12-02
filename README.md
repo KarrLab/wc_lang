@@ -1,4 +1,4 @@
-<!-- [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) -->
+[//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) )
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](http://code.karrlab.org)
 [![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield&circle-token=f0edfe4f971e8871ebb097bdc7b10a270cd90a96)](https://circleci.com/gh/KarrLab/wc_lang)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg?t=xViD7w)](https://coveralls.io/github/KarrLab/wc_lang)
