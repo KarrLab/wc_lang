@@ -9,6 +9,7 @@ import os
 import unittest
 import six
 import numpy as np
+import re
 
 from wc_lang.core import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
     Compartment, ReactionParticipant, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
@@ -164,6 +165,20 @@ class TestPrepareModel(unittest.TestCase):
 
 class TestAnalyzeModel(unittest.TestCase):
 
+    RNX_ID_PREFIX = 'rxn'
+    SPECIES_ID_PREFIX = 'spec_type'
+    default_max_flux = 10000
+
+    def rxn_id(self, n):
+        return "{}_{}".format(TestAnalyzeModel.RNX_ID_PREFIX, n)
+
+    def sp_id(self, n):
+        return "{}_{}".format(TestAnalyzeModel.SPECIES_ID_PREFIX, n)
+
+    def next_id(self):
+        self.id_idx += 1
+        return self.rxn_id(self.id_idx)
+
     def setUp(self):
         # make model
         self.model = Model(id='model')
@@ -171,7 +186,7 @@ class TestAnalyzeModel(unittest.TestCase):
         self.species = []
         self.num_species = 20
         for i in range(1, self.num_species+1):
-            spec_type = self.model.species_types.create(id='spec_type_{}'.format(i),
+            spec_type = self.model.species_types.create(id=self.sp_id(i),
                 type=SpeciesTypeType.metabolite)
             self.species.append(Species(species_type=spec_type, compartment=comp))
         self.dfba_submodel = self.model.submodels.create(
@@ -180,12 +195,12 @@ class TestAnalyzeModel(unittest.TestCase):
         self.id_idx = 0
         self.analyze_model = AnalyzeModel(self.model)
 
-    def next_id(self):
-        self.id_idx += 1
-        return "rxn_{}".format(self.id_idx)
-
-    def make_reaction(self, submodel, reactant, product, reversible=True):
-        rxn = submodel.reactions.create(id=self.next_id(), reversible=reversible)
+    def make_reaction(self, submodel, reactant, product, **kwargs):
+        reversible = True
+        if 'reversible' in kwargs: reversible = kwargs['reversible']
+        max_flux = TestAnalyzeModel.default_max_flux
+        if 'max_flux' in kwargs: max_flux = kwargs['max_flux']
+        rxn = submodel.reactions.create(id=self.next_id(), reversible=reversible, max_flux=max_flux)
         rxn.participants.create(species=reactant, coefficient=-1)
         rxn.participants.create(species=product, coefficient=1)
 
@@ -194,19 +209,19 @@ class TestAnalyzeModel(unittest.TestCase):
         # first delete all Reactions
         submodel.reactions = []
         if network_type == 'ring':
-            # kwargs options: size, reversible
+            # kwargs options: num_rxn, reversible, max_flux
             species = self.species
-            if len(species) < kwargs['size']:
-                self.fail("not enough species, len(species) < kwargs['size']")
-            for r_idx in range(kwargs['size']):
-                product_idx = (r_idx+1) % kwargs['size']
-                self.make_reaction(submodel, species[r_idx], species[product_idx], kwargs['reversible'])
+            if len(species) < kwargs['num_rxn']:
+                self.fail("not enough species, len(species) < kwargs['num_rxn']")
+            for reactant_idx in range(kwargs['num_rxn']):
+                product_idx = (reactant_idx+1) % kwargs['num_rxn']
+                self.make_reaction(submodel, species[reactant_idx], species[product_idx], **kwargs)
         else:
             self.Fail("Unknown network type: {}".format(network_type))
 
     def test_get_inactive_reactions(self):
         # make ring of 3 irreversible reactions
-        self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':3, 'reversible':False})
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':3, 'reversible':False})
 
         # no dead end species -> no inactive reactions
         self.assertEqual(self.analyze_model.get_inactive_reactions(self.dfba_submodel, (set(), set())), [])
@@ -224,7 +239,7 @@ class TestAnalyzeModel(unittest.TestCase):
         prep_mdl = self.analyze_model
 
         # make ring of 4 irreversible reactions
-        self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':4, 'reversible':False})
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':4, 'reversible':False})
 
         # ring with no inactive reactions -> no dead end species
         species_not_consumed, species_not_produced = prep_mdl.find_dead_end_species(self.dfba_submodel, set())
@@ -247,7 +262,7 @@ class TestAnalyzeModel(unittest.TestCase):
         self.assertFalse(species_not_produced)
 
         # make ring of 4 irreversible reactions
-        self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':4, 'reversible':False})
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':4, 'reversible':False})
         # ring with first reaction inactive ->
         #   species_not_consumed = first reaction's reactant
         #   species_not_produced = first reaction's product
@@ -259,7 +274,7 @@ class TestAnalyzeModel(unittest.TestCase):
         self.assertFalse(species_not_produced)
 
         # make ring of reversible reactions
-        self.create_reaction_network(self.dfba_submodel, 'ring', **{'size':3, 'reversible':True})
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':3, 'reversible':True})
         # ring with first reaction missing -> all species produced and consumed
         del self.dfba_submodel.reactions[0]
         species_not_consumed, species_not_produced = prep_mdl.find_dead_end_species(self.dfba_submodel, set())
@@ -268,8 +283,8 @@ class TestAnalyzeModel(unittest.TestCase):
 
     def test_identify_dfba_submodel_rxn_gaps(self):
         prep_mdl = self.analyze_model
-        size = 4
-        kwargs = {'size':size, 'reversible':False}
+        num_rxn = 4
+        kwargs = {'num_rxn':num_rxn, 'reversible':False}
         # ring of 4 irreversible reactions -> no dead end species or inactive reactions
         self.create_reaction_network(self.dfba_submodel, 'ring', **kwargs)
         (not_consumed, not_produced), inactive_rxns = prep_mdl.identify_dfba_submodel_rxn_gaps(self.dfba_submodel)
@@ -280,11 +295,115 @@ class TestAnalyzeModel(unittest.TestCase):
         # ring of 4 irreversible reactions with one missing -> all species dead end and all reactions inactive
         del self.dfba_submodel.reactions[0]
         (not_consumed, not_produced), inactive_rxns = prep_mdl.identify_dfba_submodel_rxn_gaps(self.dfba_submodel)
-        species_in_ring = set(self.species[0:size])
+        species_in_ring = set(self.species[0:num_rxn])
         self.assertEqual(not_consumed, species_in_ring)
         self.assertEqual(not_produced, species_in_ring)
         self.assertEqual(sorted(inactive_rxns, key=lambda x: x.id),
             sorted(self.dfba_submodel.reactions, key=lambda x: x.id))
+
+    def test_digraph_of_rxn_network(self):
+        self.run_test_on_digraph_of_rxn_network(5, False)
+
+    def test_digraph_of_rxn_network_reversible(self):
+        self.run_test_on_digraph_of_rxn_network(5, True)
+
+    def run_test_on_digraph_of_rxn_network(self, num_rxn, reversible):
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':num_rxn, 'reversible':reversible})
+        g = self.analyze_model.digraph_of_rxn_network(self.dfba_submodel)
+
+        for n in g.nodes():
+            if isinstance(n, Reaction):
+                self.assertTrue(TestAnalyzeModel.RNX_ID_PREFIX in n.id)
+            elif isinstance(n, Species):
+                self.assertTrue(TestAnalyzeModel.SPECIES_ID_PREFIX in n.id())
+
+        # test expected vs. actual edges
+        # expected edge id pairs
+        expected_edges = set()
+        # forward:
+        for i in range(1, num_rxn+1):
+            rxn_2_sp_edge = (self.rxn_id(i), self.sp_id((i%num_rxn)+1))
+            expected_edges.add(rxn_2_sp_edge)
+            sp_2_rxn_edge = (self.sp_id(i), self.rxn_id(i))
+            expected_edges.add(sp_2_rxn_edge)
+        if reversible:
+            for i in range(1, num_rxn+1):
+                rxn_2_sp_edge = (self.rxn_id(i), self.sp_id(i))
+                expected_edges.add(rxn_2_sp_edge)
+                sp_2_rxn_edge = (self.sp_id((i%num_rxn)+1), self.rxn_id(i))
+                expected_edges.add(sp_2_rxn_edge)
+
+        graph_edges = set()
+        for s,d in g.edges():
+            ids = []
+            for n in [s,d]:
+                if isinstance(n, Reaction): ids.append(n.id)
+                if isinstance(n, Species):
+                    # remove compartment suffix '[some_comp]'
+                    sp_type_id = n.id().split('[')[0]
+                    ids.append(sp_type_id)
+            s_id, d_id = ids
+            graph_edges.add((s_id, d_id))
+        self.assertEqual(expected_edges, graph_edges)
+
+    def test_unbounded_paths(self):
+        num_rxn = 8
+
+        ### irrreversible reactions
+        # unbounded network
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':num_rxn, 'reversible':False,
+            'max_flux':float('inf')})
+        path_len = 2*num_rxn-1
+        g = self.analyze_model.digraph_of_rxn_network(self.dfba_submodel)
+        paths = self.analyze_model.unbounded_paths(g, self.species[0], [self.species[num_rxn-1]])
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(len(paths[0]), path_len)
+
+        # bounded network
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':num_rxn, 'reversible':False})
+        g = self.analyze_model.digraph_of_rxn_network(self.dfba_submodel)
+        paths = self.analyze_model.unbounded_paths(g, self.species[0],
+            [self.species[num_rxn-1]], min_non_finite_ub=self.default_max_flux+1)
+        self.assertEqual(len(paths), 0)
+
+        ### reversible reactions, paths on both sides of ring
+        # unbounded network
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':num_rxn, 'reversible':True,
+            'max_flux':float('inf')})
+        g = self.analyze_model.digraph_of_rxn_network(self.dfba_submodel)
+        paths = self.analyze_model.unbounded_paths(g, self.species[0], [self.species[num_rxn//2]])
+        self.assertEqual(len(paths), 2)
+        for p in paths:
+            self.assertEqual(len(p), num_rxn+1)
+
+        # bounded network
+        self.create_reaction_network(self.dfba_submodel, 'ring', **{'num_rxn':num_rxn, 'reversible':True})
+        g = self.analyze_model.digraph_of_rxn_network(self.dfba_submodel)
+        paths = self.analyze_model.unbounded_paths(g, self.species[0], [self.species[num_rxn//2]],
+            min_non_finite_ub=self.default_max_flux+1)
+        self.assertEqual(len(paths), 0)
+
+    def test_path_bounds_analysis(self):
+        # read a wc model
+        MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
+        Submodel.objects.reset()
+        Reaction.objects.reset()
+        BiomassReaction.objects.reset()
+        self.model = Reader().run(MODEL_FILENAME)
+        self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
+        self.analyze_model = AnalyzeModel(self.model)
+
+        for rxn in self.dfba_submodel.reactions:
+            rxn.max_flux = 0
+        paths = self.analyze_model.path_bounds_analysis(self.dfba_submodel)
+        for k in paths.keys():
+            self.assertEqual(paths[k], [])
+
+        for rxn in self.dfba_submodel.reactions:
+            rxn.max_flux = float('inf')
+        paths = self.analyze_model.path_bounds_analysis(self.dfba_submodel)
+        self.assertEqual(len(paths['specie_1[e]']), 2)
+
 
 class TestCheckModel(unittest.TestCase):
 

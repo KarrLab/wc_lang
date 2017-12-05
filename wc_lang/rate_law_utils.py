@@ -69,8 +69,7 @@ class RateLawUtils(object):
                 ValueError: if `tokens` does not represent a specie in `species_ids`
             '''
             tokvals = [token_tmp[1] for token_tmp in tokens]
-            # TODO: centralize the format species ids in a pair of serialize & parse utilities
-            parsed_id = "{}[{}]".format(tokvals[0], tokvals[2])
+            parsed_id = wc_lang.core.Species.gen_id(tokvals[0], tokvals[2])
             if parsed_id in species_ids:
                 return " {}['{}']".format(CONCENTRATIONS_DICT, parsed_id)
             else:

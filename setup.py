@@ -3,6 +3,7 @@ pip.main(['install', 'git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils']
 
 from setuptools import setup, find_packages
 from wc_utils.util.install import parse_requirements, install_dependencies
+from wc_utils.util.list import det_dedupe
 import wc_lang
 
 # parse dependencies and links from requirements.txt files
@@ -10,7 +11,7 @@ with open('requirements.txt', 'r') as file:
     install_requires, dependency_links_install = parse_requirements(file.readlines())
 with open('tests/requirements.txt', 'r') as file:
     tests_require, dependency_links_tests = parse_requirements(file.readlines())
-dependency_links = list(set(dependency_links_install + dependency_links_tests))
+dependency_links = det_dedupe(dependency_links_install + dependency_links_tests)
 
 # install non-PyPI dependencies
 install_dependencies(dependency_links)

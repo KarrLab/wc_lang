@@ -32,12 +32,15 @@ This module also defines numerous classes that serve as attributes of these clas
 :Copyright: 2016-2017, Karr Lab
 :License: MIT
 """
+# TODO: for determinism, replace remaining list(set(list1)) expressions with det_dedupe(list1) in other packages
 
 from enum import Enum, EnumMeta
 from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
 from six import with_metaclass
+import re
+import sys
 from obj_model.core import (Model as BaseModel,
                             BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                             RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
@@ -45,11 +48,10 @@ from obj_model.core import (Model as BaseModel,
                             InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
+from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
     init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.rate_law_utils import RateLawUtils
-import re
-import sys
 
 # wc_lang generates obj_model SchemaWarning warnings because some Models lack primary attributes.
 # These models include RateLaw, ReactionParticipant, RateLawEquation, and Species.
@@ -58,6 +60,13 @@ import sys
 import warnings
 warnings.filterwarnings('ignore', '', obj_model.core.SchemaWarning, 'obj_model.core')
 
+# configuration
+from wc_utils.config.core import ConfigManager
+from wc_lang.config import paths as config_paths_wc_lang
+config_wc_lang = \
+    ConfigManager(config_paths_wc_lang.core).get_config()['wc_lang']
+
+EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
 
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
 
@@ -378,8 +387,8 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             if part_errors:
                 errors += part_errors
             else:
-                spec_primary_attribute = '{}[{}]'.format(
-                    species_type.get_primary_attribute(), compartment.get_primary_attribute())
+                spec_primary_attribute = Species.gen_id(species_type.get_primary_attribute(),
+                    compartment.get_primary_attribute())
                 species, error = Species.deserialize(self, spec_primary_attribute, objects)
                 if error:
                     raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
@@ -497,20 +506,14 @@ class Model(BaseModel):
             :obj:`list` of `Species`: species
         """
         species = []
-        species_set = set()
 
         for submodel in self.submodels:
-            for specie in submodel.get_species():
-                if not specie in species_set:
-                    species.append(specie)
-                    species_set.add(specie)
+            species.extend(submodel.get_species())
 
         for concentation in self.get_concentrations():
-            if not concentation.species in species_set:
-                species.append(concentation.species)
-                species_set.add(concentation.species)
+            species.append(concentation.species)
 
-        return species
+        return det_dedupe(species)
 
     def get_concentrations(self):
         """ Get all concentrations from species types
@@ -569,7 +572,7 @@ class Model(BaseModel):
         parameters.extend(self.parameters)
         for submodel in self.submodels:
             parameters.extend(submodel.parameters)
-        return list(set(parameters))
+        return det_dedupe(parameters)
 
     def get_references(self):
         """ Get all references from model and children
@@ -605,7 +608,7 @@ class Model(BaseModel):
         for parameter in self.get_parameters():
             refs.extend(parameter.references)
 
-        return list(set(refs))
+        return det_dedupe(refs)
 
     def get_component(self, type, id):
         """ Find model component of `type` with `id`
@@ -665,7 +668,7 @@ class Submodel(BaseModel):
         compartment (:obj:`Compartment`): the compartment that contains the submodel's species
         biomass_reaction (:obj:`BiomassReaction`): the growth reaction for a dFBA submodel
         objective_function (:obj:`ObjectiveFunction`, optional): objective function for a dFBA submodel;
-            if not provided, then `biomass_reaction` is used as the objective function
+            if not initialized, then `biomass_reaction` is used as the objective function
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
@@ -696,15 +699,22 @@ class Submodel(BaseModel):
             :obj:`list` of `Species`: species in reactions
         """
         species = []
-        species_set = set()
 
         for rxn in self.reactions:
-            for specie in rxn.get_species():
-                if not specie in species_set:
-                    species.append(specie)
-                    species_set.add(specie)
+            species.extend(rxn.get_species())
 
-        return species
+        return det_dedupe(species)
+
+    def get_ex_species(self, ex_comp_id=EXTRACELLULAR_COMPARTMENT_ID):
+        """ Get extracellular species used by this submodel
+
+        Returns:
+            :obj:`list` of `Species`: extracellular species used by this submodel
+        """
+        ex_species = []
+        for species in self.get_species():
+            if species.compartment.id == ex_comp_id: ex_species.append(species)
+        return ex_species
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
@@ -734,10 +744,11 @@ class ObjectiveFunction(BaseModel):
     Attributes:
         expression (:obj:`str`): input mathematical expression of the objective function
         linear (:obj:`bool`): indicates whether objective function is linear function of reaction fluxes
-        reactions (:obj:`list` of `Reaction`): reactions whose fluxes are used in the objective function
+        reactions (:obj:`list` of `Reaction`): if linear, reactions whose fluxes are used in the
+            objective function
         reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for reactions
-        biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions whose fluxes are used
-            in the objective function
+        biomass_reactions (:obj:`list` of `BiomassReaction`): if linear, biomass reactions whose
+            fluxes are used in the objective function
         biomass_reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for
             reactions in biomass_reactions
 
@@ -923,6 +934,31 @@ class ObjectiveFunction(BaseModel):
 
         return sbml_objective
 
+    def get_products(self):
+        """ Get the species produced by this objective function
+
+        Returns:
+            :obj:`list` of `Species`: species produced by this objective function
+        """
+        products = []
+        for reaction in self.reactions:
+            if reaction.reversible:
+                for part in reaction.participants:
+                    products.append(part.species)
+            else:
+                for part in reaction.participants:
+                    if 0<part.coefficient:
+                        products.append(part.species)
+
+        tmp_species_ids = []
+        for biomass_reaction in self.biomass_reactions:
+            for biomass_component in biomass_reaction:
+                if 0<biomass_component.coefficient:
+                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type.id,
+                        compartment=biomass_reaction.compartment.id))
+        products.extend(Species.get(tmp_species_ids, self.submodel.get_species()))
+        return det_dedupe(products)
+
 
 class Compartment(BaseModel):
     """ Compartment
@@ -1047,6 +1083,19 @@ class Species(BaseModel):
         unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
 
+    @staticmethod
+    def gen_id(species_type_id, compartment_id):
+        """ Generate a Species' primary identifier
+
+        Args:
+            species_type_id (:obj:`str`): the species_type's id
+            compartment_id (:obj:`str`): the component's id
+
+        Returns:
+            :obj:`str`: canonical identifier for a specie in a compartment, 'species_type_id[compartment_id]'
+        """
+        return '{}[{}]'.format(species_type_id, compartment_id)
+
     def id(self):
         """ Provide a Species' primary identifier
 
@@ -1061,7 +1110,7 @@ class Species(BaseModel):
         Returns:
             :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
         """
-        return '{}[{}]'.format(
+        return self.gen_id(
             self.species_type.get_primary_attribute(),
             self.compartment.get_primary_attribute())
 
@@ -1273,14 +1322,10 @@ class Reaction(BaseModel):
         for part in self.participants:
             species.append(part.species)
 
-        species_set = set()
         for rate_law in self.rate_laws:
-            for specie in rate_law.equation.modifiers:
-                if not specie in species_set:
-                    species.append(specie)
-                    species_set.add(specie)
+            species.extend(rate_law.equation.modifiers)
 
-        return species
+        return det_dedupe(species)
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Reaction to a libsbml SBML document.
@@ -1426,7 +1471,7 @@ class ReactionParticipant(BaseModel):
             coefficient = float(match.group(2) or 1.)
 
             if compartment:
-                species_id = '{}[{}]'.format(match.group(5), compartment.get_primary_attribute())
+                species_id = Species.gen_id(match.group(5), compartment.get_primary_attribute())
             else:
                 species_id = match.group(5)
 
@@ -1574,7 +1619,7 @@ class RateLawEquation(BaseModel):
             return (None, InvalidAttribute(attribute, errors))
 
         # return value
-        obj = cls(expression=value, modifiers=list(set(modifiers)))
+        obj = cls(expression=value, modifiers=det_dedupe(modifiers))
         if cls not in objects:
             objects[cls] = {}
         objects[cls][obj.serialize()] = obj

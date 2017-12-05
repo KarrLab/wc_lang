@@ -7,6 +7,8 @@
 :License: MIT
 """
 
+import os
+import unittest
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
@@ -15,7 +17,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
                           InvalidObject)
 from wc_lang.prepare import PrepareModel
-import unittest
+from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
 import libsbml
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
@@ -1053,3 +1055,19 @@ class TestCore(unittest.TestCase):
             print(workaround_document.getError(i).getShortMessage())
             print(workaround_document.getError(i).getMessage())
         self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)
+
+
+class TestCoreFromFile(unittest.TestCase):
+
+    MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
+
+    def setUp(self):
+        Submodel.objects.reset()
+        # read and initialize a model
+        self.model = Reader().run(self.MODEL_FILENAME)
+        self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
+
+    def test_get_ex_species(self):
+        ex_species = self.dfba_submodel.get_ex_species()
+        self.assertEqual(set(ex_species),
+            set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))

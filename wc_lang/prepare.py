@@ -9,6 +9,7 @@
 from math import ceil, floor, exp, log, log10, isnan
 from warnings import warn
 import ast
+import networkx as nx
 
 from obj_model import utils
 from wc_utils.util.list import difference
@@ -154,6 +155,122 @@ class AnalyzeModel(object):
                     break
         return inactive_reactions
 
+    @staticmethod
+    def digraph_of_rxn_network(submodel):
+        '''Create a NetworkX network representing the reaction network in `submodel`
+
+        To leverage the algorithms in NetworkX, map a reaction network onto a NetworkX
+        directed graph.
+        The digraph is bipartite, with `Reaction` and `Species` nodes. A reaction is represented
+        a Reaction node, with an edge from each reactant Species node to the Reaction node, and
+        an edge from the Reaction node to each product Species node.
+
+        Args:
+            submodel (:obj:`Submodel`): a DFBA submodel
+
+        Returns:
+            :obj:`DiGraph`: a NetworkX directed graph representing `submodel`'s reaction network
+        '''
+        digraph = nx.DiGraph()
+
+        # make network of obj_model.Model instances
+        for specie in submodel.get_species():
+            digraph.add_node(specie)
+        for rxn in submodel.reactions:
+            digraph.add_node(rxn)
+            for participant in rxn.participants:
+                part = participant.species
+                if participant.coefficient<0:
+                    # reactant
+                    digraph.add_edge(part, rxn)
+                elif 0<participant.coefficient:
+                    # product
+                    digraph.add_edge(rxn, part)
+            if rxn.reversible:
+                for participant in rxn.participants:
+                    part = participant.species
+                    if participant.coefficient<0:
+                        # product
+                        digraph.add_edge(rxn, part)
+                    elif 0<participant.coefficient:
+                        # reactant
+                        digraph.add_edge(part, rxn)
+        return digraph
+
+    @staticmethod
+    def path_bounds_analysis(submodel):
+        '''Perform path bounds analysis on `submodel`
+
+        To be adequately constrained, a dFBA metabolic model should have the property that each path
+        from an extracellular species to a component in the objective function contains at least
+        one reaction constrained by a finite flux upper bound.
+
+        Analyze the reaction network in `submodel` and return all paths from extracellular species
+        to objective function components that lack a finite flux upper bound.
+
+        Args:
+            submodel (:obj:`Submodel`): a DFBA submodel
+
+        Returns:
+            :obj:`dict` of `list` of `list` of :obj:: paths from extracellular species to objective
+            function components that lack a finite flux upper bound. Keys in the `dict` are the ids
+            of extracellular species; the corresponding values contain the unbounded paths for the
+            extracellular species, as returned by `unbounded_paths`.
+        '''
+        # todo: symmetrically, report reactions not on any path from ex species to obj fun components
+        digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
+        obj_fn_species = submodel.objective_function.get_products()
+        ex_species = submodel.get_ex_species()
+        all_unbounded_paths = dict()
+        for ex_specie in ex_species:
+            paths = AnalyzeModel.unbounded_paths(digraph, ex_specie, obj_fn_species)
+            all_unbounded_paths[ex_specie.id()] = paths
+        return all_unbounded_paths
+
+    # todo: replace the constant in min_non_finite_ub=1000.0
+    @staticmethod
+    def unbounded_paths(rxn_network, ex_species, obj_fn_species, min_non_finite_ub=1000.0):
+        '''Find the unbounded paths from an extracellular species to some objective function species
+
+        Return all paths in a reaction network that lack a finite flux upper bound
+        and go from `ex_species` to an objective function component.
+
+        Args:
+            rxn_network (:obj:`DiGraph`): a NetworkX directed graph representing a reaction network,
+            created by `digraph_of_rxn_network`
+            ex_species (:obj:`Species`): an extracellular `Species` that is a node in `rxn_network`
+            obj_fn_species (:obj:`list` of :obj:`Species`): objective function `Species` that are
+            also nodes in `rxn_network`
+            finite_upper_bound_limit (:obj:`float`, optional): the maximum value of a finite flux
+            upper bound
+            min_non_finite_ub (:obj:`float`, optional): flux upper bounds less than `min_non_finite_ub`
+            are considered finite
+
+        Returns:
+            :obj:`list` of `list` of :obj:: a list of the reaction paths from `ex_species`
+            to objective function components that lack a finite flux upper bound.
+            A path is a list of `Species`, `Reaction`, `Species`, ..., `Species`, starting with
+            `ex_species` and ending with an objective function component.
+        '''
+        unbounded_paths = list()
+        if not isinstance(ex_species, Species):
+            raise ValueError("'ex_species' should be a Species instance, but it is a {}".format(
+                type(ex_species).__name__))
+        for of_specie in obj_fn_species:
+            if not isinstance(ex_species, Species):
+                raise ValueError("elements of 'obj_fn_species' should be Species instances, but one is a {}".format(
+                type(of_specie).__name__))
+            for path in nx.all_simple_paths(rxn_network, source=ex_species, target=of_specie):
+                # path is a list of Species, Reaction, ..., Species
+                bounded = False
+                for i in range(1, len(path), 2):
+                    rxn = path[i]
+                    if rxn.max_flux < min_non_finite_ub:
+                        bounded = True
+                        break
+                if not bounded:
+                    unbounded_paths.append(path)
+        return unbounded_paths
 
 class PrepareModel(object):
     '''Statically prepare a model
@@ -593,8 +710,7 @@ class CheckModel(object):
         else:
             submodel_species_ids = set([s.id() for s in submodel.get_species()])
             for biomass_component in submodel.biomass_reaction.biomass_components:
-                # TODO: again, need centralized species id formatting
-                species_id = "{}[{}]".format(biomass_component.species_type.id,
+                species_id = Species.gen_id(biomass_component.species_type.id,
                     submodel.biomass_reaction.compartment.id)
                 if species_id not in submodel_species_ids:
                     errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
