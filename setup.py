@@ -29,6 +29,9 @@ setuptools.setup(
     package_data={
         name: [
             'VERSION',
+            'config/core.default.cfg',
+            'config/core.schema.cfg',
+            'config/debug.default.cfg',
         ],
     },
     install_requires=md.install_requires,
