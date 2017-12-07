@@ -1,50 +1,15 @@
-""" Utilities for writing/reading a wc_lang model to/from SBML
+""" Utilities for writing a `wc_lang` model to SBML
 
-Representations include
-* Files
-* Strings
+Includes
+
+* Exception definitions for `wc_lang.sbml`
+* Higher level functions for creating SBML objects
+* Utilities for wrapping libSBML calls and initializing libSBML models
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-09-22
+:Date: 2017-11-01
 :Copyright: 2017, Karr Lab
 :License: MIT
-"""
-
-"""
-License for code reused from libSBML:
-<!--------------------------------------------------------------------------
-This sample program is distributed under a different license than the rest
-of libSBML.  This program uses the open-source MIT license, as follows:
-##
-Copyright (c) 2013-2017 by the California Institute of Technology
-(California, USA), the European Bioinformatics Institute (EMBL-EBI, UK)
-and the University of Heidelberg (Germany), with support from the National
-Institutes of Health (USA) under grant R01GM070923.  All rights reserved.
-##
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
-##
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-##
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-##
-Neither the name of the California Institute of Technology (Caltech), nor
-of the European Bioinformatics Institute (EMBL-EBI), nor of the University
-of Heidelberg, nor the names of any contributors, may be used to endorse
-or promote products derived from this software without specific prior
-written permission.
------------------------------------------------------------------------- -->
 """
 
 import sys
@@ -67,25 +32,28 @@ def get_SBML_compatibility_method(sbml_document):
     
 
 class Error(Exception):
-    '''Base class libSBML exceptions.'''
+    '''Base class for `libSBML` exceptions
+    '''
     pass
 
 
 class LibSBMLError(Error):
-    '''Exception raised when libSBML returns an error.'''
+    '''Exception raised when libSBML returns an error
+    '''
 
     def __init__(self, msg):
         self.msg = msg
 
     def __str__(self):
-        '''Provide the Exception's msg; needed for Python 2.7, although not documented.'''
+        '''Provide the Exception's msg; needed for Python 2.7, although not documented
+        '''
         return self.msg
 
-class LibsbmlInterface(object):
+class LibSBMLInterface(object):
     '''Methods that compactly use libSBML to create SBML objects.
 
     The libSBML method calls provide horribly narrow interfaces, typically exchanging one
-    value per call, which creates extremely verbose SBML code. These methods aggregate multiple
+    value per call, which creates extremely verbose code. These methods aggregate multiple
     libSBML method calls to enable more compact usage.
     '''
 
@@ -171,9 +139,10 @@ class LibsbmlInterface(object):
             wrap_libsbml(sbml_parameter.setConstant, constant)
             return sbml_parameter
 
-create_sbml_doc_w_fbc = LibsbmlInterface._create_sbml_doc_w_fbc
-add_sbml_unit = LibsbmlInterface._add_sbml_unit
-create_sbml_parameter = LibsbmlInterface._create_sbml_parameter
+create_sbml_doc_w_fbc = LibSBMLInterface._create_sbml_doc_w_fbc
+add_sbml_unit = LibSBMLInterface._add_sbml_unit
+create_sbml_parameter = LibSBMLInterface._create_sbml_parameter
+
 
 def wrap_libsbml(method, *args, **kwargs):
     """ Wrap a libSBML method so that errors in return code can be easily handled.
