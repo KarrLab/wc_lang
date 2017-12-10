@@ -43,7 +43,7 @@ RateLawEquation
 BiomassComponent
 BiomassReaction			                                                    TBD
 Parameter			    Parameter                                           Implemented
-Reference			    
+Reference			
 CrossReference			
 
 wc_lang attribute to SBML mapping:
@@ -54,29 +54,31 @@ comments                notes
 references              notes, as a Python dict
 '''
 
-class Reader(object):
-    """ Read model objects from an SBML representation """
-
-    @staticmethod
-    def run(self, objects, models, path=None, get_related=True,
-        title=None, description=None, keywords=None, version=None,
-        language=None, creator=None):
-        """ Write a list of model objects to a string or a file in an SBML format.
-
-        Args:
-            objects (:obj:`list`): list of objects
-            models (:obj:`list`): list of model, in the order that they should
-                appear as worksheets; all models which are not in `models` will
-                follow in alphabetical order
-            path (:obj:`str`, optional): path of SBML file to write
-            title (:obj:`str`, optional): title
-            description (:obj:`str`, optional): description
-            keywords (:obj:`str`, optional): keywords
-            version (:obj:`str`, optional): version
-            language (:obj:`str`, optional): language
-            creator (:obj:`str`, optional): creator
-        """
-        pass
+#   class Reader(object):
+#       """ Read model objects from an SBML representation """
+#
+#       @staticmethod
+#       def run(self, objects, models, path=None, get_related=True,
+#           title=None, description=None, keywords=None, version=None,
+#           language=None, creator=None):
+#           """ Write a list of model objects to a string or a file in an SBML format.
+#
+#           Warning: this is an unimplemented placeholder.
+#
+#           Args:
+#               objects (:obj:`list`): list of objects
+#               models (:obj:`list`): list of model, in the order that they should
+#                   appear as worksheets; all models which are not in `models` will
+#                   follow in alphabetical order
+#               path (:obj:`str`, optional): path of SBML file to write
+#               title (:obj:`str`, optional): title
+#               description (:obj:`str`, optional): description
+#               keywords (:obj:`str`, optional): keywords
+#               version (:obj:`str`, optional): version
+#               language (:obj:`str`, optional): language
+#               creator (:obj:`str`, optional): creator
+#           """
+#           pass
 
 
 class Writer(object):
@@ -219,10 +221,10 @@ class SBMLExchange(object):
             submodel.model.get_parameters()
         return SBMLExchange.write(objects)
 
-    @staticmethod
-    def read(document):
-        """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
-
-        Warning: this is an unimplemented placeholder.
-        """
-        pass
+#       @staticmethod
+#       def read(document):
+#           """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
+#
+#           Warning: this is an unimplemented placeholder.
+#           """
+#           pass

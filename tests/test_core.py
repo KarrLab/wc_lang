@@ -1040,21 +1040,10 @@ class TestCore(unittest.TestCase):
 
         # Check the SBML document
         self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(document)), 0)
-
-        '''
-        document.checkConsistency() does not properly handle fbc_model_plugin.createObjective()
-        a bug fix is in commit https://sourceforge.net/p/sbml/code/24580/ of libsbml,
-        and will be included in the next release, scheduled for in Nov. 2017
-
-        workaround: write the sbml document to a string, read it back, and check that
-        '''
-        # TODO: avoid workaround by installing libsbml>15.5.0
-        sbml_string = wrap_libsbml(document.toSBML)
-        workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
-        for i in range(workaround_document.checkConsistency()):
-            print(workaround_document.getError(i).getShortMessage())
-            print(workaround_document.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml(workaround_document.checkConsistency), 0)
+        for i in range(document.checkConsistency()):
+            print(document.getError(i).getShortMessage())
+            print(document.getError(i).getMessage())
+        self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
 
 
 class TestCoreFromFile(unittest.TestCase):

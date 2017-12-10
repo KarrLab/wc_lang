@@ -155,14 +155,10 @@ class TestSbml(unittest.TestCase):
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
-                # TODO: avoid workaround by installing libsbml>15.5.0
                 self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
                     returns_int=True), 0)
-                sbml_string = wrap_libsbml(sbml_document.toSBML)
-                workaround_document = wrap_libsbml(readSBMLFromString, sbml_string)
-                self.check_sbml_doc(workaround_document)
+                self.check_sbml_doc(sbml_document)
                 check_document_against_model(sbml_document, self.model, self)
-
 
     def test_writer(self):
         for algorithms in [None, [SubmodelAlgorithm.dfba]]:
