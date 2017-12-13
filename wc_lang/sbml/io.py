@@ -10,11 +10,12 @@ Representations include
 :License: MIT
 """
 
+import libsbml
 import sys
 import os
+import warnings
 from os.path import split, splitext, join
 from six import iteritems
-from libsbml import readSBMLFromString, writeSBMLToFile, SBMLNamespaces, SBMLDocument
 
 from obj_model.core import Validator
 from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
@@ -127,7 +128,7 @@ class Writer(object):
                 dest = join(dirname, basename + '-' + id + ext)
                 dest = str(dest)
                 files.append(dest)
-                if not writeSBMLToFile(sbml_doc, dest):
+                if not libsbml.writeSBMLToFile(sbml_doc, dest):
                     raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
                         id, dest))
             return files
@@ -164,8 +165,8 @@ class SBMLExchange(object):
 
         error = Validator().run(objects)
         if error:
-            warn('Some data will not be written because objects are not valid:\n  {}'.format(
-                str(error).replace('\n', '\n  ').rstrip()))
+            warnings.warn('Some data will not be written because objects are not valid:\n  {}'.format(
+                str(error).replace('\n', '\n  ').rstrip()), UserWarning)
 
         grouped_objects = {}
         for obj in objects:
@@ -190,7 +191,7 @@ class SBMLExchange(object):
         model_order = [Submodel, Compartment, Parameter, Species,
             Reaction, BiomassReaction, ObjectiveFunction]
 
-        # add objects into SBMLDocument
+        # add objects into libsbml.SBMLDocument
         for model in model_order:
             if model in grouped_objects:
                 for obj in grouped_objects[model]:
@@ -209,16 +210,21 @@ class SBMLExchange(object):
             submodel (:obj:`Submodel`): a submodel
 
         Returns:
-            :obj:`SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
+            :obj:`libsbml.SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
 
         Raises:
             :obj:`ValueError`: if the SBMLDocument cannot be created
         """
-        objects = [submodel, submodel.objective_function, submodel.biomass_reaction] + \
+        objects = [submodel] + \
             submodel.get_species() + \
             submodel.reactions + \
             submodel.model.get_compartments() + \
             submodel.model.get_parameters()
+        if submodel.objective_function:
+            objects.append(submodel.objective_function)
+        if submodel.biomass_reaction:
+            objects.append(submodel.biomass_reaction)
+
         return SBMLExchange.write(objects)
 
 #       @staticmethod

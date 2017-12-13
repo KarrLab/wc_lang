@@ -14,7 +14,7 @@ Includes
 
 import sys
 from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
-    UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
+                     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
 
 from warnings import warn
 import six
@@ -27,9 +27,11 @@ SBML_VERSION = 1
 FBC_VERSION = 2
 
 # SBML compatibility method for the version being used
+
+
 def get_SBML_compatibility_method(sbml_document):
     return sbml_document.checkL3v1Compatibility
-    
+
 
 class Error(Exception):
     '''Base class for `libSBML` exceptions
@@ -48,6 +50,7 @@ class LibSBMLError(Error):
         '''Provide the Exception's msg; needed for Python 2.7, although not documented
         '''
         return self.msg
+
 
 class LibSBMLInterface(object):
     '''Methods that compactly use libSBML to create SBML objects.
@@ -183,8 +186,7 @@ def wrap_libsbml(method, *args, **kwargs):
 
     # warn about unused kwargs
     for k in kwargs.keys():
-        if k not in ['returns_int', 'debug']:
-            warn("wrap_libsbml: unknown kwargs key '{}'".format(k))
+        warn("wrap_libsbml: unknown kwargs key '{}'".format(k))
 
     new_args = []
     for arg in args:
@@ -207,7 +209,6 @@ def wrap_libsbml(method, *args, **kwargs):
     if rc == None:
         raise LibSBMLError("libSBML returned None when executing '{}'.".format(call_str))
     elif type(rc) is int:
-
         # if `method` returns an int value, do not interpret rc as an error code
         if returns_int:
             if debug:
@@ -221,22 +222,23 @@ def wrap_libsbml(method, *args, **kwargs):
         else:
             error_code = OperationReturnValue_toString(rc)
             if error_code is None:
-                warn("wrap_libsbml: unknown error code {} returned by '{}'."
-                "\nPerhaps an integer value is being returned; if so, to avoid this warning "
-                "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str))
                 if debug:
                     print("libSBML returns:", rc)
+                warn("wrap_libsbml: unknown error code {} returned by '{}'."
+                     "\nPerhaps an integer value is being returned; if so, to avoid this warning "
+                     "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str))
                 return rc
             else:
                 raise LibSBMLError("LibSBML returned error code '{}' when executing '{}'."
-                    "\nWARNING: if this libSBML call returns an int value, then this error may be "
-                    "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
-                        error_code, call_str))
+                                   "\nWARNING: if this libSBML call returns an int value, then this error may be "
+                                   "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
+                                       error_code, call_str))
     else:
         # return data provided by libSBML method
         if debug:
             print('libSBML returns:', rc)
         return rc
+
 
 def init_sbml_model(sbml_document):
     """ Create and initialize an SMBL model.
@@ -277,7 +279,7 @@ def init_sbml_model(sbml_document):
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
     add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
-        multiplier=3600.0)
+                  multiplier=3600.0)
 
     dimensionless = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')

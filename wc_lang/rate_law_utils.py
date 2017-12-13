@@ -5,13 +5,15 @@
 :Copyright: 2016-2017, Karr Lab
 :License: MIT
 '''
-import tokenize, token
+import tokenize
+import token
 from six.moves import cStringIO
 from math import isnan
 
 import wc_lang.core
 
 CONCENTRATIONS_DICT = 'concentrations'
+
 
 class RateLawUtils(object):
     '''A set of static rate_law methods '''
@@ -82,7 +84,7 @@ class RateLawUtils(object):
 
         rate_law_expression = rate_law_equation.expression
         species_ids = set([specie.serialize() for specie in species])
-        
+
         # Rate laws must be tokenized to properly construct a Python expression.
         # A prior implementation which used REs and string replace() contained a subtle bug that
         # was triggered when one species name matched the suffix of another.
@@ -122,7 +124,7 @@ class RateLawUtils(object):
                 for rate_law in reaction.rate_laws:
                     if hasattr(rate_law, 'equation'):
                         rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation,
-                            submodel.get_species())
+                                                                              submodel.get_species())
 
     @staticmethod
     def eval_reaction_rate_laws(reaction, concentrations):

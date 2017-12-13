@@ -12,6 +12,7 @@ __pycache__/
 
 # coverage files
 .coverage*
+htmlcov/
 
 # documentation files
 docs/source/

@@ -6,6 +6,7 @@
 :License: MIT
 """
 
+import capturer
 import unittest
 import os
 import six
@@ -14,12 +15,12 @@ import warnings
 # "from libsbml import *" generates "NameError: Unknown C global variable" in pytest,
 # presumably from the SWIG wrapper: http://web.mit.edu/svn/src/swig-1.3.25/Lib/python/pyinit.swg
 from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnValue_toString,
-    UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_AMPERE,
-    UNIT_KIND_AVOGADRO)
+                     UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_AMPERE,
+                     UNIT_KIND_AVOGADRO)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, add_sbml_unit,
-    create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, FBC_VERSION,
-    get_SBML_compatibility_method)
+                               create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, FBC_VERSION,
+                               get_SBML_compatibility_method)
 
 
 class TestSbml(unittest.TestCase):
@@ -42,12 +43,12 @@ class TestSbml(unittest.TestCase):
 
         self.assertEqual(
             wrap_libsbml(model.setTimeUnits, 'second',
-                debug=True, returns_int=False), LIBSBML_OPERATION_SUCCESS)
+                         debug=True, returns_int=False), LIBSBML_OPERATION_SUCCESS)
 
         with warnings.catch_warnings(record=True) as w:
             self.assertEqual(
                 wrap_libsbml(model.setTimeUnits, 'second',
-                    returns_int=True, other=3), LIBSBML_OPERATION_SUCCESS)
+                             returns_int=True, other=3), LIBSBML_OPERATION_SUCCESS)
             self.assertEqual(len(w), 1)
             self.assertIn("unknown kwargs key 'other'", str(w[-1].message))
 
@@ -119,7 +120,7 @@ class TestSbml(unittest.TestCase):
             unit_kind = -1
             wrap_libsbml(unit.setKind, unit_kind)
         self.assertIn("WARNING: if this libSBML call returns an int value, then this error may be incorrect",
-            str(context.exception))
+                      str(context.exception))
 
     def test_init_sbml_model(self):
         sbml_model = init_sbml_model(self.document)
@@ -163,8 +164,8 @@ class TestLibsbmlInterface(unittest.TestCase):
         wrap_libsbml(per_second.setIdAttribute, 'per_second')
         self.assertTrue(wrap_libsbml(per_second.hasRequiredAttributes))
         exp = -1
-        default_scale=0
-        default_multiplier=1.0
+        default_scale = 0
+        default_multiplier = 1.0
         unit = add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=exp)
         self.assertEqual(wrap_libsbml(unit.getExponent, returns_int=True), exp)
         self.assertEqual(wrap_libsbml(unit.getKind, returns_int=True), UNIT_KIND_SECOND)
@@ -174,9 +175,11 @@ class TestLibsbmlInterface(unittest.TestCase):
         strange_unit = wrap_libsbml(self.sbml_model.createUnitDefinition)
         wrap_libsbml(strange_unit.setIdAttribute, 'strange_unit')
         self.assertTrue(wrap_libsbml(strange_unit.hasRequiredAttributes))
-        exp=-4; scale=3; mult=1.23
+        exp = -4
+        scale = 3
+        mult = 1.23
         unit = add_sbml_unit(strange_unit, UNIT_KIND_MOLE,
-            exponent=exp, scale=scale, multiplier=mult)
+                             exponent=exp, scale=scale, multiplier=mult)
         self.assertEqual(wrap_libsbml(unit.getExponent, returns_int=True), exp)
         self.assertEqual(wrap_libsbml(unit.getKind, returns_int=True), UNIT_KIND_MOLE)
         self.assertEqual(wrap_libsbml(unit.getScale, returns_int=True), scale)
@@ -187,9 +190,12 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.assertIn("LibSBML returned error code", str(context.exception))
 
     def test_create_sbml_parameter(self):
-        id='id1'; name='name1'; value=13.0; constant=False
+        id = 'id1'
+        name = 'name1'
+        value = 13.0
+        constant = False
         parameter = create_sbml_parameter(self.sbml_model, id, value, 'dimensionless_ud', name=name,
-            constant=constant)
+                                          constant=constant)
         self.assertTrue(wrap_libsbml(parameter.hasRequiredAttributes))
         self.assertEqual(wrap_libsbml(parameter.getIdAttribute), id)
         self.assertEqual(wrap_libsbml(parameter.getName), name)
@@ -216,3 +222,27 @@ class TestLibsbmlInterface(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             parameter = create_sbml_parameter(self.sbml_model, id, value, units=self.per_second_id)
         self.assertIn("is already in use as a Parameter id", str(context.exception))
+
+
+class TestDebug(unittest.TestCase):
+
+    def setUp(self):
+        # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
+        self.document = create_sbml_doc_w_fbc()
+
+    def test_SBML_wrap_libsbml_with_debug(self):
+        with capturer.CaptureOutput() as capture_output:
+            wrap_libsbml(self.document.setIdAttribute, 'id', debug=True)
+            self.assertRegexpMatches(capture_output.get_text(), 'libSBML call:')
+            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')
+
+        sbml_model = wrap_libsbml(self.document.createModel)
+        unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
+        unit = add_sbml_unit(unit_def, UNIT_KIND_AVOGADRO)
+        with capturer.CaptureOutput() as capture_output:
+            wrap_libsbml(unit.getKind, returns_int=False, debug=True)
+            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')
+
+        with capturer.CaptureOutput() as capture_output:
+            wrap_libsbml(self.document.getIdAttribute, debug=True)
+            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')

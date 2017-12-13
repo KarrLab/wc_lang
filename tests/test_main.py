@@ -7,12 +7,14 @@
 """
 
 from capturer import CaptureOutput
+from obj_model.core import Validator
 from os import path
 from shutil import rmtree
 from tempfile import mkdtemp
-from wc_lang.__main__ import App as WcLangCli
-from wc_lang.core import Model
+from wc_lang import __main__
+from wc_lang.core import Model, Parameter
 from wc_lang.io import Writer, Reader
+import mock
 import unittest
 import wc_lang
 
@@ -27,20 +29,33 @@ class TestCli(unittest.TestCase):
 
     def test_get_version(self):
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['get-version']) as app:
+            with __main__.App(argv=['get-version']) as app:
                 app.run()
                 self.assertEqual(capturer.get_text(), wc_lang.__version__)
 
     def test_validate(self):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
-        self.assertEqual(model.validate(), None)
+        self.assertEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
         Writer().run(filename, model)
 
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['validate', filename]) as app:
+            with __main__.App(argv=['validate', filename]) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Model is valid')
+
+    def test_validate_exception(self):
+        model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1'))
+
+        self.assertNotEqual(Validator().run(model, get_related=True), None)
+        filename = path.join(self.tempdir, 'model.xlsx')
+        Writer().run(filename, model)
+
+        with self.assertRaisesRegexp(ValueError, '^Model is invalid: '):
+            with __main__.App(argv=['validate', filename]) as app:
+                app.run()
 
     def test_difference(self):
         model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
@@ -56,23 +71,23 @@ class TestCli(unittest.TestCase):
         Writer().run(filename3, model3)
 
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['difference', filename1, filename2]) as app:
+            with __main__.App(argv=['difference', filename1, filename2]) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['difference', filename1, filename2, '--compare-files']) as app:
+            with __main__.App(argv=['difference', filename1, filename2, '--compare-files']) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['difference', filename1, filename3]) as app:
+            with __main__.App(argv=['difference', filename1, filename3]) as app:
                 app.run()
             diff = 'Objects (Model: "model", Model: "model") have different attribute values:\n  `wc_lang_version` are not equal:\n    0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
 
         with CaptureOutput() as capturer:
-            with WcLangCli(argv=['difference', filename1, filename3, '--compare-files']) as app:
+            with __main__.App(argv=['difference', filename1, filename3, '--compare-files']) as app:
                 app.run()
             diff = 'Sheet Model:\n  Row 4:\n    Cell B: 0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
@@ -83,10 +98,20 @@ class TestCli(unittest.TestCase):
         Writer().run(source, model)
 
         destination = path.join(self.tempdir, 'destination.xlsx')
-        with WcLangCli(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
+        with __main__.App(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
             app.run()
 
         self.assertTrue(path.isfile(destination))
+
+    def test_transform_exception(self):
+        source = path.join(self.tempdir, 'source.xlsx')
+        model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        Writer().run(source, model)
+
+        destination = path.join(self.tempdir, 'destination.xlsx')
+        with self.assertRaisesRegexp(ValueError, 'Please select at least one transform'):
+            with __main__.App(argv=['transform', source, destination]) as app:
+                app.run()
 
     def test_normalize(self):
         filename_xls_1 = path.join(self.tempdir, 'model-1.xlsx')
@@ -96,14 +121,14 @@ class TestCli(unittest.TestCase):
         Writer().run(filename_xls_1, model)
 
         # with same destination
-        with WcLangCli(argv=['normalize', filename_xls_1]) as app:
+        with __main__.App(argv=['normalize', filename_xls_1]) as app:
             app.run()
 
         model2 = Reader().run(filename_xls_1)
         self.assertTrue(model2.is_equal(model))
 
         # with different destination
-        with WcLangCli(argv=['normalize', filename_xls_1, '--destination', filename_xls_2]) as app:
+        with __main__.App(argv=['normalize', filename_xls_1, '--destination', filename_xls_2]) as app:
             app.run()
 
         model2 = Reader().run(filename_xls_2)
@@ -116,7 +141,7 @@ class TestCli(unittest.TestCase):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         Writer().run(filename_xls, model)
 
-        with WcLangCli(argv=['convert', filename_xls, filename_csv]) as app:
+        with __main__.App(argv=['convert', filename_xls, filename_csv]) as app:
             app.run()
 
         self.assertTrue(path.isfile(path.join(self.tempdir, 'model-Model.csv')))
@@ -124,7 +149,7 @@ class TestCli(unittest.TestCase):
     def test_create_template(self):
         filename = path.join(self.tempdir, 'template.xlsx')
 
-        with WcLangCli(argv=['create-template', filename]) as app:
+        with __main__.App(argv=['create-template', filename]) as app:
             app.run()
 
         self.assertTrue(path.isfile(filename))
@@ -136,8 +161,14 @@ class TestCli(unittest.TestCase):
         self.assertNotEqual(model.wc_lang_version, wc_lang.__version__)
         Writer().run(filename, model)
 
-        with WcLangCli(argv=['update-wc-lang-version', filename]) as app:
+        with __main__.App(argv=['update-wc-lang-version', filename]) as app:
             app.run()
 
         model = Reader().run(filename)
         self.assertEqual(model.wc_lang_version, wc_lang.__version__)
+
+    def test_raw_cli(self):
+        with mock.patch('sys.argv', ['wc_lang', '--help']):
+            with self.assertRaises(SystemExit) as context:
+                __main__.main()
+                self.assertRegexpMatches(context.Exception, 'usage: wc_lang')

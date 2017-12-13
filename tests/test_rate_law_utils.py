@@ -59,10 +59,13 @@ class TestRateLawUtils(unittest.TestCase):
             rate_laws=[rate_law]
         )
         rate_law_equation.transcoded='foo foo'
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             RateLawUtils.eval_reaction_rate_laws(reaction, {})
         rate_law_equation.transcoded='cos(1.)'
-        with self.assertRaises(NameError) as context:
+        with self.assertRaises(NameError):
             RateLawUtils.eval_reaction_rate_laws(reaction, {})
         rate_law_equation.transcoded='log(1.)'
         self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}), [0])
+
+        with self.assertRaisesRegexp(Exception, 'Error: error in transcoded rate law'):
+            RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, transcoded_equation='"x" + concentrations["x"]')

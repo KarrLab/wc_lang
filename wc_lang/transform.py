@@ -41,7 +41,7 @@ class Transform(with_metaclass(ABCMeta, object)):
         Returns:
             :obj:`Model`: transformed model
         """
-        pass
+        pass # pragma: no cover
 
 
 class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):

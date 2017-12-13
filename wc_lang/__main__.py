@@ -42,12 +42,11 @@ class ValidateController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        model = Reader().run(args.path)
-        error = model.validate()
-        if error:
-            print(str(error))
-        else:
+        try:
+            Reader().run(args.path)  # reader already does validation
             print('Model is valid')
+        except ValueError as exception:
+            raise ValueError('Model is invalid: ' + str(exception))
 
 
 class DifferenceController(CementBaseController):
@@ -110,8 +109,7 @@ class TransformController(CementBaseController):
         args = self.app.pargs
 
         if not args.transforms:
-            print('Please select at least one transform')
-            return
+            raise ValueError('Please select at least one transform')
 
         # read model
         model = Reader().run(args.source)
@@ -227,6 +225,3 @@ class App(CementApp):
 def main():
     with App() as app:
         app.run()
-
-if __name__ == '__main__':
-    main()

@@ -7,7 +7,7 @@
 """
 
 from itertools import chain
-from wc_lang.core import (Model, Submodel, Reaction, SpeciesType, SpeciesTypeType,
+from wc_lang.core import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
                           Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
 from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
 from obj_model.core import RelatedAttribute
@@ -65,6 +65,18 @@ class TestTransform(unittest.TestCase):
         submdl_1.reactions.add(rxn_1)
         submdl_2.reactions.add(rxn_2)
 
+        submdl_0.parameters.create(id='param_0')
+        submdl_1.parameters.create(id='param_1')
+        submdl_2.parameters.create(id='param_2')
+
+        submdl_0.references.create(id='ref_0')
+        submdl_1.references.create(id='ref_1')
+        submdl_2.references.create(id='ref_2')
+
+        submdl_0.cross_references.create(id='xref_0')
+        submdl_1.cross_references.create(id='xref_1')
+        submdl_2.cross_references.create(id='xref_2')
+
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
         MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
@@ -92,6 +104,15 @@ class TestTransform(unittest.TestCase):
 
         self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
         self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
+
+        self.assertEqual(len(submdl_0.parameters) + len(submdl_1.parameters), len(merged_submdl_ssa.parameters))
+        self.assertEqual(len(submdl_2.parameters), len(merged_submdl_fba.parameters))
+
+        self.assertEqual(len(submdl_0.references) + len(submdl_1.references), len(merged_submdl_ssa.references))
+        self.assertEqual(len(submdl_2.references), len(merged_submdl_fba.references))
+
+        self.assertEqual(len(submdl_0.cross_references) + len(submdl_1.cross_references), len(merged_submdl_ssa.cross_references))
+        self.assertEqual(len(submdl_2.cross_references), len(merged_submdl_fba.cross_references))
 
     def test_split_reversible_reactions(self):
         model = Model()

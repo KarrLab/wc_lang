@@ -15,7 +15,7 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang.core import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-    Species, Concentration, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
+                          Species, Concentration, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
 from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration
@@ -28,6 +28,7 @@ EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
 
 # TODO: distinguish between preparing and analyzing a model: analyze includes gap finding
 
+
 class AnalyzeModel(object):
     '''Statically analyze a model
 
@@ -38,6 +39,7 @@ class AnalyzeModel(object):
 
         * Identify dead end species and reaction network gaps in dFBA submodels
     '''
+
     def __init__(self, model):
         self.model = model
 
@@ -118,9 +120,9 @@ class AnalyzeModel(object):
                     species_not_produced.discard(part.species)
             else:
                 for part in rxn.participants:
-                    if part.coefficient<0:
+                    if part.coefficient < 0:
                         species_not_consumed.discard(part.species)
-                    elif 0<part.coefficient:
+                    elif 0 < part.coefficient:
                         species_not_produced.discard(part.species)
         return(species_not_consumed, species_not_produced)
 
@@ -150,7 +152,7 @@ class AnalyzeModel(object):
         for rxn in submodel.reactions:
             for part in rxn.participants:
                 if (part.species in species_not_consumed or
-                    part.species in species_not_produced):
+                        part.species in species_not_produced):
                     inactive_reactions.append(rxn)
                     break
         return inactive_reactions
@@ -180,19 +182,19 @@ class AnalyzeModel(object):
             digraph.add_node(rxn)
             for participant in rxn.participants:
                 part = participant.species
-                if participant.coefficient<0:
+                if participant.coefficient < 0:
                     # reactant
                     digraph.add_edge(part, rxn)
-                elif 0<participant.coefficient:
+                elif 0 < participant.coefficient:
                     # product
                     digraph.add_edge(rxn, part)
             if rxn.reversible:
                 for participant in rxn.participants:
                     part = participant.species
-                    if participant.coefficient<0:
+                    if participant.coefficient < 0:
                         # product
                         digraph.add_edge(rxn, part)
-                    elif 0<participant.coefficient:
+                    elif 0 < participant.coefficient:
                         # reactant
                         digraph.add_edge(part, rxn)
         return digraph
@@ -257,9 +259,9 @@ class AnalyzeModel(object):
             raise ValueError("'ex_species' should be a Species instance, but it is a {}".format(
                 type(ex_species).__name__))
         for of_specie in obj_fn_species:
-            if not isinstance(ex_species, Species):
+            if not isinstance(of_specie, Species):
                 raise ValueError("elements of 'obj_fn_species' should be Species instances, but one is a {}".format(
-                type(of_specie).__name__))
+                    type(of_specie).__name__))
             for path in nx.all_simple_paths(rxn_network, source=ex_species, target=of_specie):
                 # path is a list of Species, Reaction, ..., Species
                 bounded = False
@@ -271,6 +273,7 @@ class AnalyzeModel(object):
                 if not bounded:
                     unbounded_paths.append(path)
         return unbounded_paths
+
 
 class PrepareModel(object):
     '''Statically prepare a model
@@ -285,6 +288,7 @@ class PrepareModel(object):
         * Ensure that dFBA submodels have objective functions
         * Apply default flux bounds to the reactions in dFBA submodels
     '''
+
     def __init__(self, model):
         self.model = model
 
@@ -294,9 +298,9 @@ class PrepareModel(object):
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 reactions_created = self.create_dfba_exchange_rxns(submodel,
-                    EXTRACELLULAR_COMPARTMENT_ID)
+                                                                   EXTRACELLULAR_COMPARTMENT_ID)
                 warn("{} exchange reactions created for submodel '{}'.".format(reactions_created,
-                    submodel.name))
+                                                                               submodel.name))
                 self.confirm_dfba_submodel_obj_func(submodel)
                 (min_bounds_set, max_bounds_set) = self.apply_default_dfba_submodel_flux_bounds(submodel)
                 warn("{} minimum and {} maximum default flux bounds set for submodel '{}'.".format(
@@ -308,7 +312,7 @@ class PrepareModel(object):
                 except Exception as e:
                     submodel.objective_function.linear = False
                     warn("Submodel '{}' has non-linear objective function '{}'.".format(submodel.name,
-                        submodel.objective_function.expression))
+                                                                                        submodel.objective_function.expression))
 
         self.init_concentrations()
 
@@ -349,13 +353,13 @@ class PrepareModel(object):
                 EXCHANGE_RXN_NAME_PREFIX = config_wc_lang['EXCHANGE_RXN_NAME_PREFIX']
                 # generate a "-> specie" reaction
                 new_rxn = submodel.reactions.create(
-                    id = "{}_{}".format(EXCHANGE_RXN_ID_PREFIX, reaction_number),
-                    name = "{}_{}".format(EXCHANGE_RXN_NAME_PREFIX, reaction_number),
-                    reversible = False,
-                    min_flux = -float('inf'),
-                    max_flux = float('inf'))
+                    id="{}_{}".format(EXCHANGE_RXN_ID_PREFIX, reaction_number),
+                    name="{}_{}".format(EXCHANGE_RXN_NAME_PREFIX, reaction_number),
+                    reversible=False,
+                    min_flux=-float('inf'),
+                    max_flux=float('inf'))
                 reaction_number += 1
-                new_rxn.participants.create(species=specie, coefficient = 1)
+                new_rxn.participants.create(species=specie, coefficient=1)
 
         return reaction_number-1
 
@@ -382,8 +386,8 @@ class PrepareModel(object):
 
         # use the biomass reaction as the objective, because no objective function is specified
         of = ObjectiveFunction(expression=submodel.biomass_reaction.id,
-            reactions=[],
-            biomass_reactions=[submodel.biomass_reaction])
+                               reactions=[],
+                               biomass_reactions=[submodel.biomass_reaction])
 
         of.reaction_coefficients = []
         of.biomass_reaction_coefficients = [1.0]
@@ -420,69 +424,11 @@ class PrepareModel(object):
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
-        def proc_mult(node, linear_expr):
-            ''' Process a Mult node in the ast.
-
-            Append the Mult node's coefficient and reaction id to `linear_expr`.
-
-            Args:
-                node (:obj:`ast.BinOp`): an ast binary operation that uses multiplication
-                linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
-
-            Raises:
-                :obj:`ValueError`: if the Mult node does not have one Name and one Num (which may be negative)
-            '''
-            nums = []
-            names = []
-            sign = 1.0
-            for element in [node.left, node.right]:
-                if isinstance(element, ast.Num):
-                    nums.append(element)
-                if isinstance(element, ast.UnaryOp) and isinstance(element.op, ast.USub):
-                    # the coefficient is negative
-                    sign = -1.0
-                    nums.append(element.operand)
-                if isinstance(element, ast.Name):
-                    names.append(element)
-            if not (len(nums)==1 and len(names)==1):
-                raise ValueError("bad Mult")
-            linear_expr.append((sign*nums[0].n, names[0].id))
-
-        def proc_add(node, linear_expr):
-            ''' Process an Add node in the ast.
-
-            Append the Add node's coefficient(s) and reaction id(s) to `linear_expr`.
-
-            Args:
-                node (:obj:`ast.BinOp`): an ast binary operation that uses addition
-                linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
-
-            Raises:
-                :obj:`ValueError`: if the Add node does not have a total of 2 Names, Mults, and Adds.
-            '''
-            names = []
-            mults = []
-            adds = 0
-            for element in [node.left, node.right]:
-                if isinstance(element, ast.Name):
-                    names.append(element)
-                if isinstance(element, ast.BinOp):
-                    if isinstance(element.op, ast.Mult):
-                        mults.append(element)
-                    if isinstance(element.op, ast.Add):
-                        adds += 1
-            if len(names) + len(mults) + adds != 2:
-                raise ValueError("bad Add")
-            # A Name that's not in a mult. op. is multiplied by 1.0 by default
-            # An Add may contain 2 of them
-            for name in names:
-                linear_expr.append((1.0, name.id))
-
         linear_expr = []    # list of (coeff, reaction_id)
         objective_function = submodel.objective_function
         objective_function.expression = objective_function.expression.strip()
         expected_nodes = (ast.Add, ast.Expression, ast.Load, ast.Mult, ast.Num, ast.USub,
-            ast.UnaryOp, ast.Name)
+                          ast.UnaryOp, ast.Name)
         try:
             for node in ast.walk(ast.parse(objective_function.expression, mode='eval')):
                 try:
@@ -491,47 +437,107 @@ class PrepareModel(object):
                         linear_expr.append((1.0, node.id))
                     elif isinstance(node, ast.BinOp):
                         if isinstance(node.op, ast.Mult):
-                            proc_mult(node, linear_expr)
+                            self._proc_mult(node, linear_expr)
                         elif isinstance(node.op, ast.Add):
-                            proc_add(node, linear_expr)
+                            self._proc_add(node, linear_expr)
                     elif isinstance(node, expected_nodes):
                         continue
                     else:
                         raise ValueError()
                 except ValueError:
                     raise ValueError("Cannot parse objective function '{}' as a linear function of "
-                        "reaction ids.".format(objective_function.expression))
+                                     "reaction ids.".format(objective_function.expression))
         except Exception as e:
             raise ValueError("Cannot parse objective function '{}'.".format(objective_function.expression))
 
         # error if multiple uses of a reaction in an objective function
         seen = set()
         dupes = []
-        for id in [id for coeff,id in linear_expr]:
+        for id in [id for coeff, id in linear_expr]:
             if id in seen and id not in dupes:
                 dupes.append(id)
             seen.add(id)
         if dupes:
             raise ValueError("Multiple uses of '{}' in objective function '{}'.".format(dupes,
-                objective_function.expression))
+                                                                                        objective_function.expression))
         reactions = []
         biomass_reactions = []
 
-        for coeff,id in linear_expr:
+        for coeff, id in linear_expr:
 
             reaction = get_component_by_id(submodel.model.get_reactions(), id)
             if reaction:
-                reactions.append((coeff,id),)
+                reactions.append((coeff, id),)
                 continue
 
             biomass_reaction = get_component_by_id(submodel.model.get_biomass_reactions(), id)
             if biomass_reaction:
-                biomass_reactions.append((coeff,id),)
+                biomass_reactions.append((coeff, id),)
                 continue
 
-            raise ValueError("Unknown reaction or biomass reaction id '{}' in objective function '{}'.".format(id,
-                objective_function.expression))
+            raise ValueError("Unknown reaction or biomass reaction id '{}' in objective function '{}'.".format(
+                id, objective_function.expression))
         return (reactions, biomass_reactions)
+
+    @staticmethod
+    def _proc_mult(node, linear_expr):
+        ''' Process a Mult node in the ast.
+
+        Append the Mult node's coefficient and reaction id to `linear_expr`.
+
+        Args:
+            node (:obj:`ast.BinOp`): an ast binary operation that uses multiplication
+            linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
+
+        Raises:
+            :obj:`ValueError`: if the Mult node does not have one Name and one Num (which may be negative)
+        '''
+        nums = []
+        names = []
+        sign = 1.0
+        for element in [node.left, node.right]:
+            if isinstance(element, ast.Num):
+                nums.append(element)
+            if isinstance(element, ast.UnaryOp) and isinstance(element.op, ast.USub):
+                # the coefficient is negative
+                sign = -1.0
+                nums.append(element.operand)
+            if isinstance(element, ast.Name):
+                names.append(element)
+        if not (len(nums) == 1 and len(names) == 1):
+            raise ValueError("bad Mult")
+        linear_expr.append((sign*nums[0].n, names[0].id))
+
+    @staticmethod
+    def _proc_add(node, linear_expr):
+        ''' Process an Add node in the ast.
+
+        Append the Add node's coefficient(s) and reaction id(s) to `linear_expr`.
+
+        Args:
+            node (:obj:`ast.BinOp`): an ast binary operation that uses addition
+            linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
+
+        Raises:
+            :obj:`ValueError`: if the Add node does not have a total of 2 Names, Mults, and Adds.
+        '''
+        names = []
+        mults = []
+        adds = 0
+        for element in [node.left, node.right]:
+            if isinstance(element, ast.Name):
+                names.append(element)
+            if isinstance(element, ast.BinOp):
+                if isinstance(element.op, ast.Mult):
+                    mults.append(element)
+                if isinstance(element.op, ast.Add):
+                    adds += 1
+        if len(names) + len(mults) + adds != 2:
+            raise ValueError("bad Add")
+        # A Name that's not in a mult. op. is multiplied by 1.0 by default
+        # An Add may contain 2 of them
+        for name in names:
+            linear_expr.append((1.0, name.id))
 
     @staticmethod
     def assign_linear_objective_fn(submodel, reactions, biomass_reactions):
@@ -550,11 +556,11 @@ class PrepareModel(object):
             ValueError: if `submodel` is not a dFBA submodel
         '''
         of = submodel.objective_function
-        of.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff,id in reactions]
-        of.reaction_coefficients = [coeff for coeff,id in reactions]
+        of.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff, id in reactions]
+        of.reaction_coefficients = [coeff for coeff, id in reactions]
         of.biomass_reactions = [get_component_by_id(submodel.model.get_biomass_reactions(), id)
-            for coeff,id in biomass_reactions]
-        of.biomass_reaction_coefficients = [coeff for coeff,id in biomass_reactions]
+                                for coeff, id in biomass_reactions]
+        of.biomass_reaction_coefficients = [coeff for coeff, id in biomass_reactions]
 
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
         ''' Apply default flux bounds to a dFBA submodel's reactions
@@ -594,7 +600,7 @@ class PrepareModel(object):
             need_default_flux_bounds = need_default_flux_bounds or isnan(rxn.min_flux) or isnan(rxn.max_flux)
         if not need_default_flux_bounds:
             # all reactions have flux bounds
-            return (0,0)
+            return (0, 0)
 
         # Are default flux bounds available? They cannot be negative.
         try:
@@ -604,8 +610,8 @@ class PrepareModel(object):
             raise ValueError("cannot obtain default_min_flux_bound and default_max_flux_bound=")
         if not 0 <= default_min_flux_bound <= default_max_flux_bound:
             raise ValueError("default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:\n"
-            "default_min_flux_bound={}; default_max_flux_bound={}".format(default_min_flux_bound,
-                default_max_flux_bound))
+                             "default_min_flux_bound={}; default_max_flux_bound={}".format(default_min_flux_bound,
+                                                                                           default_max_flux_bound))
 
         # Apply default flux bounds to reactions in submodel
         num_default_min_flux_bounds = 0
@@ -629,6 +635,7 @@ class PrepareModel(object):
                 warn("setting concentration for {} to 0.0".format(specie.id()))
                 specie.concentrations = Concentration(species=specie, value=0.0)
 
+
 class CheckModel(object):
     '''Statically check a model
 
@@ -636,13 +643,13 @@ class CheckModel(object):
     to be used. `CheckModel` evaluates these properties.
 
     Currently checked properties:
-        
+
         * DFBA submodels contain a biomass reaction and an objective function
         * Rate laws transcode and evaluate without error
         * All reactants in each submodel's reactions are in the submodel's compartment
 
     Other properties to be checked:
-        
+
         * The model does not contain dead-end species which are only consumed or produced
         * Reactions are balanced
         * Reactions in dynamic submodels contain fully specified rate laws
@@ -655,6 +662,7 @@ class CheckModel(object):
 
     # TODO: fix doc string formatting
     '''
+
     def __init__(self, model):
         self.model = model
 
@@ -711,10 +719,10 @@ class CheckModel(object):
             submodel_species_ids = set([s.id() for s in submodel.get_species()])
             for biomass_component in submodel.biomass_reaction.biomass_components:
                 species_id = Species.gen_id(biomass_component.species_type.id,
-                    submodel.biomass_reaction.compartment.id)
+                                            submodel.biomass_reaction.compartment.id)
                 if species_id not in submodel_species_ids:
                     errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
-                        "submodel '{}'.".format(species_id, submodel.biomass_reaction.name, submodel.name))
+                                  "submodel '{}'.".format(species_id, submodel.biomass_reaction.name, submodel.name))
 
         return errors
 
@@ -739,16 +747,16 @@ class CheckModel(object):
                 direction_types.add(rate_law.direction.name)
             if not direction_types:
                 errors.append("Error: reaction '{}' in submodel '{}' has no "
-                    "rate law specified".format(reaction.name, submodel.name))
+                              "rate law specified".format(reaction.name, submodel.name))
             if reaction.reversible:     # reversible is redundant with a reaction's rate laws
                 if direction_types.symmetric_difference(set(('forward', 'backward'))):
                     errors.append("Error: reaction '{}' in submodel '{}' is reversible but has only "
-                        "a '{}' rate law specified".format(reaction.name, submodel.name,
-                        direction_types.pop()))
+                                  "a '{}' rate law specified".format(reaction.name, submodel.name,
+                                                                     direction_types.pop()))
             else:
                 if direction_types.symmetric_difference(set(('forward',))):
                     errors.append("Error: reaction '{}' in submodel '{}' is not reversible but has "
-                        "a 'backward' rate law specified".format(reaction.name, submodel.name))
+                                  "a 'backward' rate law specified".format(reaction.name, submodel.name))
         return errors
 
     def transcode_and_check_rate_law_equations(self):
@@ -797,8 +805,9 @@ class CheckModel(object):
                     if participant.coefficient < 0:     # select reactants
                         if participant.species.compartment != compartment:
                             error = "submodel '{}' models compartment {}, but its reaction {} uses "\
-                            "specie {} in another compartment: {}".format(lang_submodel.id,
-                                compartment.id, reaction.id, participant.species.species_type.id,
-                                participant.species.compartment.id)
+                                "specie {} in another compartment: {}".format(
+                                    lang_submodel.id,
+                                    compartment.id, reaction.id, participant.species.species_type.id,
+                                    participant.species.compartment.id)
                             errors.append(error)
         return errors

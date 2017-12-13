@@ -6,14 +6,15 @@
 :License: MIT
 """
 
-import unittest
-import os
 from math import isnan
 from six import iteritems
-import tempfile
+import mock
+import os
 import shutil
+import tempfile
+import unittest
 
-from libsbml import readSBMLFromString, writeSBMLToFile, SBMLReader, SBMLDocument
+import libsbml
 from libsbml import Compartment as libsbmlCompartment
 from libsbml import Species as libsbmlSpecies
 from libsbml import Parameter as libsbmlParameter
@@ -23,8 +24,8 @@ from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
 from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
-    Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
-    BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
+                          Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
+                          BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference)
 from wc_lang.prepare import PrepareModel, CheckModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
@@ -35,6 +36,7 @@ import wc_lang.sbml.io as sbml_io
 import warnings
 warnings.filterwarnings('ignore', '.*setting concentration.*', )
 
+
 def check_document_against_model(sbml_document, wc_lang_model, test_case):
     """ Compare an SBML document against a wc lang model.
 
@@ -42,7 +44,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
     instances in `wc_lang_model` may be missing from `sbml_document`.
 
     Args:
-        sbml_document (:obj:`SBMLDocument`): a libsbml SBMLDocument
+        sbml_document (:obj:`libsbml.SBMLDocument`): a libsbml SBMLDocument
         wc_lang_model (:obj:`Model`): a wc lang `Model` with species, reactions, compartments or parameters
         test_case (:obj:`unittest.TestCase`): a unittest TestCase
     """
@@ -51,7 +53,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
         # compartments
         if isinstance(element, libsbmlCompartment):
             wc_lang_compartment = get_component_by_id(wc_lang_model.get_compartments(),
-                element.getIdAttribute())
+                                                      element.getIdAttribute())
             test_case.assertEqual(element.getName(), wc_lang_compartment.name)
             test_case.assertEqual(element.getSpatialDimensions(), 3)
             test_case.assertEqual(element.getSize(), wc_lang_compartment.initial_volume)
@@ -95,7 +97,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 # not checking: participants and flux bounds
 
             wc_lang_biomass_reaction = get_component_by_id(wc_lang_model.get_biomass_reactions(),
-                    element.getIdAttribute())
+                                                           element.getIdAttribute())
             # test BiomassReaction
             if wc_lang_biomass_reaction:
                 test_case.assertEqual(element.getName(), wc_lang_biomass_reaction.name)
@@ -121,6 +123,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             # not checking: reactions, or biomass_reactions
 
             # TODO: check remaining elements
+
 
 class TestSbml(unittest.TestCase):
 
@@ -156,9 +159,21 @@ class TestSbml(unittest.TestCase):
                 sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
                 self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
-                    returns_int=True), 0)
+                                              returns_int=True), 0)
                 self.check_sbml_doc(sbml_document)
                 check_document_against_model(sbml_document, self.model, self)
+
+    def test_SBML_Exchange_warning(self):
+        model = Model(id='model')
+        met_submodel = model.submodels.create(id='Metabolism', algorithm=SubmodelAlgorithm.ssa)
+        met_submodel.parameters.append(Parameter(id='param_1'))
+        met_submodel.parameters.append(Parameter(id='param_1'))
+
+        with self.assertRaisesRegexp(UserWarning, 'Some data will not be written because objects are not valid'):
+            warnings.simplefilter("ignore")
+            warnings.simplefilter("error", UserWarning)
+            sbml_document = sbml_io.SBMLExchange.write_submodel(met_submodel)
+            warnings.resetwarnings()
 
     def test_writer(self):
         for algorithms in [None, [SubmodelAlgorithm.dfba]]:
@@ -167,9 +182,9 @@ class TestSbml(unittest.TestCase):
                 paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=self.dirname)
             except Exception as e:
                 self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
-            for submodel_id,path in zip(sbml_documents.keys(), paths):
+            for submodel_id, path in zip(sbml_documents.keys(), paths):
 
-                document = SBMLReader().readSBML(path)
+                document = libsbml.SBMLReader().readSBML(path)
                 self.check_sbml_doc(document)
 
                 self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
@@ -181,3 +196,10 @@ class TestSbml(unittest.TestCase):
             sbml_io.Writer.run(self.model, path=root_path)
         self.assertIn('cannot write to directory', str(context.exception))
         self.assertIn('no_such_dir', str(context.exception))
+
+        with self.assertRaisesRegexp(ValueError, 'No submodel.algorithm in algorithms'):
+            sbml_io.Writer.run(self.model, algorithms=[])
+
+        with mock.patch('libsbml.writeSBMLToFile', return_value=False):
+            with self.assertRaisesRegexp(ValueError, ' could not be written to '):
+                sbml_io.Writer.run(self.model, path=self.dirname)

@@ -12,6 +12,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, 
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
+import obj_model.io
 import os
 import shutil
 import tempfile
@@ -190,3 +191,21 @@ class TestExampleModel(unittest.TestCase):
         model2 = Reader().run(self.filename)
         self.assertTrue(model2.is_equal(model))
         self.assertTrue(model.difference(model2) == '')
+
+
+class TestReaderException(unittest.TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test(self):
+        model1 = Model(id='model1', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model2 = Model(id='model2', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        obj_model.io.Writer().run(filename, [model1, model2], Writer.model_order)
+
+        with self.assertRaisesRegexp(ValueError, ' should only define one model$'):
+            Reader().run(filename)
