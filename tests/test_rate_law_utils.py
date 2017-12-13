@@ -5,7 +5,8 @@
 :License: MIT
 '''
 
-import unittest, os
+import unittest
+import os
 
 from wc_lang.io import Reader
 from wc_lang.core import RateLawEquation, RateLaw, Reaction, Submodel, Species
@@ -17,13 +18,13 @@ class TestRateLawUtils(unittest.TestCase):
     # test_model_bad_species_names.xlsx contains the species names 'specie_1' and 'xspecie_1'.
     # the former is a prefix of the latter and would fail to be transcoded by the RE method
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures',
-        'test_model_bad_species_names.xlsx')
-    
+                                  'test_model_bad_species_names.xlsx')
+
     def setUp(self):
         self.model = Reader().run(self.MODEL_FILENAME)
 
     def test_transcode_and_eval_rate_laws(self):
-    
+
         # transcode rate laws
         RateLawUtils.transcode_rate_laws(self.model)
         concentrations = {}
@@ -58,13 +59,13 @@ class TestRateLawUtils(unittest.TestCase):
             name='test_reaction',
             rate_laws=[rate_law]
         )
-        rate_law_equation.transcoded='foo foo'
+        rate_law_equation.transcoded = 'foo foo'
         with self.assertRaises(ValueError):
             RateLawUtils.eval_reaction_rate_laws(reaction, {})
-        rate_law_equation.transcoded='cos(1.)'
+        rate_law_equation.transcoded = 'cos(1.)'
         with self.assertRaises(NameError):
             RateLawUtils.eval_reaction_rate_laws(reaction, {})
-        rate_law_equation.transcoded='log(1.)'
+        rate_law_equation.transcoded = 'log(1.)'
         self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}), [0])
 
         with self.assertRaisesRegexp(Exception, 'Error: error in transcoded rate law'):

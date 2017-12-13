@@ -1,4 +1,4 @@
-""" Data model to represent models. 
+""" Data model to represent models.
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2016-11-10
@@ -62,7 +62,7 @@ def get_reaction_string(reaction):
 
 
 def get_models(inline=True):
-    """ Get list of models 
+    """ Get list of models
     Args:
         inline (:obj:`bool`, optional): if true, return inline models
 

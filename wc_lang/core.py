@@ -392,7 +392,8 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                                                         compartment.get_primary_attribute())
                 species, error = Species.deserialize(self, spec_primary_attribute, objects)
                 if error:
-                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute))
+                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute)
+                                     )  # pragma: no cover # unreachable due to error checking above
 
                 if coefficient != 0:
                     if ReactionParticipant not in objects:
@@ -915,7 +916,7 @@ class ObjectiveFunction(BaseModel):
         # issue warning if objective function not linear
         if not self.linear:
             warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
-                self.submodel.id))
+                self.submodel.id), UserWarning)
             return
         sbml_model = wrap_libsbml(sbml_document.getModel)
         fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
@@ -955,11 +956,15 @@ class ObjectiveFunction(BaseModel):
 
         tmp_species_ids = []
         for biomass_reaction in self.biomass_reactions:
-            for biomass_component in biomass_reaction:
+            for biomass_component in biomass_reaction.biomass_components:
                 if 0 < biomass_component.coefficient:
                     tmp_species_ids.append(Species.gen_id(biomass_component.species_type.id,
-                                                          compartment=biomass_reaction.compartment.id))
-        products.extend(Species.get(tmp_species_ids, self.submodel.get_species()))
+                                                          biomass_reaction.compartment.id))
+        tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
+        for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
+            if not tmp_specie:
+                raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, self.submodel.id))
+        products.extend(tmp_species)
         return det_dedupe(products)
 
 
@@ -1481,7 +1486,7 @@ class ReactionParticipant(BaseModel):
 
             species, error = Species.deserialize(attribute, species_id, objects)
             if error:
-                return error
+                return (None, error)
 
             serial_val = cls._serialize(species, coefficient)
             if cls in objects and serial_val in objects[cls]:

@@ -8,7 +8,9 @@
 """
 
 import os
+import pytest
 import unittest
+import warnings
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
@@ -21,7 +23,7 @@ from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
 import libsbml
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
-    create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
+                               create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
 
 
 class TestCore(unittest.TestCase):
@@ -35,9 +37,9 @@ class TestCore(unittest.TestCase):
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
         self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0',
-            initial_volume=1.25)
+                                                       initial_volume=1.25)
         self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1',
-            initial_volume=2.5)
+                                                       initial_volume=2.5)
         self.compartments = compartments = [comp_0, comp_1]
 
         self.species_types = species_types = []
@@ -63,20 +65,21 @@ class TestCore(unittest.TestCase):
             conc = Concentration(species=spec, value=3 * i)
             concentrations.append(conc)
 
-        self.biomass_reaction = biomass_reaction = BiomassReaction(id='biomass_reaction_1',
+        self.biomass_reaction = biomass_reaction = BiomassReaction(
+            id='biomass_reaction_1',
             name='biomass reaction',
             compartment=comp_0,
-            comments="Nobody will ever deprive the American people of the right to vote except the "\
+            comments="Nobody will ever deprive the American people of the right to vote except the "
             "American people themselves")
         BiomassReaction.get_manager().insert_all_new()
 
-        biomass_components=[]
+        biomass_components = []
         for i in range(2):
             biomass_components.append(
                 biomass_reaction.biomass_components.create(
-                    id = 'biomass_comp_{}'.format(i+1),
-                    coefficient = 2*(float(i)-0.5),     # create a reactant and a product
-                    species_type = species_types[i]))
+                    id='biomass_comp_{}'.format(i+1),
+                    coefficient=2*(float(i)-0.5),     # create a reactant and a product
+                    species_type=species_types[i]))
         self.biomass_components = biomass_components
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -311,8 +314,10 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_component('reaction', 'rxn_1'), self.rxn_1)
         self.assertEqual(model.get_component('parameter', 'param_2'), self.parameters[2])
         self.assertEqual(model.get_component('reference', 'ref_1'), self.references[1])
-
         self.assertEqual(model.get_component('reaction', 'rxn_3'), None)
+
+        with self.assertRaisesRegexp(ValueError, ' not one of '):
+            model.get_component('undefined', 'rxn_3')
 
     def test_species_type_is_carbon_containing(self):
         self.assertFalse(self.species_types[0].is_carbon_containing())
@@ -328,7 +333,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Species.get([], self.species), [])
         self.assertEqual(Species.get(['X'], self.species), [None])
         self.assertEqual(Species.get(['spec_type_0[comp_0]'], self.species), [self.species[0]])
-        ids = ["spec_type_{}[comp_0]".format(i) for i in range(4,8)]
+        ids = ["spec_type_{}[comp_0]".format(i) for i in range(4, 8)]
         self.assertEqual(Species.get(ids, self.species), self.species[4:])
         ids.append('X')
         self.assertEqual(Species.get(ids, self.species), self.species[4:]+[None])
@@ -484,6 +489,21 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(objs[Species].values()), set(
             [part0.species, part1.species, part2.species, part3.species, part4.species, part5.species]))
 
+        val = '(1) spec_3'
+        part, error = ReactionParticipant.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        self.assertNotEqual(error, None)
+        self.assertEqual(part, None)
+
+        val = '(2) spec_0'
+        objs[ReactionParticipant] = {
+            '(2) spec_0[c_0]': ReactionParticipant(
+                species=Species(species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
+                coefficient=2)
+        }
+        part, error = ReactionParticipant.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        self.assertEqual(error, None)
+        self.assertEqual(part, objs[ReactionParticipant]['(2) spec_0[c_0]'])
+
     def test_rate_law_serialize(self):
         self.assertEqual(self.rate_laws[0].serialize(), 'rxn_0.forward')
         self.assertEqual(self.rate_laws[1].serialize(), 'rxn_1.forward')
@@ -540,6 +560,12 @@ class TestCore(unittest.TestCase):
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
+        # exception
+        attr = RateLaw.Meta.attributes['equation']
+        equation, error = RateLawEquation.deserialize(attr, 2, objs)
+        self.assertNotEqual(error, None)
+        self.assertEqual(equation, None)
+
     def test_rate_law_validate(self):
         species_types = [
             SpeciesType(id='spec_0'),
@@ -558,7 +584,7 @@ class TestCore(unittest.TestCase):
                 Species(species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
-            equation = equation,
+            equation=equation,
         )
         self.assertNotEqual(rate_law.validate(), None)
 
@@ -570,7 +596,7 @@ class TestCore(unittest.TestCase):
                 Species(species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
-            equation = equation
+            equation=equation
         )
         self.assertNotEqual(rate_law.validate(), None)
 
@@ -582,7 +608,7 @@ class TestCore(unittest.TestCase):
                 Species(species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
-            equation = equation
+            equation=equation
         )
         self.assertNotEqual(rate_law.validate(), None)
 
@@ -594,9 +620,9 @@ class TestCore(unittest.TestCase):
                 Species(species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
-            k_cat = 2,
-            k_m = 1,
-            equation = equation
+            k_cat=2,
+            k_m=1,
+            equation=equation
         )
         self.assertEqual(rate_law.validate(), None)
 
@@ -732,6 +758,7 @@ class TestCore(unittest.TestCase):
                          '[comp_0]: (2) spec_type_0 + (3.500000e+00) spec_type_1 ==> spec_type_2')
         self.assertEqual(attr.serialize(self.rxn_1.participants),
                          '(2) spec_type_0[comp_0] + (3) spec_type_1[comp_0] ==> (2) spec_type_3[comp_1]')
+        self.assertEqual(attr.serialize(None), '')
 
     def test_ReactionParticipantsAttribute_deserialize(self):
         objs = {
@@ -793,6 +820,10 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(error, None)
         self.assertEqual(parts3, None)
 
+        parts, error = attr.deserialize('[c_3]: (2) spec_0 + (3.5) spec_1 ==> spec_2', objs)
+        self.assertNotEqual(error, None)
+        self.assertEqual(parts, None)
+
     def test_RateLawEquationAttribute_serialize(self):
         rxn = self.rxn_0
         rate_law = rxn.rate_laws[0]
@@ -853,14 +884,14 @@ class TestCore(unittest.TestCase):
         (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
         self.assertTrue(of is None)
         self.assertIn("id 'biomass_reaction_1' ambiguous between a Reaction and a BiomassReaction",
-            invalid_attribute.messages[0])
+                      invalid_attribute.messages[0])
 
         del objs[Reaction]['biomass_reaction_1']
         value = "2*biomass_reaction_1 - pow( reaction_x, 2)"
         (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
         self.assertTrue(of is None)
         self.assertIn("id 'reaction_x' not a Reaction or a BiomassReaction identifier",
-            invalid_attribute.messages[0])
+                      invalid_attribute.messages[0])
 
         value = "2*biomass_reaction_1 - pow( biomass_reaction_1, 2)"
         (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
@@ -885,9 +916,9 @@ class TestCore(unittest.TestCase):
         (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
         self.assertTrue(of is None)
         self.assertIn("reaction id(s) {pow} ambiguous between a Reaction and a valid function",
-            invalid_attribute.messages[0])
+                      invalid_attribute.messages[0])
         self.assertIn("reaction id(s) {exp} ambiguous between a BiomassReaction and a valid function",
-            invalid_attribute.messages[1])
+                      invalid_attribute.messages[1])
 
     def test_objective_function_validate(self):
 
@@ -922,6 +953,9 @@ class TestCore(unittest.TestCase):
         of.biomass_reactions = []
         rv = of.validate()
         self.assertEqual(rv.attributes[0].messages[0], "NameError in expression '{}'".format(value))
+
+        obj_func = ObjectiveFunction(expression="'str' + 1.")
+        self.assertNotEqual(obj_func.validate(), None)
 
     def test_validate(self):
         self.assertEqual(self.model.validate(), None)
@@ -961,6 +995,7 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.min_flux = 100
         self.rxn_2.max_flux = 200
+        self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
@@ -969,11 +1004,11 @@ class TestCore(unittest.TestCase):
         fbc_plugin = sbml_reaction.getPlugin('fbc')
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),
-            self.rxn_2.min_flux)
+                         self.rxn_2.min_flux)
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
-            self.rxn_2.max_flux)
+                         self.rxn_2.max_flux)
         self.assertEqual(len(sbml_reaction.getListOfReactants()) + len(sbml_reaction.getListOfProducts()),
-            len(self.rxn_2.participants))
+                         len(self.rxn_2.participants))
         for reactant in sbml_reaction.getListOfReactants():
             for participant in self.rxn_2.participants:
                 if reactant.getSpecies() == participant.species.xml_id():
@@ -993,12 +1028,18 @@ class TestCore(unittest.TestCase):
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(), 0)
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
-            float('inf'))
+                         float('inf'))
         self.assertEqual(len(sbml_biomass_reaction.getListOfReactants()) +
-            len(sbml_biomass_reaction.getListOfProducts()),
-            len(self.biomass_reaction.biomass_components))
+                         len(sbml_biomass_reaction.getListOfProducts()),
+                         len(self.biomass_reaction.biomass_components))
 
         # Write parameters to the SBML document
+        param = self.model.parameters.create(
+            id='param_custom_units', name='param custom units',
+            value=100, units='custom')
+        param.submodel = self.model.submodels[0]
+        self.parameters.append(param)
+
         for param in self.parameters:
             sbml_param = param.add_to_sbml_doc(document)
             self.assertTrue(sbml_param.hasRequiredAttributes())
@@ -1012,7 +1053,7 @@ class TestCore(unittest.TestCase):
         rxn_id = 'rxn_2'
         biomass_reaction_id = 'biomass_reaction_1'
         objs = {
-            Reaction: { 
+            Reaction: {
                 rxn_id: self.rxn_2,
             },
             BiomassReaction: {
@@ -1045,6 +1086,61 @@ class TestCore(unittest.TestCase):
             print(document.getError(i).getMessage())
         self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
 
+        # exceptions
+        obj_func = ObjectiveFunction(linear=False, submodel=Submodel(id='Metabolism'))
+        with pytest.warns(UserWarning):
+            obj_func.add_to_sbml_doc(None)
+
+    def test_objective_function_get_products(self):
+        model = Model()
+        submodel = model.submodels.create()
+        species_type_0 = model.species_types.create(id='spec_0')
+        species_type_1 = model.species_types.create(id='spec_1')
+        species_type_2 = model.species_types.create(id='spec_2')
+        compartment_0 = model.compartments.create(id='c_0')
+        compartment_1 = model.compartments.create(id='c_1')
+        compartment_2 = model.compartments.create(id='c_2')
+        species_0 = Species(species_type=species_type_0, compartment=compartment_0)
+        species_1 = Species(species_type=species_type_1, compartment=compartment_1)
+        species_2 = Species(species_type=species_type_2, compartment=compartment_2)
+
+        obj_func = submodel.objective_function = ObjectiveFunction(
+            reactions=[
+                Reaction(
+                    reversible=True,
+                    participants=[ReactionParticipant(species=species_0)],
+                ),
+            ],
+            biomass_reactions=[
+                BiomassReaction(
+                    biomass_components=[BiomassComponent(coefficient=-1, species_type=species_type_1)],
+                    compartment=compartment_1,
+                ),
+            ],
+        )
+        self.assertEqual(obj_func.get_products(), [species_0])
+
+        obj_func = submodel.objective_function = ObjectiveFunction(
+            reactions=[
+                Reaction(
+                    reversible=True,
+                    participants=[ReactionParticipant(species=species_0)],
+                ),
+            ],
+            biomass_reactions=[
+                BiomassReaction(
+                    biomass_components=[BiomassComponent(coefficient=-1, species_type=species_type_1)],
+                    compartment=compartment_1,
+                ),
+                BiomassReaction(
+                    biomass_components=[BiomassComponent(coefficient=1, species_type=species_type_2)],
+                    compartment=compartment_2,
+                ),
+            ],
+        )
+        with self.assertRaisesRegexp(ValueError, 'does not belong to submodel'):
+            obj_func.get_products()
+
 
 class TestCoreFromFile(unittest.TestCase):
 
@@ -1059,4 +1155,18 @@ class TestCoreFromFile(unittest.TestCase):
     def test_get_ex_species(self):
         ex_species = self.dfba_submodel.get_ex_species()
         self.assertEqual(set(ex_species),
-            set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
+                         set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
+
+
+class TestTaxonRank(unittest.TestCase):
+
+    def test(self):
+        self.assertEqual(TaxonRank['varietas'], TaxonRank.variety)
+        self.assertEqual(TaxonRank['strain'], TaxonRank.variety)
+        self.assertEqual(TaxonRank['tribus'], TaxonRank.tribe)
+        self.assertEqual(TaxonRank['familia'], TaxonRank.family)
+        self.assertEqual(TaxonRank['ordo'], TaxonRank.order)
+        self.assertEqual(TaxonRank['class'], TaxonRank.classis)
+        self.assertEqual(TaxonRank['division'], TaxonRank.phylum)
+        self.assertEqual(TaxonRank['divisio'], TaxonRank.phylum)
+        self.assertEqual(TaxonRank['regnum'], TaxonRank.kingdom)
