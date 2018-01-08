@@ -9,6 +9,7 @@
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 from wc_lang.core import Model, Submodel, SubmodelAlgorithm, RateLawDirection
+import copy
 import itertools
 import sys
 
@@ -80,17 +81,17 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             for submodel in submodels:
                 model.submodels.remove(submodel)
 
-                for rxn in submodel.reactions:
+                for rxn in copy.copy(submodel.reactions):
                     rxn.submodel = merged_submodel
 
-                for param in reversed(submodel.parameters):
+                for param in copy.copy(submodel.parameters):
                     param.submodels.remove(submodel)
                     param.submodels.append(merged_submodel)
 
-                for x_ref in reversed(submodel.cross_references):
+                for x_ref in copy.copy(submodel.cross_references):
                     x_ref.submodel = merged_submodel
 
-                for ref in reversed(submodel.references):
+                for ref in copy.copy(submodel.references):
                     ref.submodels.remove(submodel)
                     ref.submodels.append(merged_submodel)
 
