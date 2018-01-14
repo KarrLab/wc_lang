@@ -3,6 +3,7 @@
 This module defines classes that represent the schema of a biochemical model:
 
 * :obj:`Taxon`
+* :obj:`Model`
 * :obj:`Submodel`
 * :obj:`ObjectiveFunction`
 * :obj:`Compartment`
@@ -137,8 +138,9 @@ class SpeciesTypeType(int, CaseInsensitiveEnum):
     """ Types of species types """
     metabolite = 1
     protein = 2
-    rna = 3
-    pseudo_species = 4
+    dna = 3
+    rna = 4
+    pseudo_species = 5
 
 
 class RateLawDirection(int, CaseInsensitiveEnum):
