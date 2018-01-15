@@ -460,13 +460,13 @@ class Model(BaseModel):
         wc_lang_version (:obj:`str`): wc_lang version number
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
         taxon (:obj:`Taxon`): taxon
         submodels (:obj:`list` of `Submodel`): submodels
         compartments (:obj:`list` of `Compartment`): compartments
         species_types (:obj:`list` of `SpeciesType`): species types
         parameters (:obj:`list` of `Parameter`): parameters
         references (:obj:`list` of `Reference`): references
+        cross_references (:obj:`list` of `CrossReference`): cross references
     """
     id = SlugAttribute()
     name = StringAttribute()
