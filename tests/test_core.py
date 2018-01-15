@@ -718,10 +718,16 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Parameter.validate_unique(params), None)
 
         params = [
+            Parameter(id='a', submodels=[Submodel(id='a')]),
+            Parameter(id='a', submodels=[Submodel(id='b')]),
+        ]
+        self.assertEqual(Parameter.validate_unique(params), None)
+
+        params = [
             Parameter(id='a', submodels=[Submodel()]),
             Parameter(id='a', submodels=[Submodel()]),
         ]
-        self.assertEqual(Parameter.validate_unique(params), None)
+        self.assertNotEqual(Parameter.validate_unique(params), None)
 
     def test_cross_reference_serialize(self):
         self.assertEqual(self.cross_references[0].serialize(), '{}: {}'.format('x', 'y'))
