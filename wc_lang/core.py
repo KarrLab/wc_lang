@@ -39,7 +39,7 @@ from enum import Enum, EnumMeta
 from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
-from six import with_metaclass
+from six import with_metaclass, string_types
 import re
 import sys
 from obj_model.core import (Model as BaseModel,
@@ -1107,7 +1107,7 @@ class Species(BaseModel):
         if isinstance(species_type, SpeciesType) and isinstance(compartment, Compartment):
             species_type_id = species_type.get_primary_attribute()
             compartment_id = compartment.get_primary_attribute()
-        elif isinstance(species_type, str) and isinstance(compartment, str):
+        elif isinstance(species_type, string_types) and isinstance(compartment, string_types):
             species_type_id = species_type
             compartment_id = compartment
         else:
