@@ -1094,16 +1094,24 @@ class Species(BaseModel):
         ordering = ('species_type', 'compartment')
 
     @staticmethod
-    def gen_id(species_type_id, compartment_id):
+    def gen_id(species_type, compartment):
         """ Generate a Species' primary identifier
 
         Args:
-            species_type_id (:obj:`str`): the species_type's id
-            compartment_id (:obj:`str`): the component's id
+            species_type (:obj:`object`): a `SpeciesType`, or its id
+            compartment (:obj:`object`): a `Compartment`, or its id
 
         Returns:
             :obj:`str`: canonical identifier for a specie in a compartment, 'species_type_id[compartment_id]'
         """
+        if isinstance(species_type, SpeciesType) and isinstance(compartment, Compartment):
+            species_type_id = species_type.get_primary_attribute()
+            compartment_id = compartment.get_primary_attribute()
+        elif isinstance(species_type, str) and isinstance(compartment, str):
+            species_type_id = species_type
+            compartment_id = compartment
+        else:
+            raise ValueError("gen_id: incorrect parameter types: {}, {}".format(species_type, compartment))
         return '{}[{}]'.format(species_type_id, compartment_id)
 
     def id(self):
@@ -1120,9 +1128,7 @@ class Species(BaseModel):
         Returns:
             :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
         """
-        return self.gen_id(
-            self.species_type.get_primary_attribute(),
-            self.compartment.get_primary_attribute())
+        return self.gen_id(self.species_type, self.compartment)
 
     @staticmethod
     def get(ids, species_iterator):

@@ -329,6 +329,16 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.species[2].serialize(), 'spec_type_2[comp_0]')
         self.assertEqual(self.species[3].serialize(), 'spec_type_3[comp_1]')
 
+    def test_species_gen_id(self):
+        self.assertEqual(Species.gen_id(self.species[3].species_type, self.species[3].compartment),
+            'spec_type_3[comp_1]')
+        self.assertEqual(
+            Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
+            'spec_type_3[comp_1]')
+        with self.assertRaises(ValueError) as context:
+            Species.gen_id(self.species[3].species_type.id, self.species[3].compartment)
+        self.assertIn('gen_id: incorrect parameter types', str(context.exception))
+
     def test_species_get(self):
         self.assertEqual(Species.get([], self.species), [])
         self.assertEqual(Species.get(['X'], self.species), [None])
