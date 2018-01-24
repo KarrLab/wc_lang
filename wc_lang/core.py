@@ -981,9 +981,9 @@ class Compartment(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
+        species (:obj:`list` of `Species`): species in this compartment
+        submodels (:obj:`list` of `Submodel`): submodels that model reactions in this compartment
         cross_references (:obj:`list` of `CrossReference`): cross references
-        concentrations (:obj:`list` of `Concentration`): concentrations
-        reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
         biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions defined for this
             compartment
     """
