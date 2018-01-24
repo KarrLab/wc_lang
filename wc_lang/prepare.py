@@ -651,6 +651,7 @@ class CheckModel(object):
     Other properties to be checked:
 
         * The model does not contain dead-end species which are only consumed or produced
+        * The model uses water consistently - either in all compartments or in none
         * Reactions are balanced
         * Reactions in dynamic submodels contain fully specified rate laws
         * All Species used in reactions have concentration values
