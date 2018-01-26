@@ -8,7 +8,7 @@
 
 from wc_lang.core import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
                           Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
-                          Parameter, Reference, ReferenceType, CrossReference, RateLaw,
+                          Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
                           RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction)
 from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
@@ -78,7 +78,7 @@ class TestUtil(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.cross_references = cross_references = []
+        self.database_references = database_references = []
         for i in range(3):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
@@ -86,8 +86,8 @@ class TestUtil(unittest.TestCase):
             ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType.misc)
             references.append(ref)
 
-            x_ref = ref.cross_references.create(database='Y', id='x')
-            cross_references.append(x_ref)
+            x_ref = ref.database_references.create(database='Y', id='x')
+            database_references.append(x_ref)
 
     def test_get_model_size(self):
         model = self.model
@@ -128,7 +128,7 @@ class TestUtil(unittest.TestCase):
             Model, Taxon,
             Submodel, Compartment, SpeciesType, Concentration,
             Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
-            Reference, CrossReference,
+            Reference, DatabaseReference,
         ])
         inline_models = set([
             Species, ReactionParticipant, RateLawEquation, ObjectiveFunction

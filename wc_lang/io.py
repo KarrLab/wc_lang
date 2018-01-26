@@ -14,7 +14,7 @@ Supported file types:
 
 from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
                           Concentration, Reaction, RateLaw, BiomassComponent,
-                          BiomassReaction, Parameter, Reference, CrossReference)
+                          BiomassReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.util import get_models
 from obj_model import io
 
@@ -25,7 +25,7 @@ class Writer(object):
     model_order = [
         Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
         Concentration, Reaction, RateLaw, BiomassComponent,
-        BiomassReaction, Parameter, Reference, CrossReference
+        BiomassReaction, Parameter, Reference, DatabaseReference
     ]
 
     def run(self, path, model=None):

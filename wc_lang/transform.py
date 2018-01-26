@@ -77,7 +77,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             # instantiate merged submodel
             merged_submodel = Submodel(model=model, id=id, name=name, algorithm=SubmodelAlgorithm(algorithm))
 
-            # removed submodel from model; merge reactions, parameters, cross references, references
+            # removed submodel from model; merge reactions, parameters, database references, references
             for submodel in submodels:
                 model.submodels.remove(submodel)
 
@@ -88,7 +88,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                     param.submodels.remove(submodel)
                     param.submodels.append(merged_submodel)
 
-                for x_ref in copy.copy(submodel.cross_references):
+                for x_ref in copy.copy(submodel.database_references):
                     x_ref.submodel = merged_submodel
 
                 for ref in copy.copy(submodel.references):
@@ -158,18 +158,18 @@ class SplitReversibleReactionsTransform(Transform):
                         law_bck.reaction = rxn_bck
                         law_bck.direction = RateLawDirection.forward
 
-                    # cross references
-                    for x_ref in rxn.cross_references:
-                        rxn_for.cross_references.create(
+                    # database references
+                    for x_ref in rxn.database_references:
+                        rxn_for.database_references.create(
                             database=x_ref.database,
                             id=x_ref.id,
                             url=x_ref.url)
 
-                        rxn_bck.cross_references.create(
+                        rxn_bck.database_references.create(
                             database=x_ref.database,
                             id=x_ref.id,
                             url=x_ref.url)
 
-                        rxn.cross_references.remove(x_ref)
+                        rxn.database_references.remove(x_ref)
 
         return model

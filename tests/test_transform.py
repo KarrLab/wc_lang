@@ -91,9 +91,9 @@ class TestTransform(unittest.TestCase):
         submdl_1.references.create(id='ref_1')
         submdl_2.references.create(id='ref_2')
 
-        submdl_0.cross_references.create(id='xref_0')
-        submdl_1.cross_references.create(id='xref_1')
-        submdl_2.cross_references.create(id='xref_2')
+        submdl_0.database_references.create(id='xref_0')
+        submdl_1.database_references.create(id='xref_1')
+        submdl_2.database_references.create(id='xref_2')
 
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
@@ -129,8 +129,8 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(len(submdl_0.references) + len(submdl_1.references), len(merged_submdl_ssa.references))
         self.assertEqual(len(submdl_2.references), len(merged_submdl_fba.references))
 
-        self.assertEqual(len(submdl_0.cross_references) + len(submdl_1.cross_references), len(merged_submdl_ssa.cross_references))
-        self.assertEqual(len(submdl_2.cross_references), len(merged_submdl_fba.cross_references))
+        self.assertEqual(len(submdl_0.database_references) + len(submdl_1.database_references), len(merged_submdl_ssa.database_references))
+        self.assertEqual(len(submdl_2.database_references), len(merged_submdl_fba.database_references))
 
     def test_split_reversible_reactions(self):
         model = Model()
@@ -153,7 +153,7 @@ class TestTransform(unittest.TestCase):
         r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='a'))
         r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='b'))
         r0.references.create(id='ref_0')
-        r0.cross_references.create(database='x', id='y')
+        r0.database_references.create(database='x', id='y')
 
         r1 = submodel.reactions.create(id='r1', reversible=False)
         r1.participants.create(species=s1, coefficient=-3)
@@ -161,7 +161,7 @@ class TestTransform(unittest.TestCase):
         r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='c'))
         r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='d'))
         r1.references.create(id='ref_1')
-        r1.cross_references.create(database='xx', id='yy')
+        r1.database_references.create(database='xx', id='yy')
 
         model2 = model.copy()
         submodel2 = model2.submodels.get(id='submodel')
@@ -191,15 +191,15 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r1_2.references]), set(['ref_1']))
 
-        self.assertEqual(set([x.id for x in r0_f.cross_references]), set(['y']))
-        self.assertEqual(set([x.id for x in r0_b.cross_references]), set(['y']))
-        self.assertEqual(set([x.id for x in r1_2.cross_references]), set(['yy']))
+        self.assertEqual(set([x.id for x in r0_f.database_references]), set(['y']))
+        self.assertEqual(set([x.id for x in r0_b.database_references]), set(['y']))
+        self.assertEqual(set([x.id for x in r1_2.database_references]), set(['yy']))
 
         self.assertEqual(r0.submodel, None)
         self.assertEqual(r0.participants, [])
         self.assertEqual(r0.rate_laws, [])
         self.assertEqual(r0.references, [])
-        self.assertEqual(r0.cross_references, [])
+        self.assertEqual(r0.database_references, [])
 
         for attr_name, attr in chain(Reaction.Meta.attributes.items(), Reaction.Meta.related_attributes.items()):
             if isinstance(attr, RelatedAttribute):

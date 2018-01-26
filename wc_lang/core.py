@@ -18,7 +18,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`BiomassReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
-* :obj:`CrossReference`
+* :obj:`DatabaseReference`
 
 These are all instances of `BaseModel`, an alias for `obj_model.core.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
@@ -466,7 +466,7 @@ class Model(BaseModel):
         species_types (:obj:`list` of `SpeciesType`): species types
         parameters (:obj:`list` of `Parameter`): parameters
         references (:obj:`list` of `Reference`): references
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -644,7 +644,7 @@ class Taxon(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -676,7 +676,7 @@ class Submodel(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
         reactions (:obj:`list` of `Reaction`): reactions
         parameters (:obj:`list` of `Parameter`): parameters
     """
@@ -983,7 +983,7 @@ class Compartment(BaseModel):
 
         species (:obj:`list` of `Species`): species in this compartment
         submodels (:obj:`list` of `Submodel`): submodels that model reactions in this compartment
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
         biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions defined for this
             compartment
     """
@@ -1039,7 +1039,7 @@ class SpeciesType(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
         concentrations (:obj:`list` of `Concentration`): concentrations
         reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
     """
@@ -1306,7 +1306,7 @@ class Reaction(BaseModel):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
         rate_laws (:obj:`list` of `RateLaw`): rate laws
     """
     id = SlugAttribute()
@@ -1874,7 +1874,7 @@ class Reference(BaseModel):
         pages (:obj:`str`): page range
         comments (:obj:`str`): comments
 
-        cross_references (:obj:`list` of `CrossReference`): cross references
+        database_references (:obj:`list` of `DatabaseReference`): database references
         taxa (:obj:`list` of `Taxon`): taxa
         submodels (:obj:`list` of `Submodel`): submodels
         compartments (:obj:`list` of `Compartment`): compartments
@@ -1910,8 +1910,8 @@ class Reference(BaseModel):
                            'comments')
 
 
-class CrossReference(BaseModel):
-    """ Cross reference to a database
+class DatabaseReference(BaseModel):
+    """ Reference to a source database entry
 
     Attributes:
         database (:obj:`str`): database name
@@ -1928,13 +1928,13 @@ class CrossReference(BaseModel):
     database = StringAttribute(min_length=1)
     id = StringAttribute(verbose_name='ID', min_length=1)
     url = UrlAttribute()
-    model = ManyToOneAttribute('Model', related_name='cross_references')
-    taxon = ManyToOneAttribute('Taxon', related_name='cross_references')
-    submodel = ManyToOneAttribute('Submodel', related_name='cross_references')
-    compartment = ManyToOneAttribute('Compartment', related_name='cross_references')
-    species_type = ManyToOneAttribute('SpeciesType', related_name='cross_references')
-    reaction = ManyToOneAttribute('Reaction', related_name='cross_references')
-    reference = ManyToOneAttribute('Reference', related_name='cross_references')
+    model = ManyToOneAttribute('Model', related_name='database_references')
+    taxon = ManyToOneAttribute('Taxon', related_name='database_references')
+    submodel = ManyToOneAttribute('Submodel', related_name='database_references')
+    compartment = ManyToOneAttribute('Compartment', related_name='database_references')
+    species_type = ManyToOneAttribute('SpeciesType', related_name='database_references')
+    reaction = ManyToOneAttribute('Reaction', related_name='database_references')
+    reference = ManyToOneAttribute('Reference', related_name='database_references')
 
     class Meta(BaseModel.Meta):
         unique_together = (('database', 'id', ), )
