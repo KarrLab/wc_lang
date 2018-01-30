@@ -1411,7 +1411,6 @@ class ReactionParticipant(BaseModel):
     coefficient = FloatAttribute(nan=False)
 
     class Meta(BaseModel.Meta):
-        unique_together = (('species', 'coefficient'), )
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
