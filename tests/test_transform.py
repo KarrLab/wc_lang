@@ -98,8 +98,8 @@ class TestTransform(unittest.TestCase):
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
         MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
-        merged_submdl_ssa = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.SSA)
-        merged_submdl_fba = merged_mdl.submodels.get(algorithm=SubmodelAlgorithm.dFBA)
+        merged_submdl_ssa = merged_mdl.submodels.get_one(algorithm=SubmodelAlgorithm.SSA)
+        merged_submdl_fba = merged_mdl.submodels.get_one(algorithm=SubmodelAlgorithm.dFBA)
 
         """ Test submodels merged corrected """
         self.assertEqual(len(mdl.compartments), len(merged_mdl.compartments))
@@ -164,16 +164,16 @@ class TestTransform(unittest.TestCase):
         r1.database_references.create(database='xx', id='yy')
 
         model2 = model.copy()
-        submodel2 = model2.submodels.get(id='submodel')
-        r0 = submodel2.reactions.get(id='r0')
+        submodel2 = model2.submodels.get_one(id='submodel')
+        r0 = submodel2.reactions.get_one(id='r0')
 
         SplitReversibleReactionsTransform().run(model2)
 
         self.assertEqual(set([x.id for x in submodel2.reactions]), set(['r0_forward', 'r0_backward', 'r1']))
 
-        r0_f = submodel2.reactions.get(id='r0_forward')
-        r0_b = submodel2.reactions.get(id='r0_backward')
-        r1_2 = submodel2.reactions.get(id='r1')
+        r0_f = submodel2.reactions.get_one(id='r0_forward')
+        r0_b = submodel2.reactions.get_one(id='r0_backward')
+        r1_2 = submodel2.reactions.get_one(id='r1')
         attr = Reaction.Meta.attributes['participants']
         self.assertEqual(attr.serialize(r0_f.participants), '[c]: (2) s0 ==> (3) s1')
         self.assertEqual(attr.serialize(r0_b.participants), '[c]: (3) s1 ==> (2) s0')
@@ -184,8 +184,8 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(r0_b.rate_laws[0].direction, RateLawDirection.forward)
         self.assertEqual(r0_f.rate_laws[0].equation.expression, 'a')
         self.assertEqual(r0_b.rate_laws[0].equation.expression, 'b')
-        self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.forward).equation.expression, 'c')
-        self.assertEqual(r1_2.rate_laws.get(direction=RateLawDirection.backward).equation.expression, 'd')
+        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.forward).equation.expression, 'c')
+        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.backward).equation.expression, 'd')
 
         self.assertEqual(set([x.id for x in r0_f.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
