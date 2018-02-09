@@ -53,6 +53,7 @@ from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.rate_law_utils import RateLawUtils
+import wc_lang
 
 # wc_lang generates obj_model SchemaWarning warnings because some Models lack primary attributes.
 # These models include RateLaw, ReactionParticipant, RateLawEquation, and Species.
@@ -472,7 +473,7 @@ class Model(BaseModel):
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
     wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
-                                     verbose_name='wc_lang version')
+                                     default=wc_lang.__version__, verbose_name='wc_lang version')
     comments = LongStringAttribute()
 
     class Meta(BaseModel.Meta):
