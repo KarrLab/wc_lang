@@ -14,7 +14,7 @@ import warnings
 import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
-                          ReactionParticipant, Parameter, Reference, ReferenceType, CrossReference,
+                          ReactionParticipant, Parameter, Reference, ReferenceType, DatabaseReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
                           BiomassReaction,
                           OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
@@ -126,7 +126,7 @@ class TestCore(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.cross_references = cross_references = []
+        self.database_references = database_references = []
         for i in range(3):
             param = mdl.parameters.create(
                 id='param_{}'.format(i), name='parameter {}'.format(i),
@@ -139,9 +139,9 @@ class TestCore(unittest.TestCase):
                 type=ReferenceType.misc)
             references.append(ref)
 
-            x_ref = ref.cross_references.create(database='x', id='y' * (i + 1),
+            x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
                                                 url='http://x.com/{}'.format('y' * (i + 1)))
-            cross_references.append(x_ref)
+            database_references.append(x_ref)
 
     def test_default_wc_lang_version(self):
         model = Model()
@@ -163,7 +163,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(submodel.reactions, [reaction])
 
         for submodel in self.submodels:
-            self.assertEqual(submodel.cross_references, [])
+            self.assertEqual(submodel.database_references, [])
             self.assertEqual(submodel.references, [])
 
         # compartment
@@ -171,7 +171,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.compartments[1].species, self.species[3:4])
 
         for compartment in self.compartments:
-            self.assertEqual(compartment.cross_references, [])
+            self.assertEqual(compartment.database_references, [])
             self.assertEqual(compartment.references, [])
 
         # species type
@@ -179,7 +179,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(species_type.species, [species])
 
         for species_type in self.species_types:
-            self.assertEqual(species_type.cross_references, [])
+            self.assertEqual(species_type.database_references, [])
             self.assertEqual(species_type.references, [])
 
         # specie
@@ -226,7 +226,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.reactions[2].rate_laws[0].equation.modifiers, self.species[7:8])
 
         for reaction in self.reactions:
-            self.assertEqual(reaction.cross_references, [])
+            self.assertEqual(reaction.database_references, [])
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
@@ -251,9 +251,9 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reference.parameters, [parameter])
             self.assertEqual(parameter.references, [reference])
 
-        for reference, cross_reference in zip(self.references, self.cross_references):
-            self.assertEqual(reference.cross_references, [cross_reference])
-            self.assertEqual(cross_reference.reference, reference)
+        for reference, database_reference in zip(self.references, self.database_references):
+            self.assertEqual(reference.database_references, [database_reference])
+            self.assertEqual(database_reference.reference, reference)
 
         # reaction participant
         for species in self.species[0:5]:
@@ -264,10 +264,10 @@ class TestCore(unittest.TestCase):
                 self.assertIn(reaction, part.reactions)
             self.assertEqual(set(x.reaction for x in reaction.rate_laws), set([reaction]))
 
-        # cross references
-        for reference, cross_reference in zip(self.references, self.cross_references):
-            self.assertEqual(reference.cross_references, [cross_reference])
-            self.assertEqual(cross_reference.reference, reference)
+        # database references
+        for reference, database_reference in zip(self.references, self.database_references):
+            self.assertEqual(reference.database_references, [database_reference])
+            self.assertEqual(database_reference.reference, reference)
 
     def test_taxon_rank_class(self):
         self.assertEqual(TaxonRank['class'], TaxonRank['classis'])
@@ -747,10 +747,10 @@ class TestCore(unittest.TestCase):
         ]
         self.assertNotEqual(Parameter.validate_unique(params), None)
 
-    def test_cross_reference_serialize(self):
-        self.assertEqual(self.cross_references[0].serialize(), '{}: {}'.format('x', 'y'))
-        self.assertEqual(self.cross_references[1].serialize(), '{}: {}'.format('x', 'yy'))
-        self.assertEqual(self.cross_references[2].serialize(), '{}: {}'.format('x', 'yyy'))
+    def test_database_reference_serialize(self):
+        self.assertEqual(self.database_references[0].serialize(), '{}: {}'.format('x', 'y'))
+        self.assertEqual(self.database_references[1].serialize(), '{}: {}'.format('x', 'yy'))
+        self.assertEqual(self.database_references[2].serialize(), '{}: {}'.format('x', 'yyy'))
 
     def test_OneToOneSpeciesAttribute_serialize(self):
         attr = OneToOneSpeciesAttribute()

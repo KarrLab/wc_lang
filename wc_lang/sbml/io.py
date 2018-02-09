@@ -20,7 +20,7 @@ from six import iteritems
 from obj_model.core import Validator
 from wc_lang.core import (Model, Taxon, Submodel, ObjectiveFunction, Compartment, SpeciesType,
     Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
-    BiomassComponent, BiomassReaction, Parameter, Reference, CrossReference, SubmodelAlgorithm)
+    BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference, SubmodelAlgorithm)
 from wc_lang.sbml.util import (init_sbml_model, SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
 
 '''
@@ -45,7 +45,7 @@ BiomassComponent
 BiomassReaction			                                                    TBD
 Parameter			    Parameter                                           Implemented
 Reference			
-CrossReference			
+DatabaseReference			
 
 wc_lang attribute to SBML mapping:
 

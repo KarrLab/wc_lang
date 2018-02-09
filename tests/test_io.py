@@ -8,7 +8,7 @@
 
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
                           Species, Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
-                          Parameter, Reference, ReferenceType, CrossReference,
+                          Parameter, Reference, ReferenceType, DatabaseReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
@@ -115,7 +115,7 @@ class TestSimpleModel(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.cross_references = cross_references = []
+        self.database_references = database_references = []
         for i in range(3):
             param = mdl.parameters.create(
                 id='param_{}'.format(i), name='parameter {}'.format(i),
@@ -128,9 +128,9 @@ class TestSimpleModel(unittest.TestCase):
                 type=ReferenceType.misc)
             references.append(ref)
 
-            x_ref = ref.cross_references.create(database='x', id='y' * (i + 1),
+            x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
                                                 url='http://x.com/{}'.format('y' * (i + 1)))
-            cross_references.append(x_ref)
+            database_references.append(x_ref)
 
         self.dirname = tempfile.mkdtemp()
 

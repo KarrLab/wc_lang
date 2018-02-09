@@ -187,5 +187,5 @@ class RateLawUtils(object):
             raise NameError("Error: NameError in transcoded rate law '{}': '{}'".format(
                 transcoded_equation, error))
         except Exception as error:
-            raise Exception("Error: error in transcoded rate law '{}': '{}'".format(
-                transcoded_equation, error))
+            raise Exception("Error: unable to eval transcoded rate law '{}': {} for {}".format(
+                transcoded_equation, error.__class__.__name__, error))

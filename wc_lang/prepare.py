@@ -639,8 +639,8 @@ class PrepareModel(object):
 class CheckModel(object):
     '''Statically check a model
 
-    A `Model` which validates may fail to satisfy global properties that must hold for the `Model`
-    to be used. `CheckModel` evaluates these properties.
+    A `Model` which validates in `wc_lang` may fail to satisfy global properties that must hold for
+    the `Model` to be used. `CheckModel` evaluates these properties.
 
     Currently checked properties:
 
@@ -763,7 +763,8 @@ class CheckModel(object):
     def transcode_and_check_rate_law_equations(self):
         '''Transcode and evaluate all rate law equations in a model
 
-        Ensure that all rate law equations can be transcoded and evaluated.
+        Ensure that all rate law equations can be transcoded and evaluated. Rate laws that
+        succesfully transcode are stored in `rate_law.equation.transcoded`.
 
         Returns:
             :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
