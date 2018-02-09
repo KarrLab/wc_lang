@@ -1307,7 +1307,8 @@ class Reaction(BaseModel):
         references (:obj:`list` of `Reference`): references
 
         database_references (:obj:`list` of `DatabaseReference`): database references
-        rate_laws (:obj:`list` of `RateLaw`): rate laws
+        rate_laws (:obj:`list` of `RateLaw`): rate laws; if present, rate_laws[0] is the forward
+            rate law, and rate_laws[0] is the backward rate law
     """
     id = SlugAttribute()
     name = StringAttribute()

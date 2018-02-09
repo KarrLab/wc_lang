@@ -654,6 +654,7 @@ class CheckModel(object):
         * The model uses water consistently - either in all compartments or in none
         * Reactions are balanced
         * Reactions in dynamic submodels contain fully specified rate laws
+        * A reaction's rate laws uses only species that are in the reaction's reactants
         * All Species used in reactions have concentration values
         * Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
           for the reactions participate in at least one reaction in the submodel
