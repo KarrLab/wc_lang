@@ -587,7 +587,7 @@ class TestCheckModel(unittest.TestCase):
         self.assertIn("EOF in multi-line statement",
                       self.check_model.transcode_and_check_rate_law_equations()[0])
 
-        submodel = self.model.submodels.get(algorithm=SubmodelAlgorithm.ssa)
+        submodel = self.model.submodels.get_one(algorithm=SubmodelAlgorithm.ssa)
         submodel.reactions[1].rate_laws[0].equation = None
         self.check_model.transcode_and_check_rate_law_equations()
 

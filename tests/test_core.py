@@ -11,6 +11,7 @@ import os
 import pytest
 import unittest
 import warnings
+import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           ReactionParticipant, Parameter, Reference, ReferenceType, DatabaseReference,
@@ -77,8 +78,8 @@ class TestCore(unittest.TestCase):
         for i in range(2):
             biomass_components.append(
                 biomass_reaction.biomass_components.create(
-                    id='biomass_comp_{}'.format(i+1),
-                    coefficient=2*(float(i)-0.5),     # create a reactant and a product
+                    id='biomass_comp_{}'.format(i + 1),
+                    coefficient=2 * (float(i) - 0.5),     # create a reactant and a product
                     species_type=species_types[i]))
         self.biomass_components = biomass_components
 
@@ -141,6 +142,13 @@ class TestCore(unittest.TestCase):
             x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
                                                 url='http://x.com/{}'.format('y' * (i + 1)))
             database_references.append(x_ref)
+
+    def test_default_wc_lang_version(self):
+        model = Model()
+        self.assertEqual(model.wc_lang_version, wc_lang.__version__)
+
+        model = Model(wc_lang_version='xxx')
+        self.assertEqual(model.wc_lang_version, 'xxx')
 
     def test_reverse_references(self):
         mdl = self.model
@@ -331,7 +339,7 @@ class TestCore(unittest.TestCase):
 
     def test_species_gen_id(self):
         self.assertEqual(Species.gen_id(self.species[3].species_type, self.species[3].compartment),
-            'spec_type_3[comp_1]')
+                         'spec_type_3[comp_1]')
         self.assertEqual(
             Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
             'spec_type_3[comp_1]')
@@ -346,7 +354,7 @@ class TestCore(unittest.TestCase):
         ids = ["spec_type_{}[comp_0]".format(i) for i in range(4, 8)]
         self.assertEqual(Species.get(ids, self.species), self.species[4:])
         ids.append('X')
-        self.assertEqual(Species.get(ids, self.species), self.species[4:]+[None])
+        self.assertEqual(Species.get(ids, self.species), self.species[4:] + [None])
 
     def test_species_deserialize(self):
         objs = {

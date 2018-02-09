@@ -148,8 +148,8 @@ class SplitReversibleReactionsTransform(Transform):
                     rxn.participants = []
 
                     # copy rate laws
-                    law_for = rxn.rate_laws.get(direction=RateLawDirection.forward)
-                    law_bck = rxn.rate_laws.get(direction=RateLawDirection.backward)
+                    law_for = rxn.rate_laws.get_one(direction=RateLawDirection.forward)
+                    law_bck = rxn.rate_laws.get_one(direction=RateLawDirection.backward)
 
                     if law_for:
                         law_for.reaction = rxn_for
