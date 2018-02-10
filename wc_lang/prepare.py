@@ -790,6 +790,7 @@ class CheckModel(object):
                 errors.append(str(error))
         return errors
 
+    # TODO(Arthur): reconsider; not good for dFBA models; perhaps good for dynamic models
     def verify_reactant_compartments(self):
         '''Verify that all reactants in each submodel's reactions are in the submodel's compartment
 
