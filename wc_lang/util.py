@@ -1,4 +1,4 @@
-""" Data model to represent models.
+""" Utilities
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2016-11-10
