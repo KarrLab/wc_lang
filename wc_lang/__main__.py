@@ -122,7 +122,7 @@ class TransformController(CementBaseController):
             instance.run(model)
 
         # write model
-        Writer().run(args.destination, model)
+        Writer().run(model, args.destination)
 
 
 class NormalizeController(CementBaseController):
@@ -143,9 +143,9 @@ class NormalizeController(CementBaseController):
         args = self.app.pargs
         model = Reader().run(args.source)
         if args.destination:
-            Writer().run(args.destination, model)
+            Writer().run(model, args.destination)
         else:
-            Writer().run(args.source, model)
+            Writer().run(model, args.source)
 
 
 class ConvertController(CementBaseController):
@@ -202,7 +202,7 @@ class UpdateWcLangVersionController(CementBaseController):
         args = self.app.pargs
         model = Reader().run(args.path)
         model.wc_lang_version = wc_lang.__version__
-        Writer().run(args.path, model)
+        Writer().run(model, args.path)
 
 
 class App(CementApp):

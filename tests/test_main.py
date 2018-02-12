@@ -37,7 +37,7 @@ class TestCli(unittest.TestCase):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         self.assertEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
-        Writer().run(filename, model)
+        Writer().run(model, filename)
 
         with CaptureOutput() as capturer:
             with __main__.App(argv=['validate', filename]) as app:
@@ -51,7 +51,7 @@ class TestCli(unittest.TestCase):
 
         self.assertNotEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
-        Writer().run(filename, model)
+        Writer().run(model, filename)
 
         with self.assertRaisesRegexp(ValueError, '^Model is invalid: '):
             with __main__.App(argv=['validate', filename]) as app:
@@ -60,15 +60,15 @@ class TestCli(unittest.TestCase):
     def test_difference(self):
         model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         filename1 = path.join(self.tempdir, 'model1.xlsx')
-        Writer().run(filename1, model1)
+        Writer().run(model1, filename1)
 
         model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         filename2 = path.join(self.tempdir, 'model2.xlsx')
-        Writer().run(filename2, model2)
+        Writer().run(model2, filename2)
 
         model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename3 = path.join(self.tempdir, 'model3.xlsx')
-        Writer().run(filename3, model3)
+        Writer().run(model3, filename3)
 
         with CaptureOutput() as capturer:
             with __main__.App(argv=['difference', filename1, filename2]) as app:
@@ -95,7 +95,7 @@ class TestCli(unittest.TestCase):
     def test_transform(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(source, model)
+        Writer().run(model, source)
 
         destination = path.join(self.tempdir, 'destination.xlsx')
         with __main__.App(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
@@ -106,7 +106,7 @@ class TestCli(unittest.TestCase):
     def test_transform_exception(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(source, model)
+        Writer().run(model, source)
 
         destination = path.join(self.tempdir, 'destination.xlsx')
         with self.assertRaisesRegexp(ValueError, 'Please select at least one transform'):
@@ -118,7 +118,7 @@ class TestCli(unittest.TestCase):
         filename_xls_2 = path.join(self.tempdir, 'model-2.xlsx')
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(filename_xls_1, model)
+        Writer().run(model, filename_xls_1)
 
         # with same destination
         with __main__.App(argv=['normalize', filename_xls_1]) as app:
@@ -139,7 +139,7 @@ class TestCli(unittest.TestCase):
         filename_csv = path.join(self.tempdir, 'model-*.csv')
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(filename_xls, model)
+        Writer().run(model, filename_xls)
 
         with __main__.App(argv=['convert', filename_xls, filename_csv]) as app:
             app.run()
@@ -159,7 +159,7 @@ class TestCli(unittest.TestCase):
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         self.assertNotEqual(model.wc_lang_version, wc_lang.__version__)
-        Writer().run(filename, model)
+        Writer().run(model, filename)
 
         with __main__.App(argv=['update-wc-lang-version', filename]) as app:
             app.run()
