@@ -30,7 +30,7 @@ class TestCreateTemplate(unittest.TestCase):
 
     def test_create_template(self):
         create_template(self.filename)
-        self.assertEqual(Reader().run(self.filename), None)
+        self.assertIsInstance(Reader().run(self.filename), Model)
 
 
 class TestSimpleModel(unittest.TestCase):
@@ -139,8 +139,8 @@ class TestSimpleModel(unittest.TestCase):
 
     def test_write_read(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
-
-        Writer().run(filename, self.model)
+ 
+        Writer().run(self.model, filename)
         model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
@@ -152,7 +152,7 @@ class TestSimpleModel(unittest.TestCase):
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
         filename_csv = os.path.join(self.dirname, 'model-*.csv')
 
-        Writer().run(filename_xls1, self.model)
+        Writer().run(self.model, filename_xls1)
 
         convert(filename_xls1, filename_csv)
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
@@ -181,7 +181,7 @@ class TestExampleModel(unittest.TestCase):
         self.assertEqual(model.validate(), None)
 
         # compare excel files
-        Writer().run(self.filename, model)
+        Writer().run(model, self.filename)
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
