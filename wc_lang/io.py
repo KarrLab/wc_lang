@@ -58,6 +58,9 @@ class Reader(object):
 
         Returns:
             :obj:`core.Model`: model
+
+        Raises:
+            :obj:`ValueError`: if :obj:`path` defines multiple models
         """
         objects = io.Reader().run(path, util.get_models(inline=False))
 
