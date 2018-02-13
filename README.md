@@ -1,8 +1,8 @@
 [//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) )
-[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](http://code.karrlab.org)
-[![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield&circle-token=f0edfe4f971e8871ebb097bdc7b10a270cd90a96)](https://circleci.com/gh/KarrLab/wc_lang)
-[![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg?t=xViD7w)](https://coveralls.io/github/KarrLab/wc_lang)
-[![Code analysis](https://api.codeclimate.com/v1/badges/a0853e8ad58492f9f5df/maintainability)](https://codeclimate.com/repos/58209c1247a76768b7003fef)
+[![Documentation](https://readthedocs.org/projects/wc_lang/badge/?version=latest)](http://wc_lang.readthedocs.org)
+[![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield)](https://circleci.com/gh/KarrLab/wc_lang)
+[![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg)](https://coveralls.io/github/KarrLab/wc_lang)
+[![Code analysis](https://api.codeclimate.com/v1/badges/bd3cac02fd316d722216/maintainability)](https://codeclimate.com/github/KarrLab/wc_lang)
 [![License](https://img.shields.io/github/license/KarrLab/wc_lang.svg)](LICENSE)
 ![Analytics](https://ga-beacon.appspot.com/UA-86759801-1/wc_lang/README.md?pixel)
 
