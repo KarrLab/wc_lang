@@ -3,5 +3,6 @@ enum34
 git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
 natsort
 six
+git+https://github.com/KarrLab/wc_kb.git#egg=wc_kb-0.0.1
 git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils-0.0.1a5
 python_libsbml >= 5.16.0
