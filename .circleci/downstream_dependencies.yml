@@ -1,5 +1,6 @@
 - h1_hesc
-- wc_sim
-- mycoplasma_pneumoniae
 - intro_to_wc_modeling
+- mycoplasma_pneumoniae
 - random_wc_model_generator
+- wc_analysis
+- wc_sim
