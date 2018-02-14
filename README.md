@@ -28,7 +28,7 @@ This package defines `wc_lang`, a data-driven, rule-based language for concisely
 `pip install git+https://github.com/KarrLab/wc_lang.git#egg=wc_lang`
 
 ## Documentation
-Please see the [API documentation](http://code.karrlab.org).
+Please see the [API documentation](http://wc_lang.readthedocs.org).
 
 ## License
 The example model is released under the [MIT license](LICENSE).
