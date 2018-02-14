@@ -1,6 +1,10 @@
-- h1_hesc
-- intro_to_wc_modeling
-- mycoplasma_pneumoniae
-- random_wc_model_generator
-- wc_analysis
-- wc_sim
+downstream_dependencies:
+  - h1_hesc
+  - intro_to_wc_modeling
+  - mycoplasma_pneumoniae
+  - random_wc_model_generator
+  - wc_analysis
+  - wc_sim
+email_notifications:
+  - jonrkarr@gmail.com
+  - arthur.p.goldberg@mssm.edu
