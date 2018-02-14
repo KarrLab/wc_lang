@@ -20,10 +20,8 @@ from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
 
 # configuration
-from wc_utils.config.core import ConfigManager
-from wc_lang.config import paths as config_paths_wc_lang
-config_wc_lang = \
-    ConfigManager(config_paths_wc_lang.core).get_config()['wc_lang']
+import wc_lang.config.core
+config_wc_lang = wc_lang.config.core.get_config()['wc_lang']
 
 
 class TestPrepareModel(unittest.TestCase):

@@ -63,10 +63,8 @@ import warnings
 warnings.filterwarnings('ignore', '', obj_model.core.SchemaWarning, 'obj_model.core')
 
 # configuration
-from wc_utils.config.core import ConfigManager
-from wc_lang.config import paths as config_paths_wc_lang
-config_wc_lang = \
-    ConfigManager(config_paths_wc_lang.core).get_config()['wc_lang']
+import wc_lang.config.core
+config_wc_lang = wc_lang.config.core.get_config()['wc_lang']
 
 EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
 
