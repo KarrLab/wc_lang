@@ -1,0 +1,16 @@
+name: docs
+channels:
+  - conda-forge
+  - openbabel
+  - defaults
+dependencies:
+  - pip
+  - python>=3.6.4
+  - sphinx
+  - openbabel
+  - pip:
+    - configparser
+    - sphinx_rtd_theme
+    - robpol86_sphinxcontrib_googleanalytics
+    - sphinxcontrib_bibtex
+    - sphinxcontrib_spelling
