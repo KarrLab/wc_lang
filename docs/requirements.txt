@@ -5,17 +5,16 @@ git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
 git+https://github.com/KarrLab/wc_kb.git#egg=wc_kb-0.0.1
 
 cement
-configparser
 enum34
 natsort
 networkx
-git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
 python_libsbml >= 5.16.0
-robpol86_sphinxcontrib_googleanalytics
+setuptools
 six
+
+configparser
+robpol86_sphinxcontrib_googleanalytics
 sphinx >= 1.7
 sphinx_rtd_theme
 sphinxcontrib_bibtex
 sphinxcontrib_spelling
-git+https://github.com/KarrLab/wc_kb.git#egg=wc_kb-0.0.1
-git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils-0.0.1a5
