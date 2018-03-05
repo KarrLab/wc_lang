@@ -2,12 +2,13 @@ name: docs
 channels:
   - conda-forge
   - SBMLTeam
+  - openbabel
   - defaults
 dependencies:
   - pip
   - python>=3.6.4
   - sphinx
-  #- openbabel
+  - openbabel
   - pip:
     - cement
     - enum34
