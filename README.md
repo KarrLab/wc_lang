@@ -1,5 +1,5 @@
 [//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) )
-[![Documentation](https://readthedocs.org/projects/wc_lang/badge/?version=latest)](http://wc_lang.readthedocs.org)
+[![Documentation](https://img.shields.io/badge/docs-latest-green.svg)](http://docs.karrlab.org/wc_lang)
 [![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield)](https://circleci.com/gh/KarrLab/wc_lang)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg)](https://coveralls.io/github/KarrLab/wc_lang)
 [![Code analysis](https://api.codeclimate.com/v1/badges/bd3cac02fd316d722216/maintainability)](https://codeclimate.com/github/KarrLab/wc_lang)
@@ -28,7 +28,7 @@ This package defines `wc_lang`, a data-driven, rule-based language for concisely
 `pip install git+https://github.com/KarrLab/wc_lang.git#egg=wc_lang`
 
 ## Documentation
-Please see the [API documentation](http://wc_lang.readthedocs.org).
+Please see the [API documentation](http://docs.karrlab.org/wc_lang).
 
 ## License
 The example model is released under the [MIT license](LICENSE).
