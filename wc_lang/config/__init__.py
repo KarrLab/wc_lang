@@ -1,1 +1,1 @@
-__version__ = '0.0.2'
+from .core import get_config, get_debug_logs_config
