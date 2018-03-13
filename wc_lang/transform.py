@@ -8,7 +8,7 @@
 
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
-from wc_lang.core import Model, Submodel, SubmodelAlgorithm, RateLawDirection
+from wc_lang import Model, Submodel, SubmodelAlgorithm, RateLawDirection
 import copy
 import itertools
 import sys

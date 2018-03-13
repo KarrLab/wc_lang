@@ -10,7 +10,7 @@ import token
 from six.moves import cStringIO
 from math import isnan
 
-import wc_lang.core
+import wc_lang
 
 CONCENTRATIONS_DICT = 'concentrations'
 
@@ -71,7 +71,7 @@ class RateLawUtils(object):
                 ValueError: if `tokens` does not represent a specie in `species_ids`
             '''
             tokvals = [token_tmp[1] for token_tmp in tokens]
-            parsed_id = wc_lang.core.Species.gen_id(tokvals[0], tokvals[2])
+            parsed_id = wc_lang.Species.gen_id(tokvals[0], tokvals[2])
             if parsed_id in species_ids:
                 return " {}['{}']".format(CONCENTRATIONS_DICT, parsed_id)
             else:
@@ -172,7 +172,7 @@ class RateLawUtils(object):
         if not transcoded_equation:
             transcoded_equation = rate_law.equation.transcoded
 
-        local_ns = {func.__name__: func for func in wc_lang.core.RateLawEquation.Meta.valid_functions}
+        local_ns = {func.__name__: func for func in wc_lang.RateLawEquation.Meta.valid_functions}
         if hasattr(rate_law, 'k_cat') and not isnan(rate_law.k_cat):
             local_ns['k_cat'] = rate_law.k_cat
         if hasattr(rate_law, 'k_m') and not isnan(rate_law.k_m):

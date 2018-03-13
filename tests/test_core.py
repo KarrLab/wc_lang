@@ -13,12 +13,12 @@ import unittest
 import warnings
 import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
-                          Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
-                          ReactionParticipant, Parameter, Reference, ReferenceType, DatabaseReference,
-                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
-                          BiomassReaction,
-                          OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
-                          InvalidObject)
+                      Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
+                      ReactionParticipant, Parameter, Reference, ReferenceType, DatabaseReference,
+                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
+                      BiomassReaction,
+                      OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
+                      InvalidObject)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
