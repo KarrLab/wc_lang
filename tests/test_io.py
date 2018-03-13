@@ -6,10 +6,10 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
-                          Species, Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
-                          Parameter, Reference, ReferenceType, DatabaseReference,
-                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
+from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
+                      Species, Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
+                      Parameter, Reference, ReferenceType, DatabaseReference,
+                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import obj_model.io

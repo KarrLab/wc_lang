@@ -7,7 +7,7 @@
 """
 
 from obj_model.core import get_models as base_get_models
-import wc_lang.core
+import wc_lang
 
 
 def get_model_size(model):
@@ -70,4 +70,4 @@ def get_models(inline=True):
         :obj:`list` of `class`: list of models
     """
 
-    return base_get_models(module=wc_lang.core, inline=inline)
+    return base_get_models(module=wc_lang, inline=inline)

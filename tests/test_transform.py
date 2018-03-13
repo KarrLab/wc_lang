@@ -7,7 +7,7 @@
 """
 
 from itertools import chain
-from wc_lang.core import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
+from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
                           Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
 from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
 from obj_model.core import RelatedAttribute

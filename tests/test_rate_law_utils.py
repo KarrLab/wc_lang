@@ -9,7 +9,7 @@ import unittest
 import os
 
 from wc_lang.io import Reader
-from wc_lang.core import RateLawEquation, RateLaw, Reaction, Submodel, Species
+from wc_lang import RateLawEquation, RateLaw, Reaction, Submodel, Species
 from wc_lang.rate_law_utils import RateLawUtils
 
 

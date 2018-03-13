@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
+from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
                           Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
                           Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
                           RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction)

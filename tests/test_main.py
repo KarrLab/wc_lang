@@ -12,7 +12,7 @@ from os import path
 from shutil import rmtree
 from tempfile import mkdtemp
 from wc_lang import __main__
-from wc_lang.core import Model, Parameter
+from wc_lang import Model, Parameter
 from wc_lang.io import Writer, Reader
 import mock
 import unittest

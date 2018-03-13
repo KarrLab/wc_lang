@@ -23,9 +23,9 @@ from libsbml import Model as libsbmlModel
 from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
-from wc_lang.core import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
-                          Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
-                          BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
+from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
+                      Species, Concentration, Reaction, ReactionParticipant, RateLaw, RateLawEquation,
+                      BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.prepare import PrepareModel, CheckModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method

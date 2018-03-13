@@ -9,8 +9,8 @@
 
 import abc
 import six
-import wc_kb.core
-import wc_lang.core
+import wc_kb
+import wc_lang
 
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
@@ -94,7 +94,7 @@ class ModelGenerator(object):
             :obj:`wc_lang.core.Model`: model
         """
         # create model
-        model = wc_lang.core.Model()
+        model = wc_lang.Model()
 
         # run component generators
         for gen_cls in self.component_generators:
