@@ -43,7 +43,7 @@ from six import with_metaclass, string_types
 import pkg_resources
 import re
 import sys
-from obj_model.core import (Model as BaseModel,
+from obj_model import (Model as BaseModel,
                             BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                             RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                             OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,

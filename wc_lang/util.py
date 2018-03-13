@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from obj_model.core import get_models as base_get_models
+from obj_model import get_models as base_get_models
 import wc_lang
 
 

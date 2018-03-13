@@ -17,7 +17,7 @@ import warnings
 from os.path import split, splitext, join
 from six import iteritems
 
-from obj_model.core import Validator
+from obj_model import Validator
 from wc_lang.sbml.util import (init_sbml_model, SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
 import wc_lang
 
