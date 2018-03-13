@@ -10,7 +10,7 @@ from itertools import chain
 from wc_lang.core import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
                           Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
 from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
-from obj_model.core import RelatedAttribute
+from obj_model import RelatedAttribute
 import unittest
 
 

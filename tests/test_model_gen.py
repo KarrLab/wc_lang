@@ -9,13 +9,13 @@
 
 from wc_lang import model_gen
 import unittest
-import wc_kb.core
+import wc_kb
 
 
 class TestModelGenerator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.knowledge_base = kb = wc_kb.core.KnowledgeBase()
+        cls.knowledge_base = kb = wc_kb.KnowledgeBase()
 
     def test___init__(self):
         gen = model_gen.ModelGenerator(self.knowledge_base)

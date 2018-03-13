@@ -9,7 +9,7 @@
 import configobj
 import os
 import pkg_resources
-import wc_utils.config.core
+import wc_utils.config
 import wc_utils.debug_logs.config
 
 
@@ -22,7 +22,7 @@ def get_config(extra=None):
     Returns:
         :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the configuration source(s).
     """
-    paths = wc_utils.config.core.ConfigPaths(
+    paths = wc_utils.config.ConfigPaths(
         default=pkg_resources.resource_filename('wc_lang', 'config/core.default.cfg'),
         schema=pkg_resources.resource_filename('wc_lang', 'config/core.schema.cfg'),
         user=(
@@ -31,7 +31,7 @@ def get_config(extra=None):
         ),
     )
 
-    return wc_utils.config.core.ConfigManager(paths).get_config(extra=extra)
+    return wc_utils.config.ConfigManager(paths).get_config(extra=extra)
 
 
 def get_debug_logs_config(extra=None):
@@ -49,4 +49,4 @@ def get_debug_logs_config(extra=None):
         'wc_lang.debug.cfg',
         os.path.expanduser('~/.wc/wc_lang.debug.cfg'),
     )
-    return wc_utils.config.core.ConfigManager(paths).get_config(extra=extra)
+    return wc_utils.config.ConfigManager(paths).get_config(extra=extra)

@@ -7,7 +7,7 @@
 """
 
 from capturer import CaptureOutput
-from obj_model.core import Validator
+from obj_model import Validator
 from os import path
 from shutil import rmtree
 from tempfile import mkdtemp

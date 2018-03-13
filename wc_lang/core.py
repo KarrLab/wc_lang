@@ -20,7 +20,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Reference`
 * :obj:`DatabaseReference`
 
-These are all instances of `BaseModel`, an alias for `obj_model.core.Model`.
+These are all instances of `BaseModel`, an alias for `obj_model.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
 by object references. For example, a :obj:`Reaction` will reference its constituent
 :obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
@@ -43,7 +43,7 @@ from six import with_metaclass, string_types
 import pkg_resources
 import re
 import sys
-from obj_model.core import (Model as BaseModel,
+from obj_model import (Model as BaseModel,
                             BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                             RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                             OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
@@ -63,7 +63,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # However, these are not needed by the workbook and delimiter-separated representations of
 # models on disk. Therefore, suppress the warnings.
 import warnings
-warnings.filterwarnings('ignore', '', obj_model.core.SchemaWarning, 'obj_model.core')
+warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 
 # configuration
 import wc_lang.config.core

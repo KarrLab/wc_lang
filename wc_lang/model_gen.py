@@ -9,7 +9,7 @@
 
 import abc
 import six
-import wc_kb.core
+import wc_kb
 import wc_lang.core
 
 
@@ -17,14 +17,14 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Generator of a component of a model
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
+        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         model (:obj:`wc_lang.core.Model`): model
     """
 
     def __init__(self, knowledge_base, model):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.core.Model`): model
         """
         self.knowledge_base = knowledge_base
@@ -47,7 +47,7 @@ class InitModelGenerator(ModelComponentGenerator):
     def __init__(self, knowledge_base, model, id=None, version=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.core.Model`): model
             id (:obj:`str`, optional): model identifier
             version (:obj:`str`, optional): model version
@@ -64,10 +64,10 @@ class InitModelGenerator(ModelComponentGenerator):
 
 class ModelGenerator(object):
     """ Machinery for generating a model (an instance of :obj:`wc_lang.core.Model`) from a knowledge base
-    (an instance of :obj:`wc_kb.core.KnowledgeBase`)
+    (an instance of :obj:`wc_kb.KnowledgeBase`)
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
+        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
         options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
             optional arguments to the methods
@@ -78,7 +78,7 @@ class ModelGenerator(object):
     def __init__(self, knowledge_base, component_generators=None, options=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
             options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
                 optional arguments to the methods
