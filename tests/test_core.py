@@ -13,12 +13,12 @@ import unittest
 import warnings
 import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
-                      Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
-                      ReactionParticipant, Parameter, Reference, ReferenceType, DatabaseReference,
-                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
-                      BiomassReaction,
-                      OneToOneSpeciesAttribute, ReactionParticipantsAttribute, RateLawEquationAttribute,
-                      InvalidObject)
+                          Reaction, SpeciesType, SpeciesTypeType, Species, Observable, Compartment,
+                          SpeciesCoefficient, Parameter, Reference, ReferenceType, DatabaseReference,
+                          RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
+                          BiomassReaction,
+                          OneToOneSpeciesAttribute, ReactionParticipantAttribute, RateLawEquationAttribute,
+                          InvalidObject)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
@@ -140,7 +140,7 @@ class TestCore(unittest.TestCase):
             references.append(ref)
 
             x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
-                                                url='http://x.com/{}'.format('y' * (i + 1)))
+                                                   url='http://x.com/{}'.format('y' * (i + 1)))
             database_references.append(x_ref)
 
     def test_default_wc_lang_version(self):
@@ -401,6 +401,72 @@ class TestCore(unittest.TestCase):
         self.assertEqual(species4, None)
         self.assertEqual(set(objs[Species].values()), set([species0, species1]))
 
+    def test_observable_serialize(self):
+        st_a = SpeciesType(id='a')
+        st_b = SpeciesType(id='bb')
+        st_c = SpeciesType(id='ccc')
+        c_a = Compartment(id='a')
+        c_b = Compartment(id='bb')
+        c_c = Compartment(id='ccc')
+        s_a = Species(species_type=st_a, compartment=c_a)
+        s_b = Species(species_type=st_b, compartment=c_b)
+        s_c = Species(species_type=st_c, compartment=c_c)
+        sc_a = SpeciesCoefficient(species=s_a, coefficient=2.)
+        sc_b = SpeciesCoefficient(species=s_b, coefficient=3.)
+        sc_c = SpeciesCoefficient(species=s_c, coefficient=4.)
+        obs = Observable()
+        obs.participants.append(sc_a)
+        obs.participants.append(sc_b)
+        obs.participants.append(sc_c)
+
+        objs = {
+            SpeciesType: {
+                st_a.id: st_a,
+                st_b.id: st_b,
+                st_c.id: st_c,
+            },
+            Compartment: {
+                c_a.id: c_a,
+                c_b.id: c_b,
+                c_c.id: c_c,
+            },
+            Species: {
+                s_a.serialize(): s_a,
+                s_b.serialize(): s_b,
+            },
+            SpeciesCoefficient: {
+                sc_a.serialize(): sc_a,
+            }
+        }
+
+        attr = Observable.Meta.attributes['participants']
+
+        self.assertEqual(sc_a.serialize(), '(2) a[a]')
+        self.assertEqual(sc_b.serialize(), '(3) bb[bb]')
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.species_type, st_a)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.compartment, c_a)        
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].coefficient, 2.)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species, s_a)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0], sc_a)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species.species_type, st_b)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species.compartment, c_b)        
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].coefficient, 3.)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species, s_b)
+        self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0], sc_b)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species.species_type, st_c)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species.compartment, c_c)
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].coefficient, 4.)
+        self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species, s_c)
+        self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0], sc_c)
+        
+        self.assertEqual(attr.serialize(obs.participants), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc]')
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0], sc_a)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species, s_b)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].coefficient, 3.)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.species_type, st_c)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.compartment, c_c)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].coefficient, 4.)
+
     def test_concentration_serialize(self):
         self.assertEqual(self.concentrations[0].serialize(), 'spec_type_0[comp_0]')
         self.assertEqual(self.concentrations[1].serialize(), 'spec_type_1[comp_0]')
@@ -428,99 +494,99 @@ class TestCore(unittest.TestCase):
         attr = Reaction.Meta.attributes['participants']
 
         val = 'spec_0[c_0]'
-        part0, error = ReactionParticipant.deserialize(attr, val, objs)
+        part0, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part0.coefficient, 1)
         self.assertEqual(part0.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0]))
         self.assertEqual(set(objs[Species].values()), set([part0.species]))
 
         val = '(2) spec_0[c_0]'
-        part1, error = ReactionParticipant.deserialize(attr, val, objs)
+        part1, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part1.coefficient, 2)
         self.assertEqual(part1.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1]))
         self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species]))
 
         val = '(2.) spec_0[c_1]'
-        part2, error = ReactionParticipant.deserialize(attr, val, objs)
+        part2, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part2.coefficient, 2)
         self.assertEqual(part2.species.serialize(), 'spec_0[c_1]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1, part2]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2]))
         self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species, part2.species]))
 
         val = '(2.5) spec_0[c_0]'
-        part3, error = ReactionParticipant.deserialize(attr, val, objs)
+        part3, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part3.coefficient, 2.5)
         self.assertEqual(part3.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1, part2, part3]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3]))
         self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species, part2.species, part3.species]))
 
         val = '(.5) spec_0[c_0]'
-        part4, error = ReactionParticipant.deserialize(attr, val, objs)
+        part4, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part4.coefficient, 0.5)
         self.assertEqual(part4.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1, part2, part3, part4]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4]))
         self.assertEqual(set(objs[Species].values()), set(
             [part0.species, part1.species, part2.species, part3.species, part4.species]))
 
         val = '(1) spec_1'
-        part5, error = ReactionParticipant.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part5, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
         self.assertEqual(error, None)
         self.assertEqual(part5.coefficient, 1)
         self.assertEqual(part5.species.serialize(), 'spec_1[c_0]')
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1, part2, part3, part4, part5]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4, part5]))
         self.assertEqual(set(objs[Species].values()), set(
             [part0.species, part1.species, part2.species, part3.species, part4.species, part5.species]))
 
         # negative examples
         val = '(-1) spec_0[c_0]'
-        part6, error = ReactionParticipant.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = '(1) spec_0'
-        part6, error = ReactionParticipant.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = '(1.1.) spec_0[c_0]'
-        part6, error = ReactionParticipant.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = ' spec_0[c_0]'
-        part6, error = ReactionParticipant.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = ' spec_3[c_0]'
-        part6, error = ReactionParticipant.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
-        self.assertEqual(set(objs[ReactionParticipant].values()), set([part0, part1, part2, part3, part4, part5]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4, part5]))
         self.assertEqual(set(objs[Species].values()), set(
             [part0.species, part1.species, part2.species, part3.species, part4.species, part5.species]))
 
         val = '(1) spec_3'
-        part, error = ReactionParticipant.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
         self.assertNotEqual(error, None)
         self.assertEqual(part, None)
 
         val = '(2) spec_0'
-        objs[ReactionParticipant] = {
-            '(2) spec_0[c_0]': ReactionParticipant(
+        objs[SpeciesCoefficient] = {
+            '(2) spec_0[c_0]': SpeciesCoefficient(
                 species=Species(species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
                 coefficient=2)
         }
-        part, error = ReactionParticipant.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
         self.assertEqual(error, None)
-        self.assertEqual(part, objs[ReactionParticipant]['(2) spec_0[c_0]'])
+        self.assertEqual(part, objs[SpeciesCoefficient]['(2) spec_0[c_0]'])
 
     def test_rate_law_serialize(self):
         self.assertEqual(self.rate_laws[0].serialize(), 'rxn_0.forward')
@@ -776,15 +842,15 @@ class TestCore(unittest.TestCase):
         self.assertEqual(species0.serialize(), val)
         self.assertEqual(list(objs[Species].values()), [species0])
 
-    def test_ReactionParticipantsAttribute_serialize(self):
-        attr = ReactionParticipantsAttribute()
+    def test_ReactionParticipantAttribute_serialize(self):
+        attr = ReactionParticipantAttribute()
         self.assertEqual(attr.serialize(self.rxn_0.participants),
                          '[comp_0]: (2) spec_type_0 + (3.500000e+00) spec_type_1 ==> spec_type_2')
         self.assertEqual(attr.serialize(self.rxn_1.participants),
                          '(2) spec_type_0[comp_0] + (3) spec_type_1[comp_0] ==> (2) spec_type_3[comp_1]')
         self.assertEqual(attr.serialize(None), '')
 
-    def test_ReactionParticipantsAttribute_deserialize(self):
+    def test_ReactionParticipantAttribute_deserialize(self):
         objs = {
             SpeciesType: {
                 'spec_0': SpeciesType(id='spec_0'),
@@ -797,14 +863,14 @@ class TestCore(unittest.TestCase):
             },
         }
 
-        attr = ReactionParticipantsAttribute()
+        attr = ReactionParticipantAttribute()
 
         parts1, error = attr.deserialize('[c_0]: (2) spec_0 + (3.5) spec_1 ==> spec_2', objs)
         self.assertEqual(error, None)
         self.assertEqual(set([p.serialize() for p in parts1]), set(
             ['(-2) spec_0[c_0]', '(-3.500000e+00) spec_1[c_0]', 'spec_2[c_0]']))
-        self.assertEqual(len(objs[ReactionParticipant]), 3)
-        self.assertEqual(set(objs[ReactionParticipant].values()), set(parts1))
+        self.assertEqual(len(objs[SpeciesCoefficient]), 3)
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set(parts1))
         self.assertEqual(len(objs[Species]), 3)
         self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1]))
 
@@ -813,7 +879,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(set([p.serialize() for p in parts2]), set(
             ['(-2) spec_0[c_0]', '(-3) spec_1[c_0]', '(2) spec_2[c_1]']))
-        self.assertEqual(set([p.serialize() for p in objs[ReactionParticipant].values()]),
+        self.assertEqual(set([p.serialize() for p in objs[SpeciesCoefficient].values()]),
                          set([p.serialize() for p in parts1 + parts2]))
         self.assertEqual(len(objs[Species]), 4)
         self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1 + parts2]))
@@ -1132,7 +1198,7 @@ class TestCore(unittest.TestCase):
             reactions=[
                 Reaction(
                     reversible=True,
-                    participants=[ReactionParticipant(species=species_0)],
+                    participants=[SpeciesCoefficient(species=species_0)],
                 ),
             ],
             biomass_reactions=[
@@ -1148,7 +1214,7 @@ class TestCore(unittest.TestCase):
             reactions=[
                 Reaction(
                     reversible=True,
-                    participants=[ReactionParticipant(species=species_0)],
+                    participants=[SpeciesCoefficient(species=species_0)],
                 ),
             ],
             biomass_reactions=[

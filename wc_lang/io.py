@@ -23,7 +23,7 @@ class Writer(object):
 
     model_order = [
         core.Model, core.Taxon, core.Submodel, core.ObjectiveFunction, core.Compartment, core.SpeciesType,
-        core.Concentration, core.Reaction, core.RateLaw, core.BiomassComponent,
+        core.Concentration, core.Observable, core.Reaction, core.RateLaw, core.BiomassComponent,
         core.BiomassReaction, core.Parameter, core.Reference, core.DatabaseReference
     ]
 

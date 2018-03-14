@@ -11,7 +11,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Species`
 * :obj:`Concentration`
 * :obj:`Reaction`
-* :obj:`ReactionParticipant`
+* :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
 * :obj:`RateLawEquation`
 * :obj:`BiomassComponent`
@@ -23,7 +23,7 @@ This module defines classes that represent the schema of a biochemical model:
 These are all instances of `obj_model.Model`, an alias for `obj_model.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
 by object references. For example, a :obj:`Reaction` will reference its constituent
-:obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
+:obj:`SpeciesCoefficient` instances, and the :obj:`RateLaw` that describes the reaction's rate.
 
 This module also defines numerous classes that serve as attributes of these classes.
 
@@ -58,7 +58,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
 
 # wc_lang generates obj_model SchemaWarning warnings because some Models lack primary attributes.
-# These models include RateLaw, ReactionParticipant, RateLawEquation, and Species.
+# These models include :obj:`RateLaw`, :obj:`SpeciesCoefficient`, :obj:`RateLawEquation`, and :obj:`Species`.
 # However, these are not needed by the workbook and delimiter-separated representations of
 # models on disk. Therefore, suppress the warnings.
 import warnings
@@ -241,13 +241,115 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of :obj:`list` of :obj:`SpeciesCoefficient`, :obj:`InvalidAttribute` or :obj:`None`: :obj:`tuple` of cleaned value
                 and cleaning error
         """
         return Species.deserialize(self, value, objects)
 
 
-class ReactionParticipantsAttribute(ManyToManyAttribute):
+class ObservableParticipantAttribute(ManyToManyAttribute):
+    """ Inline separated list of species and their weights of an observable
+
+    Attributes:
+        separator (:obj:`str`): list separator
+    """
+
+    def __init__(self, separator=' + ', related_name='', verbose_name='', verbose_related_name='', help=''):
+        """
+        Args:
+            separator (:obj:`str`, optional): list separator
+            related_name (:obj:`str`, optional): name of related attribute on `related_class`
+            verbose_name (:obj:`str`, optional): verbose name
+            verbose_related_name (:obj:`str`, optional): verbose related name
+            help (:obj:`str`, optional): help message
+        """
+        super(ObservableParticipantAttribute, self).__init__('SpeciesCoefficient', related_name=related_name,
+                                                             verbose_name=verbose_name,
+                                                             verbose_related_name=verbose_related_name,
+                                                             help=help)
+        self.separator = separator
+
+    def serialize(self, species_coeffs):
+        """ Serialize related object
+
+        Args:
+            species_coeffs (:obj:`list` of `SpeciesCoefficient`): Python representation of species and their coefficients
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        if not species_coeffs:
+            return ''
+
+        species_coeff_strs = []
+        for species_coeff_obj in species_coeffs:
+            species_coeff_str = species_coeff_obj.serialize(show_compartment=True, show_coefficient_sign=True)
+            species_coeff_strs.append(species_coeff_str)
+
+        return self.separator.join(species_coeff_strs)
+
+    def deserialize(self, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of `list` of `related_class`, `InvalidAttribute` or `None`: tuple of cleaned value
+                and cleaning error
+        """
+        pat_id = '([a-z][a-z0-9_]*)'
+        pat_coeff = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
+        pat_species_coeff = '({} )*({}\[{}\])'.format(pat_coeff, pat_id, pat_id)
+        pat_observable = '{}( \+ {})*'.format(pat_species_coeff, pat_species_coeff)
+        if not re.match(pat_observable, value, flags=re.I):
+            return (None, InvalidAttribute(self, ['Incorrectly formatted observable: {}'.format(value)]))
+
+        species_coeff_objs = []
+        errors = []
+        for species_coeff_match in re.findall(pat_species_coeff, value, flags=re.I):
+            species_type_errors = []
+
+            species_type_id = species_coeff_match[5]
+            if species_type_id in objects[SpeciesType]:
+                species_type = objects[SpeciesType][species_type_id]
+            else:
+                species_type_errors.append('Undefined species type "{}"'.format(species_type_id))
+
+            compartment_id = species_coeff_match[6]
+            if compartment_id in objects[Compartment]:
+                compartment = objects[Compartment][compartment_id]
+            else:
+                species_type_errors.append('Undefined compartment "{}"'.format(compartment_id))
+
+            coefficient = float(species_coeff_match[1] or 1.)
+
+            if species_type_errors:
+                errors += species_type_errors
+            elif coefficient != 0:
+                species_id = Species.gen_id(species_type.get_primary_attribute(), compartment.get_primary_attribute())
+                species, error = Species.deserialize(self, species_id, objects)
+                if error:
+                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute)
+                                     )  # pragma: no cover # unreachable due to error checking above
+
+                if SpeciesCoefficient not in objects:
+                    objects[SpeciesCoefficient] = {}
+                serialized_value = SpeciesCoefficient._serialize(species, coefficient)
+                if serialized_value in objects[SpeciesCoefficient]:
+                    species_coeff_obj = objects[SpeciesCoefficient][serialized_value]
+                else:
+                    species_coeff_obj = SpeciesCoefficient(species=species, coefficient=coefficient)
+                    objects[SpeciesCoefficient][serialized_value] = species_coeff_obj
+                species_coeff_objs.append(species_coeff_obj)
+
+        if errors:
+            return (None, InvalidAttribute(self, errors))
+        return (species_coeff_objs, None)
+
+
+class ReactionParticipantAttribute(ManyToManyAttribute):
     """ Reaction participants """
 
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
@@ -258,16 +360,16 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             verbose_related_name (:obj:`str`, optional): verbose related name
             help (:obj:`str`, optional): help message
         """
-        super(ReactionParticipantsAttribute, self).__init__('ReactionParticipant', related_name=related_name,
-                                                            verbose_name=verbose_name,
-                                                            verbose_related_name=verbose_related_name,
-                                                            help=help)
+        super(ReactionParticipantAttribute, self).__init__('SpeciesCoefficient', related_name=related_name,
+                                                           verbose_name=verbose_name,
+                                                           verbose_related_name=verbose_related_name,
+                                                           help=help)
 
     def serialize(self, participants):
         """ Serialize related object
 
         Args:
-            participants (:obj:`list` of `ReactionParticipant`): Python representation of reaction participants
+            participants (:obj:`list` of `SpeciesCoefficient`): Python representation of reaction participants
 
         Returns:
             :obj:`str`: simple Python representation
@@ -308,7 +410,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of `list` of `SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         errors = []
@@ -365,7 +467,7 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
         Returns:
             :obj:`tuple`:
 
-                * :obj:`list` of :obj:`ReactionParticipant`: list of reaction participants
+                * :obj:`list` of :obj:`SpeciesCoefficient`: list of reaction participants
                 * :obj:`list` of :obj:`Exception`: list of errors
         """
         parts = []
@@ -399,14 +501,14 @@ class ReactionParticipantsAttribute(ManyToManyAttribute):
                                      )  # pragma: no cover # unreachable due to error checking above
 
                 if coefficient != 0:
-                    if ReactionParticipant not in objects:
-                        objects[ReactionParticipant] = {}
-                    serialized_value = ReactionParticipant._serialize(species, coefficient)
-                    if serialized_value in objects[ReactionParticipant]:
-                        rxn_part = objects[ReactionParticipant][serialized_value]
+                    if SpeciesCoefficient not in objects:
+                        objects[SpeciesCoefficient] = {}
+                    serialized_value = SpeciesCoefficient._serialize(species, coefficient)
+                    if serialized_value in objects[SpeciesCoefficient]:
+                        rxn_part = objects[SpeciesCoefficient][serialized_value]
                     else:
-                        rxn_part = ReactionParticipant(species=species, coefficient=coefficient)
-                        objects[ReactionParticipant][serialized_value] = rxn_part
+                        rxn_part = SpeciesCoefficient(species=species, coefficient=coefficient)
+                        objects[SpeciesCoefficient][serialized_value] = rxn_part
                     parts.append(rxn_part)
 
         return (parts, errors)
@@ -649,7 +751,7 @@ class Taxon(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = OneToOneAttribute('Model', related_name='taxon')
+    model = OneToOneAttribute(Model, related_name='taxon')
     rank = EnumAttribute(TaxonRank, default=TaxonRank.species)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='taxa')
@@ -683,7 +785,7 @@ class Submodel(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute('Model', related_name='submodels')
+    model = ManyToOneAttribute(Model, related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     compartment = ManyToOneAttribute('Compartment', related_name='submodels')
     biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='submodels')
@@ -990,7 +1092,7 @@ class Compartment(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute('Model', related_name='compartments')
+    model = ManyToOneAttribute(Model, related_name='compartments')
     initial_volume = FloatAttribute(min=0)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
@@ -1042,11 +1144,11 @@ class SpeciesType(obj_model.Model):
 
         database_references (:obj:`list` of `DatabaseReference`): database references
         concentrations (:obj:`list` of `Concentration`): concentrations
-        reaction_participants (:obj:`list` of `ReactionParticipant`): reaction participants
+        reaction_participants (:obj:`list` of `SpeciesCoefficient`): reaction participants
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute('Model', related_name='species_types')
+    model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
     empirical_formula = RegexAttribute(pattern='^([A-Z][a-z]?\d*)*$')
     molecular_weight = FloatAttribute(min=0)
@@ -1084,8 +1186,8 @@ class Species(obj_model.Model):
         reaction_participants (:obj:`list` of `Reaction`): participations in reactions
         rate_law_equations (:obj:`RateLawEquation`): rate law equations
     """
-    species_type = ManyToOneAttribute('SpeciesType', related_name='species', min_related=1)
-    compartment = ManyToOneAttribute('Compartment', related_name='species', min_related=1)
+    species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
+    compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('species_type', 'compartment')
@@ -1262,6 +1364,27 @@ class Species(obj_model.Model):
         return sbml_species
 
 
+class Observable(obj_model.Model):
+    """ Observable (a weighted sum of the abundances of one or more species)
+
+    Attributes:
+        id (:obj:`str`): id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        participants (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
+        comments (:obj:`str`): comments
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='observables')
+    participants = ObservableParticipantAttribute(related_name='observables')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'model', 'participants', 'comments')
+        indexed_attrs_tuples = (('id',), )
+
+
 class Concentration(obj_model.Model):
     """ Species concentration
 
@@ -1300,7 +1423,7 @@ class Reaction(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         submodel (:obj:`Submodel`): submodel that reaction belongs to
-        participants (:obj:`list` of `ReactionParticipant`): participants
+        participants (:obj:`list` of `SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
         min_flux (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         max_flux (:obj:`float`): maximum flux bound for solving an FBA model
@@ -1313,8 +1436,8 @@ class Reaction(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    submodel = ManyToOneAttribute('Submodel', related_name='reactions')
-    participants = ReactionParticipantsAttribute(related_name='reactions')
+    submodel = ManyToOneAttribute(Submodel, related_name='reactions')
+    participants = ReactionParticipantAttribute(related_name='reactions')
     reversible = BooleanAttribute()
     min_flux = FloatAttribute(nan=True)
     max_flux = FloatAttribute(min=0, nan=True)
@@ -1400,7 +1523,7 @@ class Reaction(obj_model.Model):
         return sbml_reaction
 
 
-class ReactionParticipant(obj_model.Model):
+class SpeciesCoefficient(obj_model.Model):
     """ Species in a reaction
 
     Attributes:
@@ -1409,7 +1532,7 @@ class ReactionParticipant(obj_model.Model):
 
         reaction (:obj:`Reaction`): reaction
     """
-    species = ManyToOneAttribute('Species', related_name='reaction_participants')
+    species = ManyToOneAttribute(Species, related_name='reaction_participants')
     coefficient = FloatAttribute(nan=False)
 
     class Meta(obj_model.Model.Meta):
@@ -1472,7 +1595,7 @@ class ReactionParticipant(obj_model.Model):
             compartment (:obj:`Compartment`, optional): compartment
 
         Returns:
-            :obj:`tuple` of `list` of `ReactionParticipant`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of `list` of `SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         errors = []
@@ -1525,7 +1648,7 @@ class RateLaw(obj_model.Model):
         references (:obj:`list` of `Reference`): references
     """
 
-    reaction = ManyToOneAttribute('Reaction', related_name='rate_laws')
+    reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     equation = RateLawEquationAttribute(related_name='rate_law')
     k_cat = FloatAttribute(min=0, nan=True)
@@ -1586,7 +1709,7 @@ class RateLawEquation(obj_model.Model):
     """
     expression = LongStringAttribute()
     transcoded = LongStringAttribute()
-    modifiers = ManyToManyAttribute('Species', related_name='rate_law_equations')
+    modifiers = ManyToManyAttribute(Species, related_name='rate_law_equations')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1692,7 +1815,7 @@ class BiomassComponent(obj_model.Model):
     name = StringAttribute()
     biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='biomass_components')
     coefficient = FloatAttribute()
-    species_type = ManyToOneAttribute('SpeciesType', related_name='biomass_components')
+    species_type = ManyToOneAttribute(SpeciesType, related_name='biomass_components')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_components')
 
@@ -1722,7 +1845,7 @@ class BiomassReaction(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    compartment = ManyToOneAttribute('Compartment', related_name='biomass_reactions')
+    compartment = ManyToOneAttribute(Compartment, related_name='biomass_reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
 
@@ -1806,8 +1929,8 @@ class Parameter(obj_model.Model):
     """
     id = SlugAttribute(unique=False)
     name = StringAttribute()
-    model = ManyToOneAttribute('Model', related_name='parameters')
-    submodels = ManyToManyAttribute('Submodel', related_name='parameters')
+    model = ManyToOneAttribute(Model, related_name='parameters')
+    submodels = ManyToManyAttribute(Submodel, related_name='parameters')
     value = FloatAttribute(min=0)
     units = StringAttribute()
     comments = LongStringAttribute()
@@ -1887,7 +2010,7 @@ class Reference(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute('Model', related_name='references')
+    model = ManyToOneAttribute(Model, related_name='references')
     title = StringAttribute()
     author = StringAttribute()
     editor = StringAttribute()
@@ -1929,13 +2052,13 @@ class DatabaseReference(obj_model.Model):
     database = StringAttribute(min_length=1)
     id = StringAttribute(verbose_name='ID', min_length=1)
     url = UrlAttribute()
-    model = ManyToOneAttribute('Model', related_name='database_references')
-    taxon = ManyToOneAttribute('Taxon', related_name='database_references')
-    submodel = ManyToOneAttribute('Submodel', related_name='database_references')
-    compartment = ManyToOneAttribute('Compartment', related_name='database_references')
-    species_type = ManyToOneAttribute('SpeciesType', related_name='database_references')
-    reaction = ManyToOneAttribute('Reaction', related_name='database_references')
-    reference = ManyToOneAttribute('Reference', related_name='database_references')
+    model = ManyToOneAttribute(Model, related_name='database_references')
+    taxon = ManyToOneAttribute(Taxon, related_name='database_references')
+    submodel = ManyToOneAttribute(Submodel, related_name='database_references')
+    compartment = ManyToOneAttribute(Compartment, related_name='database_references')
+    species_type = ManyToOneAttribute(SpeciesType, related_name='database_references')
+    reaction = ManyToOneAttribute(Reaction, related_name='database_references')
+    reference = ManyToOneAttribute(Reference, related_name='database_references')
 
     class Meta(obj_model.Model.Meta):
         unique_together = (('database', 'id', ), )

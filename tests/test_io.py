@@ -7,9 +7,9 @@
 """
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
-                      Species, Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
-                      Parameter, Reference, ReferenceType, DatabaseReference,
-                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
+                     Species, Observable, Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
+                     Parameter, Reference, ReferenceType, DatabaseReference,
+                     RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import obj_model.io
@@ -67,6 +67,21 @@ class TestSimpleModel(unittest.TestCase):
             conc = Concentration(species=spec, value=3 * i)
             concentrations.append(conc)
 
+        participants = {}
+
+        def get_or_create_participant(species=None, coefficient=None):
+            part_serialized = SpeciesCoefficient._serialize(species, coefficient)
+            if part_serialized not in participants:
+                participants[part_serialized] = SpeciesCoefficient(species=species, coefficient=coefficient)
+            return participants[part_serialized]
+
+        self.observables = observables = []
+        for i in range(8):
+            obs = mdl.observables.create(id='obs_{}'.format(i))
+            for j in range(i + 1):
+                obs.participants.append(get_or_create_participant(species=species[j], coefficient=j + 1))
+            self.observables.append(obs)
+
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_1 = submdl_1 = mdl.submodels.create(
@@ -74,13 +89,6 @@ class TestSimpleModel(unittest.TestCase):
         self.submdl_2 = submdl_2 = mdl.submodels.create(
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
-
-        participants = {}
-        def get_or_create_participant(species=None, coefficient=None):
-            part_serialized = ReactionParticipant._serialize(species, coefficient)
-            if part_serialized not in participants:
-                participants[part_serialized] = ReactionParticipant(species=species, coefficient=coefficient)
-            return participants[part_serialized]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
 
@@ -129,7 +137,7 @@ class TestSimpleModel(unittest.TestCase):
             references.append(ref)
 
             x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
-                                                url='http://x.com/{}'.format('y' * (i + 1)))
+                                                   url='http://x.com/{}'.format('y' * (i + 1)))
             database_references.append(x_ref)
 
         self.dirname = tempfile.mkdtemp()
@@ -139,7 +147,7 @@ class TestSimpleModel(unittest.TestCase):
 
     def test_write_read(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
- 
+
         Writer().run(self.model, filename)
         model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
@@ -185,6 +193,9 @@ class TestExampleModel(unittest.TestCase):
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
+        for sheet in original.keys():
+            self.assertEqual(copy[sheet], original[sheet], msg=sheet)
+
         self.assertEqual(copy, original)
 
         # compare models

@@ -36,7 +36,7 @@ SpeciesType			    SpeciesType aren't defined                          NA
 Species			        Species                                             Implemented
 Concentration			Concentrations are incorporated in Species          NA
 Reaction			    Reaction, with FbcReactionPlugin for DFBA submodels Implemented
-ReactionParticipant		SpeciesReference in a Reaction                      Implemented
+SpeciesCoefficient		SpeciesReference in a Reaction                      Implemented
 RateLaw			        KineticLaw                                          Ignored
 RateLawEquation			
 BiomassComponent

@@ -15,7 +15,7 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-                          Species, Concentration, Compartment, Reaction, ReactionParticipant, RateLawEquation, BiomassReaction)
+                          Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation, BiomassReaction)
 from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration

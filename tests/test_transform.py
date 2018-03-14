@@ -8,7 +8,7 @@
 
 from itertools import chain
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
-                          Species, Compartment, ReactionParticipant, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
+                          Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
 from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
 from obj_model import RelatedAttribute
 import unittest
@@ -47,34 +47,34 @@ class TestTransform(unittest.TestCase):
         mdl.submodels.add(submdl_2)
 
         rxn_0_0 = Reaction(id='rxn_0_0')
-        rxn_0_0.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_0_0.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_0_0.participants.add(ReactionParticipant(species=specs[2], coefficient=1))
+        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[2], coefficient=1))
 
         rxn_0_1 = Reaction(id='rxn_0_1')
-        rxn_0_1.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_0_1.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_0_1.participants.add(ReactionParticipant(species=specs[2], coefficient=1))
+        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[2], coefficient=1))
 
         rxn_1_0 = Reaction(id='rxn_1_0')
-        rxn_1_0.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_1_0.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_1_0.participants.add(ReactionParticipant(species=specs[3], coefficient=1))
+        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[3], coefficient=1))
 
         rxn_1_1 = Reaction(id='rxn_1_1')
-        rxn_1_1.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_1_1.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_1_1.participants.add(ReactionParticipant(species=specs[3], coefficient=1))
+        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[3], coefficient=1))
 
         rxn_2_0 = Reaction(id='rxn_2_0')
-        rxn_2_0.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_2_0.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_2_0.participants.add(ReactionParticipant(species=specs[4], coefficient=1))
+        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[4], coefficient=1))
 
         rxn_2_1 = Reaction(id='rxn_2_1')
-        rxn_2_1.participants.add(ReactionParticipant(species=specs[0], coefficient=-1))
-        rxn_2_1.participants.add(ReactionParticipant(species=specs[1], coefficient=-1))
-        rxn_2_1.participants.add(ReactionParticipant(species=specs[4], coefficient=1))
+        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
+        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
+        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[4], coefficient=1))
 
         submdl_0.reactions.add(rxn_0_0)
         submdl_0.reactions.add(rxn_0_1)

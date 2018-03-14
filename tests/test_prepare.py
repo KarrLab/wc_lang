@@ -14,7 +14,7 @@ import six
 import unittest
 
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
-                      Compartment, ReactionParticipant, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
+                      Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
                       Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel

@@ -7,9 +7,10 @@
 """
 
 from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
-                          Compartment, ReactionParticipant, BiomassComponent, BiomassReaction,
+                          Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
                           Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
-                          RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction)
+                          RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
+                          Observable)
 from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
 
@@ -126,12 +127,12 @@ class TestUtil(unittest.TestCase):
     def test_get_models(self):
         non_inline_models = set([
             Model, Taxon,
-            Submodel, Compartment, SpeciesType, Concentration,
+            Submodel, Compartment, SpeciesType, Observable, Concentration,
             Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
             Reference, DatabaseReference,
         ])
         inline_models = set([
-            Species, ReactionParticipant, RateLawEquation, ObjectiveFunction
+            Species, SpeciesCoefficient, RateLawEquation, ObjectiveFunction
         ])
         self.assertEqual(set(get_models()), non_inline_models | inline_models)
         self.assertEqual(set(get_models(inline=False)), non_inline_models)
