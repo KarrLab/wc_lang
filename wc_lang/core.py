@@ -20,7 +20,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Reference`
 * :obj:`DatabaseReference`
 
-These are all instances of `BaseModel`, an alias for `obj_model.Model`.
+These are all instances of `obj_model.Model`, an alias for `obj_model.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
 by object references. For example, a :obj:`Reaction` will reference its constituent
 :obj:`ReactionParticipant` instances, and the :obj:`RateLaw` that describes the reaction's rate.
@@ -43,11 +43,10 @@ from six import with_metaclass, string_types
 import pkg_resources
 import re
 import sys
-from obj_model import (Model as BaseModel,
-                            BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
-                            RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
-                            OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
-                            InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
+from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
+                       RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
+                       OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
+                       InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
@@ -452,7 +451,7 @@ class RateLawEquationAttribute(OneToOneAttribute):
         return RateLawEquation.deserialize(self, value, objects)
 
 
-class Model(BaseModel):
+class Model(obj_model.Model):
     """ Model
 
     Attributes:
@@ -477,7 +476,7 @@ class Model(BaseModel):
                                      default=wc_lang_version, verbose_name='wc_lang version')
     comments = LongStringAttribute()
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'version', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
 
@@ -624,7 +623,7 @@ class Model(BaseModel):
             id (:obj:`str`): id of component to find
 
         Returns:
-            :obj:`BaseModel`: component with `id`, or `None` if there is no component with `id`=`id`
+            :obj:`obj_model.Model`: component with `id`, or `None` if there is no component with `id`=`id`
         """
         types = ['compartment', 'species_type', 'submodel', 'reaction', 'biomass_reaction',
                  'parameter', 'reference']
@@ -635,7 +634,7 @@ class Model(BaseModel):
         return next((c for c in components if c.id == id), None)
 
 
-class Taxon(BaseModel):
+class Taxon(obj_model.Model):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
 
     Attributes:
@@ -655,7 +654,7 @@ class Taxon(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='taxa')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'model',
                            'rank',
@@ -663,7 +662,7 @@ class Taxon(BaseModel):
         tabular_orientation = TabularOrientation.column
 
 
-class Submodel(BaseModel):
+class Submodel(obj_model.Model):
     """ Submodel
 
     Attributes:
@@ -692,7 +691,7 @@ class Submodel(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'model',
                            'algorithm', 'compartment', 'biomass_reaction',
                            'objective_function', 'comments', 'references')
@@ -745,7 +744,7 @@ class Submodel(BaseModel):
         return sbml_model
 
 
-class ObjectiveFunction(BaseModel):
+class ObjectiveFunction(obj_model.Model):
     """ Objective function
 
     Attributes:
@@ -766,7 +765,7 @@ class ObjectiveFunction(BaseModel):
     reactions = ManyToManyAttribute('Reaction', related_name='objective_functions')
     biomass_reactions = ManyToManyAttribute('BiomassReaction', related_name='objective_functions')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in
@@ -972,7 +971,7 @@ class ObjectiveFunction(BaseModel):
         return det_dedupe(products)
 
 
-class Compartment(BaseModel):
+class Compartment(obj_model.Model):
     """ Compartment
 
     Attributes:
@@ -996,7 +995,7 @@ class Compartment(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'model',
                            'initial_volume',
@@ -1026,7 +1025,7 @@ class Compartment(BaseModel):
         return sbml_compartment
 
 
-class SpeciesType(BaseModel):
+class SpeciesType(obj_model.Model):
     """ Species type
 
     Attributes:
@@ -1056,7 +1055,7 @@ class SpeciesType(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
         attribute_order = ('id', 'name',
                            'model',
@@ -1074,7 +1073,7 @@ class SpeciesType(BaseModel):
         return re.match('C[1-9]', self.empirical_formula) is not None
 
 
-class Species(BaseModel):
+class Species(obj_model.Model):
     """ Species (tuple of species type, compartment)
 
     Attributes:
@@ -1088,7 +1087,7 @@ class Species(BaseModel):
     species_type = ManyToOneAttribute('SpeciesType', related_name='species', min_related=1)
     compartment = ManyToOneAttribute('Compartment', related_name='species', min_related=1)
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('species_type', 'compartment')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
@@ -1263,7 +1262,7 @@ class Species(BaseModel):
         return sbml_species
 
 
-class Concentration(BaseModel):
+class Concentration(obj_model.Model):
     """ Species concentration
 
     Attributes:
@@ -1277,7 +1276,7 @@ class Concentration(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         unique_together = (('species', ), )
         attribute_order = ('species',
                            'value',
@@ -1294,7 +1293,7 @@ class Concentration(BaseModel):
         return self.species.serialize()
 
 
-class Reaction(BaseModel):
+class Reaction(obj_model.Model):
     """ Reaction
 
     Attributes:
@@ -1322,7 +1321,7 @@ class Reaction(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'submodel',
                            'participants', 'reversible',
@@ -1401,7 +1400,7 @@ class Reaction(BaseModel):
         return sbml_reaction
 
 
-class ReactionParticipant(BaseModel):
+class ReactionParticipant(obj_model.Model):
     """ Species in a reaction
 
     Attributes:
@@ -1413,7 +1412,7 @@ class ReactionParticipant(BaseModel):
     species = ManyToOneAttribute('Species', related_name='reaction_participants')
     coefficient = FloatAttribute(nan=False)
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
@@ -1513,7 +1512,7 @@ class ReactionParticipant(BaseModel):
             return (None, InvalidAttribute(attr, ['Invalid reaction participant']))
 
 
-class RateLaw(BaseModel):
+class RateLaw(obj_model.Model):
     """ Rate law
 
     Attributes:
@@ -1534,7 +1533,7 @@ class RateLaw(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('reaction', 'direction',
                            'equation', 'k_cat', 'k_m',
                            'comments', 'references')
@@ -1575,7 +1574,7 @@ class RateLaw(BaseModel):
         return None
 
 
-class RateLawEquation(BaseModel):
+class RateLawEquation(obj_model.Model):
     """ Rate law equation
 
     Attributes:
@@ -1589,7 +1588,7 @@ class RateLawEquation(BaseModel):
     transcoded = LongStringAttribute()
     modifiers = ManyToManyAttribute('Species', related_name='rate_law_equations')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in this `RateLawEquation`
@@ -1674,7 +1673,7 @@ class RateLawEquation(BaseModel):
             return InvalidObject(self, [attr_err])
 
 
-class BiomassComponent(BaseModel):
+class BiomassComponent(obj_model.Model):
     """ BiomassComponent
 
     A biomass reaction contains a list of BiomassComponent instances. Distinct BiomassComponents
@@ -1697,14 +1696,14 @@ class BiomassComponent(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_components')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         unique_together = (('biomass_reaction', 'species_type'), )
         attribute_order = ('id', 'name', 'biomass_reaction',
                            'coefficient', 'species_type',
                            'comments', 'references')
 
 
-class BiomassReaction(BaseModel):
+class BiomassReaction(obj_model.Model):
     """ BiomassReaction
 
     A pseudo-reaction used to estimate a cell's growth.
@@ -1727,7 +1726,7 @@ class BiomassReaction(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'compartment', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -1792,7 +1791,7 @@ class BiomassReaction(BaseModel):
         return sbml_reaction
 
 
-class Parameter(BaseModel):
+class Parameter(obj_model.Model):
     """ Parameter
 
     Attributes:
@@ -1814,7 +1813,7 @@ class Parameter(BaseModel):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         unique_together = (('id', 'model', 'submodels', ), )
         attribute_order = ('id', 'name',
                            'model', 'submodels',
@@ -1853,7 +1852,7 @@ class Parameter(BaseModel):
         return sbml_parameter
 
 
-class Reference(BaseModel):
+class Reference(obj_model.Model):
     """ Reference
 
     Attributes:
@@ -1905,14 +1904,14 @@ class Reference(BaseModel):
     pages = StringAttribute()
     comments = LongStringAttribute()
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'model',
                            'title', 'author', 'editor', 'year', 'type', 'publication', 'publisher',
                            'series', 'volume', 'number', 'issue', 'edition', 'chapter', 'pages',
                            'comments')
 
 
-class DatabaseReference(BaseModel):
+class DatabaseReference(obj_model.Model):
     """ Reference to a source database entry
 
     Attributes:
@@ -1938,7 +1937,7 @@ class DatabaseReference(BaseModel):
     reaction = ManyToOneAttribute('Reaction', related_name='database_references')
     reference = ManyToOneAttribute('Reference', related_name='database_references')
 
-    class Meta(BaseModel.Meta):
+    class Meta(obj_model.Model.Meta):
         unique_together = (('database', 'id', ), )
         attribute_order = ('database', 'id', 'url',
                            'model', 'taxon', 'submodel', 'compartment', 'species_type', 'reaction', 'reference')
