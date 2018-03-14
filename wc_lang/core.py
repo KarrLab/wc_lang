@@ -1976,7 +1976,7 @@ class Parameter(obj_model.Model):
 
 
 class StopCondition(obj_model.Model):
-    """ Stop condition
+    """ Stop condition (Boolean-valued expression of one or more observables)
 
     Attributes:
         id (:obj:`str`): unique identifier
@@ -2009,13 +2009,6 @@ class StopCondition(obj_model.Model):
         # test validation with fluxes of 1.0
         errors = []
 
-        for match in re.findall(r'(\A|\b)(([a-z][a-z0-9_]*)\[([a-z][a-z0-9_]*)\])', expr, re.IGNORECASE):
-            if not self.model.species_types.get_one(id=match[2]):
-                errors.append('Species type "{}" not defined'.format(match[2]))
-            if not self.model.compartments.get_one(id=match[3]):
-                errors.append('Compartment "{}" not defined'.format(match[3]))
-            expr = expr.replace(match[1], '1.')
-
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
             if not self.model.observables.get_one(id=match[1]):
                 errors.append('Observable "{}" not defined'.format(match[1]))
@@ -2024,7 +2017,8 @@ class StopCondition(obj_model.Model):
         local_ns = {func.__name__: func for func in self.Meta.valid_functions}
 
         try:
-            eval(expr, {}, local_ns)
+            if not isinstance(eval(expr, {}, local_ns), bool):
+                errors.append("expression must be Boolean-valued: {}".format(self.expression))
         except SyntaxError as error:
             errors.append("syntax error in expression '{}'".format(self.expression))
         except NameError as error:

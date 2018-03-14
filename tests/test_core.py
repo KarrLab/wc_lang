@@ -1268,9 +1268,19 @@ class TestCore(unittest.TestCase):
         model.compartments.create(id='a')
         model.compartments.create(id='bb')
         model.observables.create(id='CCC')
+        model.observables.create(id='DDD')
+
+        cond = model.stop_conditions.create(id='cond', expression='CCC > 3')
+        self.assertEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='CCC + DDD > 3')
+        self.assertEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='CCC + 2 * DDD > 3')
+        self.assertEqual(cond.validate(), None)
 
         cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CCC > 3')
-        self.assertEqual(cond.validate(), None)
+        self.assertNotEqual(cond.validate(), None)
 
         cond = model.stop_conditions.create(id='cond', expression='a[a] + BB[bb] + CCC > 3')
         self.assertNotEqual(cond.validate(), None)
@@ -1279,6 +1289,9 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(cond.validate(), None)
 
         cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CC > 3')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='CCC + 2 * DDD')
         self.assertNotEqual(cond.validate(), None)
 
         cond = model.stop_conditions.create(id='cond', expression=' > 3')

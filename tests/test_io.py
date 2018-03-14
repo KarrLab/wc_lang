@@ -81,7 +81,7 @@ class TestSimpleModel(unittest.TestCase):
             obs = mdl.observables.create(id='obs_{}'.format(i))
             for j in range(i + 1):
                 obs.participants.append(get_or_create_participant(species=species[j], coefficient=j + 1))
-            self.observables.append(obs)
+            observables.append(obs)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
@@ -144,7 +144,7 @@ class TestSimpleModel(unittest.TestCase):
         self.stop_conditions = stop_conditions = []
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
-            cond.expression = '{} > 1'.format(' + '.join(s.serialize() for s in species[0:i+1]))
+            cond.expression = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
             self.stop_conditions.append(cond)
 
         self.dirname = tempfile.mkdtemp()
