@@ -302,7 +302,7 @@ class ObservableParticipantAttribute(ManyToManyAttribute):
         pat_id = '([a-z][a-z0-9_]*)'
         pat_coeff = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
         pat_species_coeff = '({} )*({}\[{}\])'.format(pat_coeff, pat_id, pat_id)
-        pat_observable = '{}( \+ {})*'.format(pat_species_coeff, pat_species_coeff)
+        pat_observable = '^{}( \+ {})*$'.format(pat_species_coeff, pat_species_coeff)
         if not re.match(pat_observable, value, flags=re.I):
             return (None, InvalidAttribute(self, ['Incorrectly formatted observable: {}'.format(value)]))
 
@@ -979,7 +979,7 @@ class ObjectiveFunction(obj_model.Model):
 
         # to evaluate the expression, set variables for the reaction identifiers to their fluxes
         # test validation with fluxes of 1.0
-        local_ns = {func.__name__: func for func in ObjectiveFunction.Meta.valid_functions}
+        local_ns = {func.__name__: func for func in self.Meta.valid_functions}
         local_ns.update({rxn.id: 1.0 for rxn in self.reactions})
         local_ns.update({biomass_rxn.id: 1.0 for biomass_rxn in self.biomass_reactions})
         errors = []
@@ -1973,6 +1973,72 @@ class Parameter(obj_model.Model):
                                                    name=self.name)
 
         return sbml_parameter
+
+
+class StopCondition(obj_model.Model):
+    """ Stop condition
+
+    Attributes:
+        id (:obj:`str`): unique identifier
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        expression (:obj:`str`): expression
+        comments (:obj:`str`): comments
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='stop_conditions')
+    expression = LongStringAttribute()
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'model', 'expression', 'comments')
+        valid_functions = ()
+
+    def validate(self):
+        """ Determine whether a `StopCondition` is valid by checking whether
+        `expression` is a valid Python expression.
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        expr = self.expression
+
+        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
+        # test validation with fluxes of 1.0
+        errors = []
+
+        for match in re.findall(r'(\A|\b)(([a-z][a-z0-9_]*)\[([a-z][a-z0-9_]*)\])', expr, re.IGNORECASE):
+            if not self.model.species_types.get_one(id=match[2]):
+                errors.append('Species type "{}" not defined'.format(match[2]))
+            if not self.model.compartments.get_one(id=match[3]):
+                errors.append('Compartment "{}" not defined'.format(match[3]))
+            expr = expr.replace(match[1], '1.')
+
+        for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
+            if not self.model.observables.get_one(id=match[1]):
+                errors.append('Observable "{}" not defined'.format(match[1]))
+            expr = expr.replace(match[1], '1.')
+
+        local_ns = {func.__name__: func for func in self.Meta.valid_functions}
+
+        try:
+            eval(expr, {}, local_ns)
+        except SyntaxError as error:
+            errors.append("syntax error in expression '{}'".format(self.expression))
+        except NameError as error:
+            errors.append("NameError in expression '{}'".format(self.expression))
+        except Exception as error:
+            errors.append("cannot eval expression '{}'".format(self.expression))
+
+        if errors:
+            attr = self.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, errors)
+            return InvalidObject(self, [attr_err])
+
+        """ return `None` to indicate valid object """
+        return None
 
 
 class Reference(obj_model.Model):

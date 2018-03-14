@@ -9,7 +9,7 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, RateLawDirecti
                    Model, Taxon, Submodel, ObjectiveFunction, Compartment,
                    SpeciesType, Species, Observable, Concentration,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawEquation,
-                   BiomassComponent, BiomassReaction, Parameter, Reference,
+                   BiomassComponent, BiomassReaction, Parameter, StopCondition, Reference,
                    DatabaseReference)
 from . import config
 from . import io

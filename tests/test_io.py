@@ -10,6 +10,7 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, React
                      Species, Observable, Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference,
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
+from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import obj_model.io
@@ -140,6 +141,12 @@ class TestSimpleModel(unittest.TestCase):
                                                    url='http://x.com/{}'.format('y' * (i + 1)))
             database_references.append(x_ref)
 
+        self.stop_conditions = stop_conditions = []
+        for i in range(3):
+            cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
+            cond.expression = '{} > 1'.format(' + '.join(s.serialize() for s in species[0:i+1]))
+            self.stop_conditions.append(cond)
+
         self.dirname = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -220,3 +227,17 @@ class TestReaderException(unittest.TestCase):
 
         with self.assertRaisesRegexp(ValueError, ' should only define one model$'):
             Reader().run(filename)
+
+
+class TestReadNoModel(unittest.TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test(self):
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        obj_model.io.Writer().run(filename, [], io.Writer.model_order)
+        self.assertEqual(Reader().run(filename), None)

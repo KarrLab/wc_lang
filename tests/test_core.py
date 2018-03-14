@@ -16,7 +16,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Observable, Compartment,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType, DatabaseReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
-                          BiomassReaction,
+                          BiomassReaction, StopCondition,
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute, RateLawEquationAttribute,
                           InvalidObject)
 from wc_lang.prepare import PrepareModel
@@ -444,12 +444,12 @@ class TestCore(unittest.TestCase):
         self.assertEqual(sc_a.serialize(), '(2) a[a]')
         self.assertEqual(sc_b.serialize(), '(3) bb[bb]')
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.species_type, st_a)
-        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.compartment, c_a)        
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.compartment, c_a)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].coefficient, 2.)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species, s_a)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0], sc_a)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species.species_type, st_b)
-        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species.compartment, c_b)        
+        self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species.compartment, c_b)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].coefficient, 3.)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0].species, s_b)
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(3) bb[bb]', objs)[0], sc_b)
@@ -458,7 +458,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].coefficient, 4.)
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species, s_c)
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0], sc_c)
-        
+
         self.assertEqual(attr.serialize(obs.participants), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc]')
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0], sc_a)
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species, s_b)
@@ -466,6 +466,36 @@ class TestCore(unittest.TestCase):
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.species_type, st_c)
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.compartment, c_c)
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].coefficient, 4.)
+
+        objs = {
+            SpeciesType: {
+                st_a.id: st_a,
+                st_b.id: st_b,
+                st_c.id: st_c,
+            },
+            Compartment: {
+                c_a.id: c_a,
+                c_b.id: c_b,
+                c_c.id: c_c,
+            },
+        }
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].species.species_type, st_a)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].species.compartment, c_a)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].coefficient, 2.)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species.species_type, st_b)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species.compartment, c_b)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].coefficient, 3.)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.species_type, st_c)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.compartment, c_c)
+        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].coefficient, 4.)
+
+        self.assertEqual(attr.serialize([]), '')
+
+        # test deserialize error handling
+        self.assertNotEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
+        self.assertEqual(attr.deserialize('(2) a[a] - (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
+        self.assertEqual(attr.deserialize('(2) aa[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
+        self.assertEqual(attr.deserialize('(2) a[aa] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
 
     def test_concentration_serialize(self):
         self.assertEqual(self.concentrations[0].serialize(), 'spec_type_0[comp_0]')
@@ -1230,6 +1260,35 @@ class TestCore(unittest.TestCase):
         )
         with self.assertRaisesRegexp(ValueError, 'does not belong to submodel'):
             obj_func.get_products()
+
+    def test_stop_condition_validate(self):
+        model = Model()
+        model.species_types.create(id='A')
+        model.species_types.create(id='BB')
+        model.compartments.create(id='a')
+        model.compartments.create(id='bb')
+        model.observables.create(id='CCC')
+
+        cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CCC > 3')
+        self.assertEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='a[a] + BB[bb] + CCC > 3')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='a[A] + BB[bb] + CCC > 3')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CC > 3')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression=' > 3')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='_x')
+        self.assertNotEqual(cond.validate(), None)
+
+        cond = model.stop_conditions.create(id='cond', expression='x() > 3')
+        self.assertNotEqual(cond.validate(), None)
 
 
 class TestCoreFromFile(unittest.TestCase):
