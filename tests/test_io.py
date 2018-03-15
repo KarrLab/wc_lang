@@ -83,6 +83,12 @@ class TestSimpleModel(unittest.TestCase):
                 obs.participants.append(get_or_create_participant(species=species[j], coefficient=j + 1))
             observables.append(obs)
 
+        self.functions = functions = []
+        for i in range(8):
+            func = mdl.functions.create(id='func_{}'.format(i))
+            func.expression = ' + 2 * '.join(o.id for o in observables[0:j + 1])
+            functions.append(func)
+
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_1 = submdl_1 = mdl.submodels.create(

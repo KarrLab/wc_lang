@@ -1261,6 +1261,51 @@ class TestCore(unittest.TestCase):
         with self.assertRaisesRegexp(ValueError, 'does not belong to submodel'):
             obj_func.get_products()
 
+    def test_function_validate(self):
+        model = Model()
+        model.species_types.create(id='A')
+        model.species_types.create(id='BB')
+        model.compartments.create(id='a')
+        model.compartments.create(id='bb')
+        model.observables.create(id='CCC')
+        model.observables.create(id='DDD')
+
+        func = model.functions.create(id='func', expression='CCC')
+        self.assertEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='CCC + DDD')
+        self.assertEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='CCC + 2 * DDD')
+        self.assertEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='CCC + 2 * DDD > 3')
+        self.assertEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='A[a] + BB[bb] + CCC > 3')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='a[a] + BB[bb] + CCC > 3')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='a[A] + BB[bb] + CCC > 3')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='A[a] + BB[bb] + CC > 3')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='"a"')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression=' > 3')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='_x')
+        self.assertNotEqual(func.validate(), None)
+
+        func = model.functions.create(id='func', expression='x() > 3')
+        self.assertNotEqual(func.validate(), None)
+
     def test_stop_condition_validate(self):
         model = Model()
         model.species_types.create(id='A')

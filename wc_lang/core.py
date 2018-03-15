@@ -42,6 +42,7 @@ from natsort import natsorted, ns
 from six import with_metaclass, string_types
 import pkg_resources
 import re
+import six
 import sys
 from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
@@ -1364,27 +1365,6 @@ class Species(obj_model.Model):
         return sbml_species
 
 
-class Observable(obj_model.Model):
-    """ Observable (a weighted sum of the abundances of one or more species)
-
-    Attributes:
-        id (:obj:`str`): id
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-        participants (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
-        comments (:obj:`str`): comments
-    """
-    id = SlugAttribute()
-    name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='observables')
-    participants = ObservableParticipantAttribute(related_name='observables')
-    comments = LongStringAttribute()
-
-    class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model', 'participants', 'comments')
-        indexed_attrs_tuples = (('id',), )
-
-
 class Concentration(obj_model.Model):
     """ Species concentration
 
@@ -1414,6 +1394,87 @@ class Concentration(obj_model.Model):
             :obj:`str`: value of primary attribute
         """
         return self.species.serialize()
+
+
+class Observable(obj_model.Model):
+    """ An observable (a weighted sum of the abundances of one or more species)
+
+    Attributes:
+        id (:obj:`str`): id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        participants (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
+        comments (:obj:`str`): comments
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='observables')
+    participants = ObservableParticipantAttribute(related_name='observables')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'model', 'participants', 'comments')
+        indexed_attrs_tuples = (('id',), )
+
+
+class Function(obj_model.Model):
+    """ An arbitrary mathematical function of one or more observables
+
+    Attributes:
+        id (:obj:`str`): id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        expression (:obj:`str`): expression
+        comments (:obj:`str`): comments
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='functions')
+    expression = LongStringAttribute()
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'model', 'expression', 'comments')
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+
+    def validate(self):
+        """ Determine whether a `StopCondition` is valid by checking whether
+        `expression` is a valid Python expression.
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        expr = self.expression
+
+        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
+        # test validation with fluxes of 1.0
+        errors = []
+
+        for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
+            if not self.model.observables.get_one(id=match[1]):
+                errors.append('Observable "{}" not defined'.format(match[1]))
+            expr = expr.replace(match[1], '1.')
+
+        local_ns = {func.__name__: func for func in self.Meta.valid_functions}
+
+        try:
+            if not isinstance(eval(expr, {}, local_ns), (float, six.integer_types, bool)):
+                errors.append("expression must be float, integer, or Boolean-valued: {}".format(self.expression))
+        except SyntaxError as error:
+            errors.append("syntax error in expression '{}'".format(self.expression))
+        except NameError as error:
+            errors.append("NameError in expression '{}'".format(self.expression))
+        except Exception as error:
+            errors.append("cannot eval expression '{}'".format(self.expression))
+
+        if errors:
+            attr = self.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, errors)
+            return InvalidObject(self, [attr_err])
+
+        """ return `None` to indicate valid object """
+        return None
 
 
 class Reaction(obj_model.Model):
@@ -1993,7 +2054,7 @@ class StopCondition(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'model', 'expression', 'comments')
-        valid_functions = ()
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def validate(self):
         """ Determine whether a `StopCondition` is valid by checking whether

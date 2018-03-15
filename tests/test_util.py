@@ -10,7 +10,7 @@ from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeT
                           Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
                           Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
                           RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
-                          Observable, StopCondition)
+                          Observable, Function, StopCondition)
 from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
 import unittest
 
@@ -129,7 +129,7 @@ class TestUtil(unittest.TestCase):
             Model, Taxon,
             Submodel, Compartment, SpeciesType, Observable, Concentration,
             Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
-            StopCondition, Reference, DatabaseReference,
+            Function, StopCondition, Reference, DatabaseReference,
         ])
         inline_models = set([
             Species, SpeciesCoefficient, RateLawEquation, ObjectiveFunction
