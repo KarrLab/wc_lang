@@ -8,7 +8,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, RateLawDirection, ReferenceType,
                    Model, Taxon, Submodel, ObjectiveFunction, Compartment,
                    SpeciesType, Species, Observable, Function, Concentration,
-                   Reaction, SpeciesCoefficient, RateLaw, RateLawEquation,
+                   Reaction, SpeciesCoefficient, ObservableCoefficient, RateLaw, RateLawEquation,
                    BiomassComponent, BiomassReaction, Parameter, StopCondition, Reference,
                    DatabaseReference)
 from . import config

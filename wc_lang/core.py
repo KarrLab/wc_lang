@@ -248,46 +248,47 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
         return Species.deserialize(self, value, objects)
 
 
-class ObservableParticipantAttribute(ManyToManyAttribute):
+class ObservableSpeciesParticipantAttribute(ManyToManyAttribute):
     """ Inline separated list of species and their weights of an observable
 
     Attributes:
         separator (:obj:`str`): list separator
     """
 
-    def __init__(self, separator=' + ', related_name='', verbose_name='', verbose_related_name='', help=''):
+    def __init__(self, related_class, separator=' + ', related_name='', verbose_name='', verbose_related_name='', help=''):
         """
         Args:
+            related_class (:obj:`class`): related class
             separator (:obj:`str`, optional): list separator
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
             verbose_name (:obj:`str`, optional): verbose name
             verbose_related_name (:obj:`str`, optional): verbose related name
             help (:obj:`str`, optional): help message
         """
-        super(ObservableParticipantAttribute, self).__init__('SpeciesCoefficient', related_name=related_name,
-                                                             verbose_name=verbose_name,
-                                                             verbose_related_name=verbose_related_name,
-                                                             help=help)
+        super(ObservableSpeciesParticipantAttribute, self).__init__(related_class, related_name=related_name,
+                                                                    verbose_name=verbose_name,
+                                                                    verbose_related_name=verbose_related_name,
+                                                                    help=help)
         self.separator = separator
 
-    def serialize(self, species_coeffs):
+    def serialize(self, spec_coeffs):
         """ Serialize related object
 
         Args:
-            species_coeffs (:obj:`list` of `SpeciesCoefficient`): Python representation of species and their coefficients
+            spec_coeffs (:obj:`list` of `Model`): Python representation of species and their coefficients
 
         Returns:
             :obj:`str`: simple Python representation
         """
-        if not species_coeffs:
+        if not spec_coeffs:
             return ''
 
-        species_coeff_strs = []
-        for species_coeff_obj in species_coeffs:
-            species_coeff_str = species_coeff_obj.serialize(show_compartment=True, show_coefficient_sign=True)
-            species_coeff_strs.append(species_coeff_str)
+        spec_coeff_strs = []
+        for spec_coeff_obj in spec_coeffs:
+            spec_coeff_str = spec_coeff_obj.serialize(show_compartment=True, show_coefficient_sign=True)
+            spec_coeff_strs.append(spec_coeff_str)
 
-        return self.separator.join(species_coeff_strs)
+        return self.separator.join(spec_coeff_strs)
 
     def deserialize(self, value, objects):
         """ Deserialize value
@@ -300,54 +301,152 @@ class ObservableParticipantAttribute(ManyToManyAttribute):
             :obj:`tuple` of `list` of `related_class`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
+        if not value:
+            return ([], None)
+
         pat_id = '([a-z][a-z0-9_]*)'
         pat_coeff = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
-        pat_species_coeff = '({} )*({}\[{}\])'.format(pat_coeff, pat_id, pat_id)
-        pat_observable = '^{}( \+ {})*$'.format(pat_species_coeff, pat_species_coeff)
+        pat_spec_coeff = '({} )*({}\[{}\])'.format(pat_coeff, pat_id, pat_id)
+        pat_observable = '^{}( \+ {})*$'.format(pat_spec_coeff, pat_spec_coeff)
         if not re.match(pat_observable, value, flags=re.I):
             return (None, InvalidAttribute(self, ['Incorrectly formatted observable: {}'.format(value)]))
 
-        species_coeff_objs = []
+        spec_coeff_objs = []
         errors = []
-        for species_coeff_match in re.findall(pat_species_coeff, value, flags=re.I):
-            species_type_errors = []
+        for spec_coeff_match in re.findall(pat_spec_coeff, value, flags=re.I):
+            spec_type_errors = []
 
-            species_type_id = species_coeff_match[5]
-            if species_type_id in objects[SpeciesType]:
-                species_type = objects[SpeciesType][species_type_id]
+            spec_type_id = spec_coeff_match[5]
+            if spec_type_id in objects[SpeciesType]:
+                spec_type = objects[SpeciesType][spec_type_id]
             else:
-                species_type_errors.append('Undefined species type "{}"'.format(species_type_id))
+                spec_type_errors.append('Undefined species type "{}"'.format(spec_type_id))
 
-            compartment_id = species_coeff_match[6]
+            compartment_id = spec_coeff_match[6]
             if compartment_id in objects[Compartment]:
                 compartment = objects[Compartment][compartment_id]
             else:
-                species_type_errors.append('Undefined compartment "{}"'.format(compartment_id))
+                spec_type_errors.append('Undefined compartment "{}"'.format(compartment_id))
 
-            coefficient = float(species_coeff_match[1] or 1.)
+            coefficient = float(spec_coeff_match[1] or 1.)
 
-            if species_type_errors:
-                errors += species_type_errors
+            if spec_type_errors:
+                errors += spec_type_errors
             elif coefficient != 0:
-                species_id = Species.gen_id(species_type.get_primary_attribute(), compartment.get_primary_attribute())
-                species, error = Species.deserialize(self, species_id, objects)
+                spec_id = Species.gen_id(spec_type.get_primary_attribute(), compartment.get_primary_attribute())
+                obj, error = Species.deserialize(self, spec_id, objects)
+
                 if error:
-                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute)
+                    raise ValueError('Invalid object "{}"'.format(spec_primary_attribute)
                                      )  # pragma: no cover # unreachable due to error checking above
 
-                if SpeciesCoefficient not in objects:
-                    objects[SpeciesCoefficient] = {}
-                serialized_value = SpeciesCoefficient._serialize(species, coefficient)
-                if serialized_value in objects[SpeciesCoefficient]:
-                    species_coeff_obj = objects[SpeciesCoefficient][serialized_value]
+                if self.related_class not in objects:
+                    objects[self.related_class] = {}
+                serialized_value = self.related_class._serialize(obj, coefficient)
+                if serialized_value in objects[self.related_class]:
+                    spec_coeff_obj = objects[self.related_class][serialized_value]
                 else:
-                    species_coeff_obj = SpeciesCoefficient(species=species, coefficient=coefficient)
-                    objects[SpeciesCoefficient][serialized_value] = species_coeff_obj
-                species_coeff_objs.append(species_coeff_obj)
+                    spec_coeff_obj = self.related_class(species=obj, coefficient=coefficient)
+                    objects[self.related_class][serialized_value] = spec_coeff_obj
+                spec_coeff_objs.append(spec_coeff_obj)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
-        return (species_coeff_objs, None)
+        return (spec_coeff_objs, None)
+
+
+class ObservableObservableParticipantAttribute(ManyToManyAttribute):
+    """ Inline separated list of observables and their weights of an observable
+
+    Attributes:
+        separator (:obj:`str`): list separator
+    """
+
+    def __init__(self, related_class, separator=' + ', related_name='', verbose_name='', verbose_related_name='', help=''):
+        """
+        Args:
+            related_class (:obj:`class`): related class
+            separator (:obj:`str`, optional): list separator
+            related_name (:obj:`str`, optional): name of related attribute on `related_class`
+            verbose_name (:obj:`str`, optional): verbose name
+            verbose_related_name (:obj:`str`, optional): verbose related name
+            help (:obj:`str`, optional): help message
+        """
+        super(ObservableObservableParticipantAttribute, self).__init__(related_class, related_name=related_name,
+                                                                       verbose_name=verbose_name,
+                                                                       verbose_related_name=verbose_related_name,
+                                                                       help=help)
+        self.separator = separator
+
+    def serialize(self, obs_coeffs):
+        """ Serialize related object
+
+        Args:
+            obs_coeffs (:obj:`list` of `Model`): Python representation of observables and their coefficients
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        if not obs_coeffs:
+            return ''
+
+        obs_coeff_strs = []
+        for obs_coeff_obj in obs_coeffs:
+            obs_coeff_str = obs_coeff_obj.serialize()
+            obs_coeff_strs.append(obs_coeff_str)
+
+        return self.separator.join(obs_coeff_strs)
+
+    def deserialize(self, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of `list` of `related_class`, `InvalidAttribute` or `None`: tuple of cleaned value
+                and cleaning error
+        """
+        if not value:
+            return ([], None)
+
+        pat_id = '([a-z][a-z0-9_]*)'
+        pat_coeff = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
+        pat_obs_coeff = '({} )*({})'.format(pat_coeff, pat_id, pat_id)
+        pat_observable = '^{}( \+ {})*$'.format(pat_obs_coeff, pat_obs_coeff)
+        if not re.match(pat_observable, value, flags=re.I):
+            return (None, InvalidAttribute(self, ['Incorrectly formatted observable: {}'.format(value)]))
+
+        obs_coeff_objs = []
+        errors = []
+        for obs_coeff_match in re.findall(pat_obs_coeff, value, flags=re.I):
+            obs_errors = []
+
+            obs_id = obs_coeff_match[5]
+            if obs_id in objects[Observable]:
+                obs = objects[Observable][obs_id]
+            else:
+                obs_errors.append('Undefined observable "{}"'.format(obs_id))
+
+            coefficient = float(obs_coeff_match[1] or 1.)
+
+            if obs_errors:
+                errors += obs_errors
+            elif coefficient != 0:
+                if self.related_class not in objects:
+                    objects[self.related_class] = {}
+                serialized_value = self.related_class._serialize(obs, coefficient)
+                if serialized_value in objects[self.related_class]:
+                    obs_coeff_obj = objects[self.related_class][serialized_value]
+                else:
+                    obs_coeff_obj = self.related_class(observable=obs, coefficient=coefficient)
+                    objects[self.related_class][serialized_value] = obs_coeff_obj
+                obs_coeff_objs.append(obs_coeff_obj)
+
+        if errors:
+            return (None, InvalidAttribute(self, errors))
+        return (obs_coeff_objs, None)
 
 
 class ReactionParticipantAttribute(ManyToManyAttribute):
@@ -468,7 +567,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         Returns:
             :obj:`tuple`:
 
-                * :obj:`list` of :obj:`SpeciesCoefficient`: list of reaction participants
+                * :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
                 * :obj:`list` of :obj:`Exception`: list of errors
         """
         parts = []
@@ -1145,7 +1244,6 @@ class SpeciesType(obj_model.Model):
 
         database_references (:obj:`list` of `DatabaseReference`): database references
         concentrations (:obj:`list` of `Concentration`): concentrations
-        reaction_participants (:obj:`list` of `SpeciesCoefficient`): reaction participants
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1184,7 +1282,7 @@ class Species(obj_model.Model):
         compartment (:obj:`Compartment`): compartment
 
         concentration (:obj:`Concentration`): concentration
-        reaction_participants (:obj:`list` of `Reaction`): participations in reactions
+        species_coefficients (:obj:`list` of `SpeciesCoefficient`): participations in reactions and observables
         rate_law_equations (:obj:`RateLawEquation`): rate law equations
     """
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
@@ -1405,15 +1503,19 @@ class Observable(obj_model.Model):
         model (:obj:`Model`): model
         participants (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
         comments (:obj:`str`): comments
+
+    Related attributes:
+        observable_coefficients (:obj:`list` of `ObservableCoefficient`): participations in observables
     """
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
-    participants = ObservableParticipantAttribute(related_name='observables')
+    species = ObservableSpeciesParticipantAttribute('SpeciesCoefficient', related_name='observables')
+    observables = ObservableObservableParticipantAttribute('ObservableCoefficient', related_name='observables')
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model', 'participants', 'comments')
+        attribute_order = ('id', 'name', 'model', 'species', 'observables', 'comments')
         indexed_attrs_tuples = (('id',), )
 
 
@@ -1585,15 +1687,16 @@ class Reaction(obj_model.Model):
 
 
 class SpeciesCoefficient(obj_model.Model):
-    """ Species in a reaction
+    """ A tuple of a species and a coefficient
 
     Attributes:
         species (:obj:`Species`): species
         coefficient (:obj:`float`): coefficient
 
+    Related attributes:
         reaction (:obj:`Reaction`): reaction
     """
-    species = ManyToOneAttribute(Species, related_name='reaction_participants')
+    species = ManyToOneAttribute(Species, related_name='species_coefficients')
     coefficient = FloatAttribute(nan=False)
 
     class Meta(obj_model.Model.Meta):
@@ -1693,7 +1796,97 @@ class SpeciesCoefficient(obj_model.Model):
 
         else:
             attr = cls.Meta.attributes['species']
-            return (None, InvalidAttribute(attr, ['Invalid reaction participant']))
+            return (None, InvalidAttribute(attr, ['Invalid species coefficient']))
+
+
+class ObservableCoefficient(obj_model.Model):
+    """ A tuple of observable and coefficient
+
+    Attributes:
+        observable (:obj:`Observable`): species
+        coefficient (:obj:`float`): coefficient
+    """
+    observable = ManyToOneAttribute(Observable, related_name='observable_coefficients')
+    coefficient = FloatAttribute(nan=False)
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('observable', 'coefficient')
+        frozen_columns = 1
+        tabular_orientation = TabularOrientation.inline
+        ordering = ('observable',)
+
+    def serialize(self):
+        """ Serialize related object
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        return self._serialize(self.observable, self.coefficient)
+
+    @staticmethod
+    def _serialize(observable, coefficient):
+        """ Serialize values
+
+        Args:
+            observable (:obj:`Observable`): observable
+            coefficient (:obj:`float`): coefficient
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        coefficient = float(coefficient)
+
+        if coefficient == 1:
+            coefficient_str = ''
+        elif coefficient % 1 == 0 and abs(coefficient) < 1000:
+            coefficient_str = '({:.0f}) '.format(coefficient)
+        else:
+            coefficient_str = '({:e}) '.format(coefficient)
+
+        return '{}{}'.format(coefficient_str, observable.serialize())
+
+    @classmethod
+    def deserialize(cls, attribute, value, objects):
+        """ Deserialize value
+
+        Args:
+            attribute (:obj:`Attribute`): attribute
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of `list` of `ObservableCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
+                and cleaning error
+        """
+        errors = []
+
+        pattern = '^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)$'
+
+        match = re.match(pattern, value, flags=re.I)
+        if match:
+            errors = []
+
+            coefficient = float(match.group(2) or 1.)
+
+            obs_id = match.group(5)
+
+            observable, error = Observable.deserialize(obs_id, objects)
+            if error:
+                return (None, error)
+
+            serial_val = cls._serialize(observable, coefficient)
+            if cls in objects and serial_val in objects[cls]:
+                return (objects[cls][serial_val], None)
+
+            obj = cls(observable=observable, coefficient=coefficient)
+            if cls not in objects:
+                objects[cls] = {}
+            objects[cls][obj.serialize()] = obj
+            return (obj, None)
+
+        else:
+            attr = cls.Meta.attributes['observable']
+            return (None, InvalidAttribute(attr, ['Invalid observable coefficient']))
 
 
 class RateLaw(obj_model.Model):

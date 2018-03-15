@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
-                     Species, Observable, Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
+                     Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient, BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference,
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang import io
@@ -68,19 +68,32 @@ class TestSimpleModel(unittest.TestCase):
             conc = Concentration(species=spec, value=3 * i)
             concentrations.append(conc)
 
-        participants = {}
+        species_coefficients = {}
 
-        def get_or_create_participant(species=None, coefficient=None):
+        def get_or_create_species_coefficient(species=None, coefficient=None):
             part_serialized = SpeciesCoefficient._serialize(species, coefficient)
-            if part_serialized not in participants:
-                participants[part_serialized] = SpeciesCoefficient(species=species, coefficient=coefficient)
-            return participants[part_serialized]
+            if part_serialized not in species_coefficients:
+                species_coefficients[part_serialized] = SpeciesCoefficient(species=species, coefficient=coefficient)
+            return species_coefficients[part_serialized]
+
+        observable_coefficients = {}
+
+        def get_or_create_observable_coefficient(observable=None, coefficient=None):
+            part_serialized = ObservableCoefficient._serialize(observable, coefficient)
+            if part_serialized not in observable_coefficients:
+                observable_coefficients[part_serialized] = ObservableCoefficient(observable=observable, coefficient=coefficient)
+            return observable_coefficients[part_serialized]
 
         self.observables = observables = []
         for i in range(8):
             obs = mdl.observables.create(id='obs_{}'.format(i))
             for j in range(i + 1):
-                obs.participants.append(get_or_create_participant(species=species[j], coefficient=j + 1))
+                obs.species.append(get_or_create_species_coefficient(species=species[j], coefficient=j + 1))
+            observables.append(obs)
+        for i in range(3):
+            obs = mdl.observables.create(id='obs_{}'.format(i + 8))
+            for j in range(i + 1):
+                obs.observables.append(get_or_create_observable_coefficient(observable=observables[j], coefficient=j + 1))
             observables.append(obs)
 
         self.functions = functions = []
@@ -99,27 +112,27 @@ class TestSimpleModel(unittest.TestCase):
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
 
-        rxn_0.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
-        rxn_0.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
-        rxn_0.participants.append(get_or_create_participant(species=species[2], coefficient=1))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=1))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
         rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
-        rxn_1.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
-        rxn_1.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
-        rxn_1.participants.append(get_or_create_participant(species=species[3], coefficient=2))
+        rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
+        rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
+        rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
         rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
-        rxn_2.participants.append(get_or_create_participant(species=species[0], coefficient=-2))
-        rxn_2.participants.append(get_or_create_participant(species=species[1], coefficient=-3))
-        rxn_2.participants.append(get_or_create_participant(species=species[4], coefficient=1))
+        rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
+        rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
+        rxn_2.participants.append(get_or_create_species_coefficient(species=species[4], coefficient=1))
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])

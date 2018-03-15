@@ -14,7 +14,8 @@ import warnings
 import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Observable, Compartment,
-                          SpeciesCoefficient, Parameter, Reference, ReferenceType, DatabaseReference,
+                          SpeciesCoefficient, ObservableCoefficient, Parameter, Reference, ReferenceType,
+                          DatabaseReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
                           BiomassReaction, StopCondition,
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute, RateLawEquationAttribute,
@@ -192,14 +193,14 @@ class TestCore(unittest.TestCase):
             else:
                 self.assertEqual(self.species[i].compartment, self.compartments[1])
 
-        self.assertEqual(len(self.species[0].reaction_participants), 3)
-        self.assertEqual(len(self.species[1].reaction_participants), 3)
-        self.assertEqual(len(self.species[2].reaction_participants), 1)
-        self.assertEqual(len(self.species[3].reaction_participants), 1)
-        self.assertEqual(len(self.species[4].reaction_participants), 1)
-        self.assertEqual(len(self.species[5].reaction_participants), 0)
-        self.assertEqual(len(self.species[6].reaction_participants), 0)
-        self.assertEqual(len(self.species[7].reaction_participants), 0)
+        self.assertEqual(len(self.species[0].species_coefficients), 3)
+        self.assertEqual(len(self.species[1].species_coefficients), 3)
+        self.assertEqual(len(self.species[2].species_coefficients), 1)
+        self.assertEqual(len(self.species[3].species_coefficients), 1)
+        self.assertEqual(len(self.species[4].species_coefficients), 1)
+        self.assertEqual(len(self.species[5].species_coefficients), 0)
+        self.assertEqual(len(self.species[6].species_coefficients), 0)
+        self.assertEqual(len(self.species[7].species_coefficients), 0)
 
         self.assertEqual(len(self.species[0].rate_law_equations), 0)
         self.assertEqual(len(self.species[1].rate_law_equations), 0)
@@ -257,7 +258,7 @@ class TestCore(unittest.TestCase):
 
         # reaction participant
         for species in self.species[0:5]:
-            self.assertEqual(set(x.species for x in species.reaction_participants), set([species]))
+            self.assertEqual(set(x.species for x in species.species_coefficients), set([species]))
 
         for reaction in self.reactions:
             for part in reaction.participants:
@@ -401,7 +402,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(species4, None)
         self.assertEqual(set(objs[Species].values()), set([species0, species1]))
 
-    def test_observable_serialize(self):
+    def test_observable_species_serialize(self):
         st_a = SpeciesType(id='a')
         st_b = SpeciesType(id='bb')
         st_c = SpeciesType(id='ccc')
@@ -415,9 +416,9 @@ class TestCore(unittest.TestCase):
         sc_b = SpeciesCoefficient(species=s_b, coefficient=3.)
         sc_c = SpeciesCoefficient(species=s_c, coefficient=4.)
         obs = Observable()
-        obs.participants.append(sc_a)
-        obs.participants.append(sc_b)
-        obs.participants.append(sc_c)
+        obs.species.append(sc_a)
+        obs.species.append(sc_b)
+        obs.species.append(sc_c)
 
         objs = {
             SpeciesType: {
@@ -439,7 +440,7 @@ class TestCore(unittest.TestCase):
             }
         }
 
-        attr = Observable.Meta.attributes['participants']
+        attr = Observable.Meta.attributes['species']
 
         self.assertEqual(sc_a.serialize(), '(2) a[a]')
         self.assertEqual(sc_b.serialize(), '(3) bb[bb]')
@@ -459,7 +460,7 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species, s_c)
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0], sc_c)
 
-        self.assertEqual(attr.serialize(obs.participants), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc]')
+        self.assertEqual(attr.serialize(obs.species), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc]')
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0], sc_a)
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species, s_b)
         self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].coefficient, 3.)
@@ -496,6 +497,67 @@ class TestCore(unittest.TestCase):
         self.assertEqual(attr.deserialize('(2) a[a] - (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
         self.assertEqual(attr.deserialize('(2) aa[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
         self.assertEqual(attr.deserialize('(2) a[aa] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
+
+    def test_observable_observable_serialize(self):
+        obs_a = Observable(id='obs_a')
+        obs_b = Observable(id='obs_b')
+        obs_c = Observable(id='obs_c')
+
+        obs_coeff_a = ObservableCoefficient(observable=obs_a, coefficient=2.)
+        obs_coeff_b = ObservableCoefficient(observable=obs_b, coefficient=3.5)
+        obs_coeff_c = ObservableCoefficient(observable=obs_c, coefficient=1.)
+
+        self.assertEqual(obs_coeff_a.serialize(), '(2) obs_a')
+        self.assertEqual(obs_coeff_b.serialize(), '(3.500000e+00) obs_b')
+        self.assertEqual(obs_coeff_c.serialize(), 'obs_c')
+
+        obs_ab = Observable(id='obs_ab')
+        obs_ab.observables.append(obs_coeff_a)
+        obs_ab.observables.append(obs_coeff_b)
+
+        objs = {
+            Observable: {
+                obs_a.id: obs_a,
+                obs_b.id: obs_b,
+            },
+            ObservableCoefficient: {
+                obs_coeff_a.serialize(): obs_coeff_a,
+            },
+        }
+
+        attr = Observable.Meta.attributes['observables']
+
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(2) obs_a', objs)[0], obs_coeff_a)
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_b', objs)[0].observable, obs_b)
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_b', objs)[0].coefficient, 3.5)
+
+        objs = {
+            Observable: {
+                obs_a.id: obs_a,
+                obs_b.id: obs_b,
+            },
+        }
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_d', objs)[0], None)
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_b', objs)[0].observable, obs_b)
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_b', objs)[0].coefficient, 3.5)
+        self.assertEqual(ObservableCoefficient.deserialize(attr, '(3.5) obs_b[a]', objs)[0], None)
+
+        objs = {
+            Observable: {
+                obs_a.id: obs_a,
+                obs_b.id: obs_b,
+            },
+            ObservableCoefficient: {
+                obs_coeff_a.serialize(): obs_coeff_a,
+            },
+        }
+        self.assertEqual(attr.serialize(obs_ab.observables), '(2) obs_a + (3.500000e+00) obs_b')
+        self.assertEqual(attr.deserialize('(2) obs_a + (3.5) obs_b', objs)[0][0], obs_coeff_a)
+        self.assertEqual(attr.deserialize('(2) obs_a + (3.5) obs_b', objs)[0][1].observable, obs_b)
+        self.assertEqual(attr.deserialize('(2) obs_a + (3.5) obs_b', objs)[0][1].coefficient, 3.5)
+
+        self.assertEqual(attr.deserialize('(2) obs_a - (3.5) obs_b', objs)[0], None)
+        self.assertEqual(attr.deserialize('(2) obs_d + (3.5) obs_b', objs)[0], None)
 
     def test_concentration_serialize(self):
         self.assertEqual(self.concentrations[0].serialize(), 'spec_type_0[comp_0]')
