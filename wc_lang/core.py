@@ -674,8 +674,8 @@ class Model(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
-    wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
-                                     default=wc_lang_version, verbose_name='wc_lang version')
+    wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
+    #wc_kb_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
@@ -1258,10 +1258,7 @@ class SpeciesType(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        attribute_order = ('id', 'name',
-                           'model',
-                           'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
-                           'comments', 'references')
+        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     # todo: move to compiled model
