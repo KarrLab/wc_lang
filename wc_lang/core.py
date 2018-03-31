@@ -2172,7 +2172,7 @@ class Parameter(obj_model.Model):
         id (:obj:`str`): unique identifier per model/submodel
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        submodel (:obj:`Submodel`): submodel
+        submodels (:obj:`list` of :obj:`Submodel`): submodels
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         comments (:obj:`str`): comments
