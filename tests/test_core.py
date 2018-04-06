@@ -34,7 +34,7 @@ class TestCore(unittest.TestCase):
         Reaction.objects.reset()
         BiomassReaction.objects.reset()
 
-        self.model = mdl = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1b')
+        self.model = mdl = Model(id='model', name='test model', version='0.0.1', wc_lang_version='0.0.1')
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
@@ -150,6 +150,9 @@ class TestCore(unittest.TestCase):
 
         model = Model(wc_lang_version='xxx')
         self.assertEqual(model.wc_lang_version, 'xxx')
+
+        model = Model(revision='xxx')
+        self.assertEqual(model.revision, 'xxx')
 
     def test_reverse_references(self):
         mdl = self.model

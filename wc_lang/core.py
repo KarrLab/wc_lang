@@ -54,6 +54,7 @@ from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.rate_law_utils import RateLawUtils
+import wc_utils.util.git as git
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -674,8 +675,9 @@ class Model(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
-    wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
-    #wc_kb_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
+    wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
+    default=wc_lang_version, verbose_name='wc_lang version')
+    revision = StringAttribute(default = git.get_repo_metadata().revision)
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
@@ -1258,7 +1260,9 @@ class SpeciesType(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
+        # attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
+        attribute_order = ('id', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type')
+
         indexed_attrs_tuples = (('id',), )
 
     # todo: move to compiled model
@@ -1476,9 +1480,9 @@ class Concentration(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         unique_together = (('species', ), )
-        attribute_order = ('species',
-                           'value',
-                           'comments', 'references')
+        # attribute_order = ('species','value', 'comments', 'references')
+        attribute_order = ('species', 'value')
+
         frozen_columns = 1
         ordering = ('species',)
 
@@ -1605,11 +1609,7 @@ class Reaction(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name',
-                           'submodel',
-                           'participants', 'reversible',
-                           'min_flux', 'max_flux',
-                           'comments', 'references')
+        attribute_order = ('id', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux')
         indexed_attrs_tuples = (('id',), )
 
     def get_species(self):
@@ -1909,8 +1909,7 @@ class RateLaw(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('reaction', 'direction',
-                           'equation', 'k_cat', 'k_m',
-                           'comments', 'references')
+                           'equation', 'k_cat', 'k_m')
         unique_together = (('reaction', 'direction'), )
         ordering = ('reaction', 'direction',)
 
