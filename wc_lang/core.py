@@ -675,13 +675,13 @@ class Model(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
+    revision = StringAttribute(default=git.get_repo_metadata().revision)
     wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
-    default=wc_lang_version, verbose_name='wc_lang version')
-    revision = StringAttribute(default = git.get_repo_metadata().revision)
+                                     default=wc_lang_version, verbose_name='wc_lang version')    
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'version', 'wc_lang_version', 'comments')
+        attribute_order = ('id', 'name', 'version', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
 
     def get_compartments(self):
@@ -1260,8 +1260,7 @@ class SpeciesType(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        # attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
-        attribute_order = ('id', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type')
+        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
 
         indexed_attrs_tuples = (('id',), )
 
@@ -1609,7 +1608,7 @@ class Reaction(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux')
+        attribute_order = ('id', 'name', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def get_species(self):
