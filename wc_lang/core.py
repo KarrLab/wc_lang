@@ -675,14 +675,18 @@ class Model(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
-    revision = StringAttribute(default=git.get_repo_metadata().revision)
+    revision = StringAttribute()
     wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
-                                     default=wc_lang_version, verbose_name='wc_lang version')    
+                                     default=wc_lang_version, verbose_name='wc_lang version')
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'version', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
+
+    def __init__(self, **kwargs):
+        self.revision = git.get_repo_metadata().revision
+        super(Model, self).__init__(**kwargs)
 
     def get_compartments(self):
         """ Get all compartments
@@ -1260,7 +1264,8 @@ class SpeciesType(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type', 'comments', 'references')
+        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula',
+                           'molecular_weight', 'charge', 'type', 'comments', 'references')
 
         indexed_attrs_tuples = (('id',), )
 
