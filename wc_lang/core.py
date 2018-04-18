@@ -660,8 +660,11 @@ class Model(obj_model.Model):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
-        version (:obj:`str`): version number
-        wc_lang_version (:obj:`str`): wc_lang version number
+        version (:obj:`str`): version of the model
+        url (:obj:`str`): url of the model Git repository
+        branch (:obj:`str`): branch of the model Git repository
+        revision (:obj:`str`): revision of the model Git repository
+        wc_lang_version (:obj:`str`): version of ``wc_lang``
         comments (:obj:`str`): comments
 
         taxon (:obj:`Taxon`): taxon
@@ -675,17 +678,22 @@ class Model(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
-    revision = StringAttribute()
+    url = obj_model.core.StringAttribute(verbose_name='URL')
+    branch = obj_model.core.StringAttribute()
+    revision = obj_model.core.StringAttribute()
     wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
                                      default=wc_lang_version, verbose_name='wc_lang version')
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'version', 'revision', 'wc_lang_version', 'comments')
+        attribute_order = ('id', 'name', 'version', 'url', 'branch', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
 
     def __init__(self, **kwargs):
-        self.revision = git.get_repo_metadata().revision
+        md = git.get_repo_metadata()
+        self.url = md.url
+        self.branch = md.branch
+        self.revision = md.revision
         super(Model, self).__init__(**kwargs)
 
     def get_compartments(self):
@@ -968,8 +976,8 @@ class ObjectiveFunction(obj_model.Model):
 
         submodel (:obj:`Submodel`): the `Submodel` which uses this `ObjectiveFunction`
     """
-    expression = LongStringAttribute()
     linear = BooleanAttribute()
+    expression = LongStringAttribute()
     reactions = ManyToManyAttribute('Reaction', related_name='objective_functions')
     biomass_reactions = ManyToManyAttribute('BiomassReaction', related_name='objective_functions')
 
@@ -979,7 +987,7 @@ class ObjectiveFunction(obj_model.Model):
             valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in
             this `ObjectiveFunction`
         """
-        attribute_order = ('expression', 'reactions', 'biomass_reactions')
+        attribute_order = ('linear', 'expression', 'reactions', 'biomass_reactions')
         tabular_orientation = TabularOrientation.inline
         # because objective functions must be continuous, the functions they use must be as well
         valid_functions = (exp, pow, log, log10)
@@ -1506,7 +1514,8 @@ class Observable(obj_model.Model):
         id (:obj:`str`): id
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        participants (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
+        species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
+        observables (:obj:`list` of :obj:`Observable`): list of component observables
         comments (:obj:`str`): comments
 
     Related attributes:
@@ -2365,7 +2374,7 @@ class DatabaseReference(obj_model.Model):
 
     database = StringAttribute(min_length=1)
     id = StringAttribute(verbose_name='ID', min_length=1)
-    url = UrlAttribute()
+    url = UrlAttribute(verbose_name='URL')
     model = ManyToOneAttribute(Model, related_name='database_references')
     taxon = ManyToOneAttribute(Taxon, related_name='database_references')
     submodel = ManyToOneAttribute(Submodel, related_name='database_references')

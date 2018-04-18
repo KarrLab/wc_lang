@@ -15,6 +15,7 @@ Supported file types:
 from wc_lang import core
 from wc_lang import util
 from obj_model import io
+import os
 import wc_lang
 
 
@@ -22,7 +23,7 @@ class Writer(object):
     """ Write model to file(s) """
 
     model_order = [
-        core.Model, core.Taxon, core.Submodel, core.ObjectiveFunction, core.Compartment, core.SpeciesType,
+        core.Model, core.Taxon, core.Submodel, core.Compartment, core.SpeciesType,
         core.Concentration, core.Observable, core.Function, core.Reaction, core.RateLaw, core.BiomassComponent,
         core.BiomassReaction, core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
     ]
@@ -44,7 +45,8 @@ class Writer(object):
         kwargs['description'] = model.name
         kwargs['version'] = model.version
 
-        io.Writer().run(path, objects, self.model_order, **kwargs)
+        _, ext = os.path.splitext(path)
+        io.get_writer(ext)().run(path, objects, models=self.model_order, **kwargs)
 
 
 class Reader(object):
@@ -62,7 +64,8 @@ class Reader(object):
         Raises:
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
-        objects = io.Reader().run(path, util.get_models(inline=False))
+        _, ext = os.path.splitext(path)
+        objects = io.get_reader(ext)().run(path, models=Writer.model_order)
 
         if not objects[core.Model]:
             return None

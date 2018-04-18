@@ -242,7 +242,7 @@ class TestReaderException(unittest.TestCase):
         model1 = Model(id='model1', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         model2 = Model(id='model2', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.Writer().run(filename, [model1, model2], Writer.model_order)
+        obj_model.io.WorkbookWriter().run(filename, [model1, model2], Writer.model_order)
 
         with self.assertRaisesRegexp(ValueError, ' should only define one model$'):
             Reader().run(filename)
@@ -258,5 +258,5 @@ class TestReadNoModel(unittest.TestCase):
 
     def test(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.Writer().run(filename, [], io.Writer.model_order)
+        obj_model.io.WorkbookWriter().run(filename, [], io.Writer.model_order)
         self.assertEqual(Reader().run(filename), None)
