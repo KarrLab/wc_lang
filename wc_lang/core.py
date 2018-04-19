@@ -182,11 +182,12 @@ class ObjectiveFunctionAttribute(OneToOneAttribute):
                                                          related_name=related_name,
                                                          verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
-    def serialize(self, value):
+    def serialize(self, value, encoded=None):
         """ Serialize related object
 
         Args:
             value (:obj:`ObjectiveFunction`): the referenced ObjectiveFunction
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
@@ -196,12 +197,13 @@ class ObjectiveFunctionAttribute(OneToOneAttribute):
         else:
             return value.serialize()
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
@@ -224,23 +226,25 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
                                                        related_name=related_name, min_related=1, min_related_rev=0,
                                                        verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
-    def serialize(self, value):
+    def serialize(self, value, encoded=None):
         """ Serialize related object
 
         Args:
             value (:obj:`Model`): Python representation
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
         """
         return value.serialize()
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of :obj:`list` of :obj:`SpeciesCoefficient`, :obj:`InvalidAttribute` or :obj:`None`: :obj:`tuple` of cleaned value
@@ -272,11 +276,12 @@ class ObservableSpeciesParticipantAttribute(ManyToManyAttribute):
                                                                     help=help)
         self.separator = separator
 
-    def serialize(self, spec_coeffs):
+    def serialize(self, spec_coeffs, encoded=None):
         """ Serialize related object
 
         Args:
             spec_coeffs (:obj:`list` of `Model`): Python representation of species and their coefficients
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
@@ -291,12 +296,13 @@ class ObservableSpeciesParticipantAttribute(ManyToManyAttribute):
 
         return self.separator.join(spec_coeff_strs)
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of `list` of `related_class`, `InvalidAttribute` or `None`: tuple of cleaned value
@@ -379,11 +385,12 @@ class ObservableObservableParticipantAttribute(ManyToManyAttribute):
                                                                        help=help)
         self.separator = separator
 
-    def serialize(self, obs_coeffs):
+    def serialize(self, obs_coeffs, encoded=None):
         """ Serialize related object
 
         Args:
             obs_coeffs (:obj:`list` of `Model`): Python representation of observables and their coefficients
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
@@ -398,12 +405,13 @@ class ObservableObservableParticipantAttribute(ManyToManyAttribute):
 
         return self.separator.join(obs_coeff_strs)
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of `list` of `related_class`, `InvalidAttribute` or `None`: tuple of cleaned value
@@ -466,11 +474,12 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                                                            verbose_related_name=verbose_related_name,
                                                            help=help)
 
-    def serialize(self, participants):
+    def serialize(self, participants, encoded=None):
         """ Serialize related object
 
         Args:
             participants (:obj:`list` of `SpeciesCoefficient`): Python representation of reaction participants
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
@@ -503,12 +512,13 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         else:
             return '{} ==> {}'.format(' + '.join(lhs), ' + '.join(rhs))
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of `list` of `SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
@@ -564,6 +574,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
             global_comp (:obj:`Compartment`): global compartment of the reaction
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple`:
@@ -630,23 +641,25 @@ class RateLawEquationAttribute(OneToOneAttribute):
                                                        related_name=related_name, min_related=1, min_related_rev=1,
                                                        verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
-    def serialize(self, value):
+    def serialize(self, value, encoded=None):
         """ Serialize related object
 
         Args:
             value (:obj:`RateLawEquation`): the related RateLawEquation
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation of the rate law equation
         """
         return value.serialize()
 
-    def deserialize(self, value, objects):
+    def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
 
         Args:
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error

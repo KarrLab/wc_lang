@@ -14,7 +14,7 @@ Supported file types:
 
 from wc_lang import core
 from wc_lang import util
-from obj_model import io
+import obj_model
 import os
 import wc_lang
 
@@ -35,28 +35,32 @@ class Writer(object):
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
         """
-
-        kwargs = {
-            'language': 'wc_lang',
-            'creator': '{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
-        }
-        objects = [model]
-        kwargs['title'] = model.id
-        kwargs['description'] = model.name
-        kwargs['version'] = model.version
-
         _, ext = os.path.splitext(path)
-        io.get_writer(ext)().run(path, objects, models=self.model_order, **kwargs)
+        obj_model.io.get_writer(ext)().run(path, [model], models=self.model_order, 
+            language='wc_lang',
+            creator='{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
+            title=model.id,
+            description=model.name,
+            version=model.version)
 
 
 class Reader(object):
     """ Read model from file(s) """
 
-    def run(self, path):
+    def run(self, path, strict=True):
         """ Read model from file(s)
 
         Args:
             path (:obj:`str`): path to file(s)
+            strict (:obj:`str`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
+                :obj:`obj_model` serialization format:
+
+                * The worksheets are in the expected order
+                * There are no missing worksheets
+                * There are no extra worksheets
+                * The columns are in the expected order
+                * There are no missing columns
+                * There are no extra columns
 
         Returns:
             :obj:`core.Model`: model
@@ -65,7 +69,18 @@ class Reader(object):
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
         _, ext = os.path.splitext(path)
-        objects = io.get_reader(ext)().run(path, models=Writer.model_order)
+        reader = obj_model.io.get_reader(ext)()
+        
+        kwargs = {}
+        if isinstance(reader, obj_model.io.WorkbookReader) and strict:
+            kwargs['ignore_missing_sheets'] = False
+            kwargs['ignore_extra_sheets'] = False
+            kwargs['ignore_sheet_order'] = False
+            kwargs['include_all_attributes'] = True
+            kwargs['ignore_missing_attributes'] = False
+            kwargs['ignore_extra_attributes'] = False
+            kwargs['ignore_attribute_order'] = False
+        objects = reader.run(path, models=Writer.model_order, **kwargs)
 
         if not objects[core.Model]:
             return None
@@ -76,7 +91,7 @@ class Reader(object):
         return objects[core.Model].pop()
 
 
-def convert(source, destination):
+def convert(source, destination, strict=True):
     """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated (.tsv) file formats
 
     Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
@@ -86,8 +101,26 @@ def convert(source, destination):
     Args:
         source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
+        strict (:obj:`str`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
+                :obj:`obj_model` serialization format:
+
+                * The worksheets are in the expected order
+                * There are no missing worksheets
+                * There are no extra worksheets
+                * The columns are in the expected order
+                * There are no missing columns
+                * There are no extra columns
     """
-    io.convert(source, destination, models=Writer.model_order)
+    kwargs = {}
+    if strict:
+        kwargs['ignore_missing_sheets'] = False
+        kwargs['ignore_extra_sheets'] = False
+        kwargs['ignore_sheet_order'] = False
+        kwargs['include_all_attributes'] = True
+        kwargs['ignore_missing_attributes'] = False
+        kwargs['ignore_extra_attributes'] = False
+        kwargs['ignore_attribute_order'] = False
+    obj_model.io.convert(source, destination, models=Writer.model_order, **kwargs)
 
 
 def create_template(path):
