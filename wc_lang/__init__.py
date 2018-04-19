@@ -13,7 +13,6 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, RateLawDirecti
                    DatabaseReference)
 from . import config
 from . import io
-from . import model_gen
 from . import prepare
 from . import rate_law_utils
 from . import sbml
