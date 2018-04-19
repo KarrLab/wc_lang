@@ -72,14 +72,13 @@ class Reader(object):
         reader = obj_model.io.get_reader(ext)()
         
         kwargs = {}
-        if isinstance(reader, obj_model.io.WorkbookReader) and strict:
-            kwargs['ignore_missing_sheets'] = False
-            kwargs['ignore_extra_sheets'] = False
-            kwargs['ignore_sheet_order'] = False
-            kwargs['include_all_attributes'] = True
-            kwargs['ignore_missing_attributes'] = False
-            kwargs['ignore_extra_attributes'] = False
-            kwargs['ignore_attribute_order'] = False
+        if isinstance(reader, obj_model.io.WorkbookReader) and not strict:
+            kwargs['ignore_missing_sheets'] = True
+            kwargs['ignore_extra_sheets'] = True
+            kwargs['ignore_sheet_order'] = True
+            kwargs['ignore_missing_attributes'] = True
+            kwargs['ignore_extra_attributes'] = True
+            kwargs['ignore_attribute_order'] = True
         objects = reader.run(path, models=Writer.model_order, **kwargs)
 
         if not objects[core.Model]:
@@ -112,14 +111,13 @@ def convert(source, destination, strict=True):
                 * There are no extra columns
     """
     kwargs = {}
-    if strict:
-        kwargs['ignore_missing_sheets'] = False
-        kwargs['ignore_extra_sheets'] = False
-        kwargs['ignore_sheet_order'] = False
-        kwargs['include_all_attributes'] = True
-        kwargs['ignore_missing_attributes'] = False
-        kwargs['ignore_extra_attributes'] = False
-        kwargs['ignore_attribute_order'] = False
+    if not strict:
+        kwargs['ignore_missing_sheets'] = True
+        kwargs['ignore_extra_sheets'] = True
+        kwargs['ignore_sheet_order'] = True
+        kwargs['ignore_missing_attributes'] = True
+        kwargs['ignore_extra_attributes'] = True
+        kwargs['ignore_attribute_order'] = True
     obj_model.io.convert(source, destination, models=Writer.model_order, **kwargs)
 
 
