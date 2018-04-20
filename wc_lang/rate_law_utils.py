@@ -35,15 +35,15 @@ class RateLawUtils(object):
             if `rate_law_equation` refers to species not in `species`
         '''
         def possible_specie_id(tokens):
-            '''Determine whether `tokens` contains a specie id of the form 'string[string]'
+            '''Indicate whether `tokens` begins with 4 tokens whose syntax matches a specie ID
 
-            See `wc_lang.core.Species.serialize()` for the format of specie ids.
+            Specie IDs have the form `string[string]`, as documented in `wc_lang.core.Species.id()`.
 
             Args:
                 tokens (:obj:`list` of (token_num, token_val)): a list of Python tokens
 
             Returns:
-                True if `tokens` might contain a specie id
+                :obj:`bool`: True if the initial elements of `tokens` has the syntax of a specie ID
             '''
             if len(tokens) < 4:
                 return False
@@ -55,12 +55,12 @@ class RateLawUtils(object):
             return False
 
         def convert_specie_name(tokens, species_ids, rate_law_expression):
-            '''Translate `tokens` into a python expression that can be evaluated during a simulation
+            '''Translate a specie ID in `tokens` into a Python expression to be eval'ed during simulation
 
             Args:
                 tokens (:obj:`list` of (token_num, token_val)): a list of 4 Python tokens that
-                    should comprise a specie id
-                species_ids (:obj:`set`): ids of the species used by the rate law expression
+                    have the syntax of a specie ID
+                species_ids (:obj:`set`): IDs of the species used by the rate law expression
                 rate_law_expression (:obj:`string`): the rate law expression being transcoded
 
             Returns:
@@ -83,7 +83,7 @@ class RateLawUtils(object):
                 rate_law_equation.expression))
 
         rate_law_expression = rate_law_equation.expression
-        species_ids = set([specie.serialize() for specie in species])
+        species_ids = set([specie.id() for specie in species])
 
         # Rate laws must be tokenized to properly construct a Python expression.
         # A prior implementation which used REs and string replace() contained a subtle bug that
@@ -101,7 +101,7 @@ class RateLawUtils(object):
         while idx < len(tokens):
             if possible_specie_id(tokens[idx:idx+4]):
                 result.append(
-                    (token.NAME, convert_specie_name(tokens[idx:], species_ids, rate_law_expression)))
+                    (token.NAME, convert_specie_name(tokens[idx:idx+4], species_ids, rate_law_expression)))
                 idx += 4
             else:
                 result.append((tokens[idx]))
