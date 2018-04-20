@@ -103,7 +103,7 @@ class TransformController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['destination'], dict(type=str, help='Path to save transformed model definition')),
+            (['dest'], dict(type=str, help='Path to save transformed model definition')),
             (['--transform'], dict(dest='transforms', action='append',
                                    help='Model transform:' + transform_list)),
             (['--sloppy'], dict(dest='strict', default=True, action='store_false',
@@ -128,7 +128,7 @@ class TransformController(CementBaseController):
             instance.run(model)
 
         # write model
-        Writer().run(model, args.destination)
+        Writer().run(model, args.dest)
 
 
 class NormalizeController(CementBaseController):
@@ -141,7 +141,7 @@ class NormalizeController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['--destination'], dict(default='', type=str, help='Path to save normalized model definition')),
+            (['--dest'], dict(default='', type=str, help='Path to save normalized model definition')),
             (['--sloppy'], dict(dest='strict', default=True, action='store_false',
                                 help='If set, do not validate the format of the model file(s)')),
         ]
@@ -150,23 +150,24 @@ class NormalizeController(CementBaseController):
     def default(self):
         args = self.app.pargs
         model = Reader().run(args.source, strict=args.strict)
-        if args.destination:
-            Writer().run(model, args.destination)
+        if args.dest:
+            Writer().run(model, args.dest)
         else:
             Writer().run(model, args.source)
 
 
 class ConvertController(CementBaseController):
-    """ Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv) """
+    """ Convert model definition among Excel (.xlsx), comma separated (.csv), JavaScript Object Notation (.json),
+    tab separated (.tsv), and Yet Another Markup Language (.yaml, .yml) formats """
 
     class Meta:
         label = 'convert'
-        description = 'Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv)'
+        description = 'Convert model definition among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['destination'], dict(type=str, help='Path to save model in converted format')),
+            (['dest'], dict(type=str, help='Path to save model in converted format')),
             (['--sloppy'], dict(dest='strict', default=True, action='store_false',
                                 help='If set, do not validate the format of the model file(s)')),
         ]
@@ -174,7 +175,7 @@ class ConvertController(CementBaseController):
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        convert(args.source, args.destination, strict=args.strict)
+        convert(args.source, args.dest, strict=args.strict)
 
 
 class CreateTemplateController(CementBaseController):
