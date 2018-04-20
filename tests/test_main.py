@@ -97,20 +97,20 @@ class TestCli(unittest.TestCase):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         Writer().run(model, source)
 
-        destination = path.join(self.tempdir, 'destination.xlsx')
-        with __main__.App(argv=['transform', source, destination, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
+        dest = path.join(self.tempdir, 'dest.xlsx')
+        with __main__.App(argv=['transform', source, dest, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
             app.run()
 
-        self.assertTrue(path.isfile(destination))
+        self.assertTrue(path.isfile(dest))
 
     def test_transform_exception(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         Writer().run(model, source)
 
-        destination = path.join(self.tempdir, 'destination.xlsx')
+        dest = path.join(self.tempdir, 'dest.xlsx')
         with self.assertRaisesRegexp(ValueError, 'Please select at least one transform'):
-            with __main__.App(argv=['transform', source, destination]) as app:
+            with __main__.App(argv=['transform', source, dest]) as app:
                 app.run()
 
     def test_normalize(self):
@@ -128,7 +128,7 @@ class TestCli(unittest.TestCase):
         self.assertTrue(model2.is_equal(model))
 
         # with different destination
-        with __main__.App(argv=['normalize', filename_xls_1, '--destination', filename_xls_2]) as app:
+        with __main__.App(argv=['normalize', filename_xls_1, '--dest', filename_xls_2]) as app:
             app.run()
 
         model2 = Reader().run(filename_xls_2)

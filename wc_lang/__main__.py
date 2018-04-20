@@ -37,13 +37,15 @@ class ValidateController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to model definition')),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
         try:
-            Reader().run(args.path)  # reader already does validation
+            Reader().run(args.path, strict=args.strict)  # reader already does validation
             print('Model is valid')
         except ValueError as exception:
             raise ValueError('Model is invalid: ' + str(exception))
@@ -62,6 +64,8 @@ class DifferenceController(CementBaseController):
             (['path_2'], dict(type=str, help='Path to second model definition')),
             (['--compare-files'], dict(dest='compare_files', default=False, action='store_true',
                                        help='If true, compare models; otherwise compare files directly')),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
@@ -74,8 +78,8 @@ class DifferenceController(CementBaseController):
             diff = model1.difference(model2)
 
         else:
-            model1 = Reader().run(args.path_1)
-            model2 = Reader().run(args.path_2)
+            model1 = Reader().run(args.path_1, strict=args.strict)
+            model2 = Reader().run(args.path_2, strict=args.strict)
             diff = model1.difference(model2)
 
         if diff:
@@ -99,9 +103,11 @@ class TransformController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['destination'], dict(type=str, help='Path to save transformed model definition')),
+            (['dest'], dict(type=str, help='Path to save transformed model definition')),
             (['--transform'], dict(dest='transforms', action='append',
                                    help='Model transform:' + transform_list)),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
@@ -112,7 +118,7 @@ class TransformController(CementBaseController):
             raise ValueError('Please select at least one transform')
 
         # read model
-        model = Reader().run(args.source)
+        model = Reader().run(args.source, strict=args.strict)
 
         # apply transforms
         transforms = transform.get_transforms()
@@ -122,7 +128,7 @@ class TransformController(CementBaseController):
             instance.run(model)
 
         # write model
-        Writer().run(model, args.destination)
+        Writer().run(model, args.dest)
 
 
 class NormalizeController(CementBaseController):
@@ -135,36 +141,41 @@ class NormalizeController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['--destination'], dict(default='', type=str, help='Path to save normalized model definition')),
+            (['--dest'], dict(default='', type=str, help='Path to save normalized model definition')),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        model = Reader().run(args.source)
-        if args.destination:
-            Writer().run(model, args.destination)
+        model = Reader().run(args.source, strict=args.strict)
+        if args.dest:
+            Writer().run(model, args.dest)
         else:
             Writer().run(model, args.source)
 
 
 class ConvertController(CementBaseController):
-    """ Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv) """
+    """ Convert model definition among Excel (.xlsx), comma separated (.csv), JavaScript Object Notation (.json),
+    tab separated (.tsv), and Yet Another Markup Language (.yaml, .yml) formats """
 
     class Meta:
         label = 'convert'
-        description = 'Convert model definition among Excel (.xlsx), comma separated (.csv), and tab separated formats (.tsv)'
+        description = 'Convert model definition among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
-            (['destination'], dict(type=str, help='Path to save model in converted format')),
+            (['dest'], dict(type=str, help='Path to save model in converted format')),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        convert(args.source, args.destination)
+        convert(args.source, args.dest, strict=args.strict)
 
 
 class CreateTemplateController(CementBaseController):
@@ -195,12 +206,14 @@ class UpdateWcLangVersionController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to model')),
+            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
+                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        model = Reader().run(args.path)
+        model = Reader().run(args.path, strict=args.strict)
         model.wc_lang_version = wc_lang.__version__
         Writer().run(model, args.path)
 

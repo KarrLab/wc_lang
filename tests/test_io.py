@@ -12,7 +12,7 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, React
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
-from wc_utils.workbook.io import read as read_workbook
+from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
 import os
 import shutil
@@ -181,6 +181,24 @@ class TestSimpleModel(unittest.TestCase):
         self.assertTrue(model.is_equal(self.model))
         self.assertEqual(self.model.difference(model), '')
 
+    def test_write_read_sloppy(self):
+        filename = os.path.join(self.dirname, 'model.xlsx')
+
+        Writer().run(self.model, filename)
+
+        wb = read_workbook(filename)
+        row = wb['Model'].pop(0)
+        wb['Model'].insert(1, row)
+        write_workbook(filename, wb)
+
+        with self.assertRaisesRegexp(ValueError, 'The attributes must be defined in this order'):
+            Reader().run(filename)
+        model = Reader().run(filename, strict=False)
+        self.assertEqual(model.validate(), None)
+
+        self.assertTrue(model.is_equal(self.model))
+        self.assertEqual(self.model.difference(model), '')
+
     def test_convert(self):
         filename_xls1 = os.path.join(self.dirname, 'model1.xlsx')
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
@@ -189,6 +207,31 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(self.model, filename_xls1)
 
         convert(filename_xls1, filename_csv)
+        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
+        model = Reader().run(filename_csv)
+        self.assertTrue(model.is_equal(self.model))
+
+        convert(filename_csv, filename_xls2)
+        model = Reader().run(filename_xls2)
+        self.assertTrue(model.is_equal(self.model))
+
+    def test_convert_sloppy(self):
+        filename_xls1 = os.path.join(self.dirname, 'model1.xlsx')
+        filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
+        filename_csv = os.path.join(self.dirname, 'model-*.csv')
+
+        Writer().run(self.model, filename_xls1)
+
+        wb = read_workbook(filename_xls1)
+        row = wb['Model'].pop(0)
+        wb['Model'].insert(1, row)
+        write_workbook(filename_xls1, wb)
+
+        with self.assertRaisesRegexp(ValueError, 'The attributes must be defined in this order'):
+            convert(filename_xls1, filename_csv)
+        convert(filename_xls1, filename_csv, strict=False)
+
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
         model = Reader().run(filename_csv)

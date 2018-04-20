@@ -4,6 +4,7 @@ downstream_dependencies:
   - mycoplasma_pneumoniae
   - random_wc_model_generator
   - wc_analysis
+  - wc_model_gen
   - wc_sim
 email_notifications:
   - jonrkarr@gmail.com
