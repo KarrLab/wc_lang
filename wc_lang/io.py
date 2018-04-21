@@ -14,6 +14,7 @@ Supported file types:
 
 from wc_lang import core
 from wc_lang import util
+from wc_utils.util.string import indent_forest
 import obj_model
 import os
 import wc_lang
@@ -35,13 +36,50 @@ class Writer(object):
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
         """
+        self.validate_implicit_relationships()
+
+        # check that there is only 1 :obj:`Model`and that each relationship to :obj:`Model` is set. This is necessary to
+        # enable the relationships to :obj:`Model` to be implicit in the Excel output and added by :obj:`Reader.run`
+        for obj in model.get_related():
+            for attr in obj.Meta.attributes.values():
+                if isinstance(attr, obj_model.RelatedAttribute) and \
+                        attr.related_class == core.Model:
+                    if attr.primary_class in (core.Parameter, core.DatabaseReference):
+                        if getattr(obj, attr.name) not in [None, model]:
+                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
+                    else:
+                        if getattr(obj, attr.name) != model:
+                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
+
+        # write objects
         _, ext = os.path.splitext(path)
-        obj_model.io.get_writer(ext)().run(path, [model], models=self.model_order, 
-            language='wc_lang',
-            creator='{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
-            title=model.id,
-            description=model.name,
-            version=model.version)
+        writer = obj_model.io.get_writer(ext)()
+
+        kwargs = {}
+        if isinstance(writer, obj_model.io.WorkbookWriter):
+            kwargs['include_all_attributes'] = False
+
+        writer.run(path, [model], models=self.model_order,
+                   language='wc_lang',
+                   creator='{}.{}'.format(self.__class__.__module__, self.__class__.__name__),
+                   title=model.id,
+                   description=model.name,
+                   version=model.version,
+                   **kwargs)
+
+    @classmethod
+    def validate_implicit_relationships(cls):
+        """ Check that relationships to :obj:`core.Model` do not need to be explicitly written to 
+        workbooks because they can be inferred by :obj:`Reader.run`
+        """
+        for attr in core.Model.Meta.attributes.values():
+            if isinstance(attr, obj_model.RelatedAttribute):
+                raise Exception('Relationships from `Model` not supported')
+
+        for attr in core.Model.Meta.related_attributes.values():
+            if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)) and \
+                    attr.primary_class not in (core.Parameter, core.DatabaseReference):
+                raise Exception('Only one-to-one and many-to-one relationships are supported to `Model`')
 
 
 class Reader(object):
@@ -68,26 +106,59 @@ class Reader(object):
         Raises:
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
+        Writer.validate_implicit_relationships()
+
+        # read objects from file
         _, ext = os.path.splitext(path)
         reader = obj_model.io.get_reader(ext)()
-        
-        kwargs = {}
-        if isinstance(reader, obj_model.io.WorkbookReader) and not strict:
-            kwargs['ignore_missing_sheets'] = True
-            kwargs['ignore_extra_sheets'] = True
-            kwargs['ignore_sheet_order'] = True
-            kwargs['ignore_missing_attributes'] = True
-            kwargs['ignore_extra_attributes'] = True
-            kwargs['ignore_attribute_order'] = True
-        objects = reader.run(path, models=Writer.model_order, **kwargs)
 
+        kwargs = {}
+        if isinstance(reader, obj_model.io.WorkbookReader):
+            kwargs['include_all_attributes'] = False
+            if not strict:
+                kwargs['ignore_missing_sheets'] = True
+                kwargs['ignore_extra_sheets'] = True
+                kwargs['ignore_sheet_order'] = True
+                kwargs['ignore_missing_attributes'] = True
+                kwargs['ignore_extra_attributes'] = True
+                kwargs['ignore_attribute_order'] = True
+        objects = reader.run(path, models=Writer.model_order, validate=False, **kwargs)
+
+        # check that file only has 0 or 1 models
         if not objects[core.Model]:
+            for cls, cls_objects in objects.items():
+                if cls_objects:
+                    raise ValueError('"{}" cannot contain instances of `{}` without an instance of `Model`'.format(
+                        path, cls.__name__))
             return None
 
-        if len(objects[core.Model]) > 1:
-            raise ValueError('Model file "{}" should only define one model'.format(path))
+        elif len(objects[core.Model]) > 1:
+            raise ValueError('"{}" should define one model'.format(path))
 
-        return objects[core.Model].pop()
+        else:
+            model = objects[core.Model].pop()
+
+        # add implict relationships to `Model`
+        for cls, cls_objects in objects.items():
+            for attr in cls.Meta.attributes.values():
+                if isinstance(attr, obj_model.RelatedAttribute) and \
+                        attr.related_class == core.Model and \
+                        attr.primary_class not in (core.Parameter, core.DatabaseReference):
+                    for cls_obj in cls_objects:
+                        setattr(cls_obj, attr.name, model)
+
+        # validate
+        objs = []
+        for cls_objs in objects.values():
+            objs.extend(cls_objs)
+
+        errors = obj_model.Validator().validate(objs)
+        if errors:
+            raise ValueError(
+                indent_forest(['The model cannot be loaded because it fails to validate:', [errors]]))
+
+        # return model
+        return model
 
 
 def convert(source, destination, strict=True):
@@ -110,15 +181,8 @@ def convert(source, destination, strict=True):
                 * There are no missing columns
                 * There are no extra columns
     """
-    kwargs = {}
-    if not strict:
-        kwargs['ignore_missing_sheets'] = True
-        kwargs['ignore_extra_sheets'] = True
-        kwargs['ignore_sheet_order'] = True
-        kwargs['ignore_missing_attributes'] = True
-        kwargs['ignore_extra_attributes'] = True
-        kwargs['ignore_attribute_order'] = True
-    obj_model.io.convert(source, destination, models=Writer.model_order, **kwargs)
+    model = Reader().run(source, strict=strict)
+    Writer().run(model, destination)
 
 
 def create_template(path):

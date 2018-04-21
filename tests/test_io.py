@@ -154,6 +154,7 @@ class TestSimpleModel(unittest.TestCase):
             ref = param.references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
                 type=ReferenceType.misc)
+            ref.model = mdl
             references.append(ref)
 
             x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
@@ -285,9 +286,9 @@ class TestReaderException(unittest.TestCase):
         model1 = Model(id='model1', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         model2 = Model(id='model2', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [model1, model2], Writer.model_order)
+        obj_model.io.WorkbookWriter().run(filename, [model1, model2], Writer.model_order, include_all_attributes=False)
 
-        with self.assertRaisesRegexp(ValueError, ' should only define one model$'):
+        with self.assertRaisesRegexp(ValueError, ' should define one model$'):
             Reader().run(filename)
 
 
@@ -301,5 +302,62 @@ class TestReadNoModel(unittest.TestCase):
 
     def test(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [], io.Writer.model_order)
+        obj_model.io.WorkbookWriter().run(filename, [], io.Writer.model_order, include_all_attributes=False)
         self.assertEqual(Reader().run(filename), None)
+
+
+class ImplicitRelationshipsTestCase(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test_write_parameter(self):
+        model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
+        submodel = model.submodels.create(id='submodel')
+        parameter = submodel.parameters.create(id='parameter')
+        parameter.model = model
+
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        Writer().run(model, filename)
+
+        parameter.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
+        with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
+            Writer().run(model, filename)
+
+    def test_write_other(self):
+        model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
+        species_type = model.species_types.create(id='species_type')
+        compartment = model.compartments.create(id='compartment')
+        species = Species(species_type=species_type, compartment=compartment)
+        species_coefficient = SpeciesCoefficient(species=species, coefficient=1.)
+        observable = species_coefficient.observables.create(id='observable')
+        observable.model = model
+
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        Writer().run(model, filename)
+
+        observable.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
+        with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
+            Writer().run(model, filename)
+
+    def test_read(self):
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        obj_model.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], Writer.model_order, include_all_attributes=False)
+        with self.assertRaisesRegexp(ValueError, 'cannot contain instances of'):
+            Reader().run(filename)
+
+    def test_validate(self):
+        class TestModel(obj_model.Model):
+            id = obj_model.StringAttribute(primary=True, unique=True)
+
+        Model.Meta.attributes['test'] = obj_model.OneToOneAttribute(TestModel, related_name='a')
+        with self.assertRaisesRegexp(Exception, 'Relationships from `Model` not supported'):
+            io.Writer.validate_implicit_relationships()
+        Model.Meta.attributes.pop('test')
+
+        Model.Meta.related_attributes['test'] = obj_model.OneToManyAttribute(TestModel, related_name='b')
+        with self.assertRaisesRegexp(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
+            io.Writer.validate_implicit_relationships()
+        Model.Meta.related_attributes.pop('test')

@@ -885,7 +885,6 @@ class Taxon(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'model',
                            'rank',
                            'comments', 'references')
         tabular_orientation = TabularOrientation.column
@@ -921,7 +920,7 @@ class Submodel(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model',
+        attribute_order = ('id', 'name',
                            'algorithm', 'compartment', 'biomass_reaction',
                            'objective_function', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
@@ -1226,7 +1225,6 @@ class Compartment(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'model',
                            'initial_volume',
                            'comments', 'references')
 
@@ -1285,7 +1283,7 @@ class SpeciesType(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        attribute_order = ('id', 'name', 'model', 'structure', 'empirical_formula',
+        attribute_order = ('id', 'name', 'structure', 'empirical_formula',
                            'molecular_weight', 'charge', 'type', 'comments', 'references')
 
         indexed_attrs_tuples = (('id',), )
@@ -1505,8 +1503,7 @@ class Concentration(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         unique_together = (('species', ), )
-        # attribute_order = ('species','value', 'comments', 'references')
-        attribute_order = ('species', 'value')
+        attribute_order = ('species', 'value', 'comments', 'references')
 
         frozen_columns = 1
         ordering = ('species',)
@@ -1542,7 +1539,7 @@ class Observable(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model', 'species', 'observables', 'comments')
+        attribute_order = ('id', 'name', 'species', 'observables', 'comments')
         indexed_attrs_tuples = (('id',), )
 
 
@@ -1563,7 +1560,7 @@ class Function(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model', 'expression', 'comments')
+        attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def validate(self):
@@ -1935,7 +1932,8 @@ class RateLaw(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('reaction', 'direction',
-                           'equation', 'k_cat', 'k_m')
+                           'equation', 'k_cat', 'k_m',
+                           'comments', 'references')
         unique_together = (('reaction', 'direction'), )
         ordering = ('reaction', 'direction',)
 
@@ -2268,7 +2266,7 @@ class StopCondition(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model', 'expression', 'comments')
+        attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def validate(self):
@@ -2364,7 +2362,7 @@ class Reference(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'model',
+        attribute_order = ('id', 'name',
                            'title', 'author', 'editor', 'year', 'type', 'publication', 'publisher',
                            'series', 'volume', 'number', 'issue', 'edition', 'chapter', 'pages',
                            'comments')
