@@ -15,7 +15,7 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-                          Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation, BiomassReaction)
+                     Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation, BiomassReaction)
 from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration
@@ -797,18 +797,18 @@ class CheckModel(object):
             error messages
         '''
         errors = []
-        for lang_submodel in self.model.get_submodels():
-            compartment = lang_submodel.compartment
+        for submodel in self.model.get_submodels():
+            compartment = submodel.compartment
             if compartment is None:
-                errors.append("submodel '{}' must contain a compartment attribute".format(lang_submodel.id))
+                errors.append("submodel '{}' must contain a compartment attribute".format(submodel.id))
                 continue
-            for reaction in lang_submodel.reactions:
+            for reaction in submodel.reactions:
                 for participant in reaction.participants:
                     if participant.coefficient < 0:     # select reactants
                         if participant.species.compartment != compartment:
                             error = "submodel '{}' models compartment {}, but its reaction {} uses "\
                                 "specie {} in another compartment: {}".format(
-                                    lang_submodel.id,
+                                    submodel.id,
                                     compartment.id, reaction.id, participant.species.species_type.id,
                                     participant.species.compartment.id)
                             errors.append(error)

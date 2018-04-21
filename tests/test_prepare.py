@@ -14,8 +14,8 @@ import six
 import unittest
 
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
-                      Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
-                      Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType)
+                     Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
+                     Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
 
@@ -590,10 +590,15 @@ class TestCheckModel(unittest.TestCase):
         self.check_model.transcode_and_check_rate_law_equations()
 
     def test_verify_reactant_compartments(self):
-        for actual, expected in zip(self.check_model.verify_reactant_compartments(),
-                                    [".*reaction_1 uses specie specie_1 in another compartment: e",
-                                     ".*reaction_1 uses specie specie_2 in another compartment: e",
-                                     ".*'ssa_submodel' must contain a compartment attribute"]):
+        actual_list = self.check_model.verify_reactant_compartments()
+        expected_list = [
+            "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_1 in another compartment: e",
+            "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_2 in another compartment: e",
+            "submodel 'ssa_submodel' must contain a compartment attribute",
+        ]
+        actual_list.sort()
+        expected_list.sort()
+        for actual, expected in zip(actual_list, expected_list):
             six.assertRegex(self, actual, expected)
 
     def test_run(self):
