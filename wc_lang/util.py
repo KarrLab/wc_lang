@@ -7,14 +7,15 @@
 """
 
 from obj_model import get_models as base_get_models
-import wc_lang.core
+from wc_lang import core
+from wc_utils.util import git
 
 
 def get_model_size(model):
     """ Get numbers of model components
 
     Args:
-        model (:obj:`wc_lang.core.Model`): model
+        model (:obj:`core.Model`): model
 
     Returns:
         :obj:`dict`: dictionary with numbers of each type of model component
@@ -34,7 +35,7 @@ def get_model_summary(model):
     """ Get textual summary of a model
 
     Args:
-        model (:obj:`wc_lang.core.Model`): model
+        model (:obj:`core.Model`): model
 
     Returns:
         :obj:`str`: textual summary of the model
@@ -70,4 +71,17 @@ def get_models(inline=True):
         :obj:`list` of `class`: list of models
     """
 
-    return base_get_models(module=wc_lang.core, inline=inline)
+    return base_get_models(module=core, inline=inline)
+
+
+def set_git_repo_metadata_from_path(model, path='.'):
+    """ Use Git to set the Git repository URL, branch, and revision metadata for a model
+
+    Args:
+        model (:obj:`core.Model`): model
+        path (:obj:`str`, optional): path to the Git repository for the model
+    """
+    md = git.get_repo_metadata(dirname=path)
+    model.url = md.url
+    model.branch = md.branch
+    model.revision = md.revision

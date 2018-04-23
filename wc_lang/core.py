@@ -54,7 +54,6 @@ from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.rate_law_utils import RateLawUtils
-import wc_utils.util.git as git
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -701,13 +700,6 @@ class Model(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'version', 'url', 'branch', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
-
-    def __init__(self, **kwargs):
-        md = git.get_repo_metadata()
-        self.url = md.url
-        self.branch = md.branch
-        self.revision = md.revision
-        super(Model, self).__init__(**kwargs)
 
     def get_compartments(self):
         """ Get all compartments

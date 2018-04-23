@@ -30,7 +30,7 @@ class TestCreateTemplate(unittest.TestCase):
             os.remove(self.filename)
 
     def test_create_template(self):
-        create_template(self.filename)
+        create_template(self.filename, set_repo_metadata_from_path=False)
         self.assertIsInstance(Reader().run(self.filename), Model)
 
 
@@ -175,17 +175,31 @@ class TestSimpleModel(unittest.TestCase):
     def test_write_read(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
 
-        Writer().run(self.model, filename)
+        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
         model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
         self.assertTrue(model.is_equal(self.model))
         self.assertEqual(self.model.difference(model), '')
 
+    def test_write_with_repo_md(self):
+        _, filename = tempfile.mkstemp(suffix='.xlsx', dir='.')
+
+        self.assertEqual(self.model.url, '')
+
+        Writer().run(self.model, filename, set_repo_metadata_from_path=True)
+        self.assertIn(self.model.url, [
+            'https://github.com/KarrLab/wc_lang.git',
+            'ssh://git@github.com/KarrLab/wc_lang.git',
+            'git@github.com:KarrLab/wc_lang.git',
+        ])
+
+        os.remove(filename)
+
     def test_write_read_sloppy(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
 
-        Writer().run(self.model, filename)
+        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
 
         wb = read_workbook(filename)
         row = wb['Model'].pop(0)
@@ -205,7 +219,7 @@ class TestSimpleModel(unittest.TestCase):
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
         filename_csv = os.path.join(self.dirname, 'model-*.csv')
 
-        Writer().run(self.model, filename_xls1)
+        Writer().run(self.model, filename_xls1, set_repo_metadata_from_path=False)
 
         convert(filename_xls1, filename_csv)
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
@@ -222,7 +236,7 @@ class TestSimpleModel(unittest.TestCase):
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
         filename_csv = os.path.join(self.dirname, 'model-*.csv')
 
-        Writer().run(self.model, filename_xls1)
+        Writer().run(self.model, filename_xls1, set_repo_metadata_from_path=False)
 
         wb = read_workbook(filename_xls1)
         row = wb['Model'].pop(0)
@@ -259,7 +273,7 @@ class TestExampleModel(unittest.TestCase):
         self.assertEqual(model.validate(), None)
 
         # compare excel files
-        Writer().run(model, self.filename)
+        Writer().run(model, self.filename, set_repo_metadata_from_path=False)
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
@@ -320,11 +334,11 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         parameter.model = model
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        Writer().run(model, filename)
+        Writer().run(model, filename, set_repo_metadata_from_path=False)
 
         parameter.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
         with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
-            Writer().run(model, filename)
+            Writer().run(model, filename, set_repo_metadata_from_path=False)
 
     def test_write_other(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
@@ -336,11 +350,11 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         observable.model = model
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        Writer().run(model, filename)
+        Writer().run(model, filename, set_repo_metadata_from_path=False)
 
         observable.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
         with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
-            Writer().run(model, filename)
+            Writer().run(model, filename, set_repo_metadata_from_path=False)
 
     def test_read(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')

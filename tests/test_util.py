@@ -11,7 +11,9 @@ from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeT
                      Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
                      RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
                      Observable, Function, StopCondition)
-from wc_lang.util import get_model_size, get_model_summary, get_reaction_string, get_models
+from wc_lang import util
+import shutil
+import tempfile
 import unittest
 
 
@@ -92,7 +94,7 @@ class TestUtil(unittest.TestCase):
 
     def test_get_model_size(self):
         model = self.model
-        size = get_model_size(model)
+        size = util.get_model_size(model)
         self.assertEqual(3, size['submodels'])
         self.assertEqual(8, size['species_types'])
         self.assertEqual(8, size['species'])
@@ -103,21 +105,21 @@ class TestUtil(unittest.TestCase):
 
     def test_get_model_summary(self):
         model = self.model
-        summary = get_model_summary(model)
+        summary = util.get_model_summary(model)
         self.assertIsInstance(summary, str)
 
     def test_get_reaction_string(self):
         species_types = self.species_types
         species = self.species
 
-        self.assertIn(get_reaction_string(self.rxn_0), [
+        self.assertIn(util.get_reaction_string(self.rxn_0), [
             '[{0}]: ({1}) {2} + ({3}) {4} ==> {5}'.format(self.comp_0.id, 2,
                                                           species_types[0].id, 3, species_types[1].id, species_types[2].id),
             '[{0}]: ({3}) {4} + ({1}) {2} ==> {5}'.format(self.comp_0.id, 2,
                                                           species_types[0].id, 3, species_types[1].id, species_types[2].id),
         ])
 
-        self.assertIn(get_reaction_string(self.rxn_1), [
+        self.assertIn(util.get_reaction_string(self.rxn_1), [
             '({0}) {1} + ({2}) {3} ==> (2) {4}'.format(2,
                                                        species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
             '({2}) {3} + ({0}) {1} ==> (2) {4}'.format(2,
@@ -134,5 +136,28 @@ class TestUtil(unittest.TestCase):
         inline_models = set([
             Species, SpeciesCoefficient, ObservableCoefficient, RateLawEquation, ObjectiveFunction
         ])
-        self.assertEqual(set(get_models()), non_inline_models | inline_models)
-        self.assertEqual(set(get_models(inline=False)), non_inline_models)
+        self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
+        self.assertEqual(set(util.get_models(inline=False)), non_inline_models)
+
+    def test_set_git_repo_metadata_from_path(self):
+        model = Model()
+        self.assertEqual(model.url, '')
+
+        util.set_git_repo_metadata_from_path(model, path='.')
+        self.assertIn(model.url, [
+            'https://github.com/KarrLab/wc_lang.git',
+            'ssh://git@github.com/KarrLab/wc_lang.git',
+            'git@github.com:KarrLab/wc_lang.git',
+        ])
+
+    def test_set_git_repo_metadata_from_path_error(self):
+        tempdir = tempfile.mkdtemp()
+
+        model = Model()
+        self.assertEqual(model.url, '')
+
+        with self.assertRaisesRegexp(ValueError, 'is not a Git repository'):
+            util.set_git_repo_metadata_from_path(model, path=tempdir)
+        self.assertEqual(model.url, '')
+
+        shutil.rmtree(tempdir)

@@ -29,12 +29,14 @@ class Writer(object):
         core.BiomassReaction, core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
     ]
 
-    def run(self, model, path):
+    def run(self, model, path, set_repo_metadata_from_path=True):
         """ Write model to file(s)
 
         Args:            
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
+            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+                branch, revision) for the knowledge base from the parent directory of :obj:`core_path`
         """
         self.validate_implicit_relationships()
 
@@ -50,6 +52,10 @@ class Writer(object):
                     else:
                         if getattr(obj, attr.name) != model:
                             raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
+
+        # set Git repository metadata from the parent directories of :obj:`core_path`
+        if set_repo_metadata_from_path:
+            util.set_git_repo_metadata_from_path(model, path)
 
         # write objects
         _, ext = os.path.splitext(path)
@@ -90,7 +96,7 @@ class Reader(object):
 
         Args:
             path (:obj:`str`): path to file(s)
-            strict (:obj:`str`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
+            strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
                 :obj:`obj_model` serialization format:
 
                 * The worksheets are in the expected order
@@ -171,7 +177,7 @@ def convert(source, destination, strict=True):
     Args:
         source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
-        strict (:obj:`str`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
+        strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
                 :obj:`obj_model` serialization format:
 
                 * The worksheets are in the expected order
@@ -182,14 +188,16 @@ def convert(source, destination, strict=True):
                 * There are no extra columns
     """
     model = Reader().run(source, strict=strict)
-    Writer().run(model, destination)
+    Writer().run(model, destination, set_repo_metadata_from_path=False)
 
 
-def create_template(path):
+def create_template(path, set_repo_metadata_from_path=True):
     """ Create file with model template, including row and column headings
 
     Args:
         path (:obj:`str`): path to file(s)
+        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+            branch, revision) for the knowledge base from the parent directory of :obj:`core_path`
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
-    Writer().run(model, path)
+    Writer().run(model, path, set_repo_metadata_from_path=set_repo_metadata_from_path)

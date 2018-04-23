@@ -128,7 +128,7 @@ class TransformController(CementBaseController):
             instance.run(model)
 
         # write model
-        Writer().run(model, args.dest)
+        Writer().run(model, args.dest, set_repo_metadata_from_path=False)
 
 
 class NormalizeController(CementBaseController):
@@ -151,9 +151,9 @@ class NormalizeController(CementBaseController):
         args = self.app.pargs
         model = Reader().run(args.source, strict=args.strict)
         if args.dest:
-            Writer().run(model, args.dest)
+            Writer().run(model, args.dest, set_repo_metadata_from_path=False)
         else:
-            Writer().run(model, args.source)
+            Writer().run(model, args.source, set_repo_metadata_from_path=False)
 
 
 class ConvertController(CementBaseController):
@@ -188,24 +188,30 @@ class CreateTemplateController(CementBaseController):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to save model template')),
+            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
+                                              help=('If set, do not set the Git repository metadata for the knowledge base from '
+                                                    'the parent directory of `path`'))),
         ]
 
     @expose(hide=True)
     def default(self):
         args = self.app.pargs
-        create_template(args.path)
+        create_template(args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
-class UpdateWcLangVersionController(CementBaseController):
-    """ Update wc_lang_version of model """
+class UpdateVersionMetadataController(CementBaseController):
+    """ Update the version metadata (repository URL, branch, revision; wc_lang version) of a model """
 
     class Meta:
-        label = 'update-wc-lang-version'
-        description = 'Update wc_lang_version of model'
+        label = 'update-version-metadata'
+        description = 'Update the version metadata (repository URL, branch, revision; wc_lang version) of a model'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to model')),
+            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
+                                              help=('If set, do not set the Git repository metadata for the knowledge base from '
+                                                    'the parent directory of `path-core`'))),
             (['--sloppy'], dict(dest='strict', default=True, action='store_false',
                                 help='If set, do not validate the format of the model file(s)')),
         ]
@@ -215,7 +221,7 @@ class UpdateWcLangVersionController(CementBaseController):
         args = self.app.pargs
         model = Reader().run(args.path, strict=args.strict)
         model.wc_lang_version = wc_lang.__version__
-        Writer().run(model, args.path)
+        Writer().run(model, args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
 class App(CementApp):
@@ -231,7 +237,7 @@ class App(CementApp):
             NormalizeController,
             ConvertController,
             CreateTemplateController,
-            UpdateWcLangVersionController,
+            UpdateVersionMetadataController,
         ]
 
 
