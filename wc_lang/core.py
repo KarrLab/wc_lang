@@ -707,7 +707,7 @@ class Model(obj_model.Model):
         Returns:
             :obj:`list` of `Compartment`: compartments
         """
-        return self.compartments
+        return list(self.compartments)
 
     def get_species_types(self):
         """ Get all species types
@@ -715,7 +715,7 @@ class Model(obj_model.Model):
         Returns:
             :obj:`list` of `SpeciesType`: species types
         """
-        return self.species_types
+        return list(self.species_types)
 
     def get_submodels(self):
         """ Get all submodels
@@ -723,7 +723,7 @@ class Model(obj_model.Model):
         Returns:
             :obj:`list` of `Submodel`: submodels
         """
-        return self.submodels
+        return list(self.submodels)
 
     def get_species(self):
         """ Get all species from submodels
