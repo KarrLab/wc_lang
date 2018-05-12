@@ -15,6 +15,8 @@ import wc_lang
 CONCENTRATIONS_DICT = 'concentrations'
 
 
+# TODO(Arthur): use this to deserialize rate law expressions
+# TODO(Arthur): add functionality to create rate law's modifiers attribute
 class RateLawUtils(object):
     '''A set of static rate_law methods '''
 
