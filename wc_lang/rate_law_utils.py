@@ -13,6 +13,7 @@ from math import isnan
 import wc_lang
 
 CONCENTRATIONS_DICT = 'concentrations'
+PARAMETERS_DICT = 'parameters'
 
 
 # TODO(Arthur): use this to deserialize rate law expressions
@@ -21,20 +22,21 @@ class RateLawUtils(object):
     '''A set of static rate_law methods '''
 
     @staticmethod
-    def transcode(rate_law_equation, species):
+    def transcode(rate_law_equation, species, parameters):
         '''Translate a `wc_lang.core.RateLawEquation` into a python expression that can be evaluated
         during a simulation.
 
         Args:
             rate_law_equation (:obj:`wc_lang.core.RateLawEquation`): a rate law equation
             species (:obj:`set` of `wc_lang.core.Species`): the species that use the rate law
+            parameters (:obj:`set` of `wc_lang.core.Parameter`): the parameters that use the rate law
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
 
         Raises:
             ValueError: If `rate_law_equation` contains `__`, which increases its security risk, or
-            if `rate_law_equation` refers to species not in `species`
+            if `rate_law_equation` refers to species not in `species` or parameters not in `parameters`
         '''
         def possible_specie_id(tokens):
             '''Indicate whether `tokens` begins with 4 tokens whose syntax matches a specie ID
@@ -55,6 +57,21 @@ class RateLawUtils(object):
                 tokvals = [token_tmp[1] for token_tmp in tokens]
                 return tokvals[1] == '[' and tokvals[3] == ']'
             return False
+
+        def possible_parameter_id(tokens, reserved_tokens):
+            '''Indicate whether `tokens` begins with 4 tokens whose syntax matches a parameter ID
+
+            Parameter IDs have the form `string`, as documented in `wc_lang.core.Parameter.id`.
+
+            Args:
+                tokens (:obj:`list` of (token_num, token_val)): a list of Python tokens
+
+            Returns:
+                :obj:`bool`: True if the initial elements of `tokens` has the syntax of a parameter ID
+            '''
+            return len(tokens) >= 1 and \
+                tokens[0][0] == token.NAME and \
+                tokens[0][1] not in reserved_tokens
 
         def convert_specie_name(tokens, species_ids, rate_law_expression):
             '''Translate a specie ID in `tokens` into a Python expression to be eval'ed during simulation
@@ -80,12 +97,38 @@ class RateLawUtils(object):
                 raise ValueError("'{}' not a known specie in rate law '{}'".format(
                     parsed_id, rate_law_expression))
 
+        def convert_parameter_name(tokens, parameter_ids, rate_law_expression):
+            '''Translate a parameter ID in `tokens` into a Python expression to be eval'ed during simulation
+
+            Args:
+                tokens (:obj:`list` of (token_num, token_val)): a list of 4 Python tokens that
+                    have the syntax of a parameter ID
+                parameter_ids (:obj:`set`): IDs of the parameter used by the rate law expression
+                rate_law_expression (:obj:`string`): the rate law expression being transcoded
+
+            Returns:
+                (:obj:`string`): a Python expression, transcoded to look up the parameter value
+                    in `parameters[]`
+
+            Raises:
+                ValueError: if `tokens` does not represent a parameter in `parameter_ids`
+            '''
+            parsed_id = tokens[0][1]
+            if parsed_id in parameter_ids:
+                return " {}['{}']".format(PARAMETERS_DICT, parsed_id)
+            else:
+                raise ValueError("'{}' not a known parameter in rate law '{}'".format(
+                    parsed_id, rate_law_expression))
+
         if '__' in rate_law_equation.expression:
             raise ValueError("Security risk: rate law expression '{}' contains '__'.".format(
                 rate_law_equation.expression))
 
         rate_law_expression = rate_law_equation.expression
         species_ids = set([specie.id() for specie in species])
+        parameter_ids = set([parameter.id for parameter in parameters])
+        reserved_parameter_ids = set(map(lambda f: f.__name__, wc_lang.RateLawEquation.Meta.valid_functions)) | \
+            set(['k_cat', 'k_m'])
 
         # Rate laws must be tokenized to properly construct a Python expression.
         # A prior implementation which used REs and string replace() contained a subtle bug that
@@ -105,6 +148,10 @@ class RateLawUtils(object):
                 result.append(
                     (token.NAME, convert_specie_name(tokens[idx:idx+4], species_ids, rate_law_expression)))
                 idx += 4
+            elif possible_parameter_id(tokens[idx:idx+1], reserved_parameter_ids):
+                result.append(
+                    (token.NAME, convert_parameter_name(tokens[idx:idx+1], parameter_ids, rate_law_expression)))
+                idx += 1
             else:
                 result.append((tokens[idx]))
                 idx += 1
@@ -126,49 +173,48 @@ class RateLawUtils(object):
                 for rate_law in reaction.rate_laws:
                     if hasattr(rate_law, 'equation'):
                         rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation,
-                                                                              submodel.get_species())
+                                                                              submodel.get_species(),
+                                                                              rate_law.equation.parameters)
 
     @staticmethod
-    def eval_reaction_rate_laws(reaction, concentrations):
-        '''Evaluate a reaction's rate laws at the given species concentrations
+    def eval_reaction_rate_laws(reaction, concentrations, parameters):
+        '''Evaluate a reaction's rate laws at the given species concentrations and parameter values
 
         Args:
             reaction (:obj:`wc_lang.core.Reaction`): a Reaction instance
             concentrations (:obj:`dict` of :obj:`species_id` -> `float`):
                 a dictionary of species concentrations
+            parameters (:obj:`dict` of :obj:`parameter_id` -> `float`):
+                a dictionary of parameter values
 
         Returns:
             (:obj:`list` of `float`): the reaction's forward and, perhaps, backward rates
-
-        Raises:
-            ValueError: if the reaction's rate law has a syntax error
-            NameError: if the rate law references a specie whose concentration is not provided in
-                `concentrations`
-            Exception: if the rate law has other errors, such as a reference to an unknown function
         '''
         rates = []
         for rate_law in reaction.rate_laws:
-            rates.append(RateLawUtils.eval_rate_law(rate_law, concentrations))
+            rates.append(RateLawUtils.eval_rate_law(rate_law, concentrations, parameters))
         return rates
 
     @staticmethod
-    def eval_rate_law(rate_law, concentrations, transcoded_equation=None):
-        '''Evaluate a rate law at the given species concentrations
+    def eval_rate_law(rate_law, concentrations, parameters, transcoded_equation=None):
+        '''Evaluate a rate law at the given species concentrations and parameter values
 
         Args:
             rate_law (:obj:`wc_lang.core.RateLaw`): a RateLaw instance
             concentrations (:obj:`dict` of :obj:`species_id` -> `float`):
                 a dictionary of species concentrations
+            parameters (:obj:`dict` of :obj:`parameter_id` -> `float`):
+                a dictionary of parameter values
             transcoded_equation (:obj:`str`, optional): the rate law's transcoded_equation; if not
                 provided, will be taken from rate_law.equation.transcoded
 
         Returns:
-            (:obj:`float`): the rate law's rate
+            :obj:`float`): the rate law's rate
 
         Raises:
             ValueError: if the rate law has a syntax error
             NameError: if the rate law references a specie whose concentration is not provided in
-                `concentrations`
+                `concentrations` or a parameter whose value is not provided in `parameters`
             Exception: if the rate law has other errors, such as a reference to an unknown function
         '''
         if not transcoded_equation:
@@ -180,6 +226,7 @@ class RateLawUtils(object):
         if hasattr(rate_law, 'k_m') and not isnan(rate_law.k_m):
             local_ns['k_m'] = rate_law.k_m
         local_ns[CONCENTRATIONS_DICT] = concentrations
+        local_ns[PARAMETERS_DICT] = parameters
 
         try:
             return eval(transcoded_equation, {}, local_ns)

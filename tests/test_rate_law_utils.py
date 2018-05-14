@@ -28,9 +28,15 @@ class TestRateLawUtils(unittest.TestCase):
         # transcode rate laws
         RateLawUtils.transcode_rate_laws(self.model)
         concentrations = {}
+        parameters = {}
         for specie in self.model.get_species():
             try:
                 concentrations[specie.serialize()] = specie.concentration.value
+            except:
+                pass
+        for parameter in self.model.get_parameters():
+            try:
+                parameters[parameter.id] = parameter.value
             except:
                 pass
 
@@ -42,7 +48,7 @@ class TestRateLawUtils(unittest.TestCase):
         expected['reaction_4'] = [0.0005]
         expected['biomass'] = []
         for reaction in self.model.get_reactions():
-            rates = RateLawUtils.eval_reaction_rate_laws(reaction, concentrations)
+            rates = RateLawUtils.eval_reaction_rate_laws(reaction, concentrations, parameters)
             self.assertEqual(rates, expected[reaction.id])
 
     def test_eval_rate_law_exceptions(self):
@@ -61,12 +67,12 @@ class TestRateLawUtils(unittest.TestCase):
         )
         rate_law_equation.transcoded = 'foo foo'
         with self.assertRaises(ValueError):
-            RateLawUtils.eval_reaction_rate_laws(reaction, {})
+            RateLawUtils.eval_reaction_rate_laws(reaction, {}, {})
         rate_law_equation.transcoded = 'cos(1.)'
         with self.assertRaises(NameError):
-            RateLawUtils.eval_reaction_rate_laws(reaction, {})
+            RateLawUtils.eval_reaction_rate_laws(reaction, {}, {})
         rate_law_equation.transcoded = 'log(1.)'
-        self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}), [0])
+        self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}, {}), [0])
 
         with self.assertRaisesRegexp(Exception, 'Error: unable to eval transcoded rate law'):
-            RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, transcoded_equation='"x" + concentrations["x"]')
+            RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, {}, transcoded_equation='"x" + concentrations["x"]')

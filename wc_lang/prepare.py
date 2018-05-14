@@ -771,20 +771,27 @@ class CheckModel(object):
             error messages
         '''
         errors = []
+        
         species = self.model.get_species()
         species_concentrations = {}
         for concentration in self.model.get_concentrations():
             species_concentrations[concentration.species.serialize()] = concentration.value
+        
+        parameters = self.model.get_parameters()
+        parameter_values = {}
+        for parameter in parameters:
+            parameter_values[parameter.id] = parameter.value
+
         for reaction in self.model.get_reactions():
             for rate_law in reaction.rate_laws:
                 if getattr(rate_law, 'equation', None) is None:
                     continue
                 try:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species)
+                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species, parameters)
                 except Exception as error:
                     errors.append(str(error))
             try:
-                rates = RateLawUtils.eval_reaction_rate_laws(reaction, species_concentrations)
+                rates = RateLawUtils.eval_reaction_rate_laws(reaction, species_concentrations, parameter_values)
             except Exception as error:
                 errors.append(str(error))
         return errors

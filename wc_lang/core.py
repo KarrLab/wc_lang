@@ -2061,11 +2061,14 @@ class RateLaw(obj_model.Model):
         """ Check that rate law evaluates """
         if self.equation:
             try:
-                transcoded = RateLawUtils.transcode(self.equation, self.equation.modifiers)
+                transcoded = RateLawUtils.transcode(self.equation, self.equation.modifiers, self.equation.parameters)
                 concentrations = {}
+                parameters = {}
                 for s in self.equation.modifiers:
                     concentrations[s.id()] = 1.0
-                RateLawUtils.eval_rate_law(self, concentrations, transcoded_equation=transcoded)
+                for p in self.equation.parameters:
+                    parameters[p.id] = 1.0
+                RateLawUtils.eval_rate_law(self, concentrations, parameters, transcoded_equation=transcoded)
             except Exception as error:
                 msg = str(error)
                 attr = self.__class__.Meta.attributes['equation']
@@ -2083,19 +2086,21 @@ class RateLawEquation(obj_model.Model):
         expression (:obj:`str`): mathematical expression of the rate law
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
+        parameters (:obj:`list` of `Species`): species whose concentrations are used in the rate law
 
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
-    expression = LongStringAttribute()
+    expression = LongStringAttribute(primary=True, unique=True)
     transcoded = LongStringAttribute()
     modifiers = ManyToManyAttribute(Species, related_name='rate_law_equations')
+    parameters = ManyToManyAttribute('Parameter', related_name='rate_law_equations')
 
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in this `RateLawEquation`
         """
-        attribute_order = ('expression', 'modifiers')
+        attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         ordering = ('rate_law',)
@@ -2121,19 +2126,30 @@ class RateLawEquation(obj_model.Model):
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
         modifiers = []
+        parameters = []
         errors = []
-        pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                  Compartment.id.pattern[1:-1])
+        modifier_pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+                                                                           Compartment.id.pattern[1:-1])
+        parameter_pattern = '(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
+
+        reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
 
         try:
-            for match in re.findall(pattern, value, flags=re.I):
+            for match in re.findall(modifier_pattern, value, flags=re.I):
                 species, error = Species.deserialize(attribute, match[1], objects)
                 if error:
                     errors += error.messages
                 else:
                     modifiers.append(species)
+            for match in re.findall(parameter_pattern, value, flags=re.I):
+                if match[1] not in reserved_names:
+                    parameter, error = Parameter.deserialize(match[1], objects)
+                    if error:
+                        errors += error.messages
+                    else:
+                        parameters.append(parameter)
         except Exception as e:
-            errors += ["deserialize fails on '{}'".format(value)]
+            errors += ["deserialize fails on '{}': {}".format(value, str(e))]
 
         if errors:
             attr = cls.Meta.attributes['expression']
@@ -2146,34 +2162,52 @@ class RateLawEquation(obj_model.Model):
         if serialized_val in objects[cls]:
             obj = objects[cls][serialized_val]
         else:
-            obj = cls(expression=value, modifiers=det_dedupe(modifiers))
+            obj = cls(expression=value, modifiers=det_dedupe(modifiers), parameters=det_dedupe(parameters))
             objects[cls][serialized_val] = obj
         return (obj, None)
 
     def validate(self):
         """ Determine whether a `RateLawEquation` is valid
 
+        * Check that all of the modifiers and parameters contribute to the expression
+        * Check that the modifiers and parameters encompass of the named entities in the expression
+
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
+        errors = []
 
-        pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                  Compartment.id.pattern[1:-1])
-
-        """ check that all named entities are defined """
+        # check modifiers
         modifier_ids = set((x.serialize() for x in self.modifiers))
-        species_ids = set([x[1] for x in re.findall(pattern, self.expression, flags=re.I)])
-
-        if modifier_ids != species_ids:
-            errors = []
-
-            for id in modifier_ids.difference(species_ids):
+        modifier_pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+                                                                           Compartment.id.pattern[1:-1])
+        entity_ids = set([x[1] for x in re.findall(modifier_pattern, self.expression, flags=re.I)])
+        if modifier_ids != entity_ids:
+            for id in modifier_ids.difference(entity_ids):
                 errors.append('Extraneous modifier "{}"'.format(id))
 
-            for id in species_ids.difference(modifier_ids):
+            for id in entity_ids.difference(modifier_ids):
                 errors.append('Undefined modifier "{}"'.format(id))
 
+        # check parameters
+        parameter_ids = set((x.serialize() for x in self.parameters))
+        parameter_pattern = '(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
+        entity_ids = set([x[1] for x in re.findall(parameter_pattern, self.expression, flags=re.I)])
+        reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
+        entity_ids -= reserved_names
+        if parameter_ids != entity_ids:
+            for id in parameter_ids.difference(entity_ids):
+                errors.append('Extraneous parameter "{}"'.format(id))
+
+            for id in entity_ids.difference(parameter_ids):
+                errors.append('Undefined parameter "{}"'.format(id))
+
+            for id in reserved_names:
+                errors.append('Invalid parameter with a reserved_name "{}"'.format(id))
+
+        # return error
+        if errors:
             attr = self.__class__.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
             return InvalidObject(self, [attr_err])

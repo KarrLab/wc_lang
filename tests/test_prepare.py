@@ -573,14 +573,14 @@ class TestCheckModel(unittest.TestCase):
         rate_law_equation.expression = 'not_a_specie[e]'
         self.assertIn("'not_a_specie[e]' not a known specie",
                       self.check_model.transcode_and_check_rate_law_equations()[0])
-
-        # rate laws that fail evaluation
         rate_law_equation.expression = 'foo foo'
-        self.assertIn("syntax error in transcoded rate law".format(TEST_ID),
+        self.assertIn("'foo' not a known parameter".format(TEST_ID),
                       self.check_model.transcode_and_check_rate_law_equations()[0])
         rate_law_equation.expression = 'cos(0)'
-        self.assertIn("name 'cos' is not defined".format(TEST_ID),
+        self.assertIn("'cos' not a known parameter".format(TEST_ID),
                       self.check_model.transcode_and_check_rate_law_equations()[0])
+
+        # rate laws that fail evaluation                
         rate_law_equation.expression = '{{{*'
         self.assertIn("EOF in multi-line statement",
                       self.check_model.transcode_and_check_rate_law_equations()[0])
