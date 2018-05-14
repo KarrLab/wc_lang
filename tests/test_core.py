@@ -518,7 +518,6 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0], sc_c)
 
         self.assertEqual(attr.serialize(obs.species), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]')
-        print(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]', objs)[1])
         result = attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]', objs)[0]
 
         self.assertEqual(result[0], sc_a)
@@ -1022,8 +1021,11 @@ class TestCore(unittest.TestCase):
 
         parts1, error = attr.deserialize('[c_0]: (2) spec_0 + (3.5) spec_1 ==> spec_2', objs)
         self.assertEqual(error, None)
-        self.assertEqual(set([p.serialize() for p in parts1]), set(
-            ['(-2) spec_0[c_0]', '(-3.500000e+00) spec_1[c_0]', 'spec_2[c_0]']))
+        self.assertEqual(set([p.serialize() for p in parts1]), set([
+            '(-2) spec_0[c_0]', 
+            '(-3.500000e+00) spec_1[c_0]', 
+            'spec_2[c_0]',
+            ]))
         self.assertEqual(len(objs[SpeciesCoefficient]), 3)
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set(parts1))
         self.assertEqual(len(objs[Species]), 3)
@@ -1068,6 +1070,37 @@ class TestCore(unittest.TestCase):
         parts, error = attr.deserialize('[c_3]: (2) spec_0 + (3.5) spec_1 ==> spec_2', objs)
         self.assertNotEqual(error, None)
         self.assertEqual(parts, None)
+
+        # empty LHS
+        parts, error = attr.deserialize('==> spec_2[c_1]', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['spec_2[c_1]']))
+
+        parts, error = attr.deserialize('[c_1]: ==> spec_2', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['spec_2[c_1]']))
+
+        # empty RHS
+        parts, error = attr.deserialize('spec_2[c_1] ==>', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['(-1) spec_2[c_1]']))
+
+        parts, error = attr.deserialize('[c_1]: spec_2 ==>', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['(-1) spec_2[c_1]']))
+
+        # both empty
+        parts, error = attr.deserialize('==>', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(parts, [])
+
+        parts, error = attr.deserialize('[c_1]: ==>', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(parts, [])
 
     def test_RateLawEquationAttribute_serialize(self):
         rxn = self.rxn_0

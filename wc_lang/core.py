@@ -531,8 +531,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         lcl_part = '({} )*({}\[{}\])'.format(stoch, id, id)
         gbl_side = '{}( \+ {})*'.format(gbl_part, gbl_part)
         lcl_side = '{}( \+ {})*'.format(lcl_part, lcl_part)
-        gbl_pattern = '^\[({})\]: ({}) ==> ({})$'.format(id, gbl_side, gbl_side)
-        lcl_pattern = '^({}) ==> ({})$'.format(lcl_side, lcl_side)
+        gbl_pattern = '^\[({})\]: ({} |)==>( {}|)$'.format(id, gbl_side, gbl_side)
+        lcl_pattern = '^({} |)==>( {}|)$'.format(lcl_side, lcl_side)
 
         global_match = re.match(gbl_pattern, value, flags=re.I)
         local_match = re.match(lcl_pattern, value, flags=re.I)
