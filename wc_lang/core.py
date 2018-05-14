@@ -527,13 +527,14 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
         id = '[a-z][a-z0-9_]*'
         stoch = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
-        gbl_part = '({} )*({})'.format(stoch, id)
-        lcl_part = '({} )*({}\[{}\])'.format(stoch, id, id)
-        gbl_side = '{}( \+ {})*'.format(gbl_part, gbl_part)
-        lcl_side = '{}( \+ {})*'.format(lcl_part, lcl_part)
-        gbl_pattern = '^\[({})\]: ({} |)==>( {}|)$'.format(id, gbl_side, gbl_side)
-        lcl_pattern = '^({} |)==>( {}|)$'.format(lcl_side, lcl_side)
+        gbl_part = '({} *)*({})'.format(stoch, id)
+        lcl_part = '({} *)*({}\[{}\])'.format(stoch, id, id)
+        gbl_side = '{}( *\+ *{})*'.format(gbl_part, gbl_part)
+        lcl_side = '{}( *\+ *{})*'.format(lcl_part, lcl_part)
+        gbl_pattern = '^\[({})\]: *({}|) *==> *({}|)$'.format(id, gbl_side, gbl_side)
+        lcl_pattern = '^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)
 
+        value = value.strip(' ')
         global_match = re.match(gbl_pattern, value, flags=re.I)
         local_match = re.match(lcl_pattern, value, flags=re.I)
 

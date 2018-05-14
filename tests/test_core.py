@@ -1186,6 +1186,11 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set([p.serialize() for p in parts]), set(
             ['spec_2[c_1]']))
 
+        parts, error = attr.deserialize('[c_1]:  ==>spec_2 ', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['spec_2[c_1]']))
+
         # empty RHS
         parts, error = attr.deserialize('spec_2[c_1] ==>', objs)
         self.assertEqual(error, None)
@@ -1197,12 +1202,25 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set([p.serialize() for p in parts]), set(
             ['(-1) spec_2[c_1]']))
 
+        parts, error = attr.deserialize('[c_1]:spec_2==> ', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set([p.serialize() for p in parts]), set(
+            ['(-1) spec_2[c_1]']))
+
         # both empty
         parts, error = attr.deserialize('==>', objs)
         self.assertEqual(error, None)
         self.assertEqual(parts, [])
 
         parts, error = attr.deserialize('[c_1]: ==>', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(parts, [])
+
+        parts, error = attr.deserialize('[c_1]:  ==>  ', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(parts, [])
+
+        parts, error = attr.deserialize('[c_1]:==>', objs)
         self.assertEqual(error, None)
         self.assertEqual(parts, [])
 
