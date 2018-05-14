@@ -19,7 +19,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
                           BiomassReaction, StopCondition,
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute, RateLawEquationAttribute,
-                          InvalidObject)
+                          InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
@@ -124,6 +124,11 @@ class TestCore(unittest.TestCase):
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
+
+        self.objective_function = of = biomass_reaction.objective_functions.create()
+        of.submodels.append(submdl_2)
+        of.reactions.append(rxn_1)
+        of.reactions.append(rxn_2)
 
         self.parameters = parameters = []
         self.references = references = []
@@ -308,14 +313,55 @@ class TestCore(unittest.TestCase):
         mdl = self.model
 
         self.assertEqual(set(mdl.get_compartments()), set(self.compartments))
+        self.assertEqual(set(mdl.get_compartments(__type=Compartment)), set(self.compartments))
+        self.assertEqual(set(mdl.get_compartments(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_species_types()), set(self.species_types))
+        self.assertEqual(set(mdl.get_species_types(__type=SpeciesType)), set(self.species_types))
+        self.assertEqual(set(mdl.get_species_types(__type=Compartment)), set())
+
         self.assertEqual(set(mdl.get_submodels()), set(self.submodels))
+        self.assertEqual(set(mdl.get_submodels(__type=Submodel)), set(self.submodels))
+        self.assertEqual(set(mdl.get_submodels(__type=SpeciesType)), set())
+
         self.assertEqual(set(mdl.get_species()), set(self.species))
+        self.assertEqual(set(mdl.get_species(__type=Species)), set(self.species))
+        self.assertEqual(set(mdl.get_species(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_concentrations()), set(self.concentrations))
+        self.assertEqual(set(mdl.get_concentrations(__type=Concentration)), set(self.concentrations))
+        self.assertEqual(set(mdl.get_concentrations(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_reactions()), set(self.reactions))
+        self.assertEqual(set(mdl.get_reactions(__type=Reaction)), set(self.reactions))
+        self.assertEqual(set(mdl.get_reactions(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_rate_laws()), set(self.rate_laws))
+        self.assertEqual(set(mdl.get_rate_laws(__type=RateLaw)), set(self.rate_laws))
+        self.assertEqual(set(mdl.get_rate_laws(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_parameters()), set(self.parameters))
+        self.assertEqual(set(mdl.get_parameters(__type=Parameter)), set(self.parameters))
+        self.assertEqual(set(mdl.get_parameters(__type=Submodel)), set())
+
         self.assertEqual(set(mdl.get_references()), set(self.references))
+        self.assertEqual(set(mdl.get_references(__type=Reference)), set(self.references))
+        self.assertEqual(set(mdl.get_references(__type=Submodel)), set())
+
+        self.assertNotEqual(set(mdl.get_biomass_reactions(__type=BiomassReaction)), set())
+        self.assertEqual(set(mdl.get_biomass_reactions(__type=Reaction)), set())
+
+        self.assertEqual(set(self.objective_function.get_products()), set([
+            self.species[3],
+            self.species[4],
+            Species.get([Species.gen_id(self.species_types[1], self.biomass_reaction.compartment)], mdl.get_species())[0],
+        ]))
+        self.assertEqual(set(self.objective_function.get_products(__type=Species)), set([
+            self.species[3],
+            self.species[4],
+            Species.get([Species.gen_id(self.species_types[1], self.biomass_reaction.compartment)], mdl.get_species())[0],
+        ]))
+        self.assertEqual(set(self.objective_function.get_products(__type=Reaction)), set())
 
     def test_get_component(self):
         model = self.model
@@ -409,30 +455,37 @@ class TestCore(unittest.TestCase):
         st_a = SpeciesType(id='a')
         st_b = SpeciesType(id='bb')
         st_c = SpeciesType(id='ccc')
+        st_d = SpeciesType(id='dddd')
         c_a = Compartment(id='a')
         c_b = Compartment(id='bb')
         c_c = Compartment(id='ccc')
+        c_d = Compartment(id='dddd')
         s_a = Species(species_type=st_a, compartment=c_a)
         s_b = Species(species_type=st_b, compartment=c_b)
         s_c = Species(species_type=st_c, compartment=c_c)
+        s_d = Species(species_type=st_d, compartment=c_d)
         sc_a = SpeciesCoefficient(species=s_a, coefficient=2.)
         sc_b = SpeciesCoefficient(species=s_b, coefficient=3.)
         sc_c = SpeciesCoefficient(species=s_c, coefficient=4.)
+        sc_d = SpeciesCoefficient(species=s_d, coefficient=1.)
         obs = Observable()
         obs.species.append(sc_a)
         obs.species.append(sc_b)
         obs.species.append(sc_c)
+        obs.species.append(sc_d)
 
         objs = {
             SpeciesType: {
-                st_a.id: st_a,
-                st_b.id: st_b,
-                st_c.id: st_c,
+                st_a.serialize(): st_a,
+                st_b.serialize(): st_b,
+                st_c.serialize(): st_c,
+                st_d.serialize(): st_d,
             },
             Compartment: {
-                c_a.id: c_a,
-                c_b.id: c_b,
-                c_c.id: c_c,
+                c_a.serialize(): c_a,
+                c_b.serialize(): c_b,
+                c_c.serialize(): c_c,
+                c_d.serialize(): c_d,
             },
             Species: {
                 s_a.serialize(): s_a,
@@ -447,6 +500,7 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(sc_a.serialize(), '(2) a[a]')
         self.assertEqual(sc_b.serialize(), '(3) bb[bb]')
+        self.assertEqual(sc_d.serialize(), 'dddd[dddd]')
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.species_type, st_a)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].species.compartment, c_a)
         self.assertEqual(SpeciesCoefficient.deserialize(attr, '(2) a[a]', objs)[0].coefficient, 2.)
@@ -463,13 +517,19 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0].species, s_c)
         self.assertNotEqual(SpeciesCoefficient.deserialize(attr, '(4) ccc[ccc]', objs)[0], sc_c)
 
-        self.assertEqual(attr.serialize(obs.species), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc]')
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0], sc_a)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species, s_b)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].coefficient, 3.)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.species_type, st_c)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.compartment, c_c)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].coefficient, 4.)
+        self.assertEqual(attr.serialize(obs.species), '(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]')
+        print(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]', objs)[1])
+        result = attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc] + dddd[dddd]', objs)[0]
+
+        self.assertEqual(result[0], sc_a)
+        self.assertEqual(result[1].species, s_b)
+        self.assertEqual(result[1].coefficient, 3.)
+        self.assertEqual(result[2].species.species_type, st_c)
+        self.assertEqual(result[2].species.compartment, c_c)
+        self.assertEqual(result[2].coefficient, 4.)
+        self.assertEqual(result[3].species.species_type, st_d)
+        self.assertEqual(result[3].species.compartment, c_d)
+        self.assertEqual(result[3].coefficient, 1.)
 
         objs = {
             SpeciesType: {
@@ -483,20 +543,20 @@ class TestCore(unittest.TestCase):
                 c_c.id: c_c,
             },
         }
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].species.species_type, st_a)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].species.compartment, c_a)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][0].coefficient, 2.)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species.species_type, st_b)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].species.compartment, c_b)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][1].coefficient, 3.)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.species_type, st_c)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].species.compartment, c_c)
-        self.assertEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0][2].coefficient, 4.)
+        self.assertEqual(result[0].species.species_type, st_a)
+        self.assertEqual(result[0].species.compartment, c_a)
+        self.assertEqual(result[0].coefficient, 2.)
+        self.assertEqual(result[1].species.species_type, st_b)
+        self.assertEqual(result[1].species.compartment, c_b)
+        self.assertEqual(result[1].coefficient, 3.)
+        self.assertEqual(result[2].species.species_type, st_c)
+        self.assertEqual(result[2].species.compartment, c_c)
+        self.assertEqual(result[2].coefficient, 4.)
 
         self.assertEqual(attr.serialize([]), '')
 
         # test deserialize error handling
-        self.assertNotEqual(attr.deserialize('(2) a[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
+        self.assertNotEqual(result, None)
         self.assertEqual(attr.deserialize('(2) a[a] - (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
         self.assertEqual(attr.deserialize('(2) aa[a] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
         self.assertEqual(attr.deserialize('(2) a[aa] + (3) bb[bb] + (4) ccc[ccc]', objs)[0], None)
@@ -1272,7 +1332,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
 
         # exceptions
-        obj_func = ObjectiveFunction(linear=False, submodel=Submodel(id='Metabolism'))
+        obj_func = ObjectiveFunction(linear=False, submodels=[Submodel(id='Metabolism')])
         with pytest.warns(UserWarning):
             obj_func.add_to_sbml_doc(None)
 
@@ -1425,7 +1485,8 @@ class TestCoreFromFile(unittest.TestCase):
         self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
 
     def test_get_ex_species(self):
-        ex_species = self.dfba_submodel.get_ex_species()
+        ex_compartment = self.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
+        ex_species = self.dfba_submodel.get_species(compartment=ex_compartment)
         self.assertEqual(set(ex_species),
                          set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
 

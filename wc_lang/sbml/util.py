@@ -192,7 +192,7 @@ def wrap_libsbml(method, *args, **kwargs):
     for arg in args:
         # if on Python 2, convert unicode text to str(), because libSBML doesn't use SWIG_PYTHON_2_UNICODE
         if six.PY2 and isinstance(arg, six.text_type):
-            new_args.append(str(arg))
+            new_args.append(str(arg)) # pragma: no cover # Python 2 only
         else:
             new_args.append(arg)
     if new_args:

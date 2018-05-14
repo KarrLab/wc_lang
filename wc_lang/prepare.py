@@ -220,7 +220,8 @@ class AnalyzeModel(object):
         # todo: symmetrically, report reactions not on any path from ex species to obj fun components
         digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
         obj_fn_species = submodel.objective_function.get_products()
-        ex_species = submodel.get_ex_species()
+        ex_compartment = submodel.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
+        ex_species = submodel.get_species(compartment=ex_compartment)
         all_unbounded_paths = dict()
         for ex_specie in ex_species:
             paths = AnalyzeModel.unbounded_paths(digraph, ex_specie, obj_fn_species)

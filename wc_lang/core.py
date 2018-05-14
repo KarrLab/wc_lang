@@ -166,7 +166,7 @@ class ReferenceType(int, CaseInsensitiveEnum):
     misc = 9
 
 
-class ObjectiveFunctionAttribute(OneToOneAttribute):
+class ObjectiveFunctionAttribute(ManyToOneAttribute):
     """ Objective function attribute """
 
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
@@ -604,8 +604,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             if part_errors:
                 errors += part_errors
             else:
-                spec_primary_attribute = Species.gen_id(species_type.get_primary_attribute(),
-                                                        compartment.get_primary_attribute())
+                spec_primary_attribute = Species.gen_id(species_type, compartment)
                 species, error = Species.deserialize(self, spec_primary_attribute, objects)
                 if error:
                     raise ValueError('Invalid species "{}"'.format(spec_primary_attribute)
@@ -625,7 +624,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return (parts, errors)
 
 
-class RateLawEquationAttribute(OneToOneAttribute):
+class RateLawEquationAttribute(ManyToOneAttribute):
     """ Rate law equation """
 
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
@@ -701,138 +700,218 @@ class Model(obj_model.Model):
         attribute_order = ('id', 'name', 'version', 'url', 'branch', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
 
-    def get_compartments(self):
+    def get_compartments(self, __type=None, **kwargs):
         """ Get all compartments
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Compartment`: compartments
         """
-        return list(self.compartments)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
 
-    def get_species_types(self):
+        return self.compartments.get(__type=__type, **kwargs)
+
+    def get_species_types(self, __type=None, **kwargs):
         """ Get all species types
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `SpeciesType`: species types
         """
-        return list(self.species_types)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
 
-    def get_submodels(self):
+        return self.species_types.get(__type=__type, **kwargs)
+
+    def get_submodels(self, __type=None, **kwargs):
         """ Get all submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Submodel`: submodels
         """
-        return list(self.submodels)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
 
-    def get_species(self):
+        return self.submodels.get(__type=__type, **kwargs)
+
+    def get_species(self, __type=None, **kwargs):
         """ Get all species from submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Species`: species
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         species = []
 
         for submodel in self.submodels:
-            species.extend(submodel.get_species())
+            species.extend(submodel.get_species(__type=__type, **kwargs))
 
         for concentation in self.get_concentrations():
-            species.append(concentation.species)
+            if concentation.species.has_attr_vals(__type=__type, **kwargs):
+                species.append(concentation.species)
 
         return det_dedupe(species)
 
-    def get_concentrations(self):
+    def get_concentrations(self, __type=None, **kwargs):
         """ Get all concentrations from species types
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Concentration`: concentations
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         concentrations = []
         for species_type in self.species_types:
             for species in species_type.species:
-                if species.concentration:
+                if species.concentration and species.concentration.has_attr_vals(__type=__type, **kwargs):
                     concentrations.append(species.concentration)
         return concentrations
 
-    def get_reactions(self):
+    def get_reactions(self, __type=None, **kwargs):
         """ Get all reactions from submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Reaction`: reactions
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         reactions = []
         for submodel in self.submodels:
-            reactions.extend(submodel.reactions)
+            reactions.extend(submodel.reactions.get(__type=__type, **kwargs))
         return reactions
 
-    def get_biomass_reactions(self):
+    def get_biomass_reactions(self, __type=None, **kwargs):
         """ Get all biomass reactions used by submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `BiomassReaction`: biomass reactions
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         biomass_reactions = []
         for submodel in self.submodels:
-            if submodel.biomass_reaction:
+            if submodel.biomass_reaction and submodel.biomass_reaction.has_attr_vals(__type=__type, **kwargs):
                 biomass_reactions.append(submodel.biomass_reaction)
-        return biomass_reactions
+        return det_dedupe(biomass_reactions)
 
-    def get_rate_laws(self):
+    def get_rate_laws(self, __type=None, **kwargs):
         """ Get all rate laws from reactions
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `RateLaw`: rate laws
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         rate_laws = []
         for reaction in self.get_reactions():
-            rate_laws.extend(reaction.rate_laws)
-        return rate_laws
+            rate_laws.extend(reaction.rate_laws.get(__type=__type, **kwargs))
+        return det_dedupe(rate_laws)
 
-    def get_parameters(self):
+    def get_parameters(self, __type=None, **kwargs):
         """ Get all parameters from model and submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Parameter`: parameters
         """
-        parameters = []
-        parameters.extend(self.parameters)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        parameters = self.parameters.get(__type=__type, **kwargs)
         for submodel in self.submodels:
-            parameters.extend(submodel.parameters)
+            parameters.extend(submodel.parameters.get(__type=__type, **kwargs))
         return det_dedupe(parameters)
 
-    def get_references(self):
+    def get_references(self, __type=None, **kwargs):
         """ Get all references from model and children
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Reference`: references
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         refs = []
 
-        refs.extend(self.references)
+        refs.extend(self.references.get(__type=__type, **kwargs))
 
         if self.taxon:
-            refs.extend(self.taxon.references)
+            refs.extend(self.taxon.references.get(__type=__type, **kwargs))
 
         for compartment in self.compartments:
-            refs.extend(compartment.references)
+            refs.extend(compartment.references.get(__type=__type, **kwargs))
 
         for species_type in self.species_types:
-            refs.extend(species_type.references)
+            refs.extend(species_type.references.get(__type=__type, **kwargs))
 
         for concentration in self.get_concentrations():
-            refs.extend(concentration.references)
+            refs.extend(concentration.references.get(__type=__type, **kwargs))
 
         for submodel in self.submodels:
-            refs.extend(submodel.references)
+            refs.extend(submodel.references.get(__type=__type, **kwargs))
 
         for reaction in self.get_reactions():
-            refs.extend(reaction.references)
+            refs.extend(reaction.references.get(__type=__type, **kwargs))
 
         for rate_law in self.get_rate_laws():
-            refs.extend(rate_law.references)
+            refs.extend(rate_law.references.get(__type=__type, **kwargs))
 
         for parameter in self.get_parameters():
-            refs.extend(parameter.references)
+            refs.extend(parameter.references.get(__type=__type, **kwargs))
 
         return det_dedupe(refs)
 
@@ -907,7 +986,7 @@ class Submodel(obj_model.Model):
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     compartment = ManyToOneAttribute('Compartment', related_name='submodels')
     biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='submodels')
-    objective_function = ObjectiveFunctionAttribute(related_name='submodel')
+    objective_function = ObjectiveFunctionAttribute(related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
@@ -917,30 +996,26 @@ class Submodel(obj_model.Model):
                            'objective_function', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
-    def get_species(self):
+    def get_species(self, __type=None, **kwargs):
         """ Get species in reactions
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Species`: species in reactions
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         species = []
 
         for rxn in self.reactions:
-            species.extend(rxn.get_species())
+            species.extend(rxn.get_species(__type=__type, **kwargs))
 
         return det_dedupe(species)
-
-    def get_ex_species(self, ex_comp_id=EXTRACELLULAR_COMPARTMENT_ID):
-        """ Get extracellular species used by this submodel
-
-        Returns:
-            :obj:`list` of `Species`: extracellular species used by this submodel
-        """
-        ex_species = []
-        for species in self.get_species():
-            if species.compartment.id == ex_comp_id:
-                ex_species.append(species)
-        return ex_species
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
@@ -1079,10 +1154,14 @@ class ObjectiveFunction(obj_model.Model):
             return (None, InvalidAttribute(attribute, errors, value=value))
 
         # create new ObjectiveFunction
-        obj = cls(expression=value, reactions=reactions, biomass_reactions=biomass_reactions)
         if cls not in objects:
             objects[cls] = {}
-        objects[cls][obj.serialize()] = obj
+        serialized_val = value
+        if serialized_val in objects[cls]:
+            obj = objects[cls][serialized_val]
+        else:
+            obj = cls(expression=value, reactions=reactions, biomass_reactions=biomass_reactions)
+            objects[cls][serialized_val] = obj
         return (obj, None)
 
     def validate(self):
@@ -1138,8 +1217,8 @@ class ObjectiveFunction(obj_model.Model):
         """
         # issue warning if objective function not linear
         if not self.linear:
-            warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
-                self.submodel.id), UserWarning)
+            warnings.warn("submodels '{}' can't add non-linear objective function to SBML FBC model".format(
+                ', '.join(s.id for s in self.submodels)), UserWarning)
             return
         sbml_model = wrap_libsbml(sbml_document.getModel)
         fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
@@ -1161,33 +1240,45 @@ class ObjectiveFunction(obj_model.Model):
 
         return sbml_objective
 
-    def get_products(self):
+    def get_products(self, __type=None, **kwargs):
         """ Get the species produced by this objective function
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list` of `Species`: species produced by this objective function
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         products = []
         for reaction in self.reactions:
             if reaction.reversible:
                 for part in reaction.participants:
-                    products.append(part.species)
+                    if part.species.has_attr_vals(__type=__type, **kwargs):
+                        products.append(part.species)
             else:
                 for part in reaction.participants:
                     if 0 < part.coefficient:
-                        products.append(part.species)
+                        if part.species.has_attr_vals(__type=__type, **kwargs):
+                            products.append(part.species)
 
         tmp_species_ids = []
         for biomass_reaction in self.biomass_reactions:
             for biomass_component in biomass_reaction.biomass_components:
                 if 0 < biomass_component.coefficient:
-                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type.id,
-                                                          biomass_reaction.compartment.id))
-        tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
-        for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
-            if not tmp_specie:
-                raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, self.submodel.id))
-        products.extend(tmp_species)
+                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type,
+                                                          biomass_reaction.compartment))
+        for submodel in self.submodels:
+            tmp_species = Species.get(tmp_species_ids, submodel.get_species())
+            for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
+                if not tmp_specie:
+                    raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, submodel.id))
+                if tmp_specie.has_attr_vals(__type=__type, **kwargs):
+                    products.append(tmp_specie)
         return det_dedupe(products)
 
 
@@ -1310,6 +1401,7 @@ class Species(obj_model.Model):
         tabular_orientation = TabularOrientation.inline
         unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
+        indexed_attrs_tuples = (('species_type', 'compartment'), )
 
     @staticmethod
     def gen_id(species_type, compartment):
@@ -1405,10 +1497,14 @@ class Species(obj_model.Model):
             if errors:
                 return (None, InvalidAttribute(attribute, errors))
             else:
-                obj = cls(species_type=species_type, compartment=compartment)
                 if cls not in objects:
                     objects[cls] = {}
-                objects[cls][obj.serialize()] = obj
+                serialized_val = cls.gen_id(species_type, compartment)
+                if serialized_val in objects[cls]:
+                    obj = objects[cls][serialized_val]
+                else:
+                    obj = cls(species_type=species_type, compartment=compartment)
+                    objects[cls][serialized_val] = obj
                 return (obj, None)
 
         return (None, InvalidAttribute(attribute, ['Invalid species']))
@@ -1627,20 +1723,29 @@ class Reaction(obj_model.Model):
         attribute_order = ('id', 'name', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
-    def get_species(self):
+    def get_species(self, __type=None, **kwargs):
         """ Get species
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`list`: list of `Species`
         """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
         species = []
 
         for part in self.participants:
-            species.append(part.species)
+            if part.species.has_attr_vals(__type=__type, **kwargs):
+                species.append(part.species)
 
         for rate_law in self.rate_laws:
             if rate_law.equation:
-                species.extend(rate_law.equation.modifiers)
+                species.extend(rate_law.equation.modifiers.get(__type=__type, **kwargs))
 
         return det_dedupe(species)
 
@@ -1800,10 +1905,14 @@ class SpeciesCoefficient(obj_model.Model):
             if cls in objects and serial_val in objects[cls]:
                 return (objects[cls][serial_val], None)
 
-            obj = cls(species=species, coefficient=coefficient)
             if cls not in objects:
                 objects[cls] = {}
-            objects[cls][obj.serialize()] = obj
+            serialized_val = cls._serialize(species, coefficient)
+            if serialized_val in objects[cls]:
+                obj = objects[cls][serialized_val]
+            else:
+                obj = cls(species=species, coefficient=coefficient)
+                objects[cls][serialized_val] = obj
             return (obj, None)
 
         else:
@@ -1890,10 +1999,14 @@ class ObservableCoefficient(obj_model.Model):
             if cls in objects and serial_val in objects[cls]:
                 return (objects[cls][serial_val], None)
 
-            obj = cls(observable=observable, coefficient=coefficient)
             if cls not in objects:
                 objects[cls] = {}
-            objects[cls][obj.serialize()] = obj
+            serialized_val = cls._serialize(observable, coefficient)
+            if serialized_val in objects[cls]:
+                obj = objects[cls][serialized_val]
+            else:
+                obj = cls(observable=observable, coefficient=coefficient)
+                objects[cls][serialized_val] = obj
             return (obj, None)
 
         else:
@@ -1916,7 +2029,7 @@ class RateLaw(obj_model.Model):
 
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
-    equation = RateLawEquationAttribute(related_name='rate_law')
+    equation = RateLawEquationAttribute(related_name='rate_laws')
     k_cat = FloatAttribute(min=0, nan=True)
     k_m = FloatAttribute(min=0, nan=True)
     comments = LongStringAttribute()
@@ -2027,10 +2140,14 @@ class RateLawEquation(obj_model.Model):
             return (None, InvalidAttribute(attribute, errors))
 
         # return value
-        obj = cls(expression=value, modifiers=det_dedupe(modifiers))
         if cls not in objects:
             objects[cls] = {}
-        objects[cls][obj.serialize()] = obj
+        serialized_val = value
+        if serialized_val in objects[cls]:
+            obj = objects[cls][serialized_val]
+        else:
+            obj = cls(expression=value, modifiers=det_dedupe(modifiers))
+            objects[cls][serialized_val] = obj
         return (obj, None)
 
     def validate(self):
