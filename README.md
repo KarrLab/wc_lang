@@ -1,5 +1,5 @@
 [//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_lang.svg)](https://pypi.python.org/pypi/wc_lang) )
-[![Documentation](https://img.shields.io/badge/docs-latest-green.svg)](http://docs.karrlab.org/wc_lang)
+[![Documentation](https://readthedocs.org/projects/wc-lang/badge/?version=latest)](http://docs.karrlab.org/wc_lang)
 [![Test results](https://circleci.com/gh/KarrLab/wc_lang.svg?style=shield)](https://circleci.com/gh/KarrLab/wc_lang)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_lang/badge.svg)](https://coveralls.io/github/KarrLab/wc_lang)
 [![Code analysis](https://api.codeclimate.com/v1/badges/bd3cac02fd316d722216/maintainability)](https://codeclimate.com/github/KarrLab/wc_lang)
