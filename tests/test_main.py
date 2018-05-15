@@ -29,8 +29,15 @@ class TestCli(unittest.TestCase):
 
     def test_get_version(self):
         with CaptureOutput() as capturer:
-            with __main__.App(argv=['get-version']) as app:
-                app.run()
+            with __main__.App(argv=['-v']) as app:
+                with self.assertRaises(SystemExit):
+                    app.run()
+                self.assertEqual(capturer.get_text(), wc_lang.__version__)
+
+        with CaptureOutput() as capturer:
+            with __main__.App(argv=['--version']) as app:
+                with self.assertRaises(SystemExit):
+                    app.run()
                 self.assertEqual(capturer.get_text(), wc_lang.__version__)
 
     def test_validate(self):

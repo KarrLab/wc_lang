@@ -20,11 +20,9 @@ class BaseController(CementBaseController):
     class Meta:
         label = 'base'
         description = "Command line utilities for managing whole-cell model definitions"
-
-    @expose(help='Get version')
-    def get_version(self):
-        """ Get version """
-        print(wc_lang.__version__)
+        arguments = [
+            (['-v', '--version'], dict(action='version', version=wc_lang.__version__)),
+        ]
 
 
 class ValidateController(CementBaseController):
