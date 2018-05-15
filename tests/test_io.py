@@ -9,7 +9,7 @@
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient, BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference,
-                     RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration)
+                     RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
@@ -65,7 +65,7 @@ class TestSimpleModel(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_1)
             species.append(spec)
 
-            conc = Concentration(species=spec, value=3 * i, units='M')
+            conc = Concentration(species=spec, value=3 * i, units=ConcentrationUnit.M)
             concentrations.append(conc)
 
         species_coefficients = {}

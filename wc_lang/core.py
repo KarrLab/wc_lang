@@ -145,6 +145,19 @@ class SpeciesTypeType(int, CaseInsensitiveEnum):
     pseudo_species = 5
 
 
+ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
+    ('molecules', 1),
+    ('M', 2),
+    ('mM', 3),
+    ('uM', 4),
+    ('nM', 5),
+    ('pM', 6),
+    ('fM', 7),
+    ('aM', 8),
+    ('moles dm^-2', 9),
+    ])
+
+
 class RateLawDirection(int, CaseInsensitiveEnum):
     """ Rate law directions """
     backward = -1
@@ -1588,7 +1601,7 @@ class Concentration(obj_model.Model):
     """
     species = OneToOneSpeciesAttribute(related_name='concentration')
     value = FloatAttribute(min=0)
-    units = StringAttribute(min_length=1)
+    units = EnumAttribute(ConcentrationUnit)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 

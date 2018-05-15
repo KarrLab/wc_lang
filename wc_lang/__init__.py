@@ -5,7 +5,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # :obj:`str`: version
 
 # API
-from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, RateLawDirection, ReferenceType,
+from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit, RateLawDirection, ReferenceType,
                    Model, Taxon, Submodel, ObjectiveFunction, Compartment,
                    SpeciesType, Species, Observable, Function, Concentration,
                    Reaction, SpeciesCoefficient, ObservableCoefficient, RateLaw, RateLawEquation,
