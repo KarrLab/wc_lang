@@ -1581,18 +1581,20 @@ class Concentration(obj_model.Model):
 
     Attributes:
         species (:obj:`Species`): species
-        value (:obj:`float`): value (M)
+        value (:obj:`float`): value
+        units (:obj:`str`): units
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
     """
     species = OneToOneSpeciesAttribute(related_name='concentration')
     value = FloatAttribute(min=0)
+    units = StringAttribute(min_length=1)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(obj_model.Model.Meta):
         unique_together = (('species', ), )
-        attribute_order = ('species', 'value', 'comments', 'references')
+        attribute_order = ('species', 'value', 'units', 'comments', 'references')
 
         frozen_columns = 1
         ordering = ('species',)

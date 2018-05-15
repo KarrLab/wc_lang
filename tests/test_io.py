@@ -65,7 +65,7 @@ class TestSimpleModel(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_1)
             species.append(spec)
 
-            conc = Concentration(species=spec, value=3 * i)
+            conc = Concentration(species=spec, value=3 * i, units='M')
             concentrations.append(conc)
 
         species_coefficients = {}
