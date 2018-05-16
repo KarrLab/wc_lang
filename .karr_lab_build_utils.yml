@@ -2,7 +2,7 @@ downstream_dependencies:
   - h1_hesc
   - intro_to_wc_modeling
   - mycoplasma_pneumoniae
-  - random_wc_model_generator
+  - rand_wc_model_gen
   - wc
   - wc_analysis
   - wc_model_gen
