@@ -24,6 +24,10 @@ class BaseController(CementBaseController):
             (['-v', '--version'], dict(action='version', version=wc_lang.__version__)),
         ]
 
+    @expose(hide=True)
+    def default(self):
+        self.app.args.print_help()
+
 
 class ValidateController(CementBaseController):
     """ Validate model definition and display errors """
