@@ -155,7 +155,7 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('fM', 7),
     ('aM', 8),
     ('moles dm^-2', 9),
-    ])
+])
 
 
 class RateLawDirection(int, CaseInsensitiveEnum):
@@ -482,6 +482,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             help (:obj:`str`, optional): help message
         """
         super(ReactionParticipantAttribute, self).__init__('SpeciesCoefficient', related_name=related_name,
+                                                           min_related=1,
                                                            verbose_name=verbose_name,
                                                            verbose_related_name=verbose_related_name,
                                                            help=help)
@@ -636,6 +637,32 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                     parts.append(rxn_part)
 
         return (parts, errors)
+
+    def validate(self, obj, value):
+        """ Determine if `value` is a valid value of the attribute
+
+        Args:
+            obj (:obj:`Reaction`): object being validated
+            value (:obj:`list` of `SpeciesCoefficient`): value of attribute to validate
+
+        Returns:
+            :obj:`InvalidAttribute` or None: None if attribute is valid, other return list of errors as an instance of `InvalidAttribute`
+        """
+        error = super(ReactionParticipantAttribute, self).validate(obj, value)
+        if error:
+            return error
+
+        # check that LHS and RHS are different
+        net_coeffs = {}
+        for spec_coeff in value:
+            net_coeffs[spec_coeff.species] = \
+                net_coeffs.get(spec_coeff.species, 0) + \
+                spec_coeff.coefficient
+            if net_coeffs[spec_coeff.species] == 0:
+                net_coeffs.pop(spec_coeff.species)
+        if not net_coeffs:
+            return InvalidAttribute(self, ['LHS and RHS must be different'])
+        return None
 
 
 class RateLawEquationAttribute(ManyToOneAttribute):

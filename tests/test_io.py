@@ -206,7 +206,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename, wb)
 
-        with self.assertRaisesRegexp(ValueError, 'The attributes must be defined in this order'):
+        with self.assertRaisesRegexp(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
         model = Reader().run(filename, strict=False)
         self.assertEqual(model.validate(), None)
@@ -243,7 +243,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename_xls1, wb)
 
-        with self.assertRaisesRegexp(ValueError, 'The attributes must be defined in this order'):
+        with self.assertRaisesRegexp(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
         convert(filename_xls1, filename_csv, strict=False)
 

@@ -1224,6 +1224,51 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(parts, [])
 
+    def test_ReactionParticipantAttribute_validate(self):
+        species_types = [
+            SpeciesType(id='A'),
+            SpeciesType(id='B'),
+        ]
+        compartments = [
+            Compartment(id='c'),
+            Compartment(id='e'),
+        ]
+        species = [
+            Species(species_type=species_types[0], compartment=compartments[0]),
+            Species(species_type=species_types[0], compartment=compartments[1]),
+            Species(species_type=species_types[1], compartment=compartments[0]),
+            Species(species_type=species_types[1], compartment=compartments[1]),
+        ]
+
+        attr = ReactionParticipantAttribute()
+        attr.related_class = SpeciesCoefficient
+
+        rxn = Reaction(participants=[
+            SpeciesCoefficient(species=species[0], coefficient=-1),
+            SpeciesCoefficient(species=species[1], coefficient=1),
+        ])
+        self.assertEqual(attr.validate(None, rxn.participants), None)
+
+        self.assertNotEqual(attr.validate(None, [
+            SpeciesCoefficient(species=species[0], coefficient=-1),
+            SpeciesCoefficient(species=species[0], coefficient=1),
+        ]), None)
+
+        self.assertNotEqual(attr.validate(None, [
+            SpeciesCoefficient(species=species[0], coefficient=-2),
+            SpeciesCoefficient(species=species[0], coefficient=1),
+            SpeciesCoefficient(species=species[0], coefficient=1),
+        ]), None)
+
+        self.assertNotEqual(attr.validate(None, [
+            SpeciesCoefficient(species=species[0], coefficient=-2),
+            SpeciesCoefficient(species=species[1], coefficient=-1),
+            SpeciesCoefficient(species=species[0], coefficient=2),
+            SpeciesCoefficient(species=species[1], coefficient=1),
+        ]), None)
+
+        self.assertNotEqual(attr.validate(None, []), None)
+
     def test_RateLawEquationAttribute_serialize(self):
         rxn = self.rxn_0
         rate_law = rxn.rate_laws[0]
