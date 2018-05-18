@@ -1224,6 +1224,22 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(parts, [])
 
+        # repeated species
+        objs[Species] = {
+            'spec_2[c_1]': Species(species_type=objs[SpeciesType]['spec_2'], compartment=objs[Compartment]['c_1']),
+        }
+        objs[SpeciesCoefficient] = {
+            '(-1) spec_2[c_1]': SpeciesCoefficient(species=objs[Species]['spec_2[c_1]'], coefficient=-1),
+            'spec_2[c_1]': SpeciesCoefficient(species=objs[Species]['spec_2[c_1]'], coefficient=1),
+        }
+        parts, error = attr.deserialize('[c_1]: spec_2 ==> spec_2 + spec_2', objs)
+        self.assertNotEqual(error, None)
+        self.assertEqual(parts, None)
+
+        parts, error = attr.deserialize('spec_2[c_1] ==> spec_2[c_1] + spec_2[c_1]', objs)
+        self.assertNotEqual(error, None)
+        self.assertEqual(parts, None)
+
     def test_ReactionParticipantAttribute_validate(self):
         species_types = [
             SpeciesType(id='A'),

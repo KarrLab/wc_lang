@@ -40,6 +40,7 @@ from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
 from six import with_metaclass, string_types
+import collections
 import pkg_resources
 import re
 import six
@@ -568,7 +569,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
-
+        
         lhs_parts, lhs_errors = self.deserialize_side(-1., lhs, objects, global_comp)
         rhs_parts, rhs_errors = self.deserialize_side(1., rhs, objects, global_comp)
 
@@ -596,10 +597,19 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 * :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
                 * :obj:`list` of :obj:`Exception`: list of errors
         """
+        parts_str = re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I)
+
+        if global_comp:
+            temp = [part[4] for part in parts_str]
+        else:
+            temp = [part[4] + '[' + part[6] + ']' for part in parts_str]
+        repeated_parts = [item for item, count in collections.Counter(temp).items() if count > 1]
+        if repeated_parts:     
+            return ([], ['Participants are repeated\n  {}'.format('\n  '.join(repeated_parts))])
+
         parts = []
         errors = []
-
-        for part in re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I):
+        for part in parts_str:
             part_errors = []
 
             if part[4] in objects[SpeciesType]:
@@ -630,7 +640,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                         objects[SpeciesCoefficient] = {}
                     serialized_value = SpeciesCoefficient._serialize(species, coefficient)
                     if serialized_value in objects[SpeciesCoefficient]:
-                        rxn_part = objects[SpeciesCoefficient][serialized_value]
+                        rxn_part = objects[SpeciesCoefficient][serialized_value]                        
                     else:
                         rxn_part = SpeciesCoefficient(species=species, coefficient=coefficient)
                         objects[SpeciesCoefficient][serialized_value] = rxn_part
@@ -660,7 +670,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 spec_coeff.coefficient
             if net_coeffs[spec_coeff.species] == 0:
                 net_coeffs.pop(spec_coeff.species)
-        if not any(net_coeffs.values()):
+        if not net_coeffs:
             return InvalidAttribute(self, ['LHS and RHS must be different'])
         return None
 
