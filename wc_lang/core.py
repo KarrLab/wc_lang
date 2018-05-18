@@ -660,7 +660,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 spec_coeff.coefficient
             if net_coeffs[spec_coeff.species] == 0:
                 net_coeffs.pop(spec_coeff.species)
-        if not net_coeffs:
+        if not any(net_coeffs.values()):
             return InvalidAttribute(self, ['LHS and RHS must be different'])
         return None
 
