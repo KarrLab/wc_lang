@@ -590,16 +590,13 @@ class TestCheckModel(unittest.TestCase):
         self.check_model.transcode_and_check_rate_law_equations()
 
     def test_verify_reactant_compartments(self):
-        actual_list = self.check_model.verify_reactant_compartments()
-        expected_list = [
+        actual_errors = self.check_model.verify_reactant_compartments()
+        expected_errors = [
             "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_1 in another compartment: e",
             "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_2 in another compartment: e",
             "submodel 'ssa_submodel' must contain a compartment attribute",
         ]
-        actual_list.sort()
-        expected_list.sort()
-        for actual, expected in zip(actual_list, expected_list):
-            six.assertRegex(self, actual, expected)
+        self.assertEqual(frozenset(expected_errors), frozenset(actual_errors))
 
     def test_run(self):
         self.check_model.run()
@@ -608,3 +605,14 @@ class TestCheckModel(unittest.TestCase):
         self.dfba_submodel.reactions[0].min_flux = float('nan')
         with self.assertRaisesRegexp(ValueError, 'no min_flux'):
             CheckModel(self.model).run()
+
+    def test_verify_species_types(self):
+        self.assertEqual(self.check_model.verify_species_types(), [])
+        SpeciesType.objects.get_one(id='specie_4').molecular_weight = float('NaN')
+        SpeciesType.objects.get_one(id='specie_6').molecular_weight = -1.
+        expected_errors = [
+            "species types must contain positive molecular weights, but the MW for specie_4 is nan",
+            "species types must contain positive molecular weights, but the MW for specie_6 is -1.0"
+        ]
+        actual_errors = self.check_model.verify_species_types()
+        self.assertEqual(frozenset(expected_errors), frozenset(actual_errors))

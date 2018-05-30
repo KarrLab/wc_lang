@@ -646,6 +646,7 @@ class CheckModel(object):
         * DFBA submodels contain a biomass reaction and an objective function
         * Rate laws transcode and evaluate without error
         * All reactants in each submodel's reactions are in the submodel's compartment
+        * All species types have positive molecular weights
 
     Other properties to be checked:
 
@@ -668,6 +669,11 @@ class CheckModel(object):
         self.model = model
 
     def run(self):
+        '''Run all tests in `CheckModel`
+
+        Raises:
+            :obj:`ValueError`: if any of the tests return an error
+        '''
         self.errors = []
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
@@ -675,6 +681,7 @@ class CheckModel(object):
             if submodel.algorithm in [SubmodelAlgorithm.ssa, SubmodelAlgorithm.ode]:
                 self.errors.extend(self.check_dynamic_submodel(submodel))
         self.errors.extend(self.transcode_and_check_rate_law_equations())
+        self.errors.extend(self.verify_species_types())
         if self.errors:
             raise ValueError('\n'.join(self.errors))
 
@@ -758,6 +765,7 @@ class CheckModel(object):
                 if direction_types.symmetric_difference(set(('forward',))):
                     errors.append("Error: reaction '{}' in submodel '{}' is not reversible but has "
                                   "a 'backward' rate law specified".format(reaction.name, submodel.name))
+
         return errors
 
     def transcode_and_check_rate_law_equations(self):
@@ -820,4 +828,22 @@ class CheckModel(object):
                                     compartment.id, reaction.id, participant.species.species_type.id,
                                     participant.species.compartment.id)
                             errors.append(error)
+        return errors
+
+    def verify_species_types(self):
+        '''Verify all species types
+
+        Ensure that:
+
+            * All species types have positive molecular weights
+
+        Returns:
+            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            error messages
+        '''
+        errors = []
+        for species_type in self.model.get_species_types():
+            if not 0<species_type.molecular_weight:
+                errors.append("species types must contain positive molecular weights, but the MW for {} "
+                    "is {}".format(species_type.id, species_type.molecular_weight))
         return errors
