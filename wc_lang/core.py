@@ -1666,7 +1666,7 @@ class Observable(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
-        observables (:obj:`list` of :obj:`Observable`): list of component observables
+        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and their coefficients
         comments (:obj:`str`): comments
 
     Related attributes:
