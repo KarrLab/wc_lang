@@ -1705,7 +1705,7 @@ class Function(obj_model.Model):
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def validate(self):
-        """ Determine whether a `StopCondition` is valid by checking whether
+        """ Determine whether a `Function` is valid by checking whether
         `expression` is a valid Python expression.
 
         Returns:
@@ -1714,8 +1714,8 @@ class Function(obj_model.Model):
         """
         expr = self.expression
 
-        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
-        # test validation with fluxes of 1.0
+        # to evaluate the expression, set variables for the observable identifiers to their values
+        # test validation with values of 1.0
         errors = []
 
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
@@ -2475,8 +2475,8 @@ class StopCondition(obj_model.Model):
         """
         expr = self.expression
 
-        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
-        # test validation with fluxes of 1.0
+        # to evaluate the expression, set variables for the observable identifiers to their values
+        # test validation with values of 1.0
         errors = []
 
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
