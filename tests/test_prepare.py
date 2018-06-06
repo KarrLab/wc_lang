@@ -15,7 +15,8 @@ import unittest
 
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
                      Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
-                     Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType)
+                     Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType, Observable,
+                     ObservableCoefficient)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
 
@@ -596,7 +597,7 @@ class TestCheckModel(unittest.TestCase):
             "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_2 in another compartment: e",
             "submodel 'ssa_submodel' must contain a compartment attribute",
         ]
-        self.assertEqual(frozenset(expected_errors), frozenset(actual_errors))
+        self.assertEqual(set(expected_errors), set(actual_errors))
 
     def test_run(self):
         self.check_model.run()
@@ -615,4 +616,24 @@ class TestCheckModel(unittest.TestCase):
             "species types must contain positive molecular weights, but the MW for specie_6 is -1.0"
         ]
         actual_errors = self.check_model.verify_species_types()
-        self.assertEqual(frozenset(expected_errors), frozenset(actual_errors))
+        self.assertEqual(set(expected_errors), set(actual_errors))
+
+    def test_verify_acyclic_observable_dependencies(self):
+        obs_1 = self.model.observables.create(id='obs_1')
+        obs_2 = self.model.observables.create(id='obs_2')
+        obs_3 = self.model.observables.create(id='obs_3')
+        obs_coeff_1 = ObservableCoefficient(observable=obs_1, coefficient=1.)
+        obs_coeff_2 = ObservableCoefficient(observable=obs_2, coefficient=2.)
+        obs_coeff_3 = ObservableCoefficient(observable=obs_3, coefficient=3.)
+        errors = self.check_model.verify_acyclic_observable_dependencies()
+        self.assertEqual(errors, [])
+        obs_2.observables.append(obs_coeff_1)
+        obs_3.observables.append(obs_coeff_2)
+        errors = self.check_model.verify_acyclic_observable_dependencies()
+        self.assertEqual(errors, [])
+        obs_1.observables.append(obs_coeff_3)
+        obs_1.observables.append(obs_coeff_1)
+        errors = self.check_model.verify_acyclic_observable_dependencies()
+        self.assertEqual(len(errors), 2)
+        for e in errors:
+            self.assertIn('dependency cycle among observables', e)
