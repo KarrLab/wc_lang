@@ -733,7 +733,10 @@ class Model(obj_model.Model):
         submodels (:obj:`list` of `Submodel`): submodels
         compartments (:obj:`list` of `Compartment`): compartments
         species_types (:obj:`list` of `SpeciesType`): species types
+        observables (:obj:`list` of `Observable`): observables
+        functions (:obj:`list` of `Function`): functions
         parameters (:obj:`list` of `Parameter`): parameters
+        stop_conditions (:obj:`list` of `StopCondition`): stop conditions
         references (:obj:`list` of `Reference`): references
         database_references (:obj:`list` of `DatabaseReference`): database references
     """
@@ -1666,7 +1669,8 @@ class Observable(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
-        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and their coefficients
+        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and
+            their coefficients
         comments (:obj:`str`): comments
 
     Related attributes:
@@ -1721,6 +1725,7 @@ class Function(obj_model.Model):
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
             if not self.model.observables.get_one(id=match[1]):
                 errors.append('Observable "{}" not defined'.format(match[1]))
+            # todo: recreates the suffix match bug: fix by parsing expression
             expr = expr.replace(match[1], '1.')
 
         local_ns = {func.__name__: func for func in self.Meta.valid_functions}
@@ -1865,6 +1870,7 @@ class SpeciesCoefficient(obj_model.Model):
 
     Related attributes:
         reaction (:obj:`Reaction`): reaction
+        observables (:obj:`Observable`): observables
     """
     species = ManyToOneAttribute(Species, related_name='species_coefficients')
     coefficient = FloatAttribute(nan=False)
@@ -1977,7 +1983,7 @@ class ObservableCoefficient(obj_model.Model):
     """ A tuple of observable and coefficient
 
     Attributes:
-        observable (:obj:`Observable`): species
+        observable (:obj:`Observable`): observable
         coefficient (:obj:`float`): coefficient
     """
     observable = ManyToOneAttribute(Observable, related_name='observable_coefficients')
@@ -2482,6 +2488,7 @@ class StopCondition(obj_model.Model):
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
             if not self.model.observables.get_one(id=match[1]):
                 errors.append('Observable "{}" not defined'.format(match[1]))
+            # todo: recreates the suffix match bug: fix by parsing expression
             expr = expr.replace(match[1], '1.')
 
         local_ns = {func.__name__: func for func in self.Meta.valid_functions}
