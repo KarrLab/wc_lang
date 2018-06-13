@@ -45,6 +45,8 @@ import pkg_resources
 import re
 import six
 import sys
+import token
+
 from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
@@ -1456,6 +1458,7 @@ class Species(obj_model.Model):
         unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
         indexed_attrs_tuples = (('species_type', 'compartment'), )
+        token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
 
     @staticmethod
     def gen_id(species_type, compartment):
@@ -2145,7 +2148,7 @@ class RateLawEquation(obj_model.Model):
         expression (:obj:`str`): mathematical expression of the rate law
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
-        parameters (:obj:`list` of `Species`): species whose concentrations are used in the rate law
+        parameters (:obj:`list` of `Species`): parameters whose values are used in the rate law
 
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """

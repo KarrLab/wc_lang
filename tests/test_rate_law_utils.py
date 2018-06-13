@@ -7,10 +7,15 @@
 
 import unittest
 import os
+import re
+import tokenize
+import token
+from io import BytesIO
 
 from wc_lang.io import Reader
-from wc_lang import RateLawEquation, RateLaw, Reaction, Submodel, Species
-from wc_lang.rate_law_utils import RateLawUtils
+from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, Species, Function, StopCondition,
+    ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
+from wc_lang.rate_law_utils import RateLawUtils, ExpressionUtils, TokCodes, WcLangToken
 
 
 class TestRateLawUtils(unittest.TestCase):
@@ -76,3 +81,84 @@ class TestRateLawUtils(unittest.TestCase):
 
         with self.assertRaisesRegexp(Exception, 'Error: unable to eval transcoded rate law'):
             RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, {}, transcoded_equation='"x" + concentrations["x"]')
+
+
+class TestExpressionUtils(unittest.TestCase):
+
+    @staticmethod
+    def get_tokens(expr):
+        try:
+            tokens = list(tokenize.tokenize(BytesIO(expr.encode('utf-8')).readline))
+        except tokenize.TokenError:
+            return []
+        # strip the leading ENCODING and trailing ENDMARKER tokens
+        return tokens[1:-1]
+
+    def test_match_tokens(self):
+        match_toks = ExpressionUtils.match_tokens
+        single_name_pattern = (token.NAME, )
+        self.assertFalse(match_toks([], []))
+        self.assertFalse(match_toks(single_name_pattern, []))
+        self.assertTrue(match_toks(single_name_pattern, self.get_tokens('ID2')))
+        self.assertTrue(match_toks(single_name_pattern, self.get_tokens('ID3 5')))
+        species_pattern = Species.Meta.token_pattern
+        self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1[c1]')))
+        self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1[c1] hi 7')))
+        # note that whitespace is allowed between tokens
+        self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1 [ c1 ] ')))
+        self.assertFalse(match_toks(species_pattern, self.get_tokens('sp1[c1')))
+
+    def test_bad_tokens(self):
+        _, errors = ExpressionUtils.deserialize(Species, 'test', '+= *= @= : {}', {})
+        for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
+            self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
+        _, errors = ExpressionUtils.deserialize(Species, 'test', ' : \n', {})
+        error = errors[0]
+        self.assertIn('INDENT', error)
+        self.assertIn('DEDENT', error)
+        self.assertIn('\n', error)
+
+    def test_deserialize(self):
+        deserialize = ExpressionUtils.deserialize
+        species = {}
+        for id in ['specie_2[c]', 'specie_4[c]', 'specie_5[c]', 'specie_6[c]']:
+            species[id] = Species()
+        parameters = {}
+        for id in ['k_cat', 'k_m', 'specie_2']:
+            parameters[id] = Parameter(id=id)
+        objects = {
+            Species: species,
+            Parameter: parameters
+        }
+        # deserialize(model_class, attribute, expression, objects)
+        # WcLangToken(tok_code, token_string, model_type)
+        expected_wc_tokens = [WcLangToken(TokCodes.other, '3'),
+            WcLangToken(TokCodes.other, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'specie_5[c]', Species)]
+
+        expected_modifiers = {
+            Species: ['specie_5[c]'],
+            Parameter: []
+        }
+        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '3 * specie_5[c]', objects)
+        self.assertEqual(wc_expr_tokens, expected_wc_tokens)
+        print('modifiers', modifiers)
+        self.assertEqual(modifiers, expected_modifiers)
+
+        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '2 * x[c]', objects)
+        print(wc_expr_tokens, modifiers)
+        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', 'specie_2[c]', objects)
+        print(wc_expr_tokens, modifiers)
+        objects = {
+            Species: species,
+        }
+        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '2 * x', objects)
+        print(wc_expr_tokens, modifiers)
+        '''
+        expressions = ['k_cat * specie_2[c]', 'specie_4[c] / k_m', 'specie_5[c] + specie_6[c]']
+        for e in expressions:
+            print(deserialize(RateLawEquation, 'expression', e, objects))
+        '''
+
+    def test_eval_expr(self):
+        pass
