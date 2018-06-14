@@ -45,6 +45,8 @@ import pkg_resources
 import re
 import six
 import sys
+import token
+
 from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute,
@@ -733,7 +735,10 @@ class Model(obj_model.Model):
         submodels (:obj:`list` of `Submodel`): submodels
         compartments (:obj:`list` of `Compartment`): compartments
         species_types (:obj:`list` of `SpeciesType`): species types
+        observables (:obj:`list` of `Observable`): observables
+        functions (:obj:`list` of `Function`): functions
         parameters (:obj:`list` of `Parameter`): parameters
+        stop_conditions (:obj:`list` of `StopCondition`): stop conditions
         references (:obj:`list` of `Reference`): references
         database_references (:obj:`list` of `DatabaseReference`): database references
     """
@@ -1453,6 +1458,7 @@ class Species(obj_model.Model):
         unique_together = (('species_type', 'compartment', ), )
         ordering = ('species_type', 'compartment')
         indexed_attrs_tuples = (('species_type', 'compartment'), )
+        token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
 
     @staticmethod
     def gen_id(species_type, compartment):
@@ -1666,7 +1672,8 @@ class Observable(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
-        observables (:obj:`list` of :obj:`Observable`): list of component observables
+        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and
+            their coefficients
         comments (:obj:`str`): comments
 
     Related attributes:
@@ -1705,7 +1712,7 @@ class Function(obj_model.Model):
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     def validate(self):
-        """ Determine whether a `StopCondition` is valid by checking whether
+        """ Determine whether a `Function` is valid by checking whether
         `expression` is a valid Python expression.
 
         Returns:
@@ -1714,13 +1721,14 @@ class Function(obj_model.Model):
         """
         expr = self.expression
 
-        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
-        # test validation with fluxes of 1.0
+        # to evaluate the expression, set variables for the observable identifiers to their values
+        # test validation with values of 1.0
         errors = []
 
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
             if not self.model.observables.get_one(id=match[1]):
                 errors.append('Observable "{}" not defined'.format(match[1]))
+            # todo: recreates the suffix match bug: fix by parsing expression
             expr = expr.replace(match[1], '1.')
 
         local_ns = {func.__name__: func for func in self.Meta.valid_functions}
@@ -1865,6 +1873,7 @@ class SpeciesCoefficient(obj_model.Model):
 
     Related attributes:
         reaction (:obj:`Reaction`): reaction
+        observables (:obj:`Observable`): observables
     """
     species = ManyToOneAttribute(Species, related_name='species_coefficients')
     coefficient = FloatAttribute(nan=False)
@@ -1977,7 +1986,7 @@ class ObservableCoefficient(obj_model.Model):
     """ A tuple of observable and coefficient
 
     Attributes:
-        observable (:obj:`Observable`): species
+        observable (:obj:`Observable`): observable
         coefficient (:obj:`float`): coefficient
     """
     observable = ManyToOneAttribute(Observable, related_name='observable_coefficients')
@@ -2139,7 +2148,7 @@ class RateLawEquation(obj_model.Model):
         expression (:obj:`str`): mathematical expression of the rate law
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
-        parameters (:obj:`list` of `Species`): species whose concentrations are used in the rate law
+        parameters (:obj:`list` of `Species`): parameters whose values are used in the rate law
 
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
@@ -2475,13 +2484,14 @@ class StopCondition(obj_model.Model):
         """
         expr = self.expression
 
-        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
-        # test validation with fluxes of 1.0
+        # to evaluate the expression, set variables for the observable identifiers to their values
+        # test validation with values of 1.0
         errors = []
 
         for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
             if not self.model.observables.get_one(id=match[1]):
                 errors.append('Observable "{}" not defined'.format(match[1]))
+            # todo: recreates the suffix match bug: fix by parsing expression
             expr = expr.replace(match[1], '1.')
 
         local_ns = {func.__name__: func for func in self.Meta.valid_functions}

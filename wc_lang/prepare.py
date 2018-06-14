@@ -15,7 +15,8 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-                     Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation, BiomassReaction)
+                     Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
+                     BiomassReaction, Observable)
 from wc_lang.rate_law_utils import RateLawUtils
 
 # configuration
@@ -28,7 +29,7 @@ EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
 
 
 class AnalyzeModel(object):
-    '''Statically analyze a model
+    """ Statically analyze a model
 
     `AnalyzeModel` performs static analysis of WC-lang models which are useful for constructing
     models.
@@ -36,13 +37,13 @@ class AnalyzeModel(object):
     Current analyses:
 
         * Identify dead end species and reaction network gaps in dFBA submodels
-    '''
+    """
 
     def __init__(self, model):
         self.model = model
 
     def identify_dfba_submodel_rxn_gaps(self, submodel):
-        '''Identify gaps in a dFBA submodel's reaction network
+        """ Identify gaps in a dFBA submodel's reaction network
 
         Species that are not consumed or not produced indicate gaps in the reaction network.
         These can be found by a static analysis of the model. Reactions that use species that
@@ -72,7 +73,7 @@ class AnalyzeModel(object):
 
                 * :obj:`set` of :obj:`Species`: `Species` not in the minimal reaction network
                 * :obj:`set` of :obj:`Reaction`: `Reaction`s not in the minimal reaction network
-        '''
+        """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
@@ -89,7 +90,7 @@ class AnalyzeModel(object):
 
     @staticmethod
     def find_dead_end_species(submodel, inactive_reactions):
-        '''Find the dead end species in a reaction network
+        """ Find the dead end species in a reaction network
 
         Given a set of inactive reactions in submodel, determine species that are not consumed by
         any reaction, or are not produced by any reaction. Costs :math:`O(n*p)`, where :math:`n` is
@@ -105,7 +106,7 @@ class AnalyzeModel(object):
 
                 * :obj:`set` of :obj:`Species`: the species that are not consumed
                 * :obj:`set` of :obj:`Species`: the species that are not produced
-        '''
+        """
         species = submodel.get_species()
         species_not_consumed = set(species)
         species_not_produced = set(species)
@@ -126,7 +127,7 @@ class AnalyzeModel(object):
 
     @staticmethod
     def get_inactive_reactions(submodel, dead_end_species):
-        '''Find the inactive reactions in a reaction network
+        """ Find the inactive reactions in a reaction network
 
         Given the dead end species in a reaction network, find the reactions that must eventually
         become inactive. Reactions that consume species which are not produced must become inactive.
@@ -144,7 +145,7 @@ class AnalyzeModel(object):
 
         Returns:
             :obj:`set` of :obj:`Reaction`: the inactive reactions in `submodel`'s reaction network
-        '''
+        """
         species_not_consumed, species_not_produced = dead_end_species
         inactive_reactions = []
         for rxn in submodel.reactions:
@@ -157,7 +158,7 @@ class AnalyzeModel(object):
 
     @staticmethod
     def digraph_of_rxn_network(submodel):
-        '''Create a NetworkX network representing the reaction network in `submodel`
+        """ Create a NetworkX network representing the reaction network in `submodel`
 
         To leverage the algorithms in NetworkX, map a reaction network onto a NetworkX
         directed graph.
@@ -170,7 +171,7 @@ class AnalyzeModel(object):
 
         Returns:
             :obj:`DiGraph`: a NetworkX directed graph representing `submodel`'s reaction network
-        '''
+        """
         digraph = nx.DiGraph()
 
         # make network of obj_model.Model instances
@@ -199,7 +200,7 @@ class AnalyzeModel(object):
 
     @staticmethod
     def path_bounds_analysis(submodel):
-        '''Perform path bounds analysis on `submodel`
+        """ Perform path bounds analysis on `submodel`
 
         To be adequately constrained, a dFBA metabolic model should have the property that each path
         from an extracellular species to a component in the objective function contains at least
@@ -216,7 +217,7 @@ class AnalyzeModel(object):
             function components that lack a finite flux upper bound. Keys in the `dict` are the ids
             of extracellular species; the corresponding values contain the unbounded paths for the
             extracellular species, as returned by `unbounded_paths`.
-        '''
+        """
         # todo: symmetrically, report reactions not on any path from ex species to obj fun components
         digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
         obj_fn_species = submodel.objective_function.get_products()
@@ -231,7 +232,7 @@ class AnalyzeModel(object):
     # todo: replace the constant in min_non_finite_ub=1000.0
     @staticmethod
     def unbounded_paths(rxn_network, ex_species, obj_fn_species, min_non_finite_ub=1000.0):
-        '''Find the unbounded paths from an extracellular species to some objective function species
+        """ Find the unbounded paths from an extracellular species to some objective function species
 
         Return all paths in a reaction network that lack a finite flux upper bound
         and go from `ex_species` to an objective function component.
@@ -252,7 +253,7 @@ class AnalyzeModel(object):
             to objective function components that lack a finite flux upper bound.
             A path is a list of `Species`, `Reaction`, `Species`, ..., `Species`, starting with
             `ex_species` and ending with an objective function component.
-        '''
+        """
         unbounded_paths = list()
         if not isinstance(ex_species, Species):
             raise ValueError("'ex_species' should be a Species instance, but it is a {}".format(
@@ -275,7 +276,7 @@ class AnalyzeModel(object):
 
 
 class PrepareModel(object):
-    '''Statically prepare a model
+    """ Statically prepare a model
 
     `Models` which validate usually lack data needed to use them. `PrepareModel` automates
     the addition of default and statically computed data to a `Model`.
@@ -286,7 +287,7 @@ class PrepareModel(object):
         * Create implicit exchange reactions for dFBA submodels
         * Ensure that dFBA submodels have objective functions
         * Apply default flux bounds to the reactions in dFBA submodels
-    '''
+    """
 
     def __init__(self, model):
         self.model = model
@@ -316,7 +317,7 @@ class PrepareModel(object):
         self.init_concentrations()
 
     def create_dfba_exchange_rxns(self, submodel, extracellular_compartment_id):
-        '''Create exchange reactions for a dFBA submodel's reaction network.
+        """ Create exchange reactions for a dFBA submodel's reaction network.
 
         To represent FBA's mathematical assumption that it models a closed system, create
         'implicit' forward exchange reactions that synthesize all extracellular metabolites.
@@ -339,7 +340,7 @@ class PrepareModel(object):
 
         Returns:
             :obj:`int`: the number of reactions created
-        '''
+        """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
@@ -363,7 +364,7 @@ class PrepareModel(object):
         return reaction_number-1
 
     def confirm_dfba_submodel_obj_func(self, submodel):
-        '''Ensure that a dFBA submodel has an objective function
+        """ Ensure that a dFBA submodel has an objective function
 
         If the submodel definition does not provide an objective function, then use the
         biomass reaction.
@@ -374,7 +375,7 @@ class PrepareModel(object):
         Raises:
             ValueError: if `submodel` is not a dFBA submodel
             ValueError: if `submodel` cannot use its biomass reaction '{}' as an objective function
-        '''
+        """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
@@ -394,7 +395,7 @@ class PrepareModel(object):
         return None
 
     def parse_dfba_submodel_obj_func(self, submodel):
-        '''Parse a dFBA submodel's objective function into a linear function of reaction fluxes
+        """ Parse a dFBA submodel's objective function into a linear function of reaction fluxes
 
         The SBML FBC only handles objectives that are a linear function of reaction fluxes. This method
         uses Python's parser to parse an objective function.
@@ -419,7 +420,7 @@ class PrepareModel(object):
             ValueError: if `submodel.objective_function` is not a legal python expression, does not
                 have the form above, is not a linear function of reaction ids, uses an unknown
                 reaction id, or uses an id multiple times
-        '''
+        """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
@@ -480,7 +481,7 @@ class PrepareModel(object):
 
     @staticmethod
     def _proc_mult(node, linear_expr):
-        ''' Process a Mult node in the ast.
+        """ Process a Mult node in the ast.
 
         Append the Mult node's coefficient and reaction id to `linear_expr`.
 
@@ -490,7 +491,7 @@ class PrepareModel(object):
 
         Raises:
             :obj:`ValueError`: if the Mult node does not have one Name and one Num (which may be negative)
-        '''
+        """
         nums = []
         names = []
         sign = 1.0
@@ -509,7 +510,7 @@ class PrepareModel(object):
 
     @staticmethod
     def _proc_add(node, linear_expr):
-        ''' Process an Add node in the ast.
+        """ Process an Add node in the ast.
 
         Append the Add node's coefficient(s) and reaction id(s) to `linear_expr`.
 
@@ -519,7 +520,7 @@ class PrepareModel(object):
 
         Raises:
             :obj:`ValueError`: if the Add node does not have a total of 2 Names, Mults, and Adds.
-        '''
+        """
         names = []
         mults = []
         adds = 0
@@ -540,7 +541,7 @@ class PrepareModel(object):
 
     @staticmethod
     def assign_linear_objective_fn(submodel, reactions, biomass_reactions):
-        '''Assign a linear objective function to a submodel
+        """ Assign a linear objective function to a submodel
 
         Assign a linear objective function parsed by `parse_dfba_submodel_obj_func` to a submodel's
         attributes.
@@ -553,7 +554,7 @@ class PrepareModel(object):
 
         Raises:
             ValueError: if `submodel` is not a dFBA submodel
-        '''
+        """
         of = submodel.objective_function
         of.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff, id in reactions]
         of.reaction_coefficients = [coeff for coeff, id in reactions]
@@ -562,7 +563,7 @@ class PrepareModel(object):
         of.biomass_reaction_coefficients = [coeff for coeff, id in biomass_reactions]
 
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
-        ''' Apply default flux bounds to a dFBA submodel's reactions
+        """ Apply default flux bounds to a dFBA submodel's reactions
 
         The FBA optimizer needs min and max flux bounds for each dFBA submodel reaction.
         If some reactions lack bounds and default bounds are provided in a config file,
@@ -590,7 +591,7 @@ class PrepareModel(object):
 
                 * obj:`int`: number of min flux bounds set to the default
                 * obj:`int`: number of max flux bounds set to the default
-        '''
+        """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
 
@@ -636,7 +637,7 @@ class PrepareModel(object):
 
 
 class CheckModel(object):
-    '''Statically check a model
+    """ Statically check a model
 
     A `Model` which validates in `wc_lang` may fail to satisfy global properties that must hold for
     the `Model` to be used. `CheckModel` evaluates these properties.
@@ -646,6 +647,8 @@ class CheckModel(object):
         * DFBA submodels contain a biomass reaction and an objective function
         * Rate laws transcode and evaluate without error
         * All reactants in each submodel's reactions are in the submodel's compartment
+        * All species types have positive molecular weights
+        * The network of `Observable` depencencies is acyclic
 
     Other properties to be checked:
 
@@ -662,12 +665,17 @@ class CheckModel(object):
     # TODO: implement these, and expand the list of properties
 
     # TODO: fix doc string formatting
-    '''
+    """
 
     def __init__(self, model):
         self.model = model
 
     def run(self):
+        """ Run all tests in `CheckModel`
+
+        Raises:
+            :obj:`ValueError`: if any of the tests return an error
+        """
         self.errors = []
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
@@ -675,11 +683,13 @@ class CheckModel(object):
             if submodel.algorithm in [SubmodelAlgorithm.ssa, SubmodelAlgorithm.ode]:
                 self.errors.extend(self.check_dynamic_submodel(submodel))
         self.errors.extend(self.transcode_and_check_rate_law_equations())
+        self.errors.extend(self.verify_species_types())
+        self.errors.extend(self.verify_acyclic_observable_dependencies())
         if self.errors:
             raise ValueError('\n'.join(self.errors))
 
     def check_dfba_submodel(self, submodel):
-        '''Check the inputs to a DFBA submodel
+        """ Check the inputs to a DFBA submodel
 
         Ensure that:
 
@@ -693,7 +703,7 @@ class CheckModel(object):
         Returns:
             :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
-        '''
+        """
         errors = []
         for reaction in submodel.reactions:
             for attr in ['min_flux', 'max_flux']:
@@ -728,7 +738,7 @@ class CheckModel(object):
         return errors
 
     def check_dynamic_submodel(self, submodel):
-        '''Check the inputs to a dynamic submodel
+        """ Check the inputs to a dynamic submodel
 
         Ensure that:
 
@@ -740,7 +750,7 @@ class CheckModel(object):
         Returns:
             :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
-        '''
+        """
         errors = []
         for reaction in submodel.reactions:
             direction_types = set()
@@ -758,10 +768,11 @@ class CheckModel(object):
                 if direction_types.symmetric_difference(set(('forward',))):
                     errors.append("Error: reaction '{}' in submodel '{}' is not reversible but has "
                                   "a 'backward' rate law specified".format(reaction.name, submodel.name))
+
         return errors
 
     def transcode_and_check_rate_law_equations(self):
-        '''Transcode and evaluate all rate law equations in a model
+        """ Transcode and evaluate all rate law equations in a model
 
         Ensure that all rate law equations can be transcoded and evaluated. Rate laws that
         succesfully transcode are stored in `rate_law.equation.transcoded`.
@@ -769,7 +780,7 @@ class CheckModel(object):
         Returns:
             :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
-        '''
+        """
         errors = []
 
         species = self.model.get_species()
@@ -800,12 +811,12 @@ class CheckModel(object):
 
     # TODO(Arthur): reconsider; not good for dFBA models; perhaps good for dynamic models
     def verify_reactant_compartments(self):
-        '''Verify that all reactants in each submodel's reactions are in the submodel's compartment
+        """ Verify that all reactants in each submodel's reactions are in the submodel's compartment
 
         Returns:
             :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
-        '''
+        """
         errors = []
         for submodel in self.model.get_submodels():
             compartment = submodel.compartment
@@ -822,4 +833,48 @@ class CheckModel(object):
                                     compartment.id, reaction.id, participant.species.species_type.id,
                                     participant.species.compartment.id)
                             errors.append(error)
+        return errors
+
+    def verify_species_types(self):
+        """ Verify all species types
+
+        Ensure that:
+
+            * All species types have positive molecular weights
+
+        Returns:
+            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            error messages
+        """
+        errors = []
+        for species_type in self.model.get_species_types():
+            if not 0<species_type.molecular_weight:
+                errors.append("species types must contain positive molecular weights, but the MW for {} "
+                    "is {}".format(species_type.id, species_type.molecular_weight))
+        return errors
+
+    def verify_acyclic_observable_dependencies(self):
+        """ Verify that the network of `Observable` depencencies is acyclic
+
+        Ensure that:
+
+            * The network implied by the use of observables in `Observable`s is acyclic
+
+        Returns:
+            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            error messages
+        """
+        digraph = nx.DiGraph()
+        for observable in self.model.observables:
+            digraph.add_node(observable)
+        for observable in self.model.observables:
+            for observable_coeffs in observable.observables:
+                used_observable = observable_coeffs.observable
+                digraph.add_edge(observable, used_observable)
+        cycle_generator = nx.simple_cycles(digraph)
+        errors = []
+        for cycle in cycle_generator:
+            cyc = [o.id for o in cycle]
+            cyc.append(cyc[0])
+            errors.append("dependency cycle among observables: {}".format('->'.join(cyc)))
         return errors
