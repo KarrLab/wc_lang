@@ -6,6 +6,7 @@
 '''
 
 import unittest
+from unittest.mock import MagicMock
 import os
 import re
 import tokenize
@@ -13,8 +14,8 @@ import token
 from io import BytesIO
 
 from wc_lang.io import Reader
-from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, Species, Function, StopCondition,
-    ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
+from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
+    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
 from wc_lang.rate_law_utils import RateLawUtils, ExpressionUtils, TokCodes, WcLangToken
 
 
@@ -84,6 +85,14 @@ class TestRateLawUtils(unittest.TestCase):
 
 
 class TestExpressionUtils(unittest.TestCase):
+
+    def setUp(self):
+        # todo: share this
+        self.objects = {
+            Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
+            Parameter: {'test_id':Parameter(), 'param_id':Parameter()},
+            Observable: {'test_id':Observable(), 'obs_id':Observable()}
+        }
 
     @staticmethod
     def get_tokens(expr):
@@ -238,4 +247,44 @@ class TestExpressionUtils(unittest.TestCase):
         self.assertEqual(modifiers, expected_modifiers)
 
     def test_eval_expr(self):
-        pass
+        eval_expr = ExpressionUtils.eval_expr
+        deserialize = ExpressionUtils.deserialize
+
+        class MockDynamicModel(object): pass
+        mock_dynamic_model = MockDynamicModel()
+        related_obj_val = 3
+        mock_dynamic_model.eval_dynamic_obj = MagicMock(return_value=related_obj_val)
+
+        # test combination of TokCodes
+        wc_tokens, _ = deserialize(RateLawEquation, 'expr', '4 * param_id + pow(2, obs_id)', self.objects)
+        expected_val = 4 * related_obj_val + pow(2, related_obj_val)
+        evaled_val = eval_expr(None, wc_tokens, 0, mock_dynamic_model)
+        self.assertEqual(expected_val, evaled_val)
+
+        # test types with callable ids
+        c = Compartment(id='c')
+        st = SpeciesType(id='x_id')
+        species = Species(compartment=c, species_type=st)
+        wc_tokens, _ = deserialize(Species, 'expr', 'x_id[c] +', self.objects)
+        with self.assertRaisesRegexp(ValueError, re.escape("SyntaxError: cannot eval expression '3+' "
+            "in {} with id {}".format(Species.__name__, species.id()))):
+            eval_expr(species, wc_tokens, 0, mock_dynamic_model)
+
+        # test different exceptions
+        # syntax error
+        model_type = Parameter
+        wc_tokens, _ = deserialize(model_type, 'expr', '4 *', self.objects)
+        id = 'rle_1'
+        with self.assertRaisesRegexp(ValueError, "SyntaxError: cannot eval expression .* in {} with id {}".format(
+            model_type.__name__, id)):
+            eval_expr(model_type(id=id), wc_tokens, 0, mock_dynamic_model)
+
+        # name error
+        wc_tokens = [
+            WcLangToken(TokCodes.math_fun_id, 'foo'),
+            WcLangToken(TokCodes.other, '('),
+            WcLangToken(TokCodes.other, '6'),
+            WcLangToken(TokCodes.other, ')')]
+        with self.assertRaisesRegexp(ValueError, "NameError: cannot eval expression .* in {} with id {}".format(
+            model_type.__name__, id)):
+            eval_expr(model_type(id=id), wc_tokens, 0, mock_dynamic_model)

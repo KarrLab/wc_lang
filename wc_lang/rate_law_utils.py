@@ -9,7 +9,7 @@ import tokenize
 import token
 from six.moves import cStringIO
 from io import BytesIO
-from math import isnan
+from math import isnan, ceil, floor, exp, pow, log, log10
 from collections import namedtuple
 
 from wc_utils.util.list import det_dedupe
@@ -485,6 +485,8 @@ class ExpressionUtils(object):
                 idx += len(id_match.token_pattern)
                 continue
 
+        # todo: ensure that parsed expression can be eval'ed, assuming values in the range for related models
+        # could even specify range in model declaration
         if errors:
             return (None, errors)
         else:
@@ -493,12 +495,23 @@ class ExpressionUtils(object):
                 related_objects[model_type] = det_dedupe(related_models)
             return (wc_tokens, related_objects)
 
+    # the union of all valid_functions attributes for related Models
+    valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+
     @staticmethod
-    def eval_expr(model_class, tokenized_expr, time, dynamic_model):
+    def eval_expr(model_obj, tokenized_expr, time, dynamic_model):
         """ Evaluate a Python expression in attribute `attribute` of object `obj`
 
+        Called by the simulator when it calculates the value of a dynamic object, such as a
+        DynamicObservable, or a RateLaw.
+
+        Approach:
+            * Replace references to related Models in `tokenized_expr` with their values
+            * Join the elements of `tokenized_expr` into a Python expression
+            * `eval` the Python expression
+
         Args:
-            model_class (:obj:`obj_model.Model`): the type of `wc_lang` `Model` whose expression is being evaluated
+            model_obj (:obj:`obj_model.Model`): a `wc_lang` `Model` instance whose expression is being evaluated
             tokenized_expr (:obj:`list` of `tuple`): the tokens in the deserialized expression
             time (:obj:`float`): the current simulation time
             dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
@@ -509,15 +522,36 @@ class ExpressionUtils(object):
         Raises:
             (:obj:`ValueError`): if the expression evaluation fails
         """
+        # todo: replace model_obj with a dynamic model_obj, so simulator doesn't need to retain all the wc_lang model
         # todo: ensure that all types of related Models can be evaluated through dynamic_model
-        '''
-        Called by the simulator when it calculates the value of a dynamic object, such as a
-        DynamicObservable, or a RateLaw.
+        evaled_tokens = []
+        for wc_token in tokenized_expr:
+            if wc_token.tok_code != TokCodes.wc_lang_obj_id:
+                evaled_tokens.append(wc_token.token_string)
+            else:
+                # evaluate the wc_lang_obj_id
+                # todo: implement `dynamic_model.eval_dyn_obj`
+                value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
+                evaled_tokens.append(str(value))
 
-        Approach:
-            Replace references to related Models in `tokenized_expr` with their values
-            Join the elements of `tokenized_expr` into a Python expression
-            eval the Python expression
-        '''
-        
-        
+        expression = ''.join(evaled_tokens)
+        local_ns = {func.__name__: func for func in ExpressionUtils.valid_functions}
+        # todo: what about k_cat and k_m?
+
+        # get id whether it is a static attribute or a method, like in Species
+        id = None
+        if hasattr(model_obj, 'id'):
+            id = getattr(model_obj, 'id')
+            if callable(id):
+                id = id()
+
+        error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
+            model_obj.__class__.__name__, id, time)
+        try:
+            return eval(expression, {}, local_ns)
+        except SyntaxError as error:
+            raise ValueError("SyntaxError:" + error_suffix + str(error))
+        except NameError as error:
+            raise ValueError("NameError:" + error_suffix + str(error))
+        except Exception as error:  # pragma: no cover
+            raise ValueError("Exception:" + error_suffix + str(error))
