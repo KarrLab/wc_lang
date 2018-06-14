@@ -771,12 +771,12 @@ class CheckModel(object):
             error messages
         '''
         errors = []
-        
+
         species = self.model.get_species()
         species_concentrations = {}
         for concentration in self.model.get_concentrations():
             species_concentrations[concentration.species.serialize()] = concentration.value
-        
+
         parameters = self.model.get_parameters()
         parameter_values = {}
         for parameter in parameters:
@@ -789,11 +789,13 @@ class CheckModel(object):
                 try:
                     rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species, parameters)
                 except Exception as error:
-                    errors.append(str(error))
+                    errors.append('{} rate law for reaction "{}" cannot be transcoded: {}'.format(
+                        rate_law.direction.name, reaction.id, str(error)))
             try:
                 rates = RateLawUtils.eval_reaction_rate_laws(reaction, species_concentrations, parameter_values)
             except Exception as error:
-                errors.append(str(error))
+                errors.append('{} for reaction "{}" cannot be evaluated: {}'.format(
+                    rate_law.direction.name, reaction.id, str(error)))
         return errors
 
     # TODO(Arthur): reconsider; not good for dFBA models; perhaps good for dynamic models
