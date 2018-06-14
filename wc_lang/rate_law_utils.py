@@ -362,12 +362,14 @@ class ExpressionUtils(object):
         Raises:
             (:obj:`ValueError`): if `model_class` does not have a `Meta` attribute
         """
-        # todo: strip leading and trailing whitespace
         errors = []
         wc_tokens = []
         related_objects = {}
         for model_type in objects.keys():
             related_objects[model_type] = []
+
+        # strip leading and trailing whitespace from expression, which would create a bad token error
+        expression = expression.strip()
 
         g = tokenize.tokenize(BytesIO(expression.encode('utf-8')).readline)
         # strip the leading ENCODING and trailing ENDMARKER tokens
@@ -493,14 +495,29 @@ class ExpressionUtils(object):
 
     @staticmethod
     def eval_expr(model_class, tokenized_expr, time, dynamic_model):
-        """ Deserialize a Python expression in attribute `attribute` of object `obj`
+        """ Evaluate a Python expression in attribute `attribute` of object `obj`
 
         Args:
-            model_class (:obj:`obj_model.Model`): the `wc_lang` `Model` whose expression is being evaluated
+            model_class (:obj:`obj_model.Model`): the type of `wc_lang` `Model` whose expression is being evaluated
             tokenized_expr (:obj:`list` of `tuple`): the tokens in the deserialized expression
             time (:obj:`float`): the current simulation time
-
+            dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
+            
         Returns:
             (:obj:`object`): the value of the expression at time `time`
+
+        Raises:
+            (:obj:`ValueError`): if the expression evaluation fails
         """
-        pass
+        # todo: ensure that all types of related Models can be evaluated through dynamic_model
+        '''
+        Called by the simulator when it calculates the value of a dynamic object, such as a
+        DynamicObservable, or a RateLaw.
+
+        Approach:
+            Replace references to related Models in `tokenized_expr` with their values
+            Join the elements of `tokenized_expr` into a Python expression
+            eval the Python expression
+        '''
+        
+        

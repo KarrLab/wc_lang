@@ -112,11 +112,11 @@ class TestExpressionUtils(unittest.TestCase):
         _, errors = ExpressionUtils.deserialize(Species, 'test', '+= *= @= : {}', {})
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
             self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
-        _, errors = ExpressionUtils.deserialize(Species, 'test', ' : \n', {})
-        error = errors[0]
-        self.assertIn('INDENT', error)
-        self.assertIn('DEDENT', error)
-        self.assertIn('\n', error)
+        # test strip of surrounding whitespace
+        wc_expr_tokens, modifiers = ExpressionUtils.deserialize(Species, 'test', ' 2 ', {})
+        expected_wc_tokens = [WcLangToken(TokCodes.other, '2'),]
+        self.assertEqual(wc_expr_tokens, expected_wc_tokens)
+        self.assertEqual(modifiers, {})
 
     @staticmethod
     def esc_re_center(re_list):
