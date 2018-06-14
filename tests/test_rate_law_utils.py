@@ -217,10 +217,25 @@ class TestExpressionUtils(unittest.TestCase):
         objects[Species] = {}
         sb_none, errors = deserialize(A, 'expr', 'test_id[c] - 2', objects)
         self.assertTrue(sb_none is None)
-        self.assertIn("multiple model object id_matches: 'test_id' as a Parameter id, "
-            "'test_id' as a Observable id", errors[0])
+        self.assertIn("multiple model object id_matches: 'test_id' as a Observable id, "
+            "'test_id' as a Parameter id", errors[0])
 
-        # todo: expression with multiple identifier matches for a single Model
+        # expression with multiple identifier matches for one Model, which exercises det_dedupe
+        objects[Parameter] = {}
+        wc_expr_tokens, modifiers = deserialize(A, 'expr', '2 * test_id - test_id', objects)
+        expected_wc_tokens = [
+            WcLangToken(TokCodes.other, '2'),
+            WcLangToken(TokCodes.other, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'test_id', Observable),
+            WcLangToken(TokCodes.other, '-'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'test_id', Observable)]
+        self.assertEqual(wc_expr_tokens, expected_wc_tokens)
+        expected_modifiers = {
+            Species: [],
+            Parameter: [],
+            Observable: ['test_id']
+        }
+        self.assertEqual(modifiers, expected_modifiers)
 
     def test_eval_expr(self):
         pass

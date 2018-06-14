@@ -458,7 +458,7 @@ class ExpressionUtils(object):
 
             if 1 < len(id_matches):
                 # like any typical lexer, pick the longest match
-                id_matches_by_length = sorted(list(id_matches), key=lambda id_match: len(id_match.match_string))
+                id_matches_by_length = sorted(id_matches, key=lambda id_match: len(id_match.match_string))
                 longest_length = len(id_matches_by_length[-1].match_string)
                 longest_matches = set()
                 while id_matches_by_length and len(id_matches_by_length[-1].match_string) == longest_length:
@@ -468,7 +468,7 @@ class ExpressionUtils(object):
             if 1 < len(id_matches):
                 # error: multiple, maximal length model id_matches
                 matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
-                    for model_type, _, id_val in id_matches]
+                    for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
                 matches_error = ', '.join(matches_error)
                 errors.append("'{}', a {}.{}, contains multiple model object id_matches: {}".format(expression,
                     model_class.__name__, attribute, matches_error))
