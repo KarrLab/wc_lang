@@ -118,8 +118,13 @@ class TestExpressionUtils(unittest.TestCase):
         self.assertIn('DEDENT', error)
         self.assertIn('\n', error)
 
+    @staticmethod
+    def esc_re_center(re_list):
+        return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
+
     def test_deserialize(self):
         deserialize = ExpressionUtils.deserialize
+
         species = {}
         for id in ['specie_2[c]', 'specie_4[c]', 'specie_5[c]', 'specie_6[c]']:
             species[id] = Species()
@@ -130,35 +135,92 @@ class TestExpressionUtils(unittest.TestCase):
             Species: species,
             Parameter: parameters
         }
-        # deserialize(model_class, attribute, expression, objects)
-        # WcLangToken(tok_code, token_string, model_type)
-        expected_wc_tokens = [WcLangToken(TokCodes.other, '3'),
+
+        # expression with single identifier match
+        expected_wc_tokens = [
+            WcLangToken(TokCodes.other, '3'),
             WcLangToken(TokCodes.other, '*'),
             WcLangToken(TokCodes.wc_lang_obj_id, 'specie_5[c]', Species)]
-
         expected_modifiers = {
             Species: ['specie_5[c]'],
             Parameter: []
         }
         wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '3 * specie_5[c]', objects)
         self.assertEqual(wc_expr_tokens, expected_wc_tokens)
-        print('modifiers', modifiers)
         self.assertEqual(modifiers, expected_modifiers)
 
-        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '2 * x[c]', objects)
-        print(wc_expr_tokens, modifiers)
-        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', 'specie_2[c]', objects)
-        print(wc_expr_tokens, modifiers)
+        ### expressions with object id errors ###
+        # expression with identifiers not in objects
+        sb_none, errors = deserialize(RateLawEquation, 'expression', '2 * x[c]', objects)
+        self.assertTrue(sb_none is None)
+        self.assertRegex(errors[0],
+            self.esc_re_center(["contains the identifier(s)", "which aren't the id(s) of an object"]))
+
+        # expression with identifier that doesn't match model type token pattern
+        objects2 = {Species: species}
+        sb_none, errors = deserialize(RateLawEquation, 'expression', '2 * x', objects2)
+        self.assertTrue(sb_none is None)
+        self.assertRegex(errors[0],
+            self.esc_re_center(["contains no identifiers matching the token pattern of '{}'".format(
+                Species.__name__)]))
+
+        ### expressions with functions ###
+        # expression with function syntax, but no valid_functions in model class
+        sb_none, errors = deserialize(Observable, 'expression', 'log( 3)', {})
+        self.assertTrue(sb_none is None)
+        self.assertRegex(errors[0],
+            self.esc_re_center(["contains the func name 'log', but", "doesn't define 'valid_functions'"]))
+
+        # expression with a function that isn't among the valid_functions
+        sb_none, errors = deserialize(RateLawEquation, 'expression', 'silly_fun(2)', {})
+        self.assertTrue(sb_none is None)
+        self.assertRegex(errors[0],
+            self.esc_re_center(["contains the func name",
+            "but it isn't in {}.Meta.valid_functions".format(RateLawEquation.__name__)]))
+
+        # expression with a function that is in valid_functions
+        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', 'log(2)', {})
+        expected_wc_tokens = [
+            WcLangToken(TokCodes.math_fun_id, 'log'),
+            WcLangToken(TokCodes.other, '('),
+            WcLangToken(TokCodes.other, '2'),
+            WcLangToken(TokCodes.other, ')')]
+        self.assertEqual(wc_expr_tokens, expected_wc_tokens)
+        self.assertEqual(modifiers, {})
+
+        # model_class without a Meta attribute
+        class A(object): pass
+        with self.assertRaisesRegexp(ValueError, "type object 'A' has no attribute 'Meta'"):
+            deserialize(A, 'expression', 'log(2)', {})
+
+        ### expressions with multiple object id references ###
+        # expression with multiple identifier matches, and a unique longest match
         objects = {
-            Species: species,
+            Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
+            Parameter: {'test_id':Parameter()},
+            Observable: {'test_id':Observable(), }
         }
-        wc_expr_tokens, modifiers = deserialize(RateLawEquation, 'expression', '2 * x', objects)
-        print(wc_expr_tokens, modifiers)
-        '''
-        expressions = ['k_cat * specie_2[c]', 'specie_4[c] / k_m', 'specie_5[c] + specie_6[c]']
-        for e in expressions:
-            print(deserialize(RateLawEquation, 'expression', e, objects))
-        '''
+        wc_expr_tokens, modifiers = deserialize(A, 'expr', '3 * test_id[c]', objects)
+        expected_wc_tokens = [
+            WcLangToken(TokCodes.other, '3'),
+            WcLangToken(TokCodes.other, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'test_id[c]', Species)]
+        self.assertEqual(wc_expr_tokens, expected_wc_tokens)
+        expected_modifiers = {
+            Species: ['test_id[c]'],
+            Parameter: [],
+            Observable: []
+        }
+        self.assertEqual(modifiers, expected_modifiers)
+
+        # expression with multiple identifier matches, and no unique longest match
+        objects[Species] = {}
+        sb_none, errors = deserialize(A, 'expr', 'test_id[c] - 2', objects)
+        self.assertTrue(sb_none is None)
+        self.assertIn("multiple model object id_matches: 'test_id' as a Parameter id, "
+            "'test_id' as a Observable id", errors[0])
+
+        # todo: expression with multiple identifier matches for a single Model
 
     def test_eval_expr(self):
         pass

@@ -362,6 +362,7 @@ class ExpressionUtils(object):
         Raises:
             (:obj:`ValueError`): if `model_class` does not have a `Meta` attribute
         """
+        # todo: strip leading and trailing whitespace
         errors = []
         wc_tokens = []
         related_objects = {}
@@ -399,24 +400,28 @@ class ExpressionUtils(object):
             fun_match = ExpressionUtils.match_tokens(ExpressionUtils.function_pattern, tokens[idx:])
             if fun_match:
                 fun_name = tokens[idx].string
-                # is the function allowed?
                 try:
+                    # are functions defined?
                     if not hasattr(model_class.Meta, 'valid_functions'):
                         errors.append("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
                             "define 'valid_functions'".format(expression,
                             model_class.__name__, attribute, fun_name, model_class.__name__))
                         idx += len(ExpressionUtils.function_pattern)
                         continue
-                    function_ids = model_class.Meta.valid_functions
+                    function_ids = set([f.__name__ for f in model_class.Meta.valid_functions])
+
+                    # is the function allowed?
                     if fun_name not in function_ids:
                         errors.append("'{}', a {}.{}, contains the func name '{}', but it isn't in "
-                            "{}.Meta.valid_functions".format(expression,
-                            model_class.__name__, attribute, fun_name, model_class.__name__))
+                            "{}.Meta.valid_functions: {}".format(expression, model_class.__name__,
+                            attribute, fun_name, model_class.__name__, ', '.join(function_ids)))
                         idx += len(ExpressionUtils.function_pattern)
                         continue
 
-                    # record function token
+                    # record function tokens
                     wc_tokens.append(WcLangToken(TokCodes.math_fun_id, fun_name))
+                    # add the '(' which was used to find the function
+                    wc_tokens.append(WcLangToken(TokCodes.other, '('))
                     idx += len(ExpressionUtils.function_pattern)
                     continue
                 except AttributeError as e:
