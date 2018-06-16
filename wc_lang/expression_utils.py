@@ -22,8 +22,13 @@ PARAMETERS_DICT = 'parameters'
 
 # TODOS
 '''
+make dynamic_model.eval_dynamic_obj() handle all dyamic Models
+make generic ModelWithExpression class in wc_lang
+add test_eval() method
+test with real WC models
+replace existing RE parsing and expression eval code
+stop using RateLawUtils
 use ExpressionUtils to deserialize all wc_lang expressions
-rename module to expression utils
 have valid_functions defined as sets, not tuples
 '''
 class RateLawUtils(object):
@@ -485,7 +490,7 @@ class ExpressionUtils(object):
                 idx += len(id_match.token_pattern)
                 continue
 
-        # todo: ensure that parsed expression can be eval'ed, assuming values in the range for related models
+        # todo: perhaps ensure that the parsed expression can be eval'ed, assuming values in the range for related models
         # could even specify range in model declaration
         if errors:
             return (None, errors)
@@ -499,7 +504,7 @@ class ExpressionUtils(object):
     valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
 
     @staticmethod
-    def eval_expr(model_obj, tokenized_expr, time, dynamic_model):
+    def eval_expr(dyn_model_obj, tokenized_expr, time, dynamic_model):
         """ Evaluate a Python expression in attribute `attribute` of object `obj`
 
         Called by the simulator when it calculates the value of a dynamic object, such as a
@@ -511,7 +516,7 @@ class ExpressionUtils(object):
             * `eval` the Python expression
 
         Args:
-            model_obj (:obj:`obj_model.Model`): a `wc_lang` `Model` instance whose expression is being evaluated
+            dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` `Model` instance whose expression is being evaluated
             tokenized_expr (:obj:`list` of `tuple`): the tokens in the deserialized expression
             time (:obj:`float`): the current simulation time
             dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
@@ -522,7 +527,6 @@ class ExpressionUtils(object):
         Raises:
             (:obj:`ValueError`): if the expression evaluation fails
         """
-        # todo: replace model_obj with a dynamic model_obj, so simulator doesn't need to retain all the wc_lang model
         # todo: ensure that all types of related Models can be evaluated through dynamic_model
         evaled_tokens = []
         for wc_token in tokenized_expr:
@@ -530,7 +534,6 @@ class ExpressionUtils(object):
                 evaled_tokens.append(wc_token.token_string)
             else:
                 # evaluate the wc_lang_obj_id
-                # todo: implement `dynamic_model.eval_dyn_obj`
                 value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
                 evaled_tokens.append(str(value))
 
@@ -540,13 +543,13 @@ class ExpressionUtils(object):
 
         # get id whether it is a static attribute or a method, like in Species
         id = None
-        if hasattr(model_obj, 'id'):
-            id = getattr(model_obj, 'id')
+        if hasattr(dyn_model_obj, 'id'):
+            id = getattr(dyn_model_obj, 'id')
             if callable(id):
                 id = id()
 
         error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
-            model_obj.__class__.__name__, id, time)
+            dyn_model_obj.__class__.__name__, id, time)
         try:
             return eval(expression, {}, local_ns)
         except SyntaxError as error:

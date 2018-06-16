@@ -17,7 +17,7 @@ from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
                      Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
                      BiomassReaction, Observable)
-from wc_lang.rate_law_utils import RateLawUtils
+from wc_lang.expression_utils import RateLawUtils
 
 # configuration
 import wc_lang.config.core

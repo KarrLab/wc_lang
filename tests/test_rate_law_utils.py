@@ -16,7 +16,7 @@ from io import BytesIO
 from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
     StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
-from wc_lang.rate_law_utils import RateLawUtils, ExpressionUtils, TokCodes, WcLangToken
+from wc_lang.expression_utils import RateLawUtils, ExpressionUtils, TokCodes, WcLangToken
 
 
 class TestRateLawUtils(unittest.TestCase):

@@ -14,7 +14,7 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationU
 from . import config
 from . import io
 from . import prepare
-from . import rate_law_utils
+from . import expression_utils
 from . import sbml
 from . import transform
 from . import util
