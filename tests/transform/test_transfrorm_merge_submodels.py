@@ -6,21 +6,14 @@
 :License: MIT
 """
 
-from itertools import chain
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
-from wc_lang.transform import get_transforms, MergeAlgorithmicallyLikeSubmodelsTransform, SplitReversibleReactionsTransform
-from obj_model import RelatedAttribute
+from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
 import unittest
 
 
-class TestTransform(unittest.TestCase):
+class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
     """ Test model transforms """
-
-    def test_get_transforms(self):
-        transforms = get_transforms()
-        self.assertEqual(transforms[MergeAlgorithmicallyLikeSubmodelsTransform.Meta.id],
-                         MergeAlgorithmicallyLikeSubmodelsTransform)
 
     def test_merge_algorithmically_like_submodels(self):
         """ Test that algorithmically-like submodels are correctly merged """
