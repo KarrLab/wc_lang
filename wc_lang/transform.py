@@ -42,7 +42,7 @@ class Transform(with_metaclass(ABCMeta, object)):
         Returns:
             :obj:`Model`: transformed model
         """
-        pass # pragma: no cover
+        pass  # pragma: no cover
 
 
 class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
@@ -63,7 +63,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
         """
 
         # group submodels by algorithms
-        key_func = lambda submodel: submodel.algorithm.value
+        def key_func(submodel): return submodel.algorithm.value
         sorted_submodels = sorted(model.submodels, key=key_func)
         grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
