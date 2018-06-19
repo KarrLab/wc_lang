@@ -1,4 +1,4 @@
-""" Transform models.
+""" Merge groups of algorithmically-like submodels into individual submodels.
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2018-06-19

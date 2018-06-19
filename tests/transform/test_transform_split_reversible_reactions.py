@@ -1,4 +1,4 @@
-""" Tests of model transforms.
+""" Test splitting of reversible reactions.
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2018-06-19
@@ -15,9 +15,7 @@ import unittest
 
 
 class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
-    """ Test model transforms """
-
-    def test_split_reversible_reactions(self):
+    def test(self):
         model = Model()
 
         c = model.compartments.create(id='c')

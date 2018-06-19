@@ -1,4 +1,4 @@
-""" Tests of model transforms.
+""" est that algorithmically-like submodels are correctly merged
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2018-06-19
@@ -13,9 +13,9 @@ import unittest
 
 
 class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
-    """ Test model transforms """
+    """ est that algorithmically-like submodels are correctly merged """
 
-    def test_merge_algorithmically_like_submodels(self):
+    def test(self):
         """ Test that algorithmically-like submodels are correctly merged """
 
         """ Construct model with 3 submodels: two SSA and one FBA """
