@@ -571,7 +571,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
-        
+
         lhs_parts, lhs_errors = self.deserialize_side(-1., lhs, objects, global_comp)
         rhs_parts, rhs_errors = self.deserialize_side(1., rhs, objects, global_comp)
 
@@ -606,7 +606,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         else:
             temp = [part[4] + '[' + part[6] + ']' for part in parts_str]
         repeated_parts = [item for item, count in collections.Counter(temp).items() if count > 1]
-        if repeated_parts:     
+        if repeated_parts:
             return ([], ['Participants are repeated\n  {}'.format('\n  '.join(repeated_parts))])
 
         parts = []
@@ -642,7 +642,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                         objects[SpeciesCoefficient] = {}
                     serialized_value = SpeciesCoefficient._serialize(species, coefficient)
                     if serialized_value in objects[SpeciesCoefficient]:
-                        rxn_part = objects[SpeciesCoefficient][serialized_value]                        
+                        rxn_part = objects[SpeciesCoefficient][serialized_value]
                     else:
                         rxn_part = SpeciesCoefficient(species=species, coefficient=coefficient)
                         objects[SpeciesCoefficient][serialized_value] = rxn_part
@@ -1879,6 +1879,7 @@ class SpeciesCoefficient(obj_model.Model):
     coefficient = FloatAttribute(nan=False)
 
     class Meta(obj_model.Model.Meta):
+        unique_together = (('species', 'coefficient'),)
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
