@@ -22,14 +22,17 @@ PARAMETERS_DICT = 'parameters'
 
 # TODOS
 '''
-make dynamic_model.eval_dynamic_obj() handle all dyamic Models
-make generic ModelWithExpression class in wc_lang
-add test_eval() method
-test with real WC models
-replace existing RE parsing and expression eval code
-stop using RateLawUtils
-use ExpressionUtils to deserialize all wc_lang expressions
-have valid_functions defined as sets, not tuples
+build
+    make dynamic_model.eval_dynamic_obj() handle all dyamic Models
+    make generic ModelWithExpression class in wc_lang
+    add test_eval() method
+    support wc_lang.Function instances
+    test with real WC models
+    replace existing RE parsing and expression eval code
+    use ExpressionUtils to deserialize all wc_lang expressions
+cleanup
+    have valid_functions defined as sets, not tuples
+    stop using & and remove RateLawUtils
 '''
 class RateLawUtils(object):
     '''A set of static rate_law methods '''
