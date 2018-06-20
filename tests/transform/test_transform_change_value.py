@@ -100,7 +100,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         r_1_1 = s_1.reactions.create(id='r_1_1')
         rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='x'))
         rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='y'))
-        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', RateLawDirection.forward, 'equation', 'expression'], 'z').run(model)
+        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'forward', 'equation', 'expression'], 'z').run(model)
 
         self.assertEqual(rl_f.equation.expression, 'z')
         self.assertEqual(rl_b.equation.expression, 'y')
@@ -111,7 +111,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         r_1_1 = s_1.reactions.create(id='r_1_1')
         rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, k_cat=1)
         rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, k_cat=2)
-        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', RateLawDirection.backward, 'k_cat'], 0).run(model)
+        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'backward', 'k_cat'], 0).run(model)
 
         self.assertEqual(rl_f.k_cat, 1)
         self.assertEqual(rl_b.k_cat, 0)
@@ -122,7 +122,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         r_1_1 = s_1.reactions.create(id='r_1_1')
         rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, k_m=1)
         rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, k_m=2)
-        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', RateLawDirection.backward, 'k_m'], 0).run(model)
+        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'backward', 'k_m'], 0).run(model)
 
         self.assertEqual(rl_f.k_m, 1)
         self.assertEqual(rl_b.k_m, 0)

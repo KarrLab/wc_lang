@@ -7,7 +7,7 @@
 """
 
 from .core import Transform
-from wc_lang import Compartment, Function, Parameter, Reaction, Species
+from wc_lang import Compartment, Function, Parameter, RateLawDirection, Reaction, Species
 import copy
 import itertools
 
@@ -16,7 +16,8 @@ class ChangeValueTransform(Transform):
     """ Change a value of an attribute of a model 
 
     Attributes:
-        target_type (:obj:`type`): type of the target to change, E.g. wc_lang.Compartment, wc_lang.Function
+        target_type (:obj:`type`): type of the target to change, E.g.
+            :obj:`wc_lang.Compartment`, :obj:`wc_lang.Function`
         target_id (:obj:`str`): id of the target to change
         target_attr (:obj:`list`): list of names of the nested attribute to change
         value (:obj:`object`): new value
@@ -52,7 +53,8 @@ class ChangeValueTransform(Transform):
     def __init__(self, target_type, target_id, target_attr, value):
         """
         Args:
-            target_type (:obj:`type`): type of the target to change, E.g. wc_lang.Compartment, wc_lang.Function
+            target_type (:obj:`type`): type of the target to change, E.g. 
+                :obj:`wc_lang.Compartment`, :obj:`wc_lang.Function`
             target_id (:obj:`str`): id of the target to change
             target_attr (:obj:`list`): list of names of the nested attribute to change
             value (:obj:`object`): new value
@@ -90,7 +92,7 @@ class ChangeValueTransform(Transform):
 
         # get attribute with path :obj:`target_attr`
         if self.target_type == Reaction and self.target_attr[0] == 'rate_laws':
-            target_attr = target_obj.rate_laws.get_one(direction=self.target_attr[1])
+            target_attr = target_obj.rate_laws.get_one(direction=RateLawDirection[self.target_attr[1]])
             attr_names = self.target_attr[2:-1]
         else:
             target_attr = target_obj
