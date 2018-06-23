@@ -1692,7 +1692,7 @@ class Observable(obj_model.Model):
 
 
 class Function(obj_model.Model):
-    """ An arbitrary mathematical function of one or more observables
+    """ An arbitrary mathematical function of one or more Observables, Parameters, and other Functions.
 
     Attributes:
         id (:obj:`str`): id
