@@ -13,11 +13,13 @@ import tokenize
 import token
 from io import BytesIO
 
-from wc_lang.io import Reader
-from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
-    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
-from wc_lang.expression_utils import RateLawUtils, ExpressionUtils, TokCodes, WcLangToken
 
+from wc_lang.io import Reader
+from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species,
+    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
+from wc_lang.expression_utils import (RateLawUtils, ExpressionUtils, TokCodes, WcLangToken,
+    WcLangExpression)
+from wc_lang.expression_utils import Function
 
 class TestRateLawUtils(unittest.TestCase):
 
@@ -113,8 +115,8 @@ class TestExpressionUtils(unittest.TestCase):
         species_pattern = Species.Meta.token_pattern
         self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1[c1]')))
         self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1[c1] hi 7')))
-        # note that whitespace is allowed between tokens
-        self.assertTrue(match_toks(species_pattern, self.get_tokens('sp1 [ c1 ] ')))
+        # whitespace is not allowed between tokens
+        self.assertFalse(match_toks(species_pattern, self.get_tokens('sp1 [ c1 ] ')))
         self.assertFalse(match_toks(species_pattern, self.get_tokens('sp1[c1')))
 
     def test_bad_tokens(self):
@@ -288,3 +290,87 @@ class TestExpressionUtils(unittest.TestCase):
         with self.assertRaisesRegexp(ValueError, "NameError: cannot eval expression .* in {} with id {}".format(
             model_type.__name__, id)):
             eval_expr(model_type(id=id), wc_tokens, 0, mock_dynamic_model)
+
+
+class TestWcLangExpression(unittest.TestCase):
+
+    def setUp(self):
+        self.objects = {
+            Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
+            Parameter: {'test_id':Parameter(), 'param_id':Parameter()},
+            Observable: {'test_id':Observable(), 'obs_id':Observable()},
+            Function: {'fun_1':Function(), 'fun_2':Function()}
+        }
+
+    @staticmethod
+    def get_tokens(expr):
+        try:
+            tokens = list(tokenize.tokenize(BytesIO(expr.encode('utf-8')).readline))
+        except tokenize.TokenError:
+            return []
+        # strip the leading ENCODING and trailing ENDMARKER tokens
+        return tokens[1:-1]
+
+    def test_wc_lang_expression(self):
+        expr = '3 + 5 * 6'
+        wc_lang_expr = WcLangExpression(None, 'attr', ' ' + expr + ' ', self.objects)
+        self.assertEqual(expr, wc_lang_expr.expression)
+        n = 5
+        wc_lang_expr = WcLangExpression(None, 'attr', ' + ' * n, self.objects)
+        self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
+
+    def test_get_wc_lang_model_type(self):
+        wc_lang_expr = WcLangExpression(None, None, 'expr', self.objects)
+        self.assertEqual(None, wc_lang_expr.get_wc_lang_model_type('NoSuchType'))
+        self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
+        self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
+
+    def make_wc_lang_expr(self, expr):
+        # model_class, attribute, expression, objects
+        return WcLangExpression(Species, 'expr_attr', expr, self.objects)
+
+    def do_disambiguated_id_error_test(self, expr, expected):
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        self.assertEqual(wc_lang_expr.disambiguated_id(0), None)
+        self.assertIn(expected.format(expr), wc_lang_expr.errors[0])
+
+    def do_disambiguated_id_test(self, expr, disambig_type, id, pattern):
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        self.assertEqual(wc_lang_expr.disambiguated_id(0), len(pattern))
+        self.assertEqual(wc_lang_expr.errors, [])
+        for obj_type in self.objects.keys():
+            if obj_type != disambig_type:
+                self.assertEqual(wc_lang_expr.related_objects[obj_type], [])
+        self.assertEqual(wc_lang_expr.related_objects[disambig_type], [id])
+        self.assertEqual(len(wc_lang_expr.wc_tokens), 1)
+        self.assertEqual(wc_lang_expr.wc_tokens[0], WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type))
+
+    def test_disambiguated_id(self):
+        self.do_disambiguated_id_error_test('NotFunction.foo()',
+            "contains '{}', which doesn't use 'Function' as a disambiguation model type")
+        self.do_disambiguated_id_error_test('Function.foo2()',
+            "contains '{}', which doesn't refer to a Function in 'objects'")
+
+        self.do_disambiguated_id_test('Function.fun_1()', Function, 'fun_1',
+            WcLangExpression.fun_type_disambig_patttern)
+
+        self.do_disambiguated_id_error_test('NotFunction.foo()',
+            "contains '{}', which doesn't use 'Function' as a disambiguation model type")
+        self.do_disambiguated_id_error_test('Function.fun_1',
+            "contains '{}', which uses 'Function' as a disambiguation model type but doesn't use Function syntax")
+        self.do_disambiguated_id_error_test('NoSuchModel.fun_1',
+            "contains '{}', but the disambiguation model type 'NoSuchModel' cannot be referenced by "
+                "'Species' expressions")
+        self.do_disambiguated_id_error_test('Parameter.fun_1',
+            "contains '{}', but 'fun_1' is not the id of a 'Parameter'")
+
+        self.do_disambiguated_id_test('Observable.test_id', Observable, 'test_id',
+            WcLangExpression.model_type_disambig_pattern)
+
+        # do not find a match
+        wc_lang_expr = self.make_wc_lang_expr('3 * 2')
+        self.assertEqual(wc_lang_expr.disambiguated_id(0), None)
+
+        wc_lang_expr = self.make_wc_lang_expr('Parameter.fun_1')
+        self.assertIn('expression', str(wc_lang_expr))
+        self.assertIn('[]', str(wc_lang_expr))
