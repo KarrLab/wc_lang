@@ -17,8 +17,6 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum
 import wc_lang
 
 
-class Function(object): pass
-
 CONCENTRATIONS_DICT = 'concentrations'
 PARAMETERS_DICT = 'parameters'
 
@@ -370,17 +368,17 @@ class WcLangExpression(object):
         if fun_match:
             purported_macro_name = self.tokens[idx+2].string
             # the disambiguation model type must be Function
-            if self.tokens[idx].string != Function.__name__:
+            if self.tokens[idx].string != wc_lang.core.Function.__name__:
                 self.errors.append("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
                     "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
                 return None
             # the identifier must be in the Function objects
-            if Function not in self.objects or purported_macro_name not in self.objects[Function]:
+            if wc_lang.core.Function not in self.objects or purported_macro_name not in self.objects[wc_lang.core.Function]:
                 self.errors.append("'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
                     self.expression, self.model_class.__name__, self.attribute, fun_match))
                 return None
-            self.wc_tokens.append(WcLangToken(TokCodes.wc_lang_obj_id, fun_match, Function))
-            self.related_objects[Function].append(purported_macro_name)
+            self.wc_tokens.append(WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function))
+            self.related_objects[wc_lang.core.Function].append(purported_macro_name)
             return len(self.fun_type_disambig_patttern)
 
         disambig_model_match = ExpressionUtils.match_tokens(self.model_type_disambig_pattern, self.tokens[idx:])
@@ -388,7 +386,7 @@ class WcLangExpression(object):
             disambig_model_type = self.tokens[idx].string
             purported_model_name = self.tokens[idx+2].string
             # the disambiguation model type cannot be Function
-            if disambig_model_type == Function.__name__:
+            if disambig_model_type == wc_lang.core.Function.__name__:
                 self.errors.append("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
                     "model type but doesn't use Function syntax".format(self.expression, self.model_class.__name__,
                     self.attribute, disambig_model_match))
@@ -560,7 +558,7 @@ class ExpressionUtils(object):
                 # function_pattern is "identifier (" which can reference either a wc_lang Macro or a Python math function
                 try:
                     # if wc_lang Macros are allowed in the expression look for matches
-                    if Function in objects.keys():
+                    if wc_lang.core.Function in objects.keys():
                         pass
 
                     # are Python math functions defined?
