@@ -302,14 +302,8 @@ class TestWcLangExpression(unittest.TestCase):
             Function: {'fun_1':Function(), 'fun_2':Function()}
         }
 
-    @staticmethod
-    def get_tokens(expr):
-        try:
-            tokens = list(tokenize.tokenize(BytesIO(expr.encode('utf-8')).readline))
-        except tokenize.TokenError:
-            return []
-        # strip the leading ENCODING and trailing ENDMARKER tokens
-        return tokens[1:-1]
+    def make_wc_lang_expr(self, expr):
+        return WcLangExpression(Species, 'expr_attr', expr, self.objects)
 
     def test_wc_lang_expression(self):
         expr = '3 + 5 * 6'
@@ -318,6 +312,10 @@ class TestWcLangExpression(unittest.TestCase):
         n = 5
         wc_lang_expr = WcLangExpression(None, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
+        expr = 'id1[id2'
+        with self.assertRaisesRegexp(ValueError,
+            "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
+            self.make_wc_lang_expr(expr)
 
     def test_get_wc_lang_model_type(self):
         wc_lang_expr = WcLangExpression(None, None, 'expr', self.objects)
@@ -325,9 +323,27 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
         self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
 
-    def make_wc_lang_expr(self, expr):
-        # model_class, attribute, expression, objects
-        return WcLangExpression(Species, 'expr_attr', expr, self.objects)
+    def do_match_tokens_test(self, expr, pattern, expected, idx=0):
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        self.assertEqual(wc_lang_expr.match_tokens(pattern, idx), expected)
+
+    def test_match_tokens(self):
+        self.do_match_tokens_test('', [], False)
+        single_name_pattern = (token.NAME, )
+        self.do_match_tokens_test('', single_name_pattern, False)
+        self.do_match_tokens_test('ID2', single_name_pattern, 'ID2')
+        self.do_match_tokens_test('ID3 5', single_name_pattern, 'ID3')
+        # fail to match tokens
+        self.do_match_tokens_test('+ 5', single_name_pattern, False)
+        # call match_tokens with 0<idx
+        self.do_match_tokens_test('7 ID3', single_name_pattern, 'ID3', idx=1)
+        self.do_match_tokens_test('2+ 5', single_name_pattern, False, idx=1)
+
+        species_pattern = Species.Meta.token_pattern
+        self.do_match_tokens_test('sp1[c1]+', species_pattern, 'sp1[c1]')
+        self.do_match_tokens_test('sp1 +', species_pattern, False)
+        # whitespace is not allowed between tokens in an ID
+        self.do_match_tokens_test('sp1 [ c1 ] ', species_pattern, False)
 
     def do_disambiguated_id_error_test(self, expr, expected):
         wc_lang_expr = self.make_wc_lang_expr(expr)

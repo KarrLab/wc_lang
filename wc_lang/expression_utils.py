@@ -27,6 +27,7 @@ build
     support ModelName. disambiguation prefixes to IDs
     support wc_lang.Function instances
     make dynamic_model.eval_dynamic_obj() handle all dyamic Models
+    create a WcLangExpressionError, and replace ValueError with it
     make generic ModelWithExpression class in wc_lang
     add test_eval() method
     test with real WC models
@@ -318,6 +319,11 @@ class WcLangExpression(object):
         illegal_tokens.add(getattr(token, illegal_name))
 
     def __init__(self, model_class, attribute, expression, objects):
+        """ Create an instance of WcLangExpression
+
+        Raises:
+            (:obj:`ValueError`): if lexical analysis of `expression` raises an exception
+        """
         self.model_class = model_class
         self.attribute = attribute
         # strip leading and trailing whitespace from expression, which would create a bad token error
@@ -328,9 +334,14 @@ class WcLangExpression(object):
         for model_type in objects.keys():
             self.related_objects[model_type] = []
 
-        g = tokenize.tokenize(BytesIO(self.expression.encode('utf-8')).readline)
-        # strip the leading ENCODING and trailing ENDMARKER tokens
-        self.tokens = list(g)[1:-1]
+        try:
+            g = tokenize.tokenize(BytesIO(self.expression.encode('utf-8')).readline)
+            # strip the leading ENCODING and trailing ENDMARKER tokens
+            self.tokens = list(g)[1:-1]
+        except tokenize.TokenError as e:
+            raise ValueError("parsing '{}', a {}.{}, creates a Python syntax error: '{}'".format(
+                self.expression, self.model_class.__name__, self.attribute, str(e)))
+
         self.idx = 0
         self.errors = []
         self.wc_tokens = []
@@ -350,6 +361,32 @@ class WcLangExpression(object):
                 return model_type
         return None
 
+    def match_tokens(self, token_pattern, idx):
+        """ Indicate whether `tokens` begins with a pattern of tokens that match `token_pattern`
+
+        Args:
+            token_pattern (:obj:`tuple` of `int`): a tuple of Python token numbers, taken from the
+            `token` module
+            idx (:obj:`int`): current index into `tokens`
+
+            Returns:
+                :obj:`object`: :obj:`bool`, False if the initial elements of `tokens` do not match the
+                syntax in `token_pattern`, or :obj:`str`, the matching string
+        """
+        if not token_pattern:
+            return False
+        if len(self.tokens)-idx < len(token_pattern):
+            return False
+        for tok_idx, token_pat_num in enumerate(token_pattern):
+            if self.tokens[idx+tok_idx].exact_type != token_pat_num:
+                return False
+            # because a wc_lang ID shouldn't contain white space, do not allow it between the self.tokens
+            # that match token_pattern
+            if 0<tok_idx and self.tokens[idx+tok_idx-1].end != self.tokens[idx+tok_idx].start:
+                return False
+        match_val = ''.join([self.tokens[idx+i].string for i in range(len(token_pattern))])
+        return match_val
+
     def disambiguated_id(self, idx):
         """ Try to parse a disambuated `wc_lang` id from `self.tokens` at `idx`
 
@@ -364,7 +401,7 @@ class WcLangExpression(object):
             :obj:`object`: `None` if no disambuated id is found, else the number of tokens
                 consumed by the match
         """
-        fun_match = ExpressionUtils.match_tokens(self.fun_type_disambig_patttern, self.tokens[idx:])
+        fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
         if fun_match:
             purported_macro_name = self.tokens[idx+2].string
             # the disambiguation model type must be Function
@@ -381,7 +418,7 @@ class WcLangExpression(object):
             self.related_objects[wc_lang.core.Function].append(purported_macro_name)
             return len(self.fun_type_disambig_patttern)
 
-        disambig_model_match = ExpressionUtils.match_tokens(self.model_type_disambig_pattern, self.tokens[idx:])
+        disambig_model_match = self.match_tokens(self.model_type_disambig_pattern, idx)
         if disambig_model_match:
             disambig_model_type = self.tokens[idx].string
             purported_model_name = self.tokens[idx+2].string
