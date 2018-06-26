@@ -16,8 +16,8 @@ from io import BytesIO
 
 from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
-    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
-from wc_lang.expression_utils import (RateLawUtils, ExpressionUtils, TokCodes, WcLangToken,
+    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment, RateLawEquation)
+from wc_lang.expression_utils import (RateLawUtils, ExpressionUtils, TokCodes, WcLangToken, LexMatch,
     WcLangExpression)
 
 
@@ -301,9 +301,20 @@ class TestWcLangExpression(unittest.TestCase):
             Observable: {'test_id':Observable(), 'obs_id':Observable()},
             Function: {'fun_1':Function(), 'fun_2':Function()}
         }
+        # todo: also try
+        self.objectss = {
+            Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
+            Parameter: {'Observable':Parameter(), 'param_id':Parameter()},
+            Observable: {'test_id':Observable(), 'obs_id':Observable()},
+            Function: {'Observable':Function(), 'fun_2':Function()}
+        }
 
-    def make_wc_lang_expr(self, expr):
-        return WcLangExpression(Species, 'expr_attr', expr, self.objects)
+    @staticmethod
+    def esc_re_center(re_list):
+        return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
+
+    def make_wc_lang_expr(self, expr, obj_type=Species):
+        return WcLangExpression(obj_type, 'expr_attr', expr, self.objects)
 
     def test_wc_lang_expression(self):
         expr = '3 + 5 * 6'
@@ -347,19 +358,19 @@ class TestWcLangExpression(unittest.TestCase):
 
     def do_disambiguated_id_error_test(self, expr, expected):
         wc_lang_expr = self.make_wc_lang_expr(expr)
-        self.assertEqual(wc_lang_expr.disambiguated_id(0), None)
-        self.assertIn(expected.format(expr), wc_lang_expr.errors[0])
+        result = wc_lang_expr.disambiguated_id(0)
+        self.assertTrue(isinstance(result, str))
+        self.assertIn(expected.format(expr), result)
 
     def do_disambiguated_id_test(self, expr, disambig_type, id, pattern):
         wc_lang_expr = self.make_wc_lang_expr(expr)
-        self.assertEqual(wc_lang_expr.disambiguated_id(0), len(pattern))
-        self.assertEqual(wc_lang_expr.errors, [])
-        for obj_type in self.objects.keys():
-            if obj_type != disambig_type:
-                self.assertEqual(wc_lang_expr.related_objects[obj_type], [])
-        self.assertEqual(wc_lang_expr.related_objects[disambig_type], [id])
-        self.assertEqual(len(wc_lang_expr.wc_tokens), 1)
-        self.assertEqual(wc_lang_expr.wc_tokens[0], WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type))
+        lex_match = wc_lang_expr.disambiguated_id(0)
+        self.assertTrue(isinstance(lex_match, LexMatch))
+        self.assertEqual(lex_match.num_py_tokens, len(pattern))
+        self.assertEqual(len(lex_match.wc_lang_tokens), 1)
+        wc_lang_token = lex_match.wc_lang_tokens[0]
+        self.assertEqual(wc_lang_token,
+            WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type, id))
 
     def test_disambiguated_id(self):
         self.do_disambiguated_id_error_test('NotFunction.foo()',
@@ -387,6 +398,62 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr('3 * 2')
         self.assertEqual(wc_lang_expr.disambiguated_id(0), None)
 
-        wc_lang_expr = self.make_wc_lang_expr('Parameter.fun_1')
-        self.assertIn('expression', str(wc_lang_expr))
-        self.assertIn('[]', str(wc_lang_expr))
+    def do_related_object_id_error_test(self, expr, expected_error):
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        result = wc_lang_expr.related_object_id(0)
+        self.assertTrue(isinstance(result, str))
+        self.assertRegex(result, self.esc_re_center(expected_error))
+
+    def test_related_object_id_errors(self):
+        self.do_related_object_id_error_test('x[c]',
+            ["contains the identifier(s)", "which aren't the id(s) of an object"])
+
+    def test_related_object_id_mult_matches_error(self):
+        del self.objects[Species]
+        self.do_related_object_id_error_test('test_id',
+            ["multiple model object id_matches: 'test_id' as a Observable id, 'test_id' as a Parameter id"])
+
+    def do_related_object_id_test(self, expr, expected_related_type, expected_id, pattern):
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        lex_match = wc_lang_expr.related_object_id(0)
+        self.assertTrue(isinstance(lex_match, LexMatch))
+        self.assertEqual(lex_match.num_py_tokens, len(pattern))
+        self.assertEqual(len(lex_match.wc_lang_tokens), 1)
+        wc_lang_token = lex_match.wc_lang_tokens[0]
+        self.assertEqual(wc_lang_token,
+            WcLangToken(TokCodes.wc_lang_obj_id, expected_id, expected_related_type, expected_id))
+
+    def test_related_object_id_matches(self):
+        self.do_related_object_id_test('test_id[c] + 3*x', Species, 'test_id[c]', Species.Meta.token_pattern)
+        self.do_related_object_id_test('param_id', Parameter, 'param_id', (token.NAME, ))
+
+        # no token matches
+        wc_lang_expr = self.make_wc_lang_expr("3 * 4")
+        self.assertEqual(wc_lang_expr.related_object_id(0), None)
+
+    def do_fun_call_error_test(self, expr, expected_error, obj_type=Species):
+        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
+        result = wc_lang_expr.fun_call_id(0)
+        self.assertTrue(isinstance(result, str))
+        self.assertRegex(result, self.esc_re_center(expected_error))
+
+    def test_fun_call_id_errors(self):
+        self.do_fun_call_error_test('log(3)', ["contains the func name '",
+            "but {}.Meta doesn't define 'valid_functions'".format(Species.__name__)],
+            obj_type=Species)
+        self.do_fun_call_error_test('foo(3)', ["contains the func name ",
+            "but it isn't in {}.Meta.valid_functions".format(RateLawEquation.__name__)],
+            obj_type=RateLawEquation)
+
+    def test_fun_call_id(self):
+        wc_lang_expr = self.make_wc_lang_expr('log(3)', obj_type=RateLawEquation)
+        lex_match = wc_lang_expr.fun_call_id(0)
+        self.assertTrue(isinstance(lex_match, LexMatch))
+        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.function_pattern))
+        self.assertEqual(len(lex_match.wc_lang_tokens), 2)
+        self.assertEqual(lex_match.wc_lang_tokens[0], WcLangToken(TokCodes.math_fun_id, 'log'))
+        self.assertEqual(lex_match.wc_lang_tokens[1], WcLangToken(TokCodes.other, '('))
+
+        # no token match
+        wc_lang_expr = self.make_wc_lang_expr('no_fun + 3')
+        self.assertEqual(wc_lang_expr.fun_call_id(0), None)

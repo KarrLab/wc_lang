@@ -31,6 +31,7 @@ build
     make generic ModelWithExpression class in wc_lang
     add test_eval() method
     test with real WC models
+    Jupyter example
     replace existing RE parsing and expression eval code
     use ExpressionUtils to deserialize all wc_lang expressions
     rename Function to Macro
@@ -267,6 +268,13 @@ class TokCodes(int, CaseInsensitiveEnum):
     other = 3
 
 
+# result returned by a tokens lexer, like disambiguated_id()
+LexMatch = namedtuple('LexMatch', 'wc_lang_tokens, num_py_tokens')
+LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
+LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
+LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
+
+
 # a matched token pattern used by deserialize
 IdMatch = namedtuple('IdMatch', 'model_type, token_pattern, match_string')
 IdMatch.__doc__ += ': Matched token pattern used by deserialize'
@@ -276,13 +284,14 @@ IdMatch.match_string.__doc__ = 'The matched string'
 
 
 # a token in a parsed wc_lang expression, returned in a list by deserialize
-WcLangToken = namedtuple('WcLangToken', 'tok_code, token_string, model_type')
-# make model_type optional: see https://stackoverflow.com/a/18348004
-WcLangToken.__new__.__defaults__ = (None,)
+WcLangToken = namedtuple('WcLangToken', 'tok_code, token_string, model_type, model_id')
+# make model_type and model_id optional: see https://stackoverflow.com/a/18348004
+WcLangToken.__new__.__defaults__ = (None, None)
 WcLangToken.__doc__ += ': Token in a parsed wc_lang expression'
-WcLangToken.tok_code.__doc__ = 'TokCodes instance'
+WcLangToken.tok_code.__doc__ = 'TokCodes encoding'
 WcLangToken.token_string.__doc__ = "The token's string"
 WcLangToken.model_type.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's type"
+WcLangToken.model_id.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's id"
 
 
 class WcLangExpression(object):
@@ -302,11 +311,11 @@ class WcLangExpression(object):
         wc_tokens (:obj:`list` of `WcLangToken`): tokens obtained when an `expression` is successfully parsed
     """
 
-    function_pattern = (token.NAME, token.LPAR)
     # Function.identifier()
     fun_type_disambig_patttern = (token.NAME, token.DOT, token.NAME, token.LPAR, token.RPAR)
     # ModelType.model_id
     model_type_disambig_pattern = (token.NAME, token.DOT, token.NAME)
+    function_pattern = (token.NAME, token.LPAR)
 
     # enumerate and detect Python tokens that are illegal in wc_lang expressions
     # TODO: consider the handful of other tokens that may also be illegal: COMMA, SEMI, TILDE, CIRCUMFLEX, and AT
@@ -391,32 +400,31 @@ class WcLangExpression(object):
         """ Try to parse a disambuated `wc_lang` id from `self.tokens` at `idx`
 
         Look for a disambugated id (either a Function written as `Function.identifier()`, or a
-        Model written as `ModelType.model_id`). If found, add it to `self.related_objects` and
-        `self.wc_tokens` and advance through it. If not found, return `None`
+        Model written as `ModelType.model_id`). If tokens do not match, return `None`. If tokens match,
+        but their values are wrong, return an error `str`.
+        If a disambugated id is found, return a `LexMatch` describing it.
 
         Args:
             idx (:obj:`int`): current index into `tokens`
 
         Returns:
-            :obj:`object`: `None` if no disambuated id is found, else the number of tokens
-                consumed by the match
+            :obj:`object`: If tokens do not match, return `None`. If tokens match,
+                but their values are wrong, return an error `str`.
+                If a disambugated id is found, return a `LexMatch` describing it.
         """
         fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
         if fun_match:
             purported_macro_name = self.tokens[idx+2].string
             # the disambiguation model type must be Function
             if self.tokens[idx].string != wc_lang.core.Function.__name__:
-                self.errors.append("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
+                return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
                     "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
-                return None
             # the identifier must be in the Function objects
             if wc_lang.core.Function not in self.objects or purported_macro_name not in self.objects[wc_lang.core.Function]:
-                self.errors.append("'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
-                    self.expression, self.model_class.__name__, self.attribute, fun_match))
-                return None
-            self.wc_tokens.append(WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function))
-            self.related_objects[wc_lang.core.Function].append(purported_macro_name)
-            return len(self.fun_type_disambig_patttern)
+                return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
+                    self.expression, self.model_class.__name__, self.attribute, fun_match)
+            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function, purported_macro_name)],
+                len(self.fun_type_disambig_patttern))
 
         disambig_model_match = self.match_tokens(self.model_type_disambig_pattern, idx)
         if disambig_model_match:
@@ -424,28 +432,143 @@ class WcLangExpression(object):
             purported_model_name = self.tokens[idx+2].string
             # the disambiguation model type cannot be Function
             if disambig_model_type == wc_lang.core.Function.__name__:
-                self.errors.append("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
+                return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
                     "model type but doesn't use Function syntax".format(self.expression, self.model_class.__name__,
                     self.attribute, disambig_model_match))
-                return None
+
             # the disambiguation model type must be in self.objects
             wc_lang_model_type = self.get_wc_lang_model_type(disambig_model_type)
             if wc_lang_model_type is None:
-                self.errors.append("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
+                return ("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
                     "cannot be referenced by '{}' expressions".format(self.expression, self.model_class.__name__,
                     self.attribute, disambig_model_match, disambig_model_type, self.model_class.__name__))
-                return None
+
             if purported_model_name not in self.objects[wc_lang_model_type]:
-                self.errors.append("'{}', a {}.{}, contains '{}', but '{}' is not the id of a '{}'".format(
+                return "'{}', a {}.{}, contains '{}', but '{}' is not the id of a '{}'".format(
                     self.expression, self.model_class.__name__, self.attribute, disambig_model_match,
-                    purported_model_name, disambig_model_type))
-                return None
-            self.wc_tokens.append(WcLangToken(TokCodes.wc_lang_obj_id, disambig_model_match, wc_lang_model_type))
-            self.related_objects[wc_lang_model_type].append(purported_model_name)
-            return len(self.model_type_disambig_pattern)
+                    purported_model_name, disambig_model_type)
+
+            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, disambig_model_match, wc_lang_model_type, purported_model_name)],
+                len(self.model_type_disambig_pattern))
 
         # no match
         return None
+
+    def related_object_id(self, idx):
+        """ Try to parse a related object `wc_lang` id from `self.tokens` at `idx`
+
+        Different `wc_lang` objects match different Python token patterns. The default pattern
+        is (token.NAME, ), but an object of type `model_type` can define a custom pattern in
+        `model_type.Meta.token_pattern`, as Species does. Some patterns may consume multiple Python tokens.
+
+        Returns:
+            :obj:`object`: If tokens do not match, return `None`. If tokens match,
+                but their values are wrong, return an error `str`.
+                If a related object id is found, return a `LexMatch` describing it.
+        """
+        token_matches = set()
+        id_matches = set()
+        object_type_names = [model_type.__name__ for model_type in self.objects.keys()]
+        for model_type in self.objects.keys():
+            token_pattern = (token.NAME, )
+            if hasattr(model_type.Meta, 'token_pattern'):
+                token_pattern = model_type.Meta.token_pattern
+            match_string = self.match_tokens(token_pattern, idx)
+            if match_string:
+                token_matches.add(match_string)
+                # is match_string the ID of an instance in model_type?
+                if match_string in self.objects[model_type]:
+                    id_matches.add(IdMatch(model_type, token_pattern, match_string))
+
+        if not id_matches:
+            if token_matches:
+                return ("'{}', a {}.{}, contains the identifier(s) '{}', which aren't "
+                    "the id(s) of an object in 'objects'".format(self.expression,
+                    self.model_class.__name__, self.attribute, "', '".join(token_matches)))
+            return None
+
+        if 1 < len(id_matches):
+            # as lexers always do, pick the longest match
+            id_matches_by_length = sorted(id_matches, key=lambda id_match: len(id_match.match_string))
+            longest_length = len(id_matches_by_length[-1].match_string)
+            longest_matches = set()
+            while id_matches_by_length and len(id_matches_by_length[-1].match_string) == longest_length:
+                longest_matches.add(id_matches_by_length.pop())
+            id_matches = longest_matches
+
+        if 1 < len(id_matches):
+            # error: multiple, maximal length model id_matches
+            matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
+                for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
+            matches_error = ', '.join(matches_error)
+            return "'{}', a {}.{}, contains multiple model object id_matches: {}".format(self.expression,
+                self.model_class.__name__, self.attribute, matches_error)
+
+        else:
+            # return a lexical match about a related id
+            match = id_matches.pop()
+            return LexMatch(
+                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, match.match_string)],
+                len(match.token_pattern))
+
+    def fun_call_id(self, idx):
+        """ Try to parse a Python math function call from `self.tokens` at `idx`
+
+        Each `wc_lang` object `model_class` that contains an expression which can use Python math
+        functions must define the set of allowed functions in `model_class.Meta.valid_functions`.
+
+        Args:
+            idx (:obj:`int`): current index into `self.tokens`
+
+        Returns:
+            :obj:`object`: If tokens do not match, return `None`. If tokens match,
+                but their values are wrong, return an error `str`.
+                If a function call is found, return a `LexMatch` describing it.
+        """
+        fun_match = self.match_tokens(self.function_pattern, idx)
+        if fun_match:
+            fun_name = self.tokens[idx].string
+            # function_pattern is "identifier ("
+            # the closing paren ")" will simply be encoded as a WcLangToken with tok_code == other
+
+            # are Python math functions defined?
+            if not hasattr(self.model_class.Meta, 'valid_functions'):
+                return ("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
+                    "define 'valid_functions'".format(self.expression,
+                    self.model_class.__name__, self.attribute, fun_name, self.model_class.__name__))
+
+            function_ids = set([f.__name__ for f in self.model_class.Meta.valid_functions])
+
+            # is the function allowed?
+            if fun_name not in function_ids:
+                return ("'{}', a {}.{}, contains the func name '{}', but it isn't in "
+                    "{}.Meta.valid_functions: {}".format(self.expression, self.model_class.__name__,
+                    self.attribute, fun_name, self.model_class.__name__, ', '.join(function_ids)))
+
+            # return a lexical match about a math function
+            return LexMatch(
+                [WcLangToken(TokCodes.math_fun_id, fun_name), WcLangToken(TokCodes.other, '(')],
+                len(self.function_pattern))
+
+        # no match
+        return None
+
+    def lex_input(idx):
+        matches = []
+        errors = []
+        for get_tok_fun in []:
+            result = get_tok_fun(idx)
+            if result is not None:
+                if isinstance(result, str):
+                    errors.append(result)
+                elif isinstance(result, LexMatch):
+                    matches.append(result)
+        if not matches:
+            pass
+            # return all errors
+        # sort matches by length
+        # if one longest match, use it
+        # else error
 
     def __str__(self):
         rv = []
@@ -459,6 +582,7 @@ class WcLangExpression(object):
         rv.append("errors: {}".format(self.errors))
         rv.append("wc_tokens: {}".format(self.wc_tokens))
         return '\n'.join(rv)
+
 
 class ExpressionUtils(object):
     """ Utilities for processing expressions in Models
@@ -594,9 +718,6 @@ class ExpressionUtils(object):
                 fun_name = tokens[idx].string
                 # function_pattern is "identifier (" which can reference either a wc_lang Macro or a Python math function
                 try:
-                    # if wc_lang Macros are allowed in the expression look for matches
-                    if wc_lang.core.Function in objects.keys():
-                        pass
 
                     # are Python math functions defined?
                     if not hasattr(model_class.Meta, 'valid_functions'):
