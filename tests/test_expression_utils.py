@@ -228,7 +228,7 @@ class TestExpressionUtils(unittest.TestCase):
         objects[Species] = {}
         sb_none, errors = deserialize(A, 'expr', 'test_id[c] - 2', objects)
         self.assertTrue(sb_none is None)
-        self.assertIn("multiple model object id_matches: 'test_id' as a Observable id, "
+        self.assertIn("multiple model object id matches: 'test_id' as a Observable id, "
             "'test_id' as a Parameter id", errors[0])
 
         # expression with multiple identifier matches for one Model, which exercises det_dedupe
@@ -302,7 +302,7 @@ class TestWcLangExpression(unittest.TestCase):
             Function: {'fun_1':Function(), 'fun_2':Function()}
         }
         # todo: also try
-        self.objectss = {
+        self.objects_hard = {
             Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
             Parameter: {'Observable':Parameter(), 'param_id':Parameter()},
             Observable: {'test_id':Observable(), 'obs_id':Observable()},
@@ -411,7 +411,7 @@ class TestWcLangExpression(unittest.TestCase):
     def test_related_object_id_mult_matches_error(self):
         del self.objects[Species]
         self.do_related_object_id_error_test('test_id',
-            ["multiple model object id_matches: 'test_id' as a Observable id, 'test_id' as a Parameter id"])
+            ["multiple model object id matches: 'test_id' as a Observable id, 'test_id' as a Parameter id"])
 
     def do_related_object_id_test(self, expr, expected_related_type, expected_id, pattern):
         wc_lang_expr = self.make_wc_lang_expr(expr)
@@ -457,3 +457,56 @@ class TestWcLangExpression(unittest.TestCase):
         # no token match
         wc_lang_expr = self.make_wc_lang_expr('no_fun + 3')
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
+
+
+
+    @staticmethod
+    def show_toks(wc_lang_expr):
+        result = []
+        for wc_tok in wc_lang_expr.wc_tokens:
+            if wc_tok.tok_code == TokCodes.other:
+                result.append(wc_tok.token_string)
+            elif wc_tok.tok_code == TokCodes.math_fun_id:
+                result.append(wc_tok.token_string)
+            elif wc_tok.tok_code == TokCodes.wc_lang_obj_id:
+                result.append("{}.{}".format(wc_tok.model_type.__name__, wc_tok.model_id))
+        print('expr:', wc_lang_expr.expression)
+        print('result:', ' '.join(result))
+
+    def test_bad_tokens(self):
+        rv, errors = WcLangExpression(Species, 'test', '+= *= @= : {}', {}).deserialize()
+        self.assertEqual(rv, None)
+        for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
+            self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
+        # test bad tokens that don't have string values
+        rv, errors = WcLangExpression(Species, 'test', """
+ 3
+ +1""", {}).deserialize()
+        self.assertEqual(rv, None)
+        self.assertRegex(errors[0], re.escape("contains bad token(s)"))
+
+    def test_non_identifier_tokens(self):
+        for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
+            wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', expr, self.objects_hard)
+            wc_lang_expr.deserialize()
+            self.assertEqual(wc_lang_expr.errors, [])
+            expected = [WcLangToken(tok_code=TokCodes.other, token_string=tok) for tok in expr.strip().split()]
+            self.assertEqual(wc_lang_expr.wc_tokens, expected)
+
+    def test_deserialize_w_ids(self):
+        # test related_object_id
+        expr = 'test_id'
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', expr, self.objects_hard)
+        self.assertEqual(wc_lang_expr, wc_lang_expr.deserialize())
+        self.assertEqual(wc_lang_expr.errors, [])
+        for obj_type in self.objects_hard.keys():
+            if obj_type == Observable:
+                self.assertEqual(wc_lang_expr.related_objects[obj_type], [expr])
+            else:
+                self.assertEqual(wc_lang_expr.related_objects[obj_type], [])
+        self.assertEqual(wc_lang_expr.wc_tokens,
+            [WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='test_id', model_type=Observable, model_id='test_id')])
+
+        #expr = 'log(3) + 2*test_id[c] - test_id + Function.Observable()'
+
+    # todo: test `model_class` does not have a `Meta` attribute

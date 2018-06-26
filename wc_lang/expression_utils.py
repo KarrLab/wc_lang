@@ -497,11 +497,11 @@ class WcLangExpression(object):
             id_matches = longest_matches
 
         if 1 < len(id_matches):
-            # error: multiple, maximal length model id_matches
+            # error: multiple, maximal length matches
             matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
                 for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
             matches_error = ', '.join(matches_error)
-            return "'{}', a {}.{}, contains multiple model object id_matches: {}".format(self.expression,
+            return "'{}', a {}.{}, contains multiple model object id matches: {}".format(self.expression,
                 self.model_class.__name__, self.attribute, matches_error)
 
         else:
@@ -553,22 +553,91 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def lex_input(idx):
-        matches = []
-        errors = []
-        for get_tok_fun in []:
-            result = get_tok_fun(idx)
-            if result is not None:
-                if isinstance(result, str):
-                    errors.append(result)
-                elif isinstance(result, LexMatch):
-                    matches.append(result)
-        if not matches:
-            pass
-            # return all errors
-        # sort matches by length
-        # if one longest match, use it
-        # else error
+    def deserialize(self):
+        """ Deserialize a Python expression in `self.expression`
+
+        Returns:
+            (:obj:`tuple`): either `(None, :obj:list of str)` containing a list of errors, or `(:obj:list, :obj:dict)`
+            containing a list of `WcLangToken`s and a dict of modifiers used in this list
+
+        Raises:
+            (:obj:`ValueError`): if `model_class` does not have a `Meta` attribute
+        """
+
+        # detect and report bad tokens
+        bad_tokens = set()
+        for tok in self.tokens:
+            if tok.exact_type in self.illegal_tokens:
+                if tok.string and tok.string != ' ':
+                    bad_tokens.add(tok.string)
+                else:
+                    bad_tokens.add(token.tok_name[tok.type])
+        if bad_tokens:
+            error = "'{}', a {}.{}, contains bad token(s): '{}'".format(self.expression,
+                self.model_class.__name__, self.attribute, "', '".join(bad_tokens))
+            return (None, [error])
+
+        idx = 0
+        while idx < len(self.tokens):
+
+            # a token that isn't an identifier needs no processing
+            if self.tokens[idx].type != token.NAME:
+                # record non-identifier token
+                self.wc_tokens.append(WcLangToken(TokCodes.other, self.tokens[idx].string))
+                idx += 1
+                continue
+
+            matches = []
+            errors = []
+            for get_wc_lang_lexical_element in [self.related_object_id, self.disambiguated_id, self.fun_call_id]:
+                result = get_wc_lang_lexical_element(idx)
+                if result is not None:
+                    if isinstance(result, str):
+                        errors.append(result)
+                    elif isinstance(result, LexMatch):
+                        matches.append(result)
+            # if no matches and no errors are found continue
+            if not matches and not errors:
+                continue
+            # if only errors are found, return them
+            if not matches:
+                return (None, errors)
+
+            # matches is a list of LexMatch, if it contains one longest match, use that, else report error
+            # sort matches by Python token pattern length
+            matches_by_length = sorted(matches, key=lambda lex_match: lex_match.num_py_tokens)
+            longest_length = matches_by_length[-1].num_py_tokens
+            longest_matches = []
+            while matches_by_length and matches_by_length[-1].num_py_tokens == longest_length:
+                longest_matches.append(matches_by_length.pop())
+            if 1 < len(longest_matches):
+                print('error', longest_matches)
+                return (None, errors)
+                '''
+                matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
+                    for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
+                matches_error = ', '.join(matches_error)
+                '''
+            match = longest_matches.pop()
+            idx += match.num_py_tokens
+            wc_lang_tokens = match.wc_lang_tokens
+            self.wc_tokens.extend(wc_lang_tokens)
+            for wc_lang_token in wc_lang_tokens:
+                if wc_lang_token.tok_code == TokCodes.wc_lang_obj_id:
+                    self.related_objects[wc_lang_token.model_type].append(wc_lang_token.model_id)
+
+
+        # todo: perhaps ensure that the parsed expression can be eval'ed, assuming values in the range for related models
+        # could even specify range in model declaration
+        '''
+        if errors:
+            return (None, errors)
+            return (wc_tokens, related_objects)
+        '''
+        # deterministically de-dupe all lists in related_objects
+        for model_type, related_models in self.related_objects.items():
+            self.related_objects[model_type] = det_dedupe(related_models)
+        return self
 
     def __str__(self):
         rv = []
@@ -786,7 +855,7 @@ class ExpressionUtils(object):
                 matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
                     for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
                 matches_error = ', '.join(matches_error)
-                errors.append("'{}', a {}.{}, contains multiple model object id_matches: {}".format(expression,
+                errors.append("'{}', a {}.{}, contains multiple model object id matches: {}".format(expression,
                     model_class.__name__, attribute, matches_error))
                 # again, break because it is not clear how many tokens should be skipped
                 break
