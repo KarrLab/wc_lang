@@ -339,10 +339,6 @@ class WcLangExpression(object):
         self.expression = expression.strip()
         self.objects = objects
 
-        self.related_objects = {}
-        for model_type in objects.keys():
-            self.related_objects[model_type] = []
-
         try:
             g = tokenize.tokenize(BytesIO(self.expression.encode('utf-8')).readline)
             # strip the leading ENCODING and trailing ENDMARKER tokens
@@ -350,6 +346,15 @@ class WcLangExpression(object):
         except tokenize.TokenError as e:
             raise ValueError("parsing '{}', a {}.{}, creates a Python syntax error: '{}'".format(
                 self.expression, self.model_class.__name__, self.attribute, str(e)))
+
+        self.__reset_deserialization()
+
+    def __reset_deserialization(self):
+        """ Reset deserialization
+        """
+        self.related_objects = {}
+        for model_type in self.objects.keys():
+            self.related_objects[model_type] = []
 
         self.idx = 0
         self.errors = []
@@ -558,11 +563,12 @@ class WcLangExpression(object):
 
         Returns:
             (:obj:`tuple`): either `(None, :obj:list of str)` containing a list of errors, or `(:obj:list, :obj:dict)`
-            containing a list of `WcLangToken`s and a dict of modifiers used in this list
+            containing a list of `WcLangToken`s and a dict of modifiers used by this list
 
         Raises:
             (:obj:`ValueError`): if `model_class` does not have a `Meta` attribute
         """
+        self.__reset_deserialization()
 
         # detect and report bad tokens
         bad_tokens = set()
@@ -573,9 +579,9 @@ class WcLangExpression(object):
                 else:
                     bad_tokens.add(token.tok_name[tok.type])
         if bad_tokens:
-            error = "'{}', a {}.{}, contains bad token(s): '{}'".format(self.expression,
-                self.model_class.__name__, self.attribute, "', '".join(bad_tokens))
-            return (None, [error])
+            self.errors.append("'{}', a {}.{}, contains bad token(s): '{}'".format(self.expression,
+                self.model_class.__name__, self.attribute, "', '".join(bad_tokens)))
+            return (None, self.errors)
 
         idx = 0
         while idx < len(self.tokens):
@@ -588,20 +594,23 @@ class WcLangExpression(object):
                 continue
 
             matches = []
-            errors = []
+            tmp_errors = []
             for get_wc_lang_lexical_element in [self.related_object_id, self.disambiguated_id, self.fun_call_id]:
                 result = get_wc_lang_lexical_element(idx)
                 if result is not None:
                     if isinstance(result, str):
-                        errors.append(result)
+                        tmp_errors.append(result)
                     elif isinstance(result, LexMatch):
                         matches.append(result)
-            # if no matches and no errors are found continue
-            if not matches and not errors:
-                continue
-            # if only errors are found, return them
-            if not matches:
-                return (None, errors)
+                    else:   # pragma no cover
+                        assert True, "result is neither str nor LexMatch '{}'".format(result)
+
+            # should find matches or errors
+            assert matches or tmp_errors, "No matches or errors found in '{}'".format(self.expression)  # pragma no cover
+            # if only errors are found, break to return them
+            if tmp_errors and not matches:
+                self.errors = tmp_errors
+                break
 
             # matches is a list of LexMatch, if it contains one longest match, use that, else report error
             # sort matches by Python token pattern length
@@ -611,13 +620,14 @@ class WcLangExpression(object):
             while matches_by_length and matches_by_length[-1].num_py_tokens == longest_length:
                 longest_matches.append(matches_by_length.pop())
             if 1 < len(longest_matches):
-                print('error', longest_matches)
-                return (None, errors)
+                print('longest_matches', longest_matches)
                 '''
                 matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
                     for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
                 matches_error = ', '.join(matches_error)
                 '''
+                break
+
             match = longest_matches.pop()
             idx += match.num_py_tokens
             wc_lang_tokens = match.wc_lang_tokens
@@ -626,18 +636,14 @@ class WcLangExpression(object):
                 if wc_lang_token.tok_code == TokCodes.wc_lang_obj_id:
                     self.related_objects[wc_lang_token.model_type].append(wc_lang_token.model_id)
 
-
         # todo: perhaps ensure that the parsed expression can be eval'ed, assuming values in the range for related models
         # could even specify range in model declaration
-        '''
-        if errors:
-            return (None, errors)
-            return (wc_tokens, related_objects)
-        '''
+        if self.errors:
+            return (None, self.errors)
         # deterministically de-dupe all lists in related_objects
         for model_type, related_models in self.related_objects.items():
             self.related_objects[model_type] = det_dedupe(related_models)
-        return self
+        return (self.wc_tokens, self.related_objects)
 
     def __str__(self):
         rv = []

@@ -304,8 +304,8 @@ class TestWcLangExpression(unittest.TestCase):
         # todo: also try
         self.objects_hard = {
             Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
-            Parameter: {'Observable':Parameter(), 'param_id':Parameter()},
-            Observable: {'test_id':Observable(), 'obs_id':Observable()},
+            Parameter: {'Observable':Parameter(), 'duped_id':Parameter()},
+            Observable: {'test_id':Observable(), 'duped_id':Observable()},
             Function: {'Observable':Function(), 'fun_2':Function()}
         }
 
@@ -459,6 +459,80 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
 
 
+    def test_bad_tokens(self):
+        rv, errors = WcLangExpression(Species, 'test', '+= *= @= : {}', {}).deserialize()
+        self.assertEqual(rv, None)
+        for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
+            self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
+        # test bad tokens that don't have string values
+        rv, errors = WcLangExpression(Species, 'test', """
+ 3
+ +1""", {}).deserialize()
+        self.assertEqual(rv, None)
+        self.assertRegex(errors[0], re.escape("contains bad token(s)"))
+
+    def do_deserialize_id_test(self, expr, expected_wc_tokens, expected_related_objs, model_type=RateLawEquation):
+        objects = self.objects_hard
+        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, objects)
+        wc_tokens, related_objects = wc_lang_expr.deserialize()
+        self.assertEqual(wc_lang_expr.errors, [])
+        for obj_types in objects:
+            if obj_types in expected_related_objs.keys():
+                self.assertEqual(related_objects[obj_types], expected_related_objs[obj_types])
+            else:
+                self.assertEqual(related_objects[obj_types], [])
+
+    def test_non_identifier_tokens(self):
+        for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
+            expected_wc_tokens = [WcLangToken(tok_code=TokCodes.other, token_string=tok) for tok in expr.strip().split()]
+            self.do_deserialize_id_test(expr, expected_wc_tokens, {})
+
+    def test_deserialize_w_ids(self):
+        # test related_object_id
+        expr = 'test_id'
+        expected_wc_tokens = \
+            [WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string=expr, model_type=Observable, model_id=expr)]
+        expected_related_objs = {Observable:[expr]}
+        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+        # test disambiguated_id
+        expr = 'Parameter.duped_id + 2*Observable.duped_id'
+        expected_wc_tokens = [
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Parameter.duped_id', model_type=Parameter, model_id='duped_id'),
+            WcLangToken(TokCodes.other, '+'),
+            WcLangToken(TokCodes.other, '2'),
+            WcLangToken(TokCodes.other, '*'),
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Observable.duped_id', model_type=Observable, model_id='duped_id'),
+        ]
+        expected_related_objs = {
+            Parameter:['duped_id'],
+            Observable:['duped_id'],}
+        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+        # test fun_call_id
+        expr = 'log(3) + fun_2() - Function.Observable()'
+        expected_wc_tokens = [
+            WcLangToken(tok_code=TokCodes.math_fun_id, token_string='log'),
+            WcLangToken(TokCodes.other, '('),
+            WcLangToken(TokCodes.other, '3'),
+            WcLangToken(TokCodes.other, ')'),
+            WcLangToken(TokCodes.other, '+'),
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='fun_2()', model_type=Function, model_id='fun_2'),
+            WcLangToken(TokCodes.other, '-'),
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Function.Observable()', model_type=Function,
+                model_id='Observable')
+        ]
+        expected_related_objs = {
+            Function:['fun_2', 'Observable']}
+        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+
+    def do_deserialize_error_test(self, expr, model_type=RateLawEquation, ):
+        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, self.objects_hard)
+
+    def test_deserialize_errors(self):
+        pass
+
+        #expr = 'log(3) + 2*test_id[c] - test_id + Function.Observable()'
+
+    # todo: test `model_class` does not have a `Meta` attribute
 
     @staticmethod
     def show_toks(wc_lang_expr):
@@ -472,41 +546,3 @@ class TestWcLangExpression(unittest.TestCase):
                 result.append("{}.{}".format(wc_tok.model_type.__name__, wc_tok.model_id))
         print('expr:', wc_lang_expr.expression)
         print('result:', ' '.join(result))
-
-    def test_bad_tokens(self):
-        rv, errors = WcLangExpression(Species, 'test', '+= *= @= : {}', {}).deserialize()
-        self.assertEqual(rv, None)
-        for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
-            self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
-        # test bad tokens that don't have string values
-        rv, errors = WcLangExpression(Species, 'test', """
- 3
- +1""", {}).deserialize()
-        self.assertEqual(rv, None)
-        self.assertRegex(errors[0], re.escape("contains bad token(s)"))
-
-    def test_non_identifier_tokens(self):
-        for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
-            wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', expr, self.objects_hard)
-            wc_lang_expr.deserialize()
-            self.assertEqual(wc_lang_expr.errors, [])
-            expected = [WcLangToken(tok_code=TokCodes.other, token_string=tok) for tok in expr.strip().split()]
-            self.assertEqual(wc_lang_expr.wc_tokens, expected)
-
-    def test_deserialize_w_ids(self):
-        # test related_object_id
-        expr = 'test_id'
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', expr, self.objects_hard)
-        self.assertEqual(wc_lang_expr, wc_lang_expr.deserialize())
-        self.assertEqual(wc_lang_expr.errors, [])
-        for obj_type in self.objects_hard.keys():
-            if obj_type == Observable:
-                self.assertEqual(wc_lang_expr.related_objects[obj_type], [expr])
-            else:
-                self.assertEqual(wc_lang_expr.related_objects[obj_type], [])
-        self.assertEqual(wc_lang_expr.wc_tokens,
-            [WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='test_id', model_type=Observable, model_id='test_id')])
-
-        #expr = 'log(3) + 2*test_id[c] - test_id + Function.Observable()'
-
-    # todo: test `model_class` does not have a `Meta` attribute
