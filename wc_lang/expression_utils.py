@@ -605,8 +605,8 @@ class WcLangExpression(object):
                     else:   # pragma no cover
                         assert True, "result is neither str nor LexMatch '{}'".format(result)
 
-            # should find matches or errors
-            assert matches or tmp_errors, "No matches or errors found in '{}'".format(self.expression)  # pragma no cover
+            # should find either matches or errors
+            assert matches or tmp_errors, "No matches or errors found in '{}'".format(self.expression)
             # if only errors are found, break to return them
             if tmp_errors and not matches:
                 self.errors = tmp_errors
@@ -619,15 +619,11 @@ class WcLangExpression(object):
             longest_matches = []
             while matches_by_length and matches_by_length[-1].num_py_tokens == longest_length:
                 longest_matches.append(matches_by_length.pop())
-            if 1 < len(longest_matches):
-                print('longest_matches', longest_matches)
-                '''
-                matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
-                    for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
-                matches_error = ', '.join(matches_error)
-                '''
-                break
+            assert len(longest_matches) <= 1, "multiple longest matches: '{}'".format(longest_matches)
 
+            # good match
+            # advance idx to the next token
+            # record match data in self.wc_tokens and self.related_objects
             match = longest_matches.pop()
             idx += match.num_py_tokens
             wc_lang_tokens = match.wc_lang_tokens
