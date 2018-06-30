@@ -301,7 +301,7 @@ class TestWcLangExpression(unittest.TestCase):
             Observable: {'test_id':Observable(), 'obs_id':Observable()},
             Function: {'fun_1':Function(), 'fun_2':Function()}
         }
-        # todo: also try
+        # also try
         self.objects_hard = {
             Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
             Parameter: {'Observable':Parameter(), 'duped_id':Parameter()},
@@ -498,11 +498,13 @@ class TestWcLangExpression(unittest.TestCase):
         # test disambiguated_id
         expr = 'Parameter.duped_id + 2*Observable.duped_id'
         expected_wc_tokens = [
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Parameter.duped_id', model_type=Parameter, model_id='duped_id'),
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Parameter.duped_id', model_type=Parameter,
+                model_id='duped_id'),
             WcLangToken(TokCodes.other, '+'),
             WcLangToken(TokCodes.other, '2'),
             WcLangToken(TokCodes.other, '*'),
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Observable.duped_id', model_type=Observable, model_id='duped_id'),
+            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Observable.duped_id', model_type=Observable,
+                model_id='duped_id'),
         ]
         expected_related_objs = {
             Parameter:['duped_id'],
@@ -553,25 +555,62 @@ class TestWcLangExpression(unittest.TestCase):
             Function:['fun_2']}
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
 
-    def do_deserialize_error_test(self, expr, model_type=RateLawEquation, ):
-        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, self.objects_hard)
+    def do_deserialize_error_test(self, expr, expected_errors, model_type=RateLawEquation, test_objects=None):
+        if test_objects is None:
+            test_objects = self.objects_hard
+        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects)
+        sb_none, errors = wc_lang_expr.deserialize()
+        self.assertEqual(sb_none, None)
+        # expected_errors is a list of lists of strings that should match the actual errors
+        expected_errors = [self.esc_re_center(ee) for ee in expected_errors]
+        self.assertEqual(len(errors), len(expected_errors),
+            "Counts differ: num errors {} != Num expected errors {}".format(len(errors), len(expected_errors)))
+        expected_errors_found = {}
+        for expected_error in expected_errors:
+            expected_errors_found[expected_error] = False
+        for error in errors:
+            for expected_error in expected_errors:
+                if re.match(expected_error, error):
+                    if expected_errors_found[expected_error]:
+                        self.fail("Expected error '{}' matches again".format(expected_error))
+                    expected_errors_found[expected_error] = True
+        for expected_error, status in expected_errors_found.items():
+            self.assertTrue(status, "Expected error '{}' not found in errors".format(expected_error))
 
     def test_deserialize_errors(self):
-        pass
+        bad_id = 'no_such_id'
+        self.do_deserialize_error_test(bad_id,
+            [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)]])
+        bad_id = 'Observable.no_such_observable'
+        self.do_deserialize_error_test(bad_id,
+            [["contains multiple model object id matches: 'Observable' as a Function id, 'Observable' as a Parameter id"],
+            ["contains '{}', but '{}'".format(bad_id, bad_id.split('.')[1]), "is not the id of a"]])
+        bad_id = 'no_such_function'
+        bad_fn_name = bad_id+'()'
+        self.do_deserialize_error_test(bad_fn_name,
+            [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
+            ["contains the func name '{}', but it isn't in ".format(bad_id), "Meta.valid_functions"]])
+        bad_id = 'Function'
+        bad_fn_name = bad_id+'.no_such_function2()'
+        self.do_deserialize_error_test(bad_fn_name,
+            [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
+            ["contains '{}', which doesn't refer to a Function".format(bad_fn_name)]])
 
-        #expr = 'log(3) + 2*test_id[c] - test_id + Function.Observable()'
+    def test_str(self):
+        expr = 'fun_1() + Parameter.param_id'
+        wc_lang_expr = self.make_wc_lang_expr(expr)
+        self.assertIn(expr, str(wc_lang_expr))
+        self.assertIn('errors: []', str(wc_lang_expr))
+        self.assertIn('wc_tokens: []', str(wc_lang_expr))
+        wc_lang_expr.deserialize()
+        self.assertIn(expr, str(wc_lang_expr))
+        self.assertIn('errors: []', str(wc_lang_expr))
+        self.assertIn('wc_tokens: [WcLangToken', str(wc_lang_expr))
 
-    # todo: test `model_class` does not have a `Meta` attribute
-
-    @staticmethod
-    def show_toks(wc_lang_expr):
-        result = []
-        for wc_tok in wc_lang_expr.wc_tokens:
-            if wc_tok.tok_code == TokCodes.other:
-                result.append(wc_tok.token_string)
-            elif wc_tok.tok_code == TokCodes.math_fun_id:
-                result.append(wc_tok.token_string)
-            elif wc_tok.tok_code == TokCodes.wc_lang_obj_id:
-                result.append("{}.{}".format(wc_tok.model_type.__name__, wc_tok.model_id))
-        print('expr:', wc_lang_expr.expression)
-        print('result:', ' '.join(result))
+    '''
+    def test_model_class_lacks_meta(self):
+        class Foo(object): pass
+        expr = 'test_fn'
+        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=Foo)
+        wc_lang_expr.deserialize()
+    '''
