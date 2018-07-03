@@ -18,7 +18,7 @@ from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
     StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment, RateLawEquation)
 from wc_lang.expression_utils import (RateLawUtils, ExpressionUtils, TokCodes, WcLangToken, LexMatch,
-    WcLangExpression)
+    WcLangExpression, WcLangExpressionError)
 
 
 class TestRateLawUtils(unittest.TestCase):
@@ -201,7 +201,7 @@ class TestExpressionUtils(unittest.TestCase):
 
         # model_class without a Meta attribute
         class A(object): pass
-        with self.assertRaisesRegexp(ValueError, "type object 'A' has no attribute 'Meta'"):
+        with self.assertRaisesRegexp(WcLangExpressionError, "type object 'A' has no attribute 'Meta'"):
             deserialize(A, 'expression', 'log(2)', {})
 
         ### expressions with multiple object id references ###
@@ -268,7 +268,7 @@ class TestExpressionUtils(unittest.TestCase):
         st = SpeciesType(id='x_id')
         species = Species(compartment=c, species_type=st)
         wc_tokens, _ = deserialize(Species, 'expr', 'x_id[c] +', self.objects)
-        with self.assertRaisesRegexp(ValueError, re.escape("SyntaxError: cannot eval expression '3+' "
+        with self.assertRaisesRegexp(WcLangExpressionError, re.escape("SyntaxError: cannot eval expression '3+' "
             "in {} with id {}".format(Species.__name__, species.id()))):
             eval_expr(species, wc_tokens, 0, mock_dynamic_model)
 
@@ -277,7 +277,7 @@ class TestExpressionUtils(unittest.TestCase):
         model_type = Parameter
         wc_tokens, _ = deserialize(model_type, 'expr', '4 *', self.objects)
         id = 'rle_1'
-        with self.assertRaisesRegexp(ValueError, "SyntaxError: cannot eval expression .* in {} with id {}".format(
+        with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {} with id {}".format(
             model_type.__name__, id)):
             eval_expr(model_type(id=id), wc_tokens, 0, mock_dynamic_model)
 
@@ -287,7 +287,7 @@ class TestExpressionUtils(unittest.TestCase):
             WcLangToken(TokCodes.other, '('),
             WcLangToken(TokCodes.other, '6'),
             WcLangToken(TokCodes.other, ')')]
-        with self.assertRaisesRegexp(ValueError, "NameError: cannot eval expression .* in {} with id {}".format(
+        with self.assertRaisesRegexp(WcLangExpressionError, "NameError: cannot eval expression .* in {} with id {}".format(
             model_type.__name__, id)):
             eval_expr(model_type(id=id), wc_tokens, 0, mock_dynamic_model)
 
@@ -318,18 +318,18 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_wc_lang_expression(self):
         expr = '3 + 5 * 6'
-        wc_lang_expr = WcLangExpression(None, 'attr', ' ' + expr + ' ', self.objects)
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' ' + expr + ' ', self.objects)
         self.assertEqual(expr, wc_lang_expr.expression)
         n = 5
-        wc_lang_expr = WcLangExpression(None, 'attr', ' + ' * n, self.objects)
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
         expr = 'id1[id2'
-        with self.assertRaisesRegexp(ValueError,
+        with self.assertRaisesRegexp(WcLangExpressionError,
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
             self.make_wc_lang_expr(expr)
 
     def test_get_wc_lang_model_type(self):
-        wc_lang_expr = WcLangExpression(None, None, 'expr', self.objects)
+        wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
         self.assertEqual(None, wc_lang_expr.get_wc_lang_model_type('NoSuchType'))
         self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
         self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
@@ -607,10 +607,12 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertIn('errors: []', str(wc_lang_expr))
         self.assertIn('wc_tokens: [WcLangToken', str(wc_lang_expr))
 
-    '''
     def test_model_class_lacks_meta(self):
         class Foo(object): pass
-        expr = 'test_fn'
-        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=Foo)
-        wc_lang_expr.deserialize()
-    '''
+        objects = {
+            Foo: {'foo_1':Foo(), 'foo_2':Foo()}
+        }
+        with self.assertRaisesRegexp(WcLangExpressionError, "objects key 'Foo' is not a subclass of obj_model.Model"):
+            WcLangExpression(RateLawEquation, 'expr_attr', '', objects)
+        with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
+            WcLangExpression(Foo, 'expr_attr', '', self.objects)
