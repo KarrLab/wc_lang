@@ -27,14 +27,14 @@ PARAMETERS_DICT = 'parameters'
 build
     add test_eval() method
     ensure that expression only references allowed model types
-    make generic ModelWithExpression class in wc_lang
     ensure that all types of related Models can be evaluated through dynamic_model
     (same?) make dynamic_model.eval_dynamic_obj() handle all dyamic Models
+    make generic ModelWithExpression class in wc_lang
     what about k_cat and k_m?
     test with real WC models
     Jupyter example
     replace existing RE parsing and expression eval code
-    use ExpressionUtils to deserialize all wc_lang expressions
+    use WcLangExpression to deserialize all wc_lang expressions
     rename Function to Macro
 cleanup
     have valid_functions defined as sets, not tuples
@@ -319,6 +319,36 @@ class WcLangExpressionError(Error):
 
 class WcLangExpression(object):
     """ An expression in a wc_lang Model
+
+    Expressions are currently (July, 2018) used in four `wc_lang` `Model`s: `RateLawEquation`, `Function`,
+    `StopCondition` (which is just a special case of `Function` that returns a boolean), and `ObjectiveFunction`.
+    These expressions are limited Python expressions with specific semantics:
+
+    * They must be syntactically correct Python.
+    * No Python keywords, strings, or tokens that do not belong in expressions are allowed.
+    * All Python identifiers must be the ID of an object in a whole-cell model, or components of
+        an ID of an object in the model, or the name of a function in the `math` package. Objects in the model
+        are provided in `objects`, and the allowed subset of functions in `math` must be provided in an
+        iterator in the `valid_functions` attribute of the `Meta` class of a model whose whose expression
+        is being processed.
+    * Currently (July, 2018), identifiers may refer to `Species`s, `Parameter`s, `Observable`s, `Reaction`s,
+        `Observable`'s and `BiomassReaction`s.
+    * Cycles of references are illegal.
+    * An identifier must unambiguously refer to exactly one related `Model` in a model.
+    * Each `wc_lang` `Model` that can be used in an expression must have an ID that is a simple Python identifier,
+        or define `token_pattern` as an attribute that describes the `Model`'s syntactic Python structure. See
+        `Species` for an example.
+    * Every expression must be computable at any time during a simulation. The evaluation of an expression
+        always occurs at a precise simulation time, which is implied by the expression but not explicitly
+        represented. E.g., a reference to a `Species` means its concentration at the time the expression is
+        `eval`ed. These are the meanings of references:
+        * `Species`: its current concentration
+        * `Parameter`: its value, which is static
+        * `Observable`: its current value, whose units depend on its definition
+        * `Reaction`: its current flux
+        * `BiomassReaction`: its current flux
+    * The modeller is responsible for ensuring that units in expressions are internally consistent and appropriate
+        for the expression's use
 
     Attributes:
         model_class (:obj:`obj_model.Model`): the `wc_lang` `Model` which has an expression
@@ -743,288 +773,3 @@ class WcLangExpression(object):
         rv.append("errors: {}".format(self.errors))
         rv.append("wc_tokens: {}".format(self.wc_tokens))
         return '\n'.join(rv)
-
-
-class ExpressionUtils(object):
-    """ Utilities for processing expressions in Models
-
-    Expressions are currently (July, 2018) used in four `wc_lang` `Model`s: `RateLawEquation`, `Function`,
-    `StopCondition` (which is just a special case of `Function` that returns a boolean), and `ObjectiveFunction`.
-    These expressions are limited Python expressions with specific semantics:
-
-    * They must be syntactically correct Python.
-    * No Python keywords, strings, or tokens that do not belong in expressions are allowed.
-    * All Python identifiers must be the ID of an object in a whole-cell model, or components of
-        an ID of an object in the model, or the name of a function in the `math` package. Objects in the model
-        are provided in `objects`, and the allowed subset of functions in `math` must be provided in an
-        iterator in the `valid_functions` attribute of the `Meta` class of a model whose whose expression
-        is being processed.
-    * Currently (July, 2018), identifiers may refer to `Species`s, `Parameter`s, `Observable`s, `Reaction`s,
-        `Observable`'s and `BiomassReaction`s.
-    * Cycles of references are illegal.
-    * An identifier must unambiguously refer to exactly one related `Model` in a model.
-    * Each `wc_lang` `Model` that can be used in an expression must have an ID that is a simple Python identifier,
-        or define `token_pattern` as an attribute that describes the `Model`'s syntactic Python structure. See
-        `Species` for an example.
-    * Every expression must be computable at any time during a simulation. The evaluation of an expression
-        always occurs at a precise simulation time, which is implied by the expression but not explicitly
-        represented. E.g., a reference to a `Species` means its concentration at the time the expression is
-        `eval`ed. These are the meanings of references:
-        * `Species`: its current concentration
-        * `Parameter`: its value, which is static
-        * `Observable`: its current value, whose units depend on its definition
-        * `Reaction`: its current flux
-        * `BiomassReaction`: its current flux
-    * The modeller is responsible for ensuring that units in expressions are internally consistent and appropriate
-        for the expression's use
-    """
-
-    function_pattern = (token.NAME, token.LPAR)
-
-    # enumerate and detect Python tokens that are illegal in wc_lang expressions
-    # TODO: consider a handful of other tokens may also be illegal: COMMA, SEMI, TILDE, CIRCUMFLEX, and AT
-    illegal_token_names = ['ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
-        'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
-        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
-        'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET']
-    illegal_tokens = set()
-    for illegal_name in illegal_token_names:
-        illegal_tokens.add(getattr(token, illegal_name))
-
-    @staticmethod
-    def match_tokens(token_pattern, tokens):
-        """ Indicate whether `tokens` begins with a pattern of tokens that match `token_pattern`
-
-        Args:
-            token_pattern (:obj:`tuple` of `int`): a tuple of Python token numbers, taken from the
-            `token` module
-            tokens (:obj:`list` of :obj:`namedtuple`): a list of tokens generated by
-            `tokenize.tokenize()`
-
-            Returns:
-                :obj:`object`: :obj:`bool`, False if the initial elements of `tokens` do not match the
-                syntax in `token_pattern`, or :obj:`str`, the matching string
-        """
-        if not token_pattern:
-            return False
-        if len(tokens) < len(token_pattern):
-            return False
-        for idx, token_pat_num in enumerate(token_pattern):
-            if tokens[idx].exact_type != token_pat_num:
-                return False
-            # because a wc_lang ID shouldn't contain white space, do not allow it between the tokens
-            # that match token_pattern
-            if 0<idx and tokens[idx-1].end != tokens[idx].start:
-                return False
-        match_val = ''.join([tokens[i].string for i in range(len(token_pattern))])
-        return match_val
-
-    @staticmethod
-    def deserialize(model_class, attribute, expression, objects):
-        """ Deserialize a Python expression in `expression`
-
-        Args:
-            model_class (:obj:`obj_model.Model`): the `wc_lang` `Model` whose expression is being deserialize
-            attribute (:obj:`str`): the attribute name of the expression in `model_class`
-            expression (:obj:`str`): a `wc_lang` Python expression
-            objects (:obj:`dict` of `list` of `obj_model.Model`): map from `obj_model.Model`s to
-                `list`s of their instances
-
-        Returns:
-            (:obj:`tuple`): either `(None, :obj:list of str)` containing a list of errors, or `(:obj:list, :obj:dict)`
-            containing a list of `WcLangToken`s and a dict of modifiers used in this list
-
-        Raises:
-            (:obj:`WcLangExpressionError`): if `model_class` does not have a `Meta` attribute
-        """
-        errors = []
-        wc_tokens = []
-        related_objects = {}
-        for model_type in objects.keys():
-            related_objects[model_type] = []
-
-        # strip leading and trailing whitespace from expression, which would create a bad token error
-        expression = expression.strip()
-
-        g = tokenize.tokenize(BytesIO(expression.encode('utf-8')).readline)
-        # strip the leading ENCODING and trailing ENDMARKER tokens
-        tokens = list(g)[1:-1]
-
-        # detect and report bad tokens
-        bad_tokens = set()
-        for tok in tokens:
-            if tok.exact_type in ExpressionUtils.illegal_tokens:
-                if tok.string and tok.string != ' ':
-                    bad_tokens.add(tok.string)
-                else:
-                    bad_tokens.add(token.tok_name[tok.type])
-        if bad_tokens:
-            error = "'{}', a {}.{}, contains bad token(s): '{}'".format(expression, model_class.__name__,
-                attribute, "', '".join(bad_tokens))
-            return (None, [error])
-
-        idx = 0
-        while idx < len(tokens):
-
-            # a token that isn't an identifier needs no processing
-            if tokens[idx].type != token.NAME:
-                # record non-identifier token
-                wc_tokens.append(WcLangToken(TokCodes.other, tokens[idx].string))
-                idx += 1
-                continue
-
-            # look for a function call
-            fun_match = ExpressionUtils.match_tokens(ExpressionUtils.function_pattern, tokens[idx:])
-            if fun_match:
-                fun_name = tokens[idx].string
-                # function_pattern is "identifier (" which can reference either a wc_lang Macro or a Python math function
-                try:
-
-                    # are Python math functions defined?
-                    if not hasattr(model_class.Meta, 'valid_functions'):
-                        errors.append("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
-                            "define 'valid_functions'".format(expression,
-                            model_class.__name__, attribute, fun_name, model_class.__name__))
-                        idx += len(ExpressionUtils.function_pattern)
-                        continue
-                    function_ids = set([f.__name__ for f in model_class.Meta.valid_functions])
-
-                    # is the function allowed?
-                    if fun_name not in function_ids:
-                        errors.append("'{}', a {}.{}, contains the func name '{}', but it isn't in "
-                            "{}.Meta.valid_functions: {}".format(expression, model_class.__name__,
-                            attribute, fun_name, model_class.__name__, ', '.join(function_ids)))
-                        idx += len(ExpressionUtils.function_pattern)
-                        continue
-
-                    # record function tokens
-                    wc_tokens.append(WcLangToken(TokCodes.math_fun_id, fun_name))
-                    # add the '(' which was used to find the function
-                    wc_tokens.append(WcLangToken(TokCodes.other, '('))
-                    idx += len(ExpressionUtils.function_pattern)
-                    continue
-                except AttributeError as e:
-                    raise WcLangExpressionError(str(e))
-
-            # look for a related object id; some ids consume multiple Python tokens
-            token_matches = set()
-            id_matches = set()
-            object_type_names = [model_type.__name__ for model_type in objects.keys()]
-            for model_type in objects.keys():
-                token_pattern = (token.NAME, )
-                if hasattr(model_type.Meta, 'token_pattern'):
-                    token_pattern = model_type.Meta.token_pattern
-                match_string = ExpressionUtils.match_tokens(token_pattern, tokens[idx:])
-                if match_string:
-                    token_matches.add(match_string)
-                    # is match_string the ID of an instance in model_type?
-                    if match_string in objects[model_type]:
-                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
-
-            if not id_matches:
-                if token_matches:
-                    errors.append("'{}', a {}.{}, contains the identifier(s) '{}', which aren't "
-                        "the id(s) of an object in 'objects'".format(expression,
-                        model_class.__name__, attribute, "', '".join(token_matches)))
-                else:
-                    errors.append("'{}', a {}.{}, contains no identifiers matching the token pattern "
-                        "of '{}' objects".format(expression,
-                        model_class.__name__, attribute, ', '.join(object_type_names)))
-                # break the analysis, because it is not clear how many tokens should be skipped
-                break
-
-            if 1 < len(id_matches):
-                # like any typical lexer, pick the longest match
-                id_matches_by_length = sorted(id_matches, key=lambda id_match: len(id_match.match_string))
-                longest_length = len(id_matches_by_length[-1].match_string)
-                longest_matches = set()
-                while id_matches_by_length and len(id_matches_by_length[-1].match_string) == longest_length:
-                    longest_matches.add(id_matches_by_length.pop())
-                id_matches = longest_matches
-
-            if 1 < len(id_matches):
-                # error: multiple, maximal length model id_matches
-                matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
-                    for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
-                matches_error = ', '.join(matches_error)
-                errors.append("'{}', a {}.{}, contains multiple model object id matches: {}".format(expression,
-                    model_class.__name__, attribute, matches_error))
-                # again, break because it is not clear how many tokens should be skipped
-                break
-
-            else:
-                # record an object ID token
-                id_match = id_matches.pop()
-                related_objects[id_match.model_type].append(id_match.match_string)
-                wc_tokens.append(WcLangToken(TokCodes.wc_lang_obj_id, id_match.match_string, id_match.model_type))
-                idx += len(id_match.token_pattern)
-                continue
-
-        # todo: perhaps ensure that the parsed expression can be eval'ed, assuming values in the range for related models
-        # could even specify range in model declaration
-        if errors:
-            return (None, errors)
-        else:
-            # deterministically de-dupe all lists in related_objects
-            for model_type, related_models in related_objects.items():
-                related_objects[model_type] = det_dedupe(related_models)
-            return (wc_tokens, related_objects)
-
-    # the union of all valid_functions attributes for related Models
-    valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-
-    @staticmethod
-    def eval_expr(dyn_model_obj, tokenized_expr, time, dynamic_model):
-        """ Evaluate a Python expression in attribute `attribute` of object `obj`
-
-        Called by the simulator when it calculates the value of a dynamic object, such as a
-        DynamicObservable, or a RateLaw.
-
-        Approach:
-            * Replace references to related Models in `tokenized_expr` with their values
-            * Join the elements of `tokenized_expr` into a Python expression
-            * `eval` the Python expression
-
-        Args:
-            dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` `Model` instance whose expression is being evaluated
-            tokenized_expr (:obj:`list` of `tuple`): the tokens in the deserialized expression
-            time (:obj:`float`): the current simulation time
-            dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
-            
-        Returns:
-            (:obj:`object`): the value of the expression at time `time`
-
-        Raises:
-            (:obj:`WcLangExpressionError`): if the expression evaluation fails
-        """
-        # todo: ensure that all types of related Models can be evaluated through dynamic_model
-        evaled_tokens = []
-        for wc_token in tokenized_expr:
-            if wc_token.tok_code != TokCodes.wc_lang_obj_id:
-                evaled_tokens.append(wc_token.token_string)
-            else:
-                # evaluate the wc_lang_obj_id
-                value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
-                evaled_tokens.append(str(value))
-
-        expression = ''.join(evaled_tokens)
-        local_ns = {func.__name__: func for func in ExpressionUtils.valid_functions}
-        # todo: what about k_cat and k_m?
-
-        # get id whether it is a static attribute or a method, like in Species
-        id = None
-        if hasattr(dyn_model_obj, 'id'):
-            id = getattr(dyn_model_obj, 'id')
-            if callable(id):
-                id = id()
-
-        error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
-            dyn_model_obj.__class__.__name__, id, time)
-        try:
-            return eval(expression, {}, local_ns)
-        except SyntaxError as error:
-            raise WcLangExpressionError("SyntaxError:" + error_suffix + str(error))
-        except NameError as error:
-            raise WcLangExpressionError("NameError:" + error_suffix + str(error))
-        except Exception as error:  # pragma: no cover
-            raise WcLangExpressionError("Exception:" + error_suffix + str(error))
