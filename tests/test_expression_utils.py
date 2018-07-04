@@ -323,6 +323,12 @@ class TestWcLangExpression(unittest.TestCase):
         n = 5
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {})
+        self.assertEqual(wc_lang_expr.valid_functions, set())
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}})
+        self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{},ObjectiveFunction:{}})
+        self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegexp(WcLangExpressionError,
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
@@ -616,3 +622,44 @@ class TestWcLangExpression(unittest.TestCase):
             WcLangExpression(RateLawEquation, 'expr_attr', '', objects)
         with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
+
+    def test_eval_expr(self):
+        class MockDynamicModel(object): pass
+        mock_dynamic_model = MockDynamicModel()
+        related_obj_val = 3
+        mock_dynamic_model.eval_dynamic_obj = MagicMock(return_value=related_obj_val)
+
+        # test combination of TokCodes
+        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)', obj_type=RateLawEquation)
+        wc_lang_expr.deserialize()
+        expected_val = 4 * related_obj_val + pow(2, related_obj_val)
+        evaled_val = wc_lang_expr.eval_expr(None, 0, mock_dynamic_model)
+        self.assertEqual(expected_val, evaled_val)
+
+        # test types with callable ids
+        c = Compartment(id='c')
+        st = SpeciesType(id='x_id')
+        species = Species(compartment=c, species_type=st)
+        wc_lang_expr = self.make_wc_lang_expr('x_id[c] +')
+        wc_lang_expr.deserialize()
+        with self.assertRaisesRegexp(WcLangExpressionError, re.escape("SyntaxError: cannot eval expression '3 +' "
+            "in {} with id {}".format(Species.__name__, species.id()))):
+            wc_lang_expr.eval_expr(species, 0, mock_dynamic_model)
+
+        # test different exceptions
+        # syntax error
+        model_type = Parameter
+        wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
+        wc_lang_expr.deserialize()
+        id = 'rle_1'
+        with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {} with id {}".format(
+            model_type.__name__, id)):
+            wc_lang_expr.eval_expr(model_type(id=id), 0, mock_dynamic_model)
+
+        # expression that could not be serialized
+        expr = 'foo(6)'
+        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=model_type)
+        wc_lang_expr.deserialize()
+        with self.assertRaisesRegexp(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
+            "successfully deserialized".format(expr))):
+            wc_lang_expr.eval_expr(model_type(id=id), 0, mock_dynamic_model)
