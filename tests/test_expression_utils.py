@@ -427,7 +427,13 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)', obj_type=RateLawEquation)
         wc_lang_expr.deserialize()
         expected_val = 4 * related_obj_val + pow(2, related_obj_val)
-        evaled_val = wc_lang_expr.eval_expr(None, 0, mock_dynamic_model)
+        evaled_val = wc_lang_expr.eval_expr(None, None, mock_dynamic_model)
+        self.assertEqual(expected_val, evaled_val)
+
+        # test testing
+        related_obj_val = 1.0
+        expected_val = 4 * related_obj_val + pow(2, related_obj_val)
+        evaled_val = wc_lang_expr.eval_expr(None, None, None, testing=True)
         self.assertEqual(expected_val, evaled_val)
 
         # test types with callable ids

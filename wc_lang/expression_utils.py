@@ -25,7 +25,6 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
-    add test_eval() method
     ensure that expression only references allowed model types
     ensure that all types of related Models can be evaluated through dynamic_model
     (same?) make dynamic_model.eval_dynamic_obj() handle all dyamic Models
@@ -705,8 +704,10 @@ class WcLangExpression(object):
             self.related_objects[model_type] = det_dedupe(related_models)
         return (self.wc_tokens, self.related_objects)
 
-    def eval_expr(self, dyn_model_obj, time, dynamic_model):
-        """ Evaluate a Python expression in attribute `attribute` of object `obj`
+    def eval_expr(self, dyn_model_obj, time, dynamic_model, testing=False):
+        """ Evaluate the Python expression in this `WcLangExpression`
+
+        The expression must have been successfully `deserialize`d.
 
         Called by the simulator when it calculates the value of a dynamic object, such as a
         `DynamicObservable`, or a `RateLawEquation`.
@@ -720,6 +721,8 @@ class WcLangExpression(object):
             dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` `Model` instance whose expression is being evaluated
             time (:obj:`float`): the current simulation time
             dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
+            testing (:obj:`bool`): if set, test `eval` the expression, using values of 1.0 for all related Models;
+                default = `False`
 
         Returns:
             (:obj:`object`): the value of the expression at time `time`
@@ -738,7 +741,11 @@ class WcLangExpression(object):
                 evaled_tokens.append(wc_token.token_string)
             else:
                 # evaluate the wc_lang_obj_id
-                value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
+                # if testing, use a value of 1.0
+                if testing:
+                    value = 1.0
+                else:
+                    value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
                 evaled_tokens.append(str(value))
 
         expression = ' '.join(evaled_tokens)
