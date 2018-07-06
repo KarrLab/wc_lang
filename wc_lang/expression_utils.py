@@ -26,8 +26,7 @@ PARAMETERS_DICT = 'parameters'
 '''
 build
     ensure that expression only references allowed model types
-    ensure that all types of related Models can be evaluated through dynamic_model
-    (same?) make dynamic_model.eval_dynamic_obj() handle all dyamic Models
+    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
     make generic ModelWithExpression class in wc_lang
     what about k_cat and k_m?
     test with real WC models

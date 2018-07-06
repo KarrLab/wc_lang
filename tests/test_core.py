@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           SpeciesCoefficient, ObservableCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
                           RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, BiomassComponent,
-                          BiomassReaction, StopCondition,
+                          BiomassReaction, StopCondition, Function,
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute, RateLawEquationAttribute,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
@@ -1688,6 +1688,12 @@ class TestCore(unittest.TestCase):
 
         cond = model.stop_conditions.create(id='cond', expression='x() > 3')
         self.assertNotEqual(cond.validate(), None)
+
+    def test_valid_model_types(self):
+        for model_type in [RateLawEquation, Function, StopCondition, ObjectiveFunction, Observable]:
+            self.assertTrue(hasattr(model_type.Meta, 'valid_model_types'))
+            for valid_model_type in model_type.Meta.valid_model_types:
+                self.assertTrue(hasattr(wc_lang.core, valid_model_type))
 
 
 class TestCoreFromFile(unittest.TestCase):

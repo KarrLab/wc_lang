@@ -1119,13 +1119,16 @@ class ObjectiveFunction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
-            valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in
-            this `ObjectiveFunction`
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in this `ObjectiveFunction`s `expression`
+            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
+                `ObjectiveFunction` is allowed to reference in its `expression`
         """
         attribute_order = ('linear', 'expression', 'reactions', 'biomass_reactions')
         tabular_orientation = TabularOrientation.inline
         # because objective functions must be continuous, the functions they use must be as well
         valid_functions = (exp, pow, log, log10)
+        valid_model_types = ('Parameter', 'Observable', 'Reaction', 'BiomassReaction')
 
     def serialize(self):
         """ Generate string representation
@@ -1665,7 +1668,7 @@ class Concentration(obj_model.Model):
 
 
 class Observable(obj_model.Model):
-    """ An observable (a weighted sum of the abundances of one or more species)
+    """ An observable is a weighted sum of the abundances of one or more species or other observables
 
     Attributes:
         id (:obj:`str`): id
@@ -1687,8 +1690,14 @@ class Observable(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
+                `Observable` is allowed to reference in its `expression`
+        """
         attribute_order = ('id', 'name', 'species', 'observables', 'comments')
         indexed_attrs_tuples = (('id',), )
+        valid_model_types = ('Species', 'Observable')
 
 
 class Function(obj_model.Model):
@@ -1708,8 +1717,16 @@ class Function(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in this `Function`s `expression`
+            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `Function` is allowed to reference in its `expression`
+        """
         attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_model_types = ('Parameter', 'Observable', 'Function')
 
     def validate(self):
         """ Determine whether a `Function` is valid by checking whether
@@ -2161,12 +2178,16 @@ class RateLawEquation(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
-            valid_functions (:obj:`tuple` of `str`): tuple of names of functions that can be used in this `RateLawEquation`
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in a `RateLawEquation`s `expression`
+            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `RateLawEquation` is allowed to reference in its `expression`
         """
         attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         ordering = ('rate_law',)
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_model_types = ('Species', 'Parameter', 'Observable', 'Function')
 
     def serialize(self):
         """ Generate string representation
@@ -2472,8 +2493,16 @@ class StopCondition(obj_model.Model):
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in a `StopCondition`s `expression`
+            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `StopCondition` is allowed to reference in its `expression`
+        """
         attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_model_types = ('Parameter', 'Observable', 'Function')
 
     def validate(self):
         """ Determine whether a `StopCondition` is valid by checking whether
