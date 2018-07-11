@@ -95,7 +95,8 @@ class TestWcLangExpression(unittest.TestCase):
             Observable: {'test_id':Observable(), 'obs_id':Observable()},
             Function: {'fun_1':Function(), 'fun_2':Function()}
         }
-        # also try
+
+        # more complex objects
         self.objects_hard = {
             Species: {'test_id[c]':Species(), 'x_id[c]':Species()},
             Parameter: {'Observable':Parameter(), 'duped_id':Parameter()},
@@ -107,8 +108,12 @@ class TestWcLangExpression(unittest.TestCase):
     def esc_re_center(re_list):
         return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
 
-    def make_wc_lang_expr(self, expr, obj_type=Species):
-        return WcLangExpression(obj_type, 'expr_attr', expr, self.objects)
+    def make_wc_lang_expr(self, expr, obj_type=RateLawEquation):
+        objects = {}
+        for o_type, value in self.objects.items():
+            if o_type.__name__ in obj_type.Meta.valid_model_types:
+                objects[o_type] = value
+        return WcLangExpression(obj_type, 'expr_attr', expr, objects)
 
     def test_wc_lang_expression(self):
         expr = '3 + 5 * 6'
@@ -121,12 +126,18 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.valid_functions, set())
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}})
         self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{},ObjectiveFunction:{}})
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}, Parameter:{}})
         self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegexp(WcLangExpressionError,
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
             self.make_wc_lang_expr(expr)
+        with self.assertRaisesRegexp(WcLangExpressionError,
+            "model_class 'Species' doesn't have a 'Meta.valid_model_types' attribute"):
+            WcLangExpression(Species, 'attr', '', {})
+        with self.assertRaisesRegexp(WcLangExpressionError,
+            "objects entry 'RateLawEquation' not a member of Function.Meta.valid_model_types:"):
+            WcLangExpression(Function, 'attr', '', {RateLawEquation:{}})
 
     def test_get_wc_lang_model_type(self):
         wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
@@ -187,7 +198,7 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', which uses 'Function' as a disambiguation model type but doesn't use Function syntax")
         self.do_disambiguated_id_error_test('NoSuchModel.fun_1',
             "contains '{}', but the disambiguation model type 'NoSuchModel' cannot be referenced by "
-                "'Species' expressions")
+                "'RateLawEquation' expressions")
         self.do_disambiguated_id_error_test('Parameter.fun_1',
             "contains '{}', but 'fun_1' is not the id of a 'Parameter'")
 
@@ -231,7 +242,7 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr("3 * 4")
         self.assertEqual(wc_lang_expr.related_object_id(0), None)
 
-    def do_fun_call_error_test(self, expr, expected_error, obj_type=Species):
+    def do_fun_call_error_test(self, expr, expected_error, obj_type=RateLawEquation):
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
         result = wc_lang_expr.fun_call_id(0)
         self.assertTrue(isinstance(result, str))
@@ -239,14 +250,13 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_fun_call_id_errors(self):
         self.do_fun_call_error_test('log(3)', ["contains the func name '",
-            "but {}.Meta doesn't define 'valid_functions'".format(Species.__name__)],
-            obj_type=Species)
+            "but {}.Meta doesn't define 'valid_functions'".format(Observable.__name__)],
+            obj_type=Observable)
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
-            "but it isn't in {}.Meta.valid_functions".format(RateLawEquation.__name__)],
-            obj_type=RateLawEquation)
+            "but it isn't in {}.Meta.valid_functions".format(RateLawEquation.__name__)])
 
     def test_fun_call_id(self):
-        wc_lang_expr = self.make_wc_lang_expr('log(3)', obj_type=RateLawEquation)
+        wc_lang_expr = self.make_wc_lang_expr('log(3)')
         lex_match = wc_lang_expr.fun_call_id(0)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.function_pattern))
@@ -259,12 +269,12 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
 
     def test_bad_tokens(self):
-        rv, errors = WcLangExpression(Species, 'test', '+= *= @= : {}', {}).deserialize()
+        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).deserialize()
         self.assertEqual(rv, None)
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
             self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
         # test bad tokens that don't have string values
-        rv, errors = WcLangExpression(Species, 'test', """
+        rv, errors = WcLangExpression(RateLawEquation, 'test', """
  3
  +1""", {}).deserialize()
         self.assertEqual(rv, None)
@@ -412,7 +422,7 @@ class TestWcLangExpression(unittest.TestCase):
         objects = {
             Foo: {'foo_1':Foo(), 'foo_2':Foo()}
         }
-        with self.assertRaisesRegexp(WcLangExpressionError, "objects key 'Foo' is not a subclass of obj_model.Model"):
+        with self.assertRaisesRegexp(WcLangExpressionError, "objects entry 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(RateLawEquation, 'expr_attr', '', objects)
         with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
@@ -424,7 +434,7 @@ class TestWcLangExpression(unittest.TestCase):
         mock_dynamic_model.eval_dynamic_obj = MagicMock(return_value=related_obj_val)
 
         # test combination of TokCodes
-        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)', obj_type=RateLawEquation)
+        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)')
         wc_lang_expr.deserialize()
         expected_val = 4 * related_obj_val + pow(2, related_obj_val)
         evaled_val = wc_lang_expr.eval_expr(None, None, mock_dynamic_model)
@@ -448,13 +458,12 @@ class TestWcLangExpression(unittest.TestCase):
 
         # test different exceptions
         # syntax error
-        model_type = Parameter
+        model_type = RateLawEquation
         wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
         wc_lang_expr.deserialize()
-        id = 'rle_1'
-        with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {} with id {}".format(
-            model_type.__name__, id)):
-            wc_lang_expr.eval_expr(model_type(id=id), 0, mock_dynamic_model)
+        with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {}".format(
+            model_type.__name__)):
+            wc_lang_expr.eval_expr(model_type(), 0, mock_dynamic_model)
 
         # expression that could not be serialized
         expr = 'foo(6)'
@@ -462,4 +471,4 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr.deserialize()
         with self.assertRaisesRegexp(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
             "successfully deserialized".format(expr))):
-            wc_lang_expr.eval_expr(model_type(id=id), 0, mock_dynamic_model)
+            wc_lang_expr.eval_expr(model_type(), 0, mock_dynamic_model)

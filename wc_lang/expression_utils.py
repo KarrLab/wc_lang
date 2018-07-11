@@ -1,10 +1,10 @@
-'''Static methods which handle rate laws and their expressions
+""" Utilities for processing mathematical expressions used by wc_lang models
 
 :Author: Arthur Goldberg, Arthur.Goldberg@mssm.edu
 :Date: 2017-10-23
-:Copyright: 2016-2017, Karr Lab
+:Copyright: 2016-2018, Karr Lab
 :License: MIT
-'''
+"""
 import tokenize
 import token
 from six.moves import cStringIO
@@ -17,15 +17,13 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum
 import obj_model
 import wc_lang
 
-
 CONCENTRATIONS_DICT = 'concentrations'
 PARAMETERS_DICT = 'parameters'
-
 
 # TODOS
 '''
 build
-    ensure that expression only references allowed model types
+    avoid recursive Function calls
     ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
     make generic ModelWithExpression class in wc_lang
     what about k_cat and k_m?
@@ -383,19 +381,29 @@ class WcLangExpression(object):
         """ Create an instance of WcLangExpression
 
         Raises:
-            (:obj:`WcLangExpressionError`): if lexical analysis of `expression` raises an exception
+            (:obj:`WcLangExpressionError`): if `model_class` is not a subclass of `obj_model.Model`,
+                or lexical analysis of `expression` raises an exception,
+                or `objects` includes model types that `model_class` should not reference
         """
         if not issubclass(model_class, obj_model.Model):
             raise WcLangExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
                 model_class.__name__))
+        if not hasattr(model_class.Meta, 'valid_model_types'):
+            raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_model_types' attribute".format(
+                model_class.__name__))
+        valid_model_types = set([getattr(wc_lang.core, valid_model_type)
+            for valid_model_type in model_class.Meta.valid_model_types])
         self.model_class = model_class
         self.attribute = attribute
         # strip leading and trailing whitespace from expression, which would create a bad token error
         self.expression = expression.strip()
         for obj_type in objects.keys():
             if not issubclass(obj_type, obj_model.Model):
-                raise WcLangExpressionError("objects key '{}' is not a subclass of obj_model.Model".format(
+                raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
                     obj_type.__name__))
+            if obj_type not in valid_model_types:
+                raise WcLangExpressionError("objects entry '{}' not a member of {}.Meta.valid_model_types: {}".format(
+                    obj_type.__name__, model_class.__name__, model_class.Meta.valid_model_types))
         self.valid_functions = set()
         for obj_type in objects.keys():
             if hasattr(obj_type.Meta, 'valid_functions'):
@@ -756,9 +764,12 @@ class WcLangExpression(object):
             id = getattr(dyn_model_obj, 'id')
             if callable(id):
                 id = id()
+            error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
+                dyn_model_obj.__class__.__name__, id, time)
+        else:
+            error_suffix = " cannot eval expression '{}' in {} at time {}; ".format(expression,
+                dyn_model_obj.__class__.__name__, time)
 
-        error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
-            dyn_model_obj.__class__.__name__, id, time)
         try:
             return eval(expression, {}, local_ns)
         except SyntaxError as error:
