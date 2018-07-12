@@ -24,7 +24,9 @@ PARAMETERS_DICT = 'parameters'
 '''
 build
     avoid recursive Function calls
+    rethink eval_expr, which should symmetricaly eval nested elements
     ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+    * diagram with recursive diagonal
     make generic ModelWithExpression class in wc_lang
     what about k_cat and k_m?
     test with real WC models
@@ -35,6 +37,8 @@ build
 cleanup
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
+    replace all validation and deserialization code
+    fix the cheats in test_expression_utils.py
 '''
 
 
@@ -283,14 +287,15 @@ IdMatch.match_string.__doc__ = 'The matched string'
 
 
 # a token in a parsed wc_lang expression, returned in a list by deserialize
-WcLangToken = namedtuple('WcLangToken', 'tok_code, token_string, model_type, model_id')
-# make model_type and model_id optional: see https://stackoverflow.com/a/18348004
-WcLangToken.__new__.__defaults__ = (None, None)
+WcLangToken = namedtuple('WcLangToken', 'tok_code, token_string, model_type, model_id, model')
+# make model_type, model_id, and model optional: see https://stackoverflow.com/a/18348004
+WcLangToken.__new__.__defaults__ = (None, None, None)
 WcLangToken.__doc__ += ': Token in a parsed wc_lang expression'
 WcLangToken.tok_code.__doc__ = 'TokCodes encoding'
 WcLangToken.token_string.__doc__ = "The token's string"
 WcLangToken.model_type.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's type"
 WcLangToken.model_id.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's id"
+WcLangToken.model.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj"
 
 
 class Error(Exception):
@@ -316,9 +321,9 @@ class WcLangExpressionError(Error):
 class WcLangExpression(object):
     """ An expression in a wc_lang Model
 
-    Expressions are currently (July, 2018) used in four `wc_lang` `Model`s: `RateLawEquation`, `Function`,
-    `StopCondition` (which is just a special case of `Function` that returns a boolean), and `ObjectiveFunction`.
-    These expressions are limited Python expressions with specific semantics:
+    Expressions are currently (July, 2018) used in five `wc_lang` `Model`s: `RateLawEquation`, `Function`,
+    `StopCondition` (which is just a special case of `Function` that returns a boolean), `ObjectiveFunction`,
+    and `Observable`. These expressions are limited Python expressions with specific semantics:
 
     * They must be syntactically correct Python.
     * No Python keywords, strings, or tokens that do not belong in expressions are allowed.
@@ -355,10 +360,10 @@ class WcLangExpression(object):
             model type to a dict mapping ids to Model instances
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `objects`
         related_objects (:obj:`dict`): models that are referenced in `expression`; maps model type to
-            list of ids used
+            dict that maps model id to model instance
         errors (:obj:`list` of `str`): errors found when parsing an `expression` fails
         wc_tokens (:obj:`list` of `WcLangToken`): tokens obtained when an `expression` is successfully
-            `deserialize`d; if empty, then this expression cannot use `eval_expr()`
+            `deserialize`d; if empty, then this `WcLangExpression` cannot use `eval_expr()`
     """
 
     # Function.identifier()
@@ -425,7 +430,7 @@ class WcLangExpression(object):
         """
         self.related_objects = {}
         for model_type in self.objects.keys():
-            self.related_objects[model_type] = []
+            self.related_objects[model_type] = {}
 
         self.errors = []
         self.wc_tokens = []
@@ -449,7 +454,7 @@ class WcLangExpression(object):
         """ Indicate whether `tokens` begins with a pattern of tokens that match `token_pattern`
 
         Args:
-            token_pattern (:obj:`tuple` of `int`): a tuple of Python token numbers, taken from the
+            token_pattern (:obj:`tuple` of :obj:`int`): a tuple of Python token numbers, taken from the
             `token` module
             idx (:obj:`int`): current index into `tokens`
 
@@ -489,22 +494,23 @@ class WcLangExpression(object):
         """
         fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
         if fun_match:
-            purported_macro_name = self.tokens[idx+2].string
+            possible_macro_id = self.tokens[idx+2].string
             # the disambiguation model type must be Function
             if self.tokens[idx].string != wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
                     "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
             # the identifier must be in the Function objects
-            if wc_lang.core.Function not in self.objects or purported_macro_name not in self.objects[wc_lang.core.Function]:
+            if wc_lang.core.Function not in self.objects or possible_macro_id not in self.objects[wc_lang.core.Function]:
                 return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
                     self.expression, self.model_class.__name__, self.attribute, fun_match)
-            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function, purported_macro_name)],
+            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function,
+                possible_macro_id, self.objects[wc_lang.core.Function][possible_macro_id])],
                 len(self.fun_type_disambig_patttern))
 
         disambig_model_match = self.match_tokens(self.model_type_disambig_pattern, idx)
         if disambig_model_match:
             disambig_model_type = self.tokens[idx].string
-            purported_model_name = self.tokens[idx+2].string
+            possible_model_id = self.tokens[idx+2].string
             # the disambiguation model type cannot be Function
             if disambig_model_type == wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
@@ -518,12 +524,13 @@ class WcLangExpression(object):
                     "cannot be referenced by '{}' expressions".format(self.expression, self.model_class.__name__,
                     self.attribute, disambig_model_match, disambig_model_type, self.model_class.__name__))
 
-            if purported_model_name not in self.objects[wc_lang_model_type]:
+            if possible_model_id not in self.objects[wc_lang_model_type]:
                 return "'{}', a {}.{}, contains '{}', but '{}' is not the id of a '{}'".format(
                     self.expression, self.model_class.__name__, self.attribute, disambig_model_match,
-                    purported_model_name, disambig_model_type)
+                    possible_model_id, disambig_model_type)
 
-            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, disambig_model_match, wc_lang_model_type, purported_model_name)],
+            return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, disambig_model_match, wc_lang_model_type,
+                possible_model_id, self.objects[wc_lang_model_type][possible_model_id])],
                 len(self.model_type_disambig_pattern))
 
         # no match
@@ -535,6 +542,9 @@ class WcLangExpression(object):
         Different `wc_lang` objects match different Python token patterns. The default pattern
         is (token.NAME, ), but an object of type `model_type` can define a custom pattern in
         `model_type.Meta.token_pattern`, as Species does. Some patterns may consume multiple Python tokens.
+
+        Args:
+            idx (:obj:`int`): current index into `tokens`
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -583,7 +593,8 @@ class WcLangExpression(object):
             # return a lexical match about a related id
             match = id_matches.pop()
             return LexMatch(
-                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, match.match_string)],
+                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, match.match_string,
+                    self.objects[match.model_type][match.match_string])],
                 len(match.token_pattern))
 
     def fun_call_id(self, idx):
@@ -632,8 +643,9 @@ class WcLangExpression(object):
         """ Deserialize a Python expression in `self.expression`
 
         Returns:
-            (:obj:`tuple`): either `(None, :obj:list of str)` containing a list of errors, or `(:obj:list, :obj:dict)`
-            containing a list of `WcLangToken`s and a dict of modifiers used by this list
+            (:obj:`tuple`): either `(None, :obj:list of :obj:str)` containing a list of errors, or
+                `(:obj:list, :obj:dict)` containing a list of :obj:`WcLangToken`s and a dict of modifiers
+                used by this list
 
         Raises:
             (:obj:`WcLangExpressionError`): if `model_class` does not have a `Meta` attribute
@@ -700,15 +712,10 @@ class WcLangExpression(object):
             self.wc_tokens.extend(wc_lang_tokens)
             for wc_lang_token in wc_lang_tokens:
                 if wc_lang_token.tok_code == TokCodes.wc_lang_obj_id:
-                    self.related_objects[wc_lang_token.model_type].append(wc_lang_token.model_id)
+                    self.related_objects[wc_lang_token.model_type][wc_lang_token.model_id] = wc_lang_token.model
 
-        # todo: perhaps ensure that the parsed expression can be eval'ed, assuming values in the range for related models
-        # could even specify range in model declaration
         if self.errors:
             return (None, self.errors)
-        # deterministically de-dupe all lists in related_objects
-        for model_type, related_models in self.related_objects.items():
-            self.related_objects[model_type] = det_dedupe(related_models)
         return (self.wc_tokens, self.related_objects)
 
     def eval_expr(self, dyn_model_obj, time, dynamic_model, testing=False):
@@ -725,7 +732,8 @@ class WcLangExpression(object):
             * `eval` the Python expression
 
         Args:
-            dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` `Model` instance whose expression is being evaluated
+            dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` :obj:`Model` instance whose
+                expression is being evaluated
             time (:obj:`float`): the current simulation time
             dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
             testing (:obj:`bool`): if set, test `eval` the expression, using values of 1.0 for all related Models;

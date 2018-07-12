@@ -181,7 +181,8 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(len(lex_match.wc_lang_tokens), 1)
         wc_lang_token = lex_match.wc_lang_tokens[0]
         self.assertEqual(wc_lang_token,
-            WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type, id))
+            # todo: fix this cheat: wc_lang_token.model
+            WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type, id, wc_lang_token.model))
 
     def test_disambiguated_id(self):
         self.do_disambiguated_id_error_test('NotFunction.foo()',
@@ -232,7 +233,8 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(len(lex_match.wc_lang_tokens), 1)
         wc_lang_token = lex_match.wc_lang_tokens[0]
         self.assertEqual(wc_lang_token,
-            WcLangToken(TokCodes.wc_lang_obj_id, expected_id, expected_related_type, expected_id))
+            # todo: fix this cheat too: wc_lang_token.model
+            WcLangToken(TokCodes.wc_lang_obj_id, expected_id, expected_related_type, expected_id, wc_lang_token.model))
 
     def test_related_object_id_matches(self):
         self.do_related_object_id_test('test_id[c] + 3*x', Species, 'test_id[c]', Species.Meta.token_pattern)
@@ -291,7 +293,15 @@ class TestWcLangExpression(unittest.TestCase):
             if obj_types in expected_related_objs.keys():
                 self.assertEqual(related_objects[obj_types], expected_related_objs[obj_types])
             else:
-                self.assertEqual(related_objects[obj_types], [])
+                self.assertEqual(related_objects[obj_types], {})
+
+    def extract_from_objects(self, objects, type_id_pairs):
+        d = {}
+        for obj_type, id in type_id_pairs:
+            if obj_type not in d:
+                d[obj_type] = {}
+            d[obj_type][id] = objects[obj_type][id]
+        return d
 
     def test_non_identifier_tokens(self):
         for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
@@ -302,23 +312,22 @@ class TestWcLangExpression(unittest.TestCase):
         # test related_object_id
         expr = 'test_id'
         expected_wc_tokens = \
-            [WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string=expr, model_type=Observable, model_id=expr)]
-        expected_related_objs = {Observable:[expr]}
+            [WcLangToken(TokCodes.wc_lang_obj_id, expr, Observable, expr, self.objects_hard[Observable][expr])]
+        expected_related_objs = self.extract_from_objects(self.objects_hard, [(Observable, expr)])
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
         # test disambiguated_id
         expr = 'Parameter.duped_id + 2*Observable.duped_id'
         expected_wc_tokens = [
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Parameter.duped_id', model_type=Parameter,
-                model_id='duped_id'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'Parameter.duped_id', Parameter, 'duped_id',
+                self.objects_hard[Parameter]['duped_id']),
             WcLangToken(TokCodes.other, '+'),
             WcLangToken(TokCodes.other, '2'),
             WcLangToken(TokCodes.other, '*'),
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Observable.duped_id', model_type=Observable,
-                model_id='duped_id'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'Observable.duped_id', Observable, 'duped_id',
+                self.objects_hard[Observable]['duped_id']),
         ]
-        expected_related_objs = {
-            Parameter:['duped_id'],
-            Observable:['duped_id'],}
+        expected_related_objs = self.extract_from_objects(self.objects_hard, [(Parameter, 'duped_id'),
+            (Observable, 'duped_id')])
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
         # test fun_call_id
         expr = 'log(3) + fun_2() - Function.Observable()'
@@ -328,13 +337,13 @@ class TestWcLangExpression(unittest.TestCase):
             WcLangToken(TokCodes.other, '3'),
             WcLangToken(TokCodes.other, ')'),
             WcLangToken(TokCodes.other, '+'),
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='fun_2()', model_type=Function, model_id='fun_2'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'fun_2()', Function, 'fun_2', self.objects_hard[Function]['fun_2']),
             WcLangToken(TokCodes.other, '-'),
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string='Function.Observable()', model_type=Function,
-                model_id='Observable')
+            WcLangToken(TokCodes.wc_lang_obj_id, 'Function.Observable()', Function, 'Observable',
+                self.objects_hard[Function]['Observable'])
         ]
-        expected_related_objs = {
-            Function:['fun_2', 'Observable']}
+        expected_related_objs = self.extract_from_objects(self.objects_hard,
+            [(Function, 'fun_2'), (Function, 'Observable')])
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
 
     def test_deserialize_w_multiple_ids(self):
@@ -346,10 +355,10 @@ class TestWcLangExpression(unittest.TestCase):
         }
         expr = 'Observable.test_id'
         expected_wc_tokens = [
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string=expr, model_type=Observable, model_id='test_id')
+            WcLangToken(TokCodes.wc_lang_obj_id, expr, Observable, 'test_id',
+                test_objects[Observable]['test_id'])
         ]
-        expected_related_objs = {
-            Observable:['test_id']}
+        expected_related_objs = self.extract_from_objects(test_objects, [(Observable, 'test_id')])
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
 
         # test related_object_id and fun_call_id'
@@ -359,10 +368,9 @@ class TestWcLangExpression(unittest.TestCase):
         }
         expr = 'Function.fun_2()'
         expected_wc_tokens = [
-            WcLangToken(tok_code=TokCodes.wc_lang_obj_id, token_string=expr, model_type=Function, model_id='fun_2')
+            WcLangToken(TokCodes.wc_lang_obj_id, expr, Function, 'fun_2', test_objects[Function]['fun_2'])
         ]
-        expected_related_objs = {
-            Function:['fun_2']}
+        expected_related_objs = self.extract_from_objects(test_objects, [(Function, 'fun_2')])
         self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
 
     def do_deserialize_error_test(self, expr, expected_errors, model_type=RateLawEquation, test_objects=None):

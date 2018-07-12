@@ -16,7 +16,7 @@ from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
                      Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
-                     BiomassReaction, Observable)
+                     BiomassReaction, Observable, Function)
 from wc_lang.expression_utils import RateLawUtils
 
 # configuration
@@ -684,7 +684,7 @@ class CheckModel(object):
                 self.errors.extend(self.check_dynamic_submodel(submodel))
         self.errors.extend(self.transcode_and_check_rate_law_equations())
         self.errors.extend(self.verify_species_types())
-        self.errors.extend(self.verify_acyclic_observable_dependencies())
+        self.errors.extend(self.verify_acyclic_dependencies([Observable]))
         if self.errors:
             raise ValueError('\n'.join(self.errors))
 
@@ -853,28 +853,54 @@ class CheckModel(object):
                     "is {}".format(species_type.id, species_type.molecular_weight))
         return errors
 
-    def verify_acyclic_observable_dependencies(self):
-        """ Verify that the network of `Observable` depencencies is acyclic
+    @staticmethod
+    def _get_self_references(model):
+        """ Get the references to models of the same type used in `model`'s expression
 
-        Ensure that:
-
-            * The network implied by the use of observables in `Observable`s is acyclic
+        Args:
+            model (:obj:`obj_model.Model`): a Model instance
 
         Returns:
-            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            :obj:`set` of :obj:`obj_model.Model`: the `obj_model.Model` instances used by `model`
+        """
+        references_used = set()
+        # unfortunately, different obj_model.Model in wc_lang store references in different ways
+        if isinstance(model, Observable):
+            for observable_coeffs in model.observables:
+                references_used.add(observable_coeffs.observable)
+        elif isinstance(model, Function):
+            if Function in model.analyzed_expr.related_objects:
+                references_used = set(model.analyzed_expr.related_objects[Function].values())
+        return references_used
+
+    def verify_acyclic_dependencies(self, model_types):
+        """ Verify that the network of depencencies for model types in `model_types` are acyclic
+
+        Ensure that:
+            * The model types in `model_types` do not make recursive calls; tested types
+                include Observable and Function
+
+        Args:
+            model_types (:obj:`list`): model types (subclasses of `obj_model.Model`) to test
+
+        Returns:
+            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
         """
-        digraph = nx.DiGraph()
-        for observable in self.model.observables:
-            digraph.add_node(observable)
-        for observable in self.model.observables:
-            for observable_coeffs in observable.observables:
-                used_observable = observable_coeffs.observable
-                digraph.add_edge(observable, used_observable)
-        cycle_generator = nx.simple_cycles(digraph)
         errors = []
-        for cycle in cycle_generator:
-            cyc = [o.id for o in cycle]
-            cyc.append(cyc[0])
-            errors.append("dependency cycle among observables: {}".format('->'.join(cyc)))
+        for model_type in model_types:
+            digraph = nx.DiGraph()
+            collective_attr = "{}s".format(model_type.__name__.lower())
+            models = getattr(self.model, collective_attr)
+            for model in models:
+                digraph.add_node(model)
+
+            for model in models:
+                for ref in self._get_self_references(model):
+                    digraph.add_edge(model, ref)
+            cycle_generator = nx.simple_cycles(digraph)
+            for cycle in cycle_generator:
+                cyc = [o.id for o in cycle]
+                cyc.append(cyc[0])
+                errors.append("dependency cycle among {}s: {}".format(model_type.__name__, '->'.join(cyc)))
         return errors

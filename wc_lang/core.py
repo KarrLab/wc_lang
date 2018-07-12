@@ -1100,6 +1100,7 @@ class ObjectiveFunction(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): input mathematical expression of the objective function
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         linear (:obj:`bool`): indicates whether objective function is linear function of reaction fluxes
         reactions (:obj:`list` of `Reaction`): if linear, reactions whose fluxes are used in the
             objective function
@@ -1708,6 +1709,7 @@ class Function(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`str`): expression
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         comments (:obj:`str`): comments
     """
     id = SlugAttribute()
@@ -2164,6 +2166,7 @@ class RateLawEquation(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
         parameters (:obj:`list` of `Species`): parameters whose values are used in the rate law
@@ -2484,6 +2487,7 @@ class StopCondition(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`str`): expression
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         comments (:obj:`str`): comments
     """
     id = SlugAttribute()

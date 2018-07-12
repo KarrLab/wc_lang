@@ -16,9 +16,10 @@ import unittest
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
                      Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
                      Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType, Observable,
-                     ObservableCoefficient)
+                     ObservableCoefficient, Function)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
+from wc_lang.expression_utils import WcLangExpression
 
 # configuration
 import wc_lang.config.core
@@ -618,22 +619,52 @@ class TestCheckModel(unittest.TestCase):
         actual_errors = self.check_model.verify_species_types()
         self.assertEqual(set(expected_errors), set(actual_errors))
 
-    def test_verify_acyclic_observable_dependencies(self):
+    def test_verify_acyclic_dependencies(self):
+        # Observable
         obs_1 = self.model.observables.create(id='obs_1')
         obs_2 = self.model.observables.create(id='obs_2')
         obs_3 = self.model.observables.create(id='obs_3')
         obs_coeff_1 = ObservableCoefficient(observable=obs_1, coefficient=1.)
         obs_coeff_2 = ObservableCoefficient(observable=obs_2, coefficient=2.)
         obs_coeff_3 = ObservableCoefficient(observable=obs_3, coefficient=3.)
-        errors = self.check_model.verify_acyclic_observable_dependencies()
+        errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(errors, [])
         obs_2.observables.append(obs_coeff_1)
         obs_3.observables.append(obs_coeff_2)
-        errors = self.check_model.verify_acyclic_observable_dependencies()
+        errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(errors, [])
         obs_1.observables.append(obs_coeff_3)
         obs_1.observables.append(obs_coeff_1)
-        errors = self.check_model.verify_acyclic_observable_dependencies()
+        errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(len(errors), 2)
         for e in errors:
-            self.assertIn('dependency cycle among observables', e)
+            self.assertIn('dependency cycle among Observables', e)
+
+        # Function
+        fun_1 = self.model.functions.create(id='fun_1')
+        fun_2 = self.model.functions.create(id='fun_2')
+        fun_3 = self.model.functions.create(id='fun_3')
+        # each function calls the next
+        fun_1.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_2()', {Function:{'fun_2': fun_2}})
+        tokens, _ = fun_1.analyzed_expr.deserialize()
+        self.assertTrue(tokens != None)
+        fun_2.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_3()', {Function:{'fun_3': fun_3}})
+        tokens, _ = fun_2.analyzed_expr.deserialize()
+        self.assertTrue(tokens != None)
+        fun_3.analyzed_expr = WcLangExpression(Function, 'expression', '', {})
+        errors = self.check_model.verify_acyclic_dependencies([Function])
+        self.assertEqual(errors, [])
+
+        # test recursion: have fun_3 call fun_1
+        fun_3.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_1()', {Function:{'fun_1': fun_1}})
+        tokens, _ = fun_3.analyzed_expr.deserialize()
+        self.assertTrue(tokens != None)
+        # and fun_1 call itself
+        fun_1.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_1() + fun_2()',
+            {Function:{'fun_1': fun_1, 'fun_2': fun_2}})
+        tokens, _ = fun_1.analyzed_expr.deserialize()
+        self.assertTrue(tokens != None)
+        errors = self.check_model.verify_acyclic_dependencies([Function])
+        self.assertEqual(len(errors), 2)
+        for e in errors:
+            self.assertIn('dependency cycle among Functions', e)
