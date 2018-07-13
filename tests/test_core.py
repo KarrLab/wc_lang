@@ -1691,8 +1691,8 @@ class TestCore(unittest.TestCase):
 
     def test_valid_model_types(self):
         for model_type in [RateLawEquation, Function, StopCondition, ObjectiveFunction, Observable]:
-            self.assertTrue(hasattr(model_type.Meta, 'valid_model_types'))
-            for valid_model_type in model_type.Meta.valid_model_types:
+            self.assertTrue(hasattr(model_type.Meta, 'valid_used_models'))
+            for valid_model_type in model_type.Meta.valid_used_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))
 
 

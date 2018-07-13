@@ -6,7 +6,6 @@
 '''
 
 import unittest
-from unittest.mock import MagicMock
 import os
 import re
 import tokenize
@@ -16,7 +15,7 @@ from io import BytesIO
 
 from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
-    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment, RateLawEquation)
+    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
 from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
     WcLangExpression, WcLangExpressionError)
 
@@ -111,7 +110,7 @@ class TestWcLangExpression(unittest.TestCase):
     def make_wc_lang_expr(self, expr, obj_type=RateLawEquation):
         objects = {}
         for o_type, value in self.objects.items():
-            if o_type.__name__ in obj_type.Meta.valid_model_types:
+            if o_type.__name__ in obj_type.Meta.valid_used_models:
                 objects[o_type] = value
         return WcLangExpression(obj_type, 'expr_attr', expr, objects)
 
@@ -133,11 +132,13 @@ class TestWcLangExpression(unittest.TestCase):
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
             self.make_wc_lang_expr(expr)
         with self.assertRaisesRegexp(WcLangExpressionError,
-            "model_class 'Species' doesn't have a 'Meta.valid_model_types' attribute"):
+            "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
             WcLangExpression(Species, 'attr', '', {})
+        """
         with self.assertRaisesRegexp(WcLangExpressionError,
-            "objects entry 'RateLawEquation' not a member of Function.Meta.valid_model_types:"):
+            "objects entry 'RateLawEquation' not a member of Function.Meta.valid_used_models:"):
             WcLangExpression(Function, 'attr', '', {RateLawEquation:{}})
+        """
 
     def test_get_wc_lang_model_type(self):
         wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
@@ -271,23 +272,23 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
 
     def test_bad_tokens(self):
-        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).deserialize()
+        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).tokenize()
         self.assertEqual(rv, None)
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
             self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
         # test bad tokens that don't have string values
         rv, errors = WcLangExpression(RateLawEquation, 'test', """
  3
- +1""", {}).deserialize()
+ +1""", {}).tokenize()
         self.assertEqual(rv, None)
         self.assertRegex(errors[0], re.escape("contains bad token(s)"))
 
-    def do_deserialize_id_test(self, expr, expected_wc_tokens, expected_related_objs, model_type=RateLawEquation,
+    def do_tokenize_id_test(self, expr, expected_wc_tokens, expected_related_objs, model_type=RateLawEquation,
         test_objects=None):
         if test_objects is None:
             test_objects = self.objects_hard
         wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects)
-        wc_tokens, related_objects = wc_lang_expr.deserialize()
+        wc_tokens, related_objects = wc_lang_expr.tokenize()
         self.assertEqual(wc_lang_expr.errors, [])
         for obj_types in test_objects:
             if obj_types in expected_related_objs.keys():
@@ -306,15 +307,15 @@ class TestWcLangExpression(unittest.TestCase):
     def test_non_identifier_tokens(self):
         for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
             expected_wc_tokens = [WcLangToken(tok_code=TokCodes.other, token_string=tok) for tok in expr.strip().split()]
-            self.do_deserialize_id_test(expr, expected_wc_tokens, {})
+            self.do_tokenize_id_test(expr, expected_wc_tokens, {})
 
-    def test_deserialize_w_ids(self):
+    def test_tokenize_w_ids(self):
         # test related_object_id
         expr = 'test_id'
         expected_wc_tokens = \
             [WcLangToken(TokCodes.wc_lang_obj_id, expr, Observable, expr, self.objects_hard[Observable][expr])]
         expected_related_objs = self.extract_from_objects(self.objects_hard, [(Observable, expr)])
-        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+        self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs)
         # test disambiguated_id
         expr = 'Parameter.duped_id + 2*Observable.duped_id'
         expected_wc_tokens = [
@@ -328,7 +329,7 @@ class TestWcLangExpression(unittest.TestCase):
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard, [(Parameter, 'duped_id'),
             (Observable, 'duped_id')])
-        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+        self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs)
         # test fun_call_id
         expr = 'log(3) + fun_2() - Function.Observable()'
         expected_wc_tokens = [
@@ -344,9 +345,9 @@ class TestWcLangExpression(unittest.TestCase):
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard,
             [(Function, 'fun_2'), (Function, 'Observable')])
-        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs)
+        self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs)
 
-    def test_deserialize_w_multiple_ids(self):
+    def test_tokenize_w_multiple_ids(self):
         # at idx==0 match more than one of these related_object_id(), disambiguated_id(), fun_call_id()
         # test related_object_id and disambiguated_id'
         test_objects = {
@@ -359,7 +360,7 @@ class TestWcLangExpression(unittest.TestCase):
                 test_objects[Observable]['test_id'])
         ]
         expected_related_objs = self.extract_from_objects(test_objects, [(Observable, 'test_id')])
-        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
+        self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
 
         # test related_object_id and fun_call_id'
         test_objects = {
@@ -371,13 +372,13 @@ class TestWcLangExpression(unittest.TestCase):
             WcLangToken(TokCodes.wc_lang_obj_id, expr, Function, 'fun_2', test_objects[Function]['fun_2'])
         ]
         expected_related_objs = self.extract_from_objects(test_objects, [(Function, 'fun_2')])
-        self.do_deserialize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
+        self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs, test_objects=test_objects)
 
-    def do_deserialize_error_test(self, expr, expected_errors, model_type=RateLawEquation, test_objects=None):
+    def do_tokenize_error_test(self, expr, expected_errors, model_type=RateLawEquation, test_objects=None):
         if test_objects is None:
             test_objects = self.objects_hard
         wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects)
-        sb_none, errors = wc_lang_expr.deserialize()
+        sb_none, errors = wc_lang_expr.tokenize()
         self.assertEqual(sb_none, None)
         # expected_errors is a list of lists of strings that should match the actual errors
         expected_errors = [self.esc_re_center(ee) for ee in expected_errors]
@@ -395,22 +396,22 @@ class TestWcLangExpression(unittest.TestCase):
         for expected_error, status in expected_errors_found.items():
             self.assertTrue(status, "Expected error '{}' not found in errors".format(expected_error))
 
-    def test_deserialize_errors(self):
+    def test_tokenize_errors(self):
         bad_id = 'no_such_id'
-        self.do_deserialize_error_test(bad_id,
+        self.do_tokenize_error_test(bad_id,
             [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)]])
         bad_id = 'Observable.no_such_observable'
-        self.do_deserialize_error_test(bad_id,
+        self.do_tokenize_error_test(bad_id,
             [["contains multiple model object id matches: 'Observable' as a Function id, 'Observable' as a Parameter id"],
             ["contains '{}', but '{}'".format(bad_id, bad_id.split('.')[1]), "is not the id of a"]])
         bad_id = 'no_such_function'
         bad_fn_name = bad_id+'()'
-        self.do_deserialize_error_test(bad_fn_name,
+        self.do_tokenize_error_test(bad_fn_name,
             [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
             ["contains the func name '{}', but it isn't in ".format(bad_id), "Meta.valid_functions"]])
         bad_id = 'Function'
         bad_fn_name = bad_id+'.no_such_function2()'
-        self.do_deserialize_error_test(bad_fn_name,
+        self.do_tokenize_error_test(bad_fn_name,
             [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
             ["contains '{}', which doesn't refer to a Function".format(bad_fn_name)]])
 
@@ -420,7 +421,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertIn(expr, str(wc_lang_expr))
         self.assertIn('errors: []', str(wc_lang_expr))
         self.assertIn('wc_tokens: []', str(wc_lang_expr))
-        wc_lang_expr.deserialize()
+        wc_lang_expr.tokenize()
         self.assertIn(expr, str(wc_lang_expr))
         self.assertIn('errors: []', str(wc_lang_expr))
         self.assertIn('wc_tokens: [WcLangToken', str(wc_lang_expr))
@@ -435,48 +436,29 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
 
-    def test_eval_expr(self):
-        class MockDynamicModel(object): pass
-        mock_dynamic_model = MockDynamicModel()
+    def test_test_eval_expr(self):
         related_obj_val = 3
-        mock_dynamic_model.eval_dynamic_obj = MagicMock(return_value=related_obj_val)
 
         # test combination of TokCodes
         wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)')
-        wc_lang_expr.deserialize()
+        wc_lang_expr.tokenize()
         expected_val = 4 * related_obj_val + pow(2, related_obj_val)
-        evaled_val = wc_lang_expr.eval_expr(None, None, mock_dynamic_model)
+        evaled_val = wc_lang_expr.test_eval_expr(test_val=related_obj_val)
         self.assertEqual(expected_val, evaled_val)
-
-        # test testing
-        related_obj_val = 1.0
-        expected_val = 4 * related_obj_val + pow(2, related_obj_val)
-        evaled_val = wc_lang_expr.eval_expr(None, None, None, testing=True)
-        self.assertEqual(expected_val, evaled_val)
-
-        # test types with callable ids
-        c = Compartment(id='c')
-        st = SpeciesType(id='x_id')
-        species = Species(compartment=c, species_type=st)
-        wc_lang_expr = self.make_wc_lang_expr('x_id[c] +')
-        wc_lang_expr.deserialize()
-        with self.assertRaisesRegexp(WcLangExpressionError, re.escape("SyntaxError: cannot eval expression '3 +' "
-            "in {} with id {}".format(Species.__name__, species.id()))):
-            wc_lang_expr.eval_expr(species, 0, mock_dynamic_model)
 
         # test different exceptions
         # syntax error
         model_type = RateLawEquation
         wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
-        wc_lang_expr.deserialize()
+        wc_lang_expr.tokenize()
         with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {}".format(
             model_type.__name__)):
-            wc_lang_expr.eval_expr(model_type(), 0, mock_dynamic_model)
+            wc_lang_expr.test_eval_expr()
 
         # expression that could not be serialized
         expr = 'foo(6)'
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=model_type)
-        wc_lang_expr.deserialize()
+        wc_lang_expr.tokenize()
         with self.assertRaisesRegexp(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
-            "successfully deserialized".format(expr))):
-            wc_lang_expr.eval_expr(model_type(), 0, mock_dynamic_model)
+            "successfully tokenized".format(expr))):
+            wc_lang_expr.test_eval_expr()

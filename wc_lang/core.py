@@ -56,7 +56,7 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
-from wc_lang.expression_utils import RateLawUtils
+from wc_lang.expression_utils import RateLawUtils, WcLangExpression, WcLangExpressionError
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -1122,14 +1122,14 @@ class ObjectiveFunction(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in this `ObjectiveFunction`s `expression`
-            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
                 `ObjectiveFunction` is allowed to reference in its `expression`
         """
         attribute_order = ('linear', 'expression', 'reactions', 'biomass_reactions')
         tabular_orientation = TabularOrientation.inline
         # because objective functions must be continuous, the functions they use must be as well
         valid_functions = (exp, pow, log, log10)
-        valid_model_types = ('Parameter', 'Observable', 'Reaction', 'BiomassReaction')
+        valid_used_models = ('Parameter', 'Observable', 'Reaction', 'BiomassReaction')
 
     def serialize(self):
         """ Generate string representation
@@ -1693,14 +1693,15 @@ class Observable(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
-            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
                 `Observable` is allowed to reference in its `expression`
         """
         attribute_order = ('id', 'name', 'species', 'observables', 'comments')
         indexed_attrs_tuples = (('id',), )
-        valid_model_types = ('Species', 'Observable')
+        valid_used_models = ('Species', 'Observable')
 
 
+'''
 class Function(obj_model.Model):
     """ An arbitrary mathematical function of one or more Observables, Parameters, and other Functions.
 
@@ -1723,12 +1724,12 @@ class Function(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in this `Function`s `expression`
-            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `Function` is allowed to reference in its `expression`
         """
         attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_model_types = ('Parameter', 'Observable', 'Function')
+        valid_used_models = ('Parameter', 'Observable', 'Function')
 
     def validate(self):
         """ Determine whether a `Function` is valid by checking whether
@@ -1769,6 +1770,200 @@ class Function(obj_model.Model):
 
         """ return `None` to indicate valid object """
         return None
+'''
+
+class ExpressionAttribute(obj_model.core.Attribute):
+    """ Class to hold attribute that points to `WcLangExpression` instance
+
+    Attributes:
+        default (:obj:`sympy.Basic`): default value
+    """
+
+    def __init__(self, type=WcLangExpression, default=None, verbose_name='', help='',
+                 primary=False, unique=False, unique_case_insensitive=False):
+        """
+        Args:
+            type (:obj:`sympy.core.assumptions.ManagedProperties`, optional): attribute type (e.g. :obj:`sympy.Basic`,
+                :obj:`sympy.Expr`, :obj:`sympy.Symbol`)
+            default (:obj:`sympy.Basic`, optional): default value
+            verbose_name (:obj:`str`, optional): verbose name
+            help (:obj:`str`, optional): help string
+            primary (:obj:`bool`, optional): indicate if attribute is primary attribute
+            unique (:obj:`bool`, optional): indicate if attribute value must be unique
+            unique_case_insensitive (:obj:`bool`, optional): if true, conduct case-insensitive test of uniqueness
+        """
+        if default is not None and not isinstance(default, type):
+            raise ValueError('Default must be a `{}` or `None`'.format(str(type)[8:-2]))
+
+        super(SympyBasicAttribute, self).__init__(default=default,
+                                                  verbose_name=verbose_name, help=help,
+                                                  primary=primary, unique=unique, unique_case_insensitive=unique_case_insensitive)
+
+        self.type = type
+
+    def deserialize(self, value):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): semantically equivalent representation
+
+        Returns:
+            :obj:`tuple` of `sympy.Basic`, `core.InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        if value:
+            value = self.type(value)
+        else:
+            value = None
+        return (value, None)
+
+    def validate(self, obj, value):
+        """ Determine if `value` is a valid value
+
+        Args:
+            obj (:obj:`Model`): class being validated
+            value (:obj:`sympy.Basic`): value of attribute to validate
+
+        Returns:
+            :obj:`core.InvalidAttribute` or None: None if attribute is valid, other return list of errors as an instance of `core.InvalidAttribute`
+        """
+        errors = []
+
+        if value and not isinstance(value, self.type):
+            errors.append('Value must be an instance of `{}`'.format(str(self.type)[8:-2]))
+        elif self.primary and not value:
+            errors.append('{} value for primary attribute cannot be empty'.format(
+                self.__class__.__name__))
+
+        if errors:
+            return core.InvalidAttribute(self, errors)
+        return None
+
+    def validate_unique(self, objects, values):
+        """ Determine if the attribute values are unique
+
+        Args:
+            objects (:obj:`list` of `Model`): list of `Model` objects
+            values (:obj:`list` of :obj:`sympy.Basic`): list of values
+
+        Returns:
+           :obj:`core.InvalidAttribute` or None: None if values are unique, otherwise return a list of errors as an instance of `core.InvalidAttribute`
+        """
+        str_values = []
+        for v in values:
+            str_values.append(self.serialize(v))
+        return super(SympyBasicAttribute, self).validate_unique(objects, str_values)
+
+    def serialize(self, value):
+        """ Serialize string
+
+        Args:
+            value (:obj:`sympy.Basic`): Python representation
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        if value:
+            return str(value)[6:-1]
+        return ''
+
+
+class Function(obj_model.Model):
+    """ A mathematical expression using zero or more Observables, Parameters and other Functions.
+
+    Attributes:
+        id (:obj:`str`): id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
+        expression (:obj:`str`): expression
+        observables (:obj:`list` of `Observable`): Observables used by this function
+        parameters (:obj:`list` of `Parameter`): Parameters used by this function
+        functions (:obj:`list` of `Function`): other Functions used by this function
+        comments (:obj:`str`): comments
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='functions')
+    expression = LongStringAttribute()
+    # todo: make this right; not a string
+    analyzed_expr = StringAttribute(default='place holder')
+    # todo: put in back-references
+    observables = ManyToManyAttribute('Observable', related_name='functions')
+    parameters = ManyToManyAttribute('Parameter', related_name='functions')
+    functions = ManyToManyAttribute('Function', related_name='functions')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in this `Function`s `expression`
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `Function` is allowed to reference in its `expression`
+        """
+        attribute_order = ('id', 'name', 'expression', 'comments')
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_used_models = ('Parameter', 'Observable', 'Function')
+
+    @classmethod
+    def deserialize(cls, attribute, value, objects):
+        """ Deserialize value
+
+        Args:
+            attribute (:obj:`Attribute`): attribute
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple`: on error return (`None`, `InvalidAttribute`), otherwise return (deserialized value, `None`)
+        """
+        # todo: use attribute to make 'expression'
+        analyzed_expr = WcLangExpression(cls, 'expression', value, objects)
+        rv = analyzed_expr.tokenize()
+        if rv[0] is None:
+            errors = rv[1]
+            return (None, InvalidAttribute(attribute, errors))
+
+        # return Function
+        _, used_objects = rv
+        # todo: automate this section with valid_used_models
+        observables = []
+        if Observable in used_objects:
+            observables = list(used_objects[Observable].values())
+        parameters = []
+        if Parameter in used_objects:
+            parameters = list(used_objects[Parameter].values())
+        functions = []
+        if Function in used_objects:
+            functions = list(used_objects[Function].values())
+        if cls not in objects:
+            objects[cls] = {}
+        serialized_val = value
+        if serialized_val in objects[cls]:
+            obj = objects[cls][serialized_val]
+        else:
+            # create new Function
+            # todo: standardize for all expression models with kwargs
+            obj = cls(expression=value, analyzed_expr=analyzed_expr,
+                observables=observables, parameters=parameters, functions=functions)
+            objects[cls][serialized_val] = obj
+        return (obj, None)
+
+    def validate(self):
+        """ Determine whether a `Function` is valid by checking whether its `expression` is a valid Python expression.
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        try:
+            self.analyzed_expr.test_eval_expr()
+            # return `None` to indicate valid object
+            return None
+        except WcLangExpressionError as e:
+            attr = self.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, [e])
+            return InvalidObject(self, [attr_err])
 
 
 class Reaction(obj_model.Model):
@@ -2183,14 +2378,14 @@ class RateLawEquation(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in a `RateLawEquation`s `expression`
-            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `RateLawEquation` is allowed to reference in its `expression`
         """
         attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('rate_law',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_model_types = ('Species', 'Parameter', 'Observable', 'Function')
+        valid_used_models = ('Species', 'Parameter', 'Observable', 'Function')
 
     def serialize(self):
         """ Generate string representation
@@ -2501,12 +2696,12 @@ class StopCondition(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in a `StopCondition`s `expression`
-            valid_model_types (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `StopCondition` is allowed to reference in its `expression`
         """
         attribute_order = ('id', 'name', 'expression', 'comments')
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_model_types = ('Parameter', 'Observable', 'Function')
+        valid_used_models = ('Parameter', 'Observable', 'Function')
 
     def validate(self):
         """ Determine whether a `StopCondition` is valid by checking whether

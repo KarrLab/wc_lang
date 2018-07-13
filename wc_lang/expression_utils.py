@@ -23,17 +23,13 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
-    avoid recursive Function calls
-    rethink eval_expr, which should symmetricaly eval nested elements
+    rename Function to Macro; need to change models too
     ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
-    * diagram with recursive diagonal
-    make generic ModelWithExpression class in wc_lang
     what about k_cat and k_m?
     test with real WC models
     Jupyter example
     replace existing RE parsing and expression eval code
-    use WcLangExpression to deserialize all wc_lang expressions
-    rename Function to Macro
+    use WcLangExpression to deserialize and validate all wc_lang expressions
 cleanup
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
@@ -278,15 +274,15 @@ LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
-# a matched token pattern used by deserialize
+# a matched token pattern used by tokenize
 IdMatch = namedtuple('IdMatch', 'model_type, token_pattern, match_string')
-IdMatch.__doc__ += ': Matched token pattern used by deserialize'
+IdMatch.__doc__ += ': Matched token pattern used by tokenize'
 IdMatch.model_type.__doc__ = 'The type of Model matched'
 IdMatch.token_pattern.__doc__ = 'The token pattern used by the match'
 IdMatch.match_string.__doc__ = 'The matched string'
 
 
-# a token in a parsed wc_lang expression, returned in a list by deserialize
+# a token in a parsed wc_lang expression, returned in a list by tokenize
 WcLangToken = namedtuple('WcLangToken', 'tok_code, token_string, model_type, model_id, model')
 # make model_type, model_id, and model optional: see https://stackoverflow.com/a/18348004
 WcLangToken.__new__.__defaults__ = (None, None, None)
@@ -363,7 +359,7 @@ class WcLangExpression(object):
             dict that maps model id to model instance
         errors (:obj:`list` of `str`): errors found when parsing an `expression` fails
         wc_tokens (:obj:`list` of `WcLangToken`): tokens obtained when an `expression` is successfully
-            `deserialize`d; if empty, then this `WcLangExpression` cannot use `eval_expr()`
+            `tokenize`d; if empty, then this `WcLangExpression` cannot use `eval_expr()`
     """
 
     # Function.identifier()
@@ -393,11 +389,11 @@ class WcLangExpression(object):
         if not issubclass(model_class, obj_model.Model):
             raise WcLangExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
                 model_class.__name__))
-        if not hasattr(model_class.Meta, 'valid_model_types'):
-            raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_model_types' attribute".format(
+        if not hasattr(model_class.Meta, 'valid_used_models'):
+            raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_used_models' attribute".format(
                 model_class.__name__))
-        valid_model_types = set([getattr(wc_lang.core, valid_model_type)
-            for valid_model_type in model_class.Meta.valid_model_types])
+        valid_used_models = set([getattr(wc_lang.core, valid_model_type)
+            for valid_model_type in model_class.Meta.valid_used_models])
         self.model_class = model_class
         self.attribute = attribute
         # strip leading and trailing whitespace from expression, which would create a bad token error
@@ -406,9 +402,12 @@ class WcLangExpression(object):
             if not issubclass(obj_type, obj_model.Model):
                 raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
                     obj_type.__name__))
-            if obj_type not in valid_model_types:
-                raise WcLangExpressionError("objects entry '{}' not a member of {}.Meta.valid_model_types: {}".format(
-                    obj_type.__name__, model_class.__name__, model_class.Meta.valid_model_types))
+            # todo: copy objects, keep types in model_class.Meta.valid_used_models (or just use those)
+            '''
+            if obj_type not in valid_used_models:
+                raise WcLangExpressionError("objects entry '{}' not a member of {}.Meta.valid_used_models: {}".format(
+                    obj_type.__name__, model_class.__name__, model_class.Meta.valid_used_models))
+            '''
         self.valid_functions = set()
         for obj_type in objects.keys():
             if hasattr(obj_type.Meta, 'valid_functions'):
@@ -639,13 +638,13 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def deserialize(self):
-        """ Deserialize a Python expression in `self.expression`
+    def tokenize(self):
+        """ Tokenize a Python expression in `self.expression`
 
         Returns:
             (:obj:`tuple`): either `(None, :obj:list of :obj:str)` containing a list of errors, or
-                `(:obj:list, :obj:dict)` containing a list of :obj:`WcLangToken`s and a dict of modifiers
-                used by this list
+                `(:obj:list, :obj:dict)` containing a list of :obj:`WcLangToken`s and a dict of Model
+                instances used by this list, grouped by Model type
 
         Raises:
             (:obj:`WcLangExpressionError`): if `model_class` does not have a `Meta` attribute
@@ -718,65 +717,60 @@ class WcLangExpression(object):
             return (None, self.errors)
         return (self.wc_tokens, self.related_objects)
 
-    def eval_expr(self, dyn_model_obj, time, dynamic_model, testing=False):
-        """ Evaluate the Python expression in this `WcLangExpression`
+    def test_eval_expr(self, test_val=1.0):
+        """ Test evaluate the Python expression in this `WcLangExpression`
 
-        The expression must have been successfully `deserialize`d.
-
-        Called by the simulator when it calculates the value of a dynamic object, such as a
-        `DynamicObservable`, or a `RateLawEquation`.
+        Called to validate this `WcLangExpression`.
+        This expression must have been successfully `tokenize`d. All Models it uses are
+        assumed to have the value `test_val`.
 
         Approach:
-            * Replace references to related Models in `self.wc_tokens` with their values
+            * Replace references to used Models in `self.wc_tokens` with `test_val`
             * Join the elements of `self.wc_tokens` into a Python expression
             * `eval` the Python expression
 
         Args:
-            dyn_model_obj (:obj:`dyn_model_obj.Model`): a dynamic `wc_sim` :obj:`Model` instance whose
-                expression is being evaluated
-            time (:obj:`float`): the current simulation time
-            dynamic_model (:obj:`wc_sim.DynamicModel`): a simulation's dynamical access method
-            testing (:obj:`bool`): if set, test `eval` the expression, using values of 1.0 for all related Models;
-                default = `False`
+            test_val (:obj:`float`, optional): the value assumed for used Models
 
         Returns:
-            (:obj:`object`): the value of the expression at time `time`
+            (:obj:`object`): the value of the expression
 
         Raises:
             (:obj:`WcLangExpressionError`): if the expression evaluation fails
         """
-        # do not eval an expression that could not be serialized
+        # do not eval an expression that could not be tokenized
         if not self.wc_tokens:
-            raise WcLangExpressionError("cannot evaluate '{}', as it not been successfully deserialized".format(
+            raise WcLangExpressionError("cannot evaluate '{}', as it not been successfully tokenized".format(
                 self.expression))
 
         evaled_tokens = []
-        for wc_token in self.wc_tokens:
-            if wc_token.tok_code != TokCodes.wc_lang_obj_id:
-                evaled_tokens.append(wc_token.token_string)
+        idx = 0
+        while idx < len(self.wc_tokens):
+            wc_token = self.wc_tokens[idx]
+            if wc_token.tok_code == TokCodes.wc_lang_obj_id:
+                evaled_tokens.append(str(test_val))
+                if wc_token.model_type == wc_lang.core.Function:
+                    # todo: don't put these in
+                    # skip past the ( ) tokens following 
+                    idx += 2
             else:
-                # evaluate the wc_lang_obj_id
-                # if testing, use a value of 1.0
-                if testing:
-                    value = 1.0
-                else:
-                    value = dynamic_model.eval_dynamic_obj(wc_token.model_type, wc_token.token_string, time)
-                evaled_tokens.append(str(value))
+                evaled_tokens.append(wc_token.token_string)
+            idx += 1
 
         expression = ' '.join(evaled_tokens)
         local_ns = {func.__name__: func for func in self.valid_functions}
 
-        # get id whether it is a static attribute or a method, like in Species
+        # if it is available, get id whether it is a static attribute or a method, like in Species
         id = None
-        if hasattr(dyn_model_obj, 'id'):
-            id = getattr(dyn_model_obj, 'id')
+        if hasattr(self.model_class, 'id'):
+            id = getattr(self.model_class, 'id')
             if callable(id):
                 id = id()
-            error_suffix = " cannot eval expression '{}' in {} with id {} at time {}; ".format(expression,
-                dyn_model_obj.__class__.__name__, id, time)
+            error_suffix = " cannot eval expression '{}' in {} with id {}; ".format(expression,
+                self.model_class.__name__, id)
         else:
-            error_suffix = " cannot eval expression '{}' in {} at time {}; ".format(expression,
-                dyn_model_obj.__class__.__name__, time)
+            error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
+                self.model_class.__name__)
 
         try:
             return eval(expression, {}, local_ns)
