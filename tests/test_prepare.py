@@ -15,7 +15,7 @@ import unittest
 
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
                      Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
-                     Concentration, BiomassComponent, BiomassReaction, SpeciesTypeType, Observable,
+                     BiomassComponent, BiomassReaction, SpeciesTypeType, Observable,
                      ObservableCoefficient, Function)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
@@ -641,29 +641,29 @@ class TestCheckModel(unittest.TestCase):
             self.assertIn('dependency cycle among Observables', e)
 
         # Function
-        fun_1 = self.model.functions.create(id='fun_1')
-        fun_2 = self.model.functions.create(id='fun_2')
-        fun_3 = self.model.functions.create(id='fun_3')
         # each function calls the next
-        fun_1.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_2()', {Function:{'fun_2': fun_2}})
-        tokens, _ = fun_1.analyzed_expr.deserialize()
-        self.assertTrue(tokens != None)
-        fun_2.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_3()', {Function:{'fun_3': fun_3}})
-        tokens, _ = fun_2.analyzed_expr.deserialize()
-        self.assertTrue(tokens != None)
-        fun_3.analyzed_expr = WcLangExpression(Function, 'expression', '', {})
+        fun_1 = self.model.functions.create(id='fun_1', expression='fun_2()')
+        fun_2 = self.model.functions.create(id='fun_2', expression='fun_3()')
+        fun_3 = self.model.functions.create(id='fun_3', expression='')
+        objects = {Function: {}}
+        for fun in [fun_1, fun_2, fun_3]:
+            objects[Function][fun.id] = fun
+        for fun in [fun_1, fun_2, fun_3]:
+            tokens, _ = fun.deserialize(objects)
+            self.assertTrue(tokens != None)
         errors = self.check_model.verify_acyclic_dependencies([Function])
         self.assertEqual(errors, [])
 
-        # test recursion: have fun_3 call fun_1
-        fun_3.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_1()', {Function:{'fun_1': fun_1}})
-        tokens, _ = fun_3.analyzed_expr.deserialize()
-        self.assertTrue(tokens != None)
-        # and fun_1 call itself
-        fun_1.analyzed_expr = WcLangExpression(Function, 'expression', 'fun_1() + fun_2()',
-            {Function:{'fun_1': fun_1, 'fun_2': fun_2}})
-        tokens, _ = fun_1.analyzed_expr.deserialize()
-        self.assertTrue(tokens != None)
+        # test recursion: have fun_1 call itself
+        fun_1 = self.model.functions.create(id='fun_1', expression='fun_1() + fun_2()')
+        fun_2 = self.model.functions.create(id='fun_2', expression='fun_3()')
+        # and fun_3 call fun_1
+        fun_3 = self.model.functions.create(id='fun_3', expression='fun_1()')
+        for fun in [fun_1, fun_2, fun_3]:
+            objects[Function][fun.id] = fun
+        for fun in [fun_1, fun_2, fun_3]:
+            tokens, _ = fun.deserialize(objects)
+            self.assertTrue(tokens != None)
         errors = self.check_model.verify_acyclic_dependencies([Function])
         self.assertEqual(len(errors), 2)
         for e in errors:

@@ -12,10 +12,10 @@ import tokenize
 import token
 from io import BytesIO
 
-
+import obj_model
 from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
-    StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
+    FunctionExpression, StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
 from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
     WcLangExpression, WcLangExpressionError)
 
@@ -134,17 +134,24 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegexp(WcLangExpressionError,
             "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
             WcLangExpression(Species, 'attr', '', {})
-        """
-        with self.assertRaisesRegexp(WcLangExpressionError,
-            "objects entry 'RateLawEquation' not a member of Function.Meta.valid_used_models:"):
-            WcLangExpression(Function, 'attr', '', {RateLawEquation:{}})
-        """
 
     def test_get_wc_lang_model_type(self):
         wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
         self.assertEqual(None, wc_lang_expr.get_wc_lang_model_type('NoSuchType'))
         self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
         self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
+
+    def test_get_corresponding_model(self):
+        self.assertEqual(WcLangExpression.get_corresponding_model(FunctionExpression), Function)
+        self.assertEqual(WcLangExpression.get_corresponding_model(Function, from_expression=False),
+            FunctionExpression)
+        with self.assertRaisesRegexp(WcLangExpressionError, "'Function' does not end with 'Expression'"):
+            WcLangExpression.get_corresponding_model(Function)
+        with self.assertRaisesRegexp(WcLangExpressionError, "'FunctionExpression' already ends with 'Expression'"):
+            WcLangExpression.get_corresponding_model(FunctionExpression, from_expression=False)
+        with self.assertRaisesRegexp(WcLangExpressionError, "Model '.*' not found"):
+            WcLangExpression.get_corresponding_model(RateLawEquation, from_expression=False)
+        # todo: test raise WcLangExpressionError("Model 'wc_lang.core.{}' not found".format(base_model_name))
 
     def do_match_tokens_test(self, expr, pattern, expected, idx=0):
         wc_lang_expr = self.make_wc_lang_expr(expr)
@@ -431,8 +438,6 @@ class TestWcLangExpression(unittest.TestCase):
         objects = {
             Foo: {'foo_1':Foo(), 'foo_2':Foo()}
         }
-        with self.assertRaisesRegexp(WcLangExpressionError, "objects entry 'Foo' is not a subclass of obj_model.Model"):
-            WcLangExpression(RateLawEquation, 'expr_attr', '', objects)
         with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
 
@@ -440,9 +445,9 @@ class TestWcLangExpression(unittest.TestCase):
         related_obj_val = 3
 
         # test combination of TokCodes
-        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id)')
+        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id) + fun_2()')
         wc_lang_expr.tokenize()
-        expected_val = 4 * related_obj_val + pow(2, related_obj_val)
+        expected_val = 4 * related_obj_val + pow(2, related_obj_val) + related_obj_val
         evaled_val = wc_lang_expr.test_eval_expr(test_val=related_obj_val)
         self.assertEqual(expected_val, evaled_val)
 
