@@ -23,6 +23,7 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
+    write up expression tokenizing vs. deserialization to illustrate problem
     make model_class a model, so that test_eval_expr can provide ids
     test multiple instances of the same used model in an expression
     ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
@@ -270,13 +271,6 @@ class TokCodes(int, CaseInsensitiveEnum):
     other = 3
 
 
-# result returned by a tokens lexer, like disambiguated_id()
-LexMatch = namedtuple('LexMatch', 'wc_lang_tokens, num_py_tokens')
-LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
-LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
-LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
-
-
 # a matched token pattern used by tokenize
 IdMatch = namedtuple('IdMatch', 'model_type, token_pattern, match_string')
 IdMatch.__doc__ += ': Matched token pattern used by tokenize'
@@ -295,6 +289,13 @@ WcLangToken.token_string.__doc__ = "The token's string"
 WcLangToken.model_type.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's type"
 WcLangToken.model_id.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's id"
 WcLangToken.model.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj"
+
+
+# result returned by a tokens lexer, like disambiguated_id()
+LexMatch = namedtuple('LexMatch', 'wc_lang_tokens, num_py_tokens')
+LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
+LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
+LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
 class Error(Exception):
@@ -392,10 +393,6 @@ class WcLangExpression(object):
                 or lexical analysis of `expression` raises an exception,
                 or `objects` includes model types that `model_class` should not reference
         """
-        try:
-            model_class = WcLangExpression.get_corresponding_model(model_class)
-        except WcLangExpressionError:
-            pass
         if not issubclass(model_class, obj_model.Model):
             raise WcLangExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
                 model_class.__name__))
@@ -456,40 +453,6 @@ class WcLangExpression(object):
                 return model_type
         return None
 
-    @staticmethod
-    def get_corresponding_model(model_type, from_expression=True):
-        """ Find the `wc_lang` Expression model type corresponding to `model_type`
-
-        Args:
-            model_type (:obj:`obj_model.Model`): the `wc_lang` model type to be mapped
-            from_expression (:obj:`bool`, optional): if set, get a base model from an `Expression`
-                model; if False, do the opposite
-
-        Returns:
-            :obj:`obj_model.Model`: the type of the corresponding model
-
-        Raises:
-            (:obj:`WcLangExpressionError`): if the corresponding model does not exist, or the input
-                is incorrect
-        """
-        EXPRESSION = 'Expression'
-        if from_expression:
-            if not model_type.__name__.endswith(EXPRESSION):
-                raise WcLangExpressionError("'{}' does not end with '{}'".format(model_type.__name__,
-                    EXPRESSION))
-            base_model_name = model_type.__name__[:-len(EXPRESSION)]
-            if not hasattr(wc_lang.core, base_model_name):
-                raise WcLangExpressionError("Model 'wc_lang.core.{}' not found".format(base_model_name))
-            return getattr(wc_lang.core, base_model_name)
-        else:
-            if model_type.__name__.endswith(EXPRESSION):
-                raise WcLangExpressionError("'{}' already ends with '{}'".format(model_type.__name__,
-                    EXPRESSION))
-            expression_model_name = "{}{}".format(model_type.__name__, EXPRESSION)
-            if not hasattr(wc_lang.core, expression_model_name):
-                raise WcLangExpressionError("Model 'wc_lang.core.{}' not found".format(expression_model_name))
-            return getattr(wc_lang.core, expression_model_name)
-
     def match_tokens(self, token_pattern, idx):
         """ Indicate whether `tokens` begins with a pattern of tokens that match `token_pattern`
 
@@ -516,7 +479,7 @@ class WcLangExpression(object):
         match_val = ''.join([self.tokens[idx+i].string for i in range(len(token_pattern))])
         return match_val
 
-    def disambiguated_id(self, idx):
+    def disambiguated_id(self, idx, case_fold_match=False):
         """ Try to parse a disambuated `wc_lang` id from `self.tokens` at `idx`
 
         Look for a disambugated id (either a Function written as `Function.identifier()`, or a
@@ -526,6 +489,10 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `tokens`
+            case_fold_match (:obj:`bool`, optional): if set, `casefold()` identifiers before matching;
+                in a `WcLangToken`, `token_string` retains the original expression text, while `model_id`
+                contains the casefold'ed value; identifier keys in `self.objects` must already be casefold'ed;
+                default=False
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -535,6 +502,8 @@ class WcLangExpression(object):
         fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
         if fun_match:
             possible_macro_id = self.tokens[idx+2].string
+            if case_fold_match:
+                possible_macro_id = possible_macro_id.casefold()
             # the disambiguation model type must be Function
             if self.tokens[idx].string != wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
@@ -551,6 +520,8 @@ class WcLangExpression(object):
         if disambig_model_match:
             disambig_model_type = self.tokens[idx].string
             possible_model_id = self.tokens[idx+2].string
+            if case_fold_match:
+                possible_model_id = possible_model_id.casefold()
             # the disambiguation model type cannot be Function
             if disambig_model_type == wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
@@ -576,7 +547,7 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def related_object_id(self, idx):
+    def related_object_id(self, idx, case_fold_match=False):
         """ Try to parse a related object `wc_lang` id from `self.tokens` at `idx`
 
         Different `wc_lang` objects match different Python token patterns. The default pattern
@@ -585,6 +556,8 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `tokens`
+            case_fold_match (:obj:`bool`, optional): if set, casefold identifiers before matching;
+                identifier keys in `self.objects` must already be casefold'ed; default=False
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -601,8 +574,12 @@ class WcLangExpression(object):
             if match_string:
                 token_matches.add(match_string)
                 # is match_string the ID of an instance in model_type?
-                if match_string in self.objects[model_type]:
-                    id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                if case_fold_match:
+                    if match_string.casefold() in self.objects[model_type]:
+                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                else:
+                    if match_string in self.objects[model_type]:
+                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
 
         if not id_matches:
             if token_matches:
@@ -631,12 +608,15 @@ class WcLangExpression(object):
         else:
             # return a lexical match about a related id
             match = id_matches.pop()
+            right_case_match_string = match.match_string
+            if case_fold_match:
+                right_case_match_string = match_string.casefold()
             return LexMatch(
-                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, match.match_string,
-                    self.objects[match.model_type][match.match_string])],
+                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, right_case_match_string,
+                    self.objects[match.model_type][right_case_match_string])],
                 len(match.token_pattern))
 
-    def fun_call_id(self, idx):
+    def fun_call_id(self, idx, case_fold_match='unused'):
         """ Try to parse a Python math function call from `self.tokens` at `idx`
 
         Each `wc_lang` object `model_class` that contains an expression which can use Python math
@@ -645,6 +625,7 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `self.tokens`
+            case_fold_match (:obj:`str`, optional): ignored keyword; makes `WcLangExpression.tokenize()` simpler
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -679,8 +660,12 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def tokenize(self):
+    def tokenize(self, case_fold_match=False):
         """ Tokenize a Python expression in `self.expression`
+
+        Args:
+            case_fold_match (:obj:`bool`, optional): if set, casefold identifiers before matching;
+                identifier keys in `self.objects` must already be casefold'ed; default = False
 
         Returns:
             (:obj:`tuple`): either `(None, :obj:list of :obj:str)` containing a list of errors, or
@@ -718,7 +703,7 @@ class WcLangExpression(object):
             matches = []
             tmp_errors = []
             for get_wc_lang_lexical_element in [self.related_object_id, self.disambiguated_id, self.fun_call_id]:
-                result = get_wc_lang_lexical_element(idx)
+                result = get_wc_lang_lexical_element(idx, case_fold_match=case_fold_match)
                 if result is not None:
                     if isinstance(result, str):
                         tmp_errors.append(result)
