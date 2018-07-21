@@ -19,10 +19,11 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           SpeciesCoefficient, ObservableCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
                           RateLaw, RateLawEquation, RateLawEquationAttribute,
-                          Function, FunctionExpression, FunctionExpressionAttribute,
+                          Function,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction, StopCondition, 
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute,
-                          InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
+                          InvalidObject, EXTRACELLULAR_COMPARTMENT_ID,
+                          Expressions)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
 from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
@@ -1605,92 +1606,135 @@ class TestCore(unittest.TestCase):
         with self.assertRaisesRegexp(ValueError, 'does not belong to submodel'):
             obj_func.get_products()
 
-    def do_test_valid_function_create(self, model, objects, func_exprs, expr, expected_val, expected_attrs):
-        func = model.functions.create(expression=expr)
-
-    def do_test_valid_function(self, objects, func_exprs, expr, expected_val, expected_attrs):
-        attr = Function.Meta.attributes['expression']
-        func_expr, error = FunctionExpression.deserialize(attr, expr, objects)
-        self.assertEqual(error, None)
-        self.assertEqual(func_expr.expression, expr)
-        func_exprs.add(func_expr)
-        self.assertEqual(set(objects[FunctionExpression].values()), func_exprs)
-        self.assertEqual(func_expr.validate(), None)
-        self.assertEqual(func_expr.analyzed_expr.test_eval_expr(), expected_val)
-
-        # check on FunctionExpression attributes
-        if expected_attrs:
-            for modifier, elements in expected_attrs.items():
-                self.assertEqual(set(getattr(func_expr, modifier)), set(elements))
-
-    def make_objects(self, model):
+    def make_objects(self):
+        model = Model()
+        expressions = Expressions()
+        expressions.model = model
         objects = {
             Observable: {},
             Parameter: {},
             Function: {}
         }
+        expr_val = 1
+        expr = str(expr_val)
+        id_map = {}
         for id in ['A', 'B', 'duped_id']:
             param = model.parameters.create(id=id)
-            objects[Parameter][id] = param
+            objects[Parameter][expr] = param
+            id_map['Parameter.'+ id] = param
+            expr_val += 1
+            expr = str(expr_val)
 
         for id in ['CCC', 'DDD', 'duped_id']:
             observable = model.observables.create(id=id)
-            objects[Observable][id] = observable
+            objects[Observable][expr] = observable
+            id_map['Observable.'+ id] = observable
+            expr_val += 1
+            expr = str(expr_val)
 
         for id in ['f', 'g', 'duped_id']:
-            function = model.functions.create(id=id)
-            objects[Function][id] = function
+            function = model.expressions.functions.create(id=id)
+            objects[Function][expr] = function
+            id_map['Function.'+ id] = function
+            expr_val += 1
+            expr = str(expr_val)
 
-        return objects
+        return model, objects, id_map
+
+    id_num = 0
+    @staticmethod
+    def get_uid():
+        TestCore.id_num += 1
+        return 'id_{}'.format(TestCore.id_num)
+
+    def do_test_valid_function(self, model, objects, funcs, expr, expected_val, expected_attrs):
+        id = TestCore.get_uid()
+        f = Function(id=id, expression=expr)
+        objects[Function][expr] = f
+        attr = Function.Meta.attributes['expression']
+        func, error = Function.deserialize(attr, expr, objects)
+        self.assertEqual(error, None)
+        self.assertEqual(func.expression, expr)
+        self.assertEqual(func.expression, func.serialize())
+        funcs.add(func)
+        self.assertTrue(funcs.issubset(set(objects[Function].values())))
+        err = func.validate()
+        self.assertEqual(err, None)
+        self.assertEqual(func.analyzed_expr.test_eval_expr(), expected_val)
+
+        # check on FunctionExpression attributes
+        if expected_attrs:
+            for modifier, elements in expected_attrs.items():
+                self.assertEqual(set(getattr(func, modifier)), set(elements))
 
     def test_valid_functions(self):
-        model = Model()
-        objects = self.make_objects(model)
+        model, objects, id_map = self.make_objects()
 
-        func_exprs = set()
+        funcs = set()
         for expr, expected_test_val, expected_attrs in [
-            ('CCC', 1, {'observables':[objects[Observable]['CCC']]}),
-            ('CCC + DDD', 2, {'observables':[objects[Observable]['CCC'], objects[Observable]['DDD']]}),
+            ('CCC', 1, {'observables':[id_map['Observable.CCC']]}),
+            ('CCC + DDD', 2, {'observables':[id_map['Observable.CCC'], id_map['Observable.DDD']]}),
             ('CCC + 2 * DDD', 3, {}),
             ('CCC + 2 * DDD > 3', False, {}),
             ('A + f()', 2,
-                {'parameters':[objects[Parameter]['A']],
-                'functions':[objects[Function]['f']]}),
+                {'parameters':[id_map['Parameter.A']],
+                'functions':[id_map['Function.f']]}),
             ('log(A)', math.log(1), {}),
-            ('max(A, B)', 1, {}),
+            ('max(A, B)', 1,
+                {'parameters':[id_map['Parameter.A'], id_map['Parameter.B']]}),
             ('Observable.CCC + Observable.duped_id - Parameter.duped_id', 1,
-                {'parameters':[objects[Parameter]['duped_id']],
-                'observables':[objects[Observable]['duped_id'], objects[Observable]['CCC']]}),
-            ('CCC * Function.duped_id()', 1, {}),]:
-            self.do_test_valid_function_create(model, objects, func_exprs, expr, expected_test_val, expected_attrs)
+                {'parameters':[id_map['Parameter.duped_id']],
+                'observables':[id_map['Observable.duped_id'], id_map['Observable.CCC']]}),
+            ('CCC * Function.duped_id()', 1,
+                {'observables':[id_map['Observable.CCC']],
+                'functions':[id_map['Function.duped_id']]})
+            ]:
+            self.do_test_valid_function(model, objects, funcs, expr, expected_test_val, expected_attrs)
 
     def do_test_unserializable_function(self, objects, expr, msg_substr):
+        id = TestCore.get_uid()
+        f = Function(id=id, expression=expr)
+        objects[Function][expr] = f
         attr = Function.Meta.attributes['expression']
-        none, error = FunctionExpression.deserialize(attr, expr, objects)
-        self.assertEqual(none, None)
+        func, error = Function.deserialize(attr, expr, objects)
+        self.assertEqual(func, None)
         self.assertTrue(isinstance(error, InvalidAttribute))
         self.assertIn(msg_substr, error.messages[0])
 
     def test_unserializable_function(self):
-        model = Model()
-        objects = self.make_objects(model)
+        model, objects, _ = self.make_objects()
 
         self.do_test_unserializable_function(objects, 'id1[id2', "Python syntax error")
         bad_id = 'no_such_obj'
+
         self.do_test_unserializable_function(objects, bad_id,
             "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
-    def do_test_invalid_function(self, model, objects, expr, msg_substr):
+        self.do_test_unserializable_function({Function:{}}, '', "'Parameter' missing from objects")
+
+        objects[Observable]['expr 1'] = model.observables.create(id='ID')
+        objects[Observable]['expr 2'] = model.observables.create(id='id')
+        self.do_test_unserializable_function(objects, '',
+            "Observable objects have conflicting ids after casefold: 'id' and 'ID'")
+
+    def test_function_not_in_objects(self):
+        _, objects, _ = self.make_objects()
         attr = Function.Meta.attributes['expression']
-        func_expr, error = FunctionExpression.deserialize(attr, expr, objects)
+        func, error = Function.deserialize(attr, 'expr', objects)
+        self.assertIn("'Function' with expression 'expr' missing from objects", error.messages[0])
+
+    def do_test_invalid_function(self, model, objects, expr, msg_substr):
+        f = Function(id=TestCore.get_uid(), expression=expr)
+        objects[Function][expr] = f
+        attr = Function.Meta.attributes['expression']
+        func, error = Function.deserialize(attr, expr, objects)
         self.assertEqual(error, None)
-        invalid_obj = func_expr.validate()
+        invalid_obj = func.validate()
         self.assertTrue(isinstance(invalid_obj, InvalidObject))
         self.assertIn(msg_substr, invalid_obj.attributes[0].messages[0])
 
     def test_invalid_functions(self):
-        model = Model()
-        objects = self.make_objects(model)
+        model, objects, _ = self.make_objects()
 
         bad_expr = '1 +'
         self.do_test_invalid_function(model, objects, bad_expr,
