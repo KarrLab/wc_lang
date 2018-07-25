@@ -1765,6 +1765,87 @@ class Observable(obj_model.Model):
         return self.id
 
 
+class ExpressionMethods(object):
+    """ Generic methods for mathematical expressions
+    """
+
+    @staticmethod
+    def serialize(model_obj):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: value of primary attribute
+        """
+        return model_obj.expression
+
+    @staticmethod
+    def deserialize(model_class, attribute, value, objects, decoded=None):
+        """ Deserialize expression
+
+        Args:
+            attribute (:obj:`Attribute`): expression attribute
+            value (:obj:`str`): string representation of the mathematical expression, in a
+                Python expression
+            objects (:obj:`dict`): dictionary of objects which can be used in `expression`, grouped by model
+
+        Returns:
+            :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
+                otherwise return (object in this class with instantiated `analyzed_expr`, `None`)
+        """
+        # objects must contain all objects types in valid_used_models
+        used_model_types = []
+        errors = []
+        for used_model in model_class.Meta.valid_used_models:
+            used_model_type = globals()[used_model]
+            if used_model_type not in objects:
+                errors.append("'{}' missing from objects".format(used_model_type.__name__))
+            used_model_types.append(used_model_type)
+        if errors:
+            return (None, InvalidAttribute(attribute, errors))
+        expr_field = 'expression'
+        try:
+            analyzed_expr = WcLangExpression(model_class, expr_field, value, objects)
+        except WcLangExpressionError as e:
+            return (None, InvalidAttribute(attribute, [str(e)]))
+        rv = analyzed_expr.tokenize()
+        if rv[0] is None:
+            errors = rv[1]
+            return (None, InvalidAttribute(attribute, errors))
+        _, used_objects = rv
+        if model_class not in objects:
+            objects[model_class] = {}
+        if value in objects[model_class]:
+            obj = objects[model_class][value]
+        else:
+            obj = model_class(expression=value)
+            objects[model_class][value] = obj
+            for used_model_type in used_model_types:
+                used_model_type_attr = used_model_type.__name__.lower()+'s'
+                attr_value = []
+                if used_model_type in used_objects:
+                    attr_value = list(used_objects[used_model_type].values())
+                setattr(obj, used_model_type_attr, attr_value)
+        obj.analyzed_expr = analyzed_expr
+        return (obj, None)
+
+    @staticmethod
+    def validate(model_obj):
+        """ Determine whether this `Expression` is valid, by eval'ing its deserialized expression
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        try:
+            model_obj.analyzed_expr.test_eval_expr()
+            # return `None` to indicate valid object
+            return None
+        except WcLangExpressionError as e:
+            attr = model_obj.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, [str(e)])
+            return InvalidObject(model_obj, [attr_err])
+
+
 class FunctionExpression(obj_model.Model):
     """ A mathematical expression using zero or more Observables, Parameters and Functions.
 
@@ -1778,6 +1859,7 @@ class FunctionExpression(obj_model.Model):
     Related attributes:
         function (:obj:`Function`): function
     """
+
     expression = LongStringAttribute(primary=True, unique=True)
     observables = ManyToManyAttribute(Observable, related_name='functions')
     parameters = ManyToManyAttribute('Parameter', related_name='functions')
@@ -1795,79 +1877,12 @@ class FunctionExpression(obj_model.Model):
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         valid_used_models = ('Parameter', 'Observable', 'Function')
 
-    def serialize(self):
-        """ Generate string representation
-
-        Returns:
-            :obj:`str`: value of primary attribute
-        """
-        return self.expression
-
     @classmethod
     def deserialize(cls, attribute, value, objects, decoded=None):
-        """ Deserialize expression
-
-        Args:
-            attribute (:obj:`Attribute`): expression attribute
-            value (:obj:`str`): string representation of the mathematical expression, in a
-                Python expression
-            objects (:obj:`dict`): dictionary of objects which can be used in `expression`, grouped by model
-
-        Returns:
-            :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
-                otherwise return (object in this class with instantiated `analyzed_expr`, `None`)
-        """
-        # objects must contain all objects types in valid_used_models
-        used_model_types = []
-        errors = []
-        for used_model in cls.Meta.valid_used_models:
-            used_model_type = globals()[used_model]
-            if used_model_type not in objects:
-                errors.append("'{}' missing from objects".format(used_model_type.__name__))
-            used_model_types.append(used_model_type)
-        if errors:
-            return (None, InvalidAttribute(attribute, errors))
-        expr_field = 'expression'
-        try:
-            analyzed_expr = WcLangExpression(cls, expr_field, value, objects)
-        except WcLangExpressionError as e:
-            return (None, InvalidAttribute(attribute, [str(e)]))
-        rv = analyzed_expr.tokenize()
-        if rv[0] is None:
-            errors = rv[1]
-            return (None, InvalidAttribute(attribute, errors))
-        _, used_objects = rv
-        if cls not in objects:
-            objects[cls] = {}
-        if value in objects[cls]:
-            obj = objects[cls][value]
-        else:
-            obj = cls(expression=value)
-            objects[cls][value] = obj
-            for used_model_type in used_model_types:
-                used_model_type_attr = used_model_type.__name__.lower()+'s'
-                attr_value = []
-                if used_model_type in used_objects:
-                    attr_value = list(used_objects[used_model_type].values())
-                setattr(obj, used_model_type_attr, attr_value)
-        obj.analyzed_expr = analyzed_expr
-        return (obj, None)
+        return ExpressionMethods.deserialize(cls, attribute, value, objects)
 
     def validate(self):
-        """ Determine whether `FunctionExpression` is valid, by eval'ing its deserialized expression
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
-        """
-        try:
-            self.analyzed_expr.test_eval_expr()
-            # return `None` to indicate valid object
-            return None
-        except WcLangExpressionError as e:
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, [str(e)])
-            return InvalidObject(self, [attr_err])
+        return ExpressionMethods.validate(self)
 
 
 class Function(obj_model.Model):

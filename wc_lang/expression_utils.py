@@ -25,18 +25,20 @@ PARAMETERS_DICT = 'parameters'
 build
 expression utils core:
     move FunctionExpression.deserialize to ExpressionsUtils class and reuse (inherit classmethods?)
-    make Parameter.id unique
     use WcLangExpression to deserialize and validate all wc_lang expressions:
-        convert StopCondition, Observable, ObjectiveFunction, and RateLawEquation, in that order
+        first convert StopCondition
+    get Functions & StopCondition working in wc_sim
+        complete DynamicExpression
+    convert Observable, ObjectiveFunction, and RateLawEquation
     what about k_cat and k_m?
-    complete DynamicExpression and toss DynamicFunction
     ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
-    test multiple instances of the same used model in an expression
-    test with real WC models
     test dependent repos
 extra
+    make Parameter.id unique
+    test multiple instances of the same used model in an expression
     incorporate id into error_suffix in test_eval_expr
-    make model_class a model, so that test_eval_expr can provide ids
+    test with real WC models
+    perhaps make model_class a model, so that test_eval_expr can provide ids
     rename Function to Macro; need to change model files too -- argh
     expand Jupyter example
 cleanup
