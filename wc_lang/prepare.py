@@ -781,22 +781,23 @@ class CheckModel(object):
         """
         errors = []
 
-        species = self.model.get_species()
         species_concentrations = {}
         for concentration in self.model.get_concentrations():
             species_concentrations[concentration.species.serialize()] = concentration.value
 
         parameters = self.model.get_parameters()
+        parameter_ids = set([parameter.id for parameter in parameters])
         parameter_values = {}
         for parameter in parameters:
             parameter_values[parameter.id] = parameter.value
 
+        species_ids = set([specie.id() for specie in self.model.get_species()])
         for reaction in self.model.get_reactions():
             for rate_law in reaction.rate_laws:
                 if getattr(rate_law, 'equation', None) is None:
                     continue
                 try:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species, parameters)
+                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species_ids, parameter_ids)
                 except Exception as error:
                     errors.append('{} rate law for reaction "{}" cannot be transcoded: {}'.format(
                         rate_law.direction.name, reaction.id, str(error)))

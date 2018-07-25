@@ -2306,7 +2306,9 @@ class RateLaw(obj_model.Model):
         """ Check that rate law evaluates """
         if self.equation:
             try:
-                transcoded = RateLawUtils.transcode(self.equation, self.equation.modifiers, self.equation.parameters)
+                species_ids = set([s.id() for s in self.equation.modifiers])
+                parameter_ids = set([p.id for p in self.equation.parameters])
+                transcoded = RateLawUtils.transcode(self.equation, species_ids, parameter_ids)
                 concentrations = {}
                 parameters = {}
                 for s in self.equation.modifiers:

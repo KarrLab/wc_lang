@@ -58,14 +58,14 @@ class RateLawUtils(object):
     '''A set of static rate_law methods '''
 
     @staticmethod
-    def transcode(rate_law_equation, species, parameters):
+    def transcode(rate_law_equation, species_ids, parameter_ids):
         '''Translate a `wc_lang.core.RateLawEquation` into a python expression that can be evaluated
         during a simulation.
 
         Args:
             rate_law_equation (:obj:`wc_lang.core.RateLawEquation`): a rate law equation
-            species (:obj:`set` of `wc_lang.core.Species`): the species that use the rate law
-            parameters (:obj:`set` of `wc_lang.core.Parameter`): the parameters that use the rate law
+            species_ids (:obj:`set` of `str`): ids of the species that use the rate law
+            parameter_ids (:obj:`set` of `str`): ids of the parameters that use the rate law
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
@@ -161,8 +161,6 @@ class RateLawUtils(object):
                 rate_law_equation.expression))
 
         rate_law_expression = rate_law_equation.expression
-        species_ids = set([specie.id() for specie in species])
-        parameter_ids = set([parameter.id for parameter in parameters])
         reserved_parameter_ids = set(map(lambda f: f.__name__, wc_lang.RateLawEquation.Meta.valid_functions)) | \
             set(['k_cat', 'k_m'])
 
@@ -193,24 +191,6 @@ class RateLawUtils(object):
                 idx += 1
         py_expression = tokenize.untokenize(result)
         return py_expression
-
-    @staticmethod
-    def transcode_rate_laws(model):
-        '''Transcode all of `model`'s rate law expressions into Python expressions
-
-        Args:
-            model (:obj:`wc_lang.core.Model`): a `wc_lang.core.Model`
-
-        Raises:
-            ValueError: If a rate law cannot be transcoded
-        '''
-        for submodel in model.get_submodels():
-            for reaction in submodel.reactions:
-                for rate_law in reaction.rate_laws:
-                    if hasattr(rate_law, 'equation'):
-                        rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation,
-                                                                              submodel.get_species(),
-                                                                              rate_law.equation.parameters)
 
     @staticmethod
     def eval_reaction_rate_laws(reaction, concentrations, parameters):

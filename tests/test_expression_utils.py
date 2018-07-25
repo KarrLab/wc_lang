@@ -31,34 +31,6 @@ class TestRateLawUtils(unittest.TestCase):
     def setUp(self):
         self.model = Reader().run(self.MODEL_FILENAME)
 
-    def test_transcode_and_eval_rate_laws(self):
-
-        # transcode rate laws
-        RateLawUtils.transcode_rate_laws(self.model)
-        concentrations = {}
-        parameters = {}
-        for specie in self.model.get_species():
-            try:
-                concentrations[specie.serialize()] = specie.concentration.value
-            except:
-                pass
-        for parameter in self.model.get_parameters():
-            try:
-                parameters[parameter.id] = parameter.value
-            except:
-                pass
-
-        # evaluate the rate laws
-        expected = {}
-        expected['reaction_1'] = [0.0002]
-        expected['reaction_2'] = [1.]
-        expected['reaction_3'] = [.5, 0.003]
-        expected['reaction_4'] = [0.0005]
-        expected['biomass'] = []
-        for reaction in self.model.get_reactions():
-            rates = RateLawUtils.eval_reaction_rate_laws(reaction, concentrations, parameters)
-            self.assertEqual(rates, expected[reaction.id])
-
     def test_eval_rate_law_exceptions(self):
         rate_law_equation = RateLawEquation(
             expression='',
