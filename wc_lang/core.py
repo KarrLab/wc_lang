@@ -1395,6 +1395,99 @@ class Compartment(obj_model.Model):
         return sbml_compartment
 
 
+class Parameter(obj_model.Model):
+    """ Parameter
+
+    Attributes:
+        id (:obj:`str`): unique identifier per model/submodel
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        submodels (:obj:`list` of :obj:`Submodel`): submodels
+        value (:obj:`float`): value
+        units (:obj:`str`): units of value
+        comments (:obj:`str`): comments
+        references (:obj:`list` of `Reference`): references
+    """
+    id = SlugAttribute(unique=False)
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='parameters')
+    submodels = ManyToManyAttribute(Submodel, related_name='parameters')
+    value = FloatAttribute(min=0)
+    units = StringAttribute()
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='parameters')
+
+    class Meta(obj_model.Model.Meta):
+        unique_together = (('id', 'model', 'submodels', ), )
+        attribute_order = ('id', 'name',
+                           'model', 'submodels',
+                           'value', 'units',
+                           'comments', 'references')
+
+    def add_to_sbml_doc(self, sbml_document):
+        """ Add this Parameter to a libsbml SBML document.
+
+        Args:
+             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+
+        Returns:
+            :obj:`libsbml.Parameter`: the libsbml Parameter that's created
+
+        Raises:
+            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        """
+        sbml_model = wrap_libsbml(sbml_document.getModel)
+        # prefix id with 'parameter' so ids for wc_lang Parameters don't collide with ids for other libsbml parameters
+        sbml_id = "parameter_{}".format(self.id)
+        # TODO: use a standard unit ontology to map self.units to SBML model units
+        if self.units == 'dimensionless':
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                                                   name=self.name)
+        elif self.units == 's':
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'second',
+                                                   name=self.name)
+        elif self.units == 'mmol/gDCW/h':
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
+                                                   name=self.name)
+        else:
+            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                                                   name=self.name)
+
+        return sbml_parameter
+
+class Observable(Parameter):
+    """ An observable is a weighted sum of the abundances of one or more species or other observables
+
+    Attributes:
+        id (:obj:`str`): id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
+        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and
+            their coefficients
+        comments (:obj:`str`): comments
+
+    Related attributes:
+        observable_coefficients (:obj:`list` of `ObservableCoefficient`): participations in observables
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='observables')
+    species = ObservableSpeciesParticipantAttribute('SpeciesCoefficient', related_name='observables')
+    observables = ObservableObservableParticipantAttribute('ObservableCoefficient', related_name='observables')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
+                `Observable` is allowed to reference in its `expression`
+        """
+        attribute_order = ('id', 'name', 'species', 'observables', 'comments')
+        indexed_attrs_tuples = (('id',), )
+        valid_used_models = ('Species', 'Observable')
+
+
 class SpeciesType(obj_model.Model):
     """ Species type
 
@@ -1668,37 +1761,6 @@ class Concentration(obj_model.Model):
         return self.species.serialize()
 
 
-class Observable(obj_model.Model):
-    """ An observable is a weighted sum of the abundances of one or more species or other observables
-
-    Attributes:
-        id (:obj:`str`): id
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-        species (:obj:`list` of :obj:`SpeciesCoefficient`): species and their coefficients
-        observables (:obj:`list` of :obj:`ObservableCoefficient`): list of component observables and
-            their coefficients
-        comments (:obj:`str`): comments
-
-    Related attributes:
-        observable_coefficients (:obj:`list` of `ObservableCoefficient`): participations in observables
-    """
-    id = SlugAttribute()
-    name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='observables')
-    species = ObservableSpeciesParticipantAttribute('SpeciesCoefficient', related_name='observables')
-    observables = ObservableObservableParticipantAttribute('ObservableCoefficient', related_name='observables')
-    comments = LongStringAttribute()
-
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
-                `Observable` is allowed to reference in its `expression`
-        """
-        attribute_order = ('id', 'name', 'species', 'observables', 'comments')
-        indexed_attrs_tuples = (('id',), )
-        valid_used_models = ('Species', 'Observable')
 
 
 '''
@@ -2611,67 +2673,6 @@ class BiomassReaction(obj_model.Model):
                 wrap_libsbml(param.setValue, float('inf'))
                 wrap_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
         return sbml_reaction
-
-
-class Parameter(obj_model.Model):
-    """ Parameter
-
-    Attributes:
-        id (:obj:`str`): unique identifier per model/submodel
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        value (:obj:`float`): value
-        units (:obj:`str`): units of value
-        comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
-    """
-    id = SlugAttribute(unique=False)
-    name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='parameters')
-    submodels = ManyToManyAttribute(Submodel, related_name='parameters')
-    value = FloatAttribute(min=0)
-    units = StringAttribute()
-    comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='parameters')
-
-    class Meta(obj_model.Model.Meta):
-        unique_together = (('id', 'model', 'submodels', ), )
-        attribute_order = ('id', 'name',
-                           'model', 'submodels',
-                           'value', 'units',
-                           'comments', 'references')
-
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Parameter to a libsbml SBML document.
-
-        Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
-
-        Returns:
-            :obj:`libsbml.Parameter`: the libsbml Parameter that's created
-
-        Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
-        """
-        sbml_model = wrap_libsbml(sbml_document.getModel)
-        # prefix id with 'parameter' so ids for wc_lang Parameters don't collide with ids for other libsbml parameters
-        sbml_id = "parameter_{}".format(self.id)
-        # TODO: use a standard unit ontology to map self.units to SBML model units
-        if self.units == 'dimensionless':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
-                                                   name=self.name)
-        elif self.units == 's':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'second',
-                                                   name=self.name)
-        elif self.units == 'mmol/gDCW/h':
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
-                                                   name=self.name)
-        else:
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
-                                                   name=self.name)
-
-        return sbml_parameter
 
 
 class StopCondition(obj_model.Model):
