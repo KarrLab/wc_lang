@@ -14,7 +14,8 @@ from io import BytesIO
 
 import obj_model
 from wc_lang.io import Reader
-from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species, Function,
+from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species,
+    FunctionExpression, Function,
     StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
 from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
     WcLangExpression, WcLangExpressionError)
@@ -108,10 +109,7 @@ class TestWcLangExpression(unittest.TestCase):
         return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
 
     def make_wc_lang_expr(self, expr, obj_type=RateLawEquation):
-        objects = {}
-        for o_type, value in self.objects.items():
-            if o_type.__name__ in obj_type.Meta.valid_used_models:
-                objects[o_type] = value
+        objects = self.objects.copy()
         return WcLangExpression(obj_type, 'expr_attr', expr, objects)
 
     def test_wc_lang_expression(self):
@@ -123,10 +121,8 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {})
         self.assertEqual(wc_lang_expr.valid_functions, set())
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}})
-        self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}, Parameter:{}})
-        self.assertEqual(wc_lang_expr.valid_functions, set(Function.Meta.valid_functions))
+        self.assertEqual(wc_lang_expr.valid_functions, set(FunctionExpression.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegexp(WcLangExpressionError,
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
@@ -177,7 +173,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(len(lex_match.wc_lang_tokens), 1)
         wc_lang_token = lex_match.wc_lang_tokens[0]
         self.assertEqual(wc_lang_token,
-            # todo: fix this cheat: wc_lang_token.model
+            # note: wc_lang_token.model is cheating
             WcLangToken(TokCodes.wc_lang_obj_id, expr, disambig_type, id, wc_lang_token.model))
 
     def test_disambiguated_id(self):
@@ -235,7 +231,7 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_token = lex_match.wc_lang_tokens[0]
 
         self.assertEqual(wc_lang_token,
-            # todo: fix this cheat too: wc_lang_token.model
+            # note: wc_lang_token.model is cheating
             WcLangToken(TokCodes.wc_lang_obj_id, expected_token_string, expected_related_type,
                 expected_id, wc_lang_token.model))
 
@@ -455,15 +451,23 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
 
+    def do_test_eval_expr(self, expr, obj_type, related_obj_val, expected_val):
+        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
+        wc_lang_expr.tokenize()
+        evaled_val = wc_lang_expr.test_eval_expr(test_val=related_obj_val)
+        self.assertEqual(expected_val, evaled_val)
+
     def test_test_eval_expr(self):
         related_obj_val = 3
 
         # test combination of TokCodes
-        wc_lang_expr = self.make_wc_lang_expr('4 * param_id + pow(2, obs_id) + fun_2()')
-        wc_lang_expr.tokenize()
         expected_val = 4 * related_obj_val + pow(2, related_obj_val) + related_obj_val
-        evaled_val = wc_lang_expr.test_eval_expr(test_val=related_obj_val)
-        self.assertEqual(expected_val, evaled_val)
+        self.do_test_eval_expr('4 * param_id + pow(2, obs_id) + fun_2()', RateLawEquation,
+            related_obj_val, expected_val)
+
+        # test different model classes
+        self.do_test_eval_expr('4 * param_id + pow(2, obs_id) + fun_2()', FunctionExpression,
+            related_obj_val, expected_val)
 
         # test different exceptions
         # syntax error

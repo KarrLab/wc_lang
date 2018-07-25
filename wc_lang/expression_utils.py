@@ -23,17 +23,27 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
-    write up expression tokenizing vs. deserialization to illustrate problem
-    make model_class a model, so that test_eval_expr can provide ids
-    test multiple instances of the same used model in an expression
-    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+expression utils core:
+    move FunctionExpression.deserialize to ExpressionsUtils class and reuse (inherit classmethods?)
+    make Parameter.id unique
+    use WcLangExpression to deserialize and validate all wc_lang expressions:
+        convert StopCondition, Observable, ObjectiveFunction, and RateLawEquation, in that order
     what about k_cat and k_m?
-    rename Function to Macro; need to change model files too!
+    complete DynamicExpression and toss DynamicFunction
+    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+    test multiple instances of the same used model in an expression
     test with real WC models
+    test dependent repos
+extra
+    incorporate id into error_suffix in test_eval_expr
+    make model_class a model, so that test_eval_expr can provide ids
+    rename Function to Macro; need to change model files too -- argh
     expand Jupyter example
-    replace existing RE parsing and expression eval code
-    use WcLangExpression to deserialize and validate all wc_lang expressions
 cleanup
+    discard existing RE parsing and expression eval code
+    globally replace Species.id() with Species.get_id()
+    provide data so CheckModel._get_self_references can handle all classes similarly
+    use data to replace the "model_name.endswith('Expression'):" code in verify_acyclic_dependencies
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
     replace all validation and deserialization code
@@ -404,19 +414,21 @@ class WcLangExpression(object):
             valid_model_type = getattr(wc_lang.core, valid_model_type_name)
             if valid_model_type in objects:
                 self.valid_used_models.add(valid_model_type)
-        self.model_class = model_class
-        self.attribute = attribute
-        # strip leading and trailing whitespace from expression, which would create a bad token error
-        self.expression = expression.strip()
         for obj_type in self.valid_used_models:
             if not issubclass(obj_type, obj_model.Model):   # pragma    no cover
                 raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
                     obj_type.__name__))
         self.valid_functions = set()
         for obj_type in self.valid_used_models:
-            if hasattr(obj_type.Meta, 'valid_functions'):
-                self.valid_functions.update(obj_type.Meta.valid_functions)
+            if hasattr(obj_type.Meta, 'expression_model'):
+                if hasattr(obj_type.Meta.expression_model.Meta, 'valid_functions'):
+                    self.valid_functions.update(obj_type.Meta.expression_model.Meta.valid_functions)
+
         self.objects = objects
+        self.model_class = model_class
+        self.attribute = attribute
+        # strip leading and trailing whitespace from expression, which would create a bad token error
+        self.expression = expression.strip()
 
         try:
             g = tokenize.tokenize(BytesIO(self.expression.encode('utf-8')).readline)
@@ -610,7 +622,7 @@ class WcLangExpression(object):
             match = id_matches.pop()
             right_case_match_string = match.match_string
             if case_fold_match:
-                right_case_match_string = match_string.casefold()
+                right_case_match_string = match.match_string.casefold()
             return LexMatch(
                 [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, right_case_match_string,
                     self.objects[match.model_type][right_case_match_string])],
@@ -785,17 +797,8 @@ class WcLangExpression(object):
         expression = ' '.join(evaled_tokens)
         local_ns = {func.__name__: func for func in self.valid_functions}
 
-        # if it is available, get id whether it is a static attribute or a method, like in Species
-        id = None
-        if hasattr(self.model_class, 'id'):
-            id = getattr(self.model_class, 'id')
-            if callable(id):
-                id = id()
-            error_suffix = " cannot eval expression '{}' in {} with id {}; ".format(expression,
-                self.model_class.__name__, id)
-        else:
-            error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
-                self.model_class.__name__)
+        error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
+            self.model_class.__name__)
 
         try:
             return eval(expression, {}, local_ns)
