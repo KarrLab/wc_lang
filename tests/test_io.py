@@ -8,7 +8,7 @@
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient, BiomassComponent, BiomassReaction,
-                     Parameter, Reference, ReferenceType, DatabaseReference,
+                     Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -96,13 +96,15 @@ class TestSimpleModel(unittest.TestCase):
                 obs.observables.append(get_or_create_observable_coefficient(observable=observables[j], coefficient=j + 1))
             observables.append(obs)
 
-        '''
+        obs_expr = ' + 2 * '.join(o.id for o in observables[0:j + 1])
+        objects = {Observable:{o.get_id():o for o in observables},
+                    Parameter:{},
+                    Function:{}}
+        func_expr, error = FunctionExpression.deserialize(Function.Meta.attributes['expression'], obs_expr, objects)
         self.functions = functions = []
         for i in range(8):
-            func = mdl.functions.create(id='func_{}'.format(i))
-            func.expression = ' + 2 * '.join(o.id for o in observables[0:j + 1])
+            func = mdl.functions.create(id='func_{}'.format(i), expression=func_expr)
             functions.append(func)
-        '''
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
