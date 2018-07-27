@@ -29,7 +29,7 @@ class ChangeValueTransform(Transform):
         +=============+===================================+===========================================================+
         | Compartment | Compartment.id                    | ['initial_volume']                                        |
         +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Function    | Function.id                       | ['expression']                                            |
+        | Function    | Function.id                       | ['expression', 'expression']                              |
         +-------------+-----------------------------------+-----------------------------------------------------------+
         | Parameter   | Parameter.id                      | ['value']                                                 |
         | Parameter   | Parameter.id                      | ['units']                                                 |
@@ -86,6 +86,8 @@ class ChangeValueTransform(Transform):
             species_type = model.species_types.get_one(id=species_type_id)
             compartment = model.compartments.get_one(id=compartment_id)
             target_obj = species_type.species.get_one(compartment=compartment)
+        elif self.target_type in [Function]:
+            target_obj = model.functions.get_one(id=self.target_id)
         else:
             target_objs = getattr(model, self.target_type.Meta.attributes['model'].related_name)
             target_obj = target_objs.get_one(id=self.target_id)

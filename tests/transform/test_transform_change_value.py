@@ -6,7 +6,8 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Compartment, Concentration, Function, Parameter, RateLawDirection, RateLawEquation, Reaction, Species)
+from wc_lang import (Model, Compartment, Concentration, Function, FunctionExpression, Parameter,
+    RateLawDirection, RateLawEquation, Reaction, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
 
@@ -24,12 +25,12 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
     def test_function_expression(self):
         model = Model()
-        f = model.functions.create(id='f', expression='x')
-        g = model.functions.create(id='g', expression='y')
-        ChangeValueTransform(Function, 'g', ['expression'], 'z').run(model)
+        f = model.functions.create(id='f', expression=FunctionExpression(expression='x'))
+        g = model.functions.create(id='g', expression=FunctionExpression(expression='y'))
+        ChangeValueTransform(Function, 'g', ['expression', 'expression'], 'z').run(model)
 
-        self.assertEqual(f.expression, 'x')
-        self.assertEqual(g.expression, 'z')
+        self.assertEqual(f.expression.expression, 'x')
+        self.assertEqual(g.expression.expression, 'z')
 
     def test_parameter_units(self):
         model = Model()

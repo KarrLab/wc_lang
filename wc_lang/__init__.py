@@ -7,7 +7,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # API
 from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit, RateLawDirection, ReferenceType,
                    Model, Taxon, Submodel, ObjectiveFunction, Compartment,
-                   SpeciesType, Species, Observable, Function, Concentration,
+                   SpeciesType, Species, Observable, Function, FunctionExpression, Concentration,
                    Reaction, SpeciesCoefficient, ObservableCoefficient, RateLaw, RateLawEquation,
                    BiomassComponent, BiomassReaction, Parameter, StopCondition, Reference,
                    DatabaseReference)

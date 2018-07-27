@@ -16,7 +16,7 @@ from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
                      Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
-                     BiomassReaction, Observable, Function)
+                     BiomassReaction, Observable, Function, FunctionExpression)
 from wc_lang.expression_utils import RateLawUtils
 
 # configuration
@@ -663,8 +663,6 @@ class CheckModel(object):
         * Ensure that Reaction and BiomassReaction ids don't overlap; can then simplify ObjectiveFunction.deserialize()
 
     # TODO: implement these, and expand the list of properties
-
-    # TODO: fix doc string formatting
     """
 
     def __init__(self, model):
@@ -783,22 +781,23 @@ class CheckModel(object):
         """
         errors = []
 
-        species = self.model.get_species()
         species_concentrations = {}
         for concentration in self.model.get_concentrations():
             species_concentrations[concentration.species.serialize()] = concentration.value
 
         parameters = self.model.get_parameters()
+        parameter_ids = set([parameter.id for parameter in parameters])
         parameter_values = {}
         for parameter in parameters:
             parameter_values[parameter.id] = parameter.value
 
+        species_ids = set([specie.id() for specie in self.model.get_species()])
         for reaction in self.model.get_reactions():
             for rate_law in reaction.rate_laws:
                 if getattr(rate_law, 'equation', None) is None:
                     continue
                 try:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species, parameters)
+                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species_ids, parameter_ids)
                 except Exception as error:
                     errors.append('{} rate law for reaction "{}" cannot be transcoded: {}'.format(
                         rate_law.direction.name, reaction.id, str(error)))
@@ -865,12 +864,14 @@ class CheckModel(object):
         """
         references_used = set()
         # unfortunately, different obj_model.Model in wc_lang store references in different ways
+        # todo: normalize this
         if isinstance(model, Observable):
             for observable_coeffs in model.observables:
                 references_used.add(observable_coeffs.observable)
         elif isinstance(model, Function):
-            if Function in model.analyzed_expr.related_objects:
-                references_used = set(model.analyzed_expr.related_objects[Function].values())
+            if hasattr(model.expression, 'analyzed_expr'):
+                if Function in model.expression.analyzed_expr.related_objects:
+                    references_used = set(model.expression.analyzed_expr.related_objects[Function].values())
         return references_used
 
     def verify_acyclic_dependencies(self, model_types):
@@ -878,7 +879,7 @@ class CheckModel(object):
 
         Ensure that:
             * The model types in `model_types` do not make recursive calls; tested types
-                include Observable and Function
+                include Observable and FunctionExpression
 
         Args:
             model_types (:obj:`list`): model types (subclasses of `obj_model.Model`) to test
@@ -890,7 +891,10 @@ class CheckModel(object):
         errors = []
         for model_type in model_types:
             digraph = nx.DiGraph()
-            collective_attr = "{}s".format(model_type.__name__.lower())
+            model_name = model_type.__name__
+            if model_name.endswith('Expression'):
+                model_name = model_name[:-len('Expression')]
+            collective_attr = "{}s".format(model_name.lower())
             models = getattr(self.model, collective_attr)
             for model in models:
                 digraph.add_node(model)

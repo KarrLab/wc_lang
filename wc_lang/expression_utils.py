@@ -23,18 +23,34 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
-    rename Function to Macro; need to change models too
-    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+expression utils core:
+    move FunctionExpression.deserialize to ExpressionsUtils class and reuse (inherit classmethods?)
+    use WcLangExpression to deserialize and validate all wc_lang expressions:
+        first convert StopCondition
+    get Functions & StopCondition working in wc_sim
+        complete DynamicExpression
+    convert Observable, ObjectiveFunction, and RateLawEquation
     what about k_cat and k_m?
+    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+    test dependent repos
+extra
+    make Parameter.id unique
+    test multiple instances of the same used model in an expression
+    incorporate id into error_suffix in test_eval_expr
     test with real WC models
-    Jupyter example
-    replace existing RE parsing and expression eval code
-    use WcLangExpression to deserialize and validate all wc_lang expressions
+    perhaps make model_class a model, so that test_eval_expr can provide ids
+    rename Function to Macro; need to change model files too -- argh
+    expand Jupyter example
 cleanup
+    discard existing RE parsing and expression eval code
+    globally replace Species.id() with Species.get_id()
+    provide data so CheckModel._get_self_references can handle all classes similarly
+    use data to replace the "model_name.endswith('Expression'):" code in verify_acyclic_dependencies
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
     replace all validation and deserialization code
     fix the cheats in test_expression_utils.py
+    remove transcode_and_check_rate_law_equations, which will be redundant (and ignores concentraion units)
 '''
 
 
@@ -42,20 +58,20 @@ class RateLawUtils(object):
     '''A set of static rate_law methods '''
 
     @staticmethod
-    def transcode(rate_law_equation, species, parameters):
+    def transcode(rate_law_equation, species_ids, parameter_ids):
         '''Translate a `wc_lang.core.RateLawEquation` into a python expression that can be evaluated
         during a simulation.
 
         Args:
             rate_law_equation (:obj:`wc_lang.core.RateLawEquation`): a rate law equation
-            species (:obj:`set` of `wc_lang.core.Species`): the species that use the rate law
-            parameters (:obj:`set` of `wc_lang.core.Parameter`): the parameters that use the rate law
+            species_ids (:obj:`set` of `str`): ids of the species that use the rate law
+            parameter_ids (:obj:`set` of `str`): ids of the parameters that use the rate law
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
 
         Raises:
-            ValueError: If `rate_law_equation` contains `__`, which increases its security risk, or
+            ValueError: if `rate_law_equation` contains `__`, which increases its security risk, or
             if `rate_law_equation` refers to species not in `species` or parameters not in `parameters`
         '''
         def possible_specie_id(tokens):
@@ -145,8 +161,6 @@ class RateLawUtils(object):
                 rate_law_equation.expression))
 
         rate_law_expression = rate_law_equation.expression
-        species_ids = set([specie.id() for specie in species])
-        parameter_ids = set([parameter.id for parameter in parameters])
         reserved_parameter_ids = set(map(lambda f: f.__name__, wc_lang.RateLawEquation.Meta.valid_functions)) | \
             set(['k_cat', 'k_m'])
 
@@ -177,24 +191,6 @@ class RateLawUtils(object):
                 idx += 1
         py_expression = tokenize.untokenize(result)
         return py_expression
-
-    @staticmethod
-    def transcode_rate_laws(model):
-        '''Transcode all of `model`'s rate law expressions into Python expressions
-
-        Args:
-            model (:obj:`wc_lang.core.Model`): a `wc_lang.core.Model`
-
-        Raises:
-            ValueError: If a rate law cannot be transcoded
-        '''
-        for submodel in model.get_submodels():
-            for reaction in submodel.reactions:
-                for rate_law in reaction.rate_laws:
-                    if hasattr(rate_law, 'equation'):
-                        rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation,
-                                                                              submodel.get_species(),
-                                                                              rate_law.equation.parameters)
 
     @staticmethod
     def eval_reaction_rate_laws(reaction, concentrations, parameters):
@@ -267,13 +263,6 @@ class TokCodes(int, CaseInsensitiveEnum):
     other = 3
 
 
-# result returned by a tokens lexer, like disambiguated_id()
-LexMatch = namedtuple('LexMatch', 'wc_lang_tokens, num_py_tokens')
-LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
-LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
-LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
-
-
 # a matched token pattern used by tokenize
 IdMatch = namedtuple('IdMatch', 'model_type, token_pattern, match_string')
 IdMatch.__doc__ += ': Matched token pattern used by tokenize'
@@ -292,6 +281,13 @@ WcLangToken.token_string.__doc__ = "The token's string"
 WcLangToken.model_type.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's type"
 WcLangToken.model_id.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj's id"
 WcLangToken.model.__doc__ = "When tok_code is wc_lang_obj_id, the wc_lang obj"
+
+
+# result returned by a tokens lexer, like disambiguated_id()
+LexMatch = namedtuple('LexMatch', 'wc_lang_tokens, num_py_tokens')
+LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
+LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
+LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
 class Error(Exception):
@@ -354,6 +350,9 @@ class WcLangExpression(object):
         tokens (:obj:`list` of :obj:`namedtuple`): a list of Python tokens generated by `tokenize.tokenize()`
         objects (:obj:`dict`): dict of wc_lang Models that might be referenced in expression; maps
             model type to a dict mapping ids to Model instances
+        valid_used_models (:obj:`set`): wc_lang Models that `model_class` objects are allowed to use,
+            as indicated in `model_class.Meta.valid_used_models`, intersected with `objects.keys()`
+         might be referenced in expression; maps
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `objects`
         related_objects (:obj:`dict`): models that are referenced in `expression`; maps model type to
             dict that maps model id to model instance
@@ -392,27 +391,26 @@ class WcLangExpression(object):
         if not hasattr(model_class.Meta, 'valid_used_models'):
             raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_used_models' attribute".format(
                 model_class.__name__))
-        valid_used_models = set([getattr(wc_lang.core, valid_model_type)
-            for valid_model_type in model_class.Meta.valid_used_models])
+        self.valid_used_models = set()
+        for valid_model_type_name in model_class.Meta.valid_used_models:
+            valid_model_type = getattr(wc_lang.core, valid_model_type_name)
+            if valid_model_type in objects:
+                self.valid_used_models.add(valid_model_type)
+        for obj_type in self.valid_used_models:
+            if not issubclass(obj_type, obj_model.Model):   # pragma    no cover
+                raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
+                    obj_type.__name__))
+        self.valid_functions = set()
+        for obj_type in self.valid_used_models:
+            if hasattr(obj_type.Meta, 'expression_model'):
+                if hasattr(obj_type.Meta.expression_model.Meta, 'valid_functions'):
+                    self.valid_functions.update(obj_type.Meta.expression_model.Meta.valid_functions)
+
+        self.objects = objects
         self.model_class = model_class
         self.attribute = attribute
         # strip leading and trailing whitespace from expression, which would create a bad token error
         self.expression = expression.strip()
-        for obj_type in objects.keys():
-            if not issubclass(obj_type, obj_model.Model):
-                raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
-                    obj_type.__name__))
-            # todo: copy objects, keep types in model_class.Meta.valid_used_models (or just use those)
-            '''
-            if obj_type not in valid_used_models:
-                raise WcLangExpressionError("objects entry '{}' not a member of {}.Meta.valid_used_models: {}".format(
-                    obj_type.__name__, model_class.__name__, model_class.Meta.valid_used_models))
-            '''
-        self.valid_functions = set()
-        for obj_type in objects.keys():
-            if hasattr(obj_type.Meta, 'valid_functions'):
-                self.valid_functions.update(obj_type.Meta.valid_functions)
-        self.objects = objects
 
         try:
             g = tokenize.tokenize(BytesIO(self.expression.encode('utf-8')).readline)
@@ -422,13 +420,13 @@ class WcLangExpression(object):
             raise WcLangExpressionError("parsing '{}', a {}.{}, creates a Python syntax error: '{}'".format(
                 self.expression, self.model_class.__name__, self.attribute, str(e)))
 
-        self.__reset_deserialization()
+        self.__reset_tokenization()
 
-    def __reset_deserialization(self):
-        """ Reset deserialization
+    def __reset_tokenization(self):
+        """ Reset tokenization
         """
         self.related_objects = {}
-        for model_type in self.objects.keys():
+        for model_type in self.valid_used_models:
             self.related_objects[model_type] = {}
 
         self.errors = []
@@ -440,11 +438,11 @@ class WcLangExpression(object):
         Args:
             model_type_name (:obj:`str`): the name of a purported `wc_lang` model type in an expression
 
-            Returns:
-                :obj:`object`: `None` if no model named `model_type_name` exists in `self.objects`,
-                    else the type of the model with that name
+        Returns:
+            :obj:`object`: `None` if no model named `model_type_name` exists in `self.valid_used_models`,
+                else the type of the model with that name
         """
-        for model_type in self.objects.keys():
+        for model_type in self.valid_used_models:
             if model_type_name == model_type.__name__:
                 return model_type
         return None
@@ -475,7 +473,7 @@ class WcLangExpression(object):
         match_val = ''.join([self.tokens[idx+i].string for i in range(len(token_pattern))])
         return match_val
 
-    def disambiguated_id(self, idx):
+    def disambiguated_id(self, idx, case_fold_match=False):
         """ Try to parse a disambuated `wc_lang` id from `self.tokens` at `idx`
 
         Look for a disambugated id (either a Function written as `Function.identifier()`, or a
@@ -485,6 +483,10 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `tokens`
+            case_fold_match (:obj:`bool`, optional): if set, `casefold()` identifiers before matching;
+                in a `WcLangToken`, `token_string` retains the original expression text, while `model_id`
+                contains the casefold'ed value; identifier keys in `self.objects` must already be casefold'ed;
+                default=False
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -494,12 +496,14 @@ class WcLangExpression(object):
         fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
         if fun_match:
             possible_macro_id = self.tokens[idx+2].string
+            if case_fold_match:
+                possible_macro_id = possible_macro_id.casefold()
             # the disambiguation model type must be Function
             if self.tokens[idx].string != wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
                     "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
             # the identifier must be in the Function objects
-            if wc_lang.core.Function not in self.objects or possible_macro_id not in self.objects[wc_lang.core.Function]:
+            if wc_lang.core.Function not in self.valid_used_models or possible_macro_id not in self.objects[wc_lang.core.Function]:
                 return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
                     self.expression, self.model_class.__name__, self.attribute, fun_match)
             return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function,
@@ -510,13 +514,15 @@ class WcLangExpression(object):
         if disambig_model_match:
             disambig_model_type = self.tokens[idx].string
             possible_model_id = self.tokens[idx+2].string
+            if case_fold_match:
+                possible_model_id = possible_model_id.casefold()
             # the disambiguation model type cannot be Function
             if disambig_model_type == wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
                     "model type but doesn't use Function syntax".format(self.expression, self.model_class.__name__,
                     self.attribute, disambig_model_match))
 
-            # the disambiguation model type must be in self.objects
+            # the disambiguation model type must be in self.valid_used_models
             wc_lang_model_type = self.get_wc_lang_model_type(disambig_model_type)
             if wc_lang_model_type is None:
                 return ("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
@@ -535,7 +541,7 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def related_object_id(self, idx):
+    def related_object_id(self, idx, case_fold_match=False):
         """ Try to parse a related object `wc_lang` id from `self.tokens` at `idx`
 
         Different `wc_lang` objects match different Python token patterns. The default pattern
@@ -544,6 +550,8 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `tokens`
+            case_fold_match (:obj:`bool`, optional): if set, casefold identifiers before matching;
+                identifier keys in `self.objects` must already be casefold'ed; default=False
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -552,8 +560,7 @@ class WcLangExpression(object):
         """
         token_matches = set()
         id_matches = set()
-        object_type_names = [model_type.__name__ for model_type in self.objects.keys()]
-        for model_type in self.objects.keys():
+        for model_type in self.valid_used_models:
             token_pattern = (token.NAME, )
             if hasattr(model_type.Meta, 'token_pattern'):
                 token_pattern = model_type.Meta.token_pattern
@@ -561,8 +568,12 @@ class WcLangExpression(object):
             if match_string:
                 token_matches.add(match_string)
                 # is match_string the ID of an instance in model_type?
-                if match_string in self.objects[model_type]:
-                    id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                if case_fold_match:
+                    if match_string.casefold() in self.objects[model_type]:
+                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                else:
+                    if match_string in self.objects[model_type]:
+                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
 
         if not id_matches:
             if token_matches:
@@ -591,19 +602,24 @@ class WcLangExpression(object):
         else:
             # return a lexical match about a related id
             match = id_matches.pop()
+            right_case_match_string = match.match_string
+            if case_fold_match:
+                right_case_match_string = match.match_string.casefold()
             return LexMatch(
-                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, match.match_string,
-                    self.objects[match.model_type][match.match_string])],
+                [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, right_case_match_string,
+                    self.objects[match.model_type][right_case_match_string])],
                 len(match.token_pattern))
 
-    def fun_call_id(self, idx):
+    def fun_call_id(self, idx, case_fold_match='unused'):
         """ Try to parse a Python math function call from `self.tokens` at `idx`
 
         Each `wc_lang` object `model_class` that contains an expression which can use Python math
-        functions must define the set of allowed functions in `model_class.Meta.valid_functions`.
+        functions must define the set of allowed functions in `Meta.valid_functions` of the
+        model_class Expression Model.
 
         Args:
             idx (:obj:`int`): current index into `self.tokens`
+            case_fold_match (:obj:`str`, optional): ignored keyword; makes `WcLangExpression.tokenize()` simpler
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -638,8 +654,12 @@ class WcLangExpression(object):
         # no match
         return None
 
-    def tokenize(self):
+    def tokenize(self, case_fold_match=False):
         """ Tokenize a Python expression in `self.expression`
+
+        Args:
+            case_fold_match (:obj:`bool`, optional): if set, casefold identifiers before matching;
+                identifier keys in `self.objects` must already be casefold'ed; default = False
 
         Returns:
             (:obj:`tuple`): either `(None, :obj:list of :obj:str)` containing a list of errors, or
@@ -649,7 +669,7 @@ class WcLangExpression(object):
         Raises:
             (:obj:`WcLangExpressionError`): if `model_class` does not have a `Meta` attribute
         """
-        self.__reset_deserialization()
+        self.__reset_tokenization()
 
         # detect and report bad tokens
         bad_tokens = set()
@@ -677,7 +697,7 @@ class WcLangExpression(object):
             matches = []
             tmp_errors = []
             for get_wc_lang_lexical_element in [self.related_object_id, self.disambiguated_id, self.fun_call_id]:
-                result = get_wc_lang_lexical_element(idx)
+                result = get_wc_lang_lexical_element(idx, case_fold_match=case_fold_match)
                 if result is not None:
                     if isinstance(result, str):
                         tmp_errors.append(result)
@@ -750,8 +770,7 @@ class WcLangExpression(object):
             if wc_token.tok_code == TokCodes.wc_lang_obj_id:
                 evaled_tokens.append(str(test_val))
                 if wc_token.model_type == wc_lang.core.Function:
-                    # todo: don't put these in
-                    # skip past the ( ) tokens following 
+                    # skip past the following ( ) tokens -- they're just syntactic sugar for Functions
                     idx += 2
             else:
                 evaled_tokens.append(wc_token.token_string)
@@ -760,17 +779,8 @@ class WcLangExpression(object):
         expression = ' '.join(evaled_tokens)
         local_ns = {func.__name__: func for func in self.valid_functions}
 
-        # if it is available, get id whether it is a static attribute or a method, like in Species
-        id = None
-        if hasattr(self.model_class, 'id'):
-            id = getattr(self.model_class, 'id')
-            if callable(id):
-                id = id()
-            error_suffix = " cannot eval expression '{}' in {} with id {}; ".format(expression,
-                self.model_class.__name__, id)
-        else:
-            error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
-                self.model_class.__name__)
+        error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
+            self.model_class.__name__)
 
         try:
             return eval(expression, {}, local_ns)
