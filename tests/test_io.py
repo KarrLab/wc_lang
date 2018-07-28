@@ -7,8 +7,10 @@
 """
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
-                     Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient, BiomassComponent, BiomassReaction,
+                     Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient,
+                     BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
+                     StopCondition, StopConditionExpression,
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -100,7 +102,8 @@ class TestSimpleModel(unittest.TestCase):
         objects = {Observable:{o.get_id():o for o in observables},
                     Parameter:{},
                     Function:{}}
-        func_expr, error = FunctionExpression.deserialize(Function.Meta.attributes['expression'], obs_expr, objects)
+        attr = Function.Meta.attributes['expression']
+        func_expr, _ = FunctionExpression.deserialize(attr, obs_expr, objects)
         self.functions = functions = []
         for i in range(8):
             func = mdl.functions.create(id='func_{}'.format(i), expression=func_expr)
@@ -166,9 +169,11 @@ class TestSimpleModel(unittest.TestCase):
             database_references.append(x_ref)
 
         self.stop_conditions = stop_conditions = []
+        attr = StopCondition.Meta.attributes['expression']
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
-            cond.expression = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
+            expr = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
+            cond.expression = StopConditionExpression.deserialize(attr, expr, objects)[0]
             self.stop_conditions.append(cond)
 
         self.dirname = tempfile.mkdtemp()

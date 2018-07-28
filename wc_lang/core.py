@@ -758,6 +758,46 @@ class FunctionExpressionAttribute(ManyToOneAttribute):
         return FunctionExpression.deserialize(self, value, objects)
 
 
+class StopConditionExpressionAttribute(ManyToOneAttribute):
+    """ StopCondition expression attribute """
+    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
+        """
+        Args:
+            related_name (:obj:`str`, optional): name of related attribute on `related_class`
+            verbose_name (:obj:`str`, optional): verbose name
+            verbose_related_name (:obj:`str`, optional): verbose related name
+            help (:obj:`str`, optional): help message
+        """
+        super().__init__('StopConditionExpression',
+            related_name=related_name, min_related=1, min_related_rev=1,
+            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+
+    def serialize(self, stop_condition_expression, encoded=None):
+        """ Serialize related object
+
+        Args:
+            stop_condition_expression (:obj:`StopConditionExpression`): the referenced `StopConditionExpression`
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        return stop_condition_expression.serialize()
+
+    def deserialize(self, value, objects, decoded=None):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        return StopConditionExpression.deserialize(self, value, objects)
+
+
 class Model(obj_model.Model):
     """ Model
 
@@ -1829,25 +1869,38 @@ class ExpressionMethods(object):
         return (obj, None)
 
     @staticmethod
-    def validate(model_obj):
-        """ Determine whether this `Expression` is valid, by eval'ing its deserialized expression
+    def validate(model_obj, return_type=None):
+        """ Determine whether an expression model is valid by eval'ing its deserialized expression
+
+        Args:
+            return_type (:obj:`type`, optional): if provided, an expression's required return type
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
+        attr = model_obj.__class__.Meta.attributes['expression']
         try:
-            model_obj.analyzed_expr.test_eval_expr()
+            rv = model_obj.analyzed_expr.test_eval_expr()
+            if return_type is not None:
+                if not isinstance(rv, return_type):
+                    attr_err = InvalidAttribute(attr,
+                        ["Evaluating '{}', a {} expression, should return a {} but it returns a {}".format(
+                            model_obj.expression, model_obj.__class__.__name__,
+                            return_type.__name__, type(rv).__name__)])
+                    return InvalidObject(model_obj, [attr_err])
+
             # return `None` to indicate valid object
             return None
         except WcLangExpressionError as e:
-            attr = model_obj.__class__.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
 
 
 class FunctionExpression(obj_model.Model):
-    """ A mathematical expression using zero or more Observables, Parameters and Functions.
+    """ A mathematical expression of Functions, Observbles, Parameters and Python functions
+
+    The expression used by a `Function`.
 
     Attributes:
         expression (:obj:`str`): mathematical expression for a Function
@@ -1886,7 +1939,7 @@ class FunctionExpression(obj_model.Model):
 
 
 class Function(obj_model.Model):
-    """ A reusable mathematical expression
+    """ Function: a mathematical expression of Functions, Observbles, Parameters and Python functions
 
     Attributes:
         id (:obj:`str`): unique id
@@ -1921,6 +1974,91 @@ class Function(obj_model.Model):
 
         Returns:
             :obj:`str`: value of related `FunctionExpression`
+        """
+        return self.expression.serialize()
+
+
+class StopConditionExpression(obj_model.Model):
+    """ A mathematical expression of Functions, Observbles, Parameters and Python functions
+
+    The expression used by a `StopCondition`.
+
+    Attributes:
+        expression (:obj:`str`): mathematical expression for a StopCondition
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        observables (:obj:`list` of `Observable`): Observables used by this stop condition expression
+        parameters (:obj:`list` of `Parameter`): Parameters used by this stop condition expression
+        functions (:obj:`list` of `Function`): Functions used by this stop condition expression
+
+    Related attributes:
+        stop_condition (:obj:`StopCondition`): stop condition
+    """
+
+    expression = LongStringAttribute(primary=True, unique=True)
+    observables = OneToManyAttribute(Observable, related_name='stop_conditions')
+    parameters = OneToManyAttribute('Parameter', related_name='stop_conditions')
+    functions = OneToManyAttribute('Function', related_name='stop_conditions')
+
+    class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
+                can be used in this `StopCondition`s `expression`
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `StopCondition` is allowed to reference in its `expression`
+        """
+        tabular_orientation = TabularOrientation.inline
+        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_used_models = ('Parameter', 'Observable', 'Function')
+
+    @classmethod
+    def deserialize(cls, attribute, value, objects, decoded=None):
+        return ExpressionMethods.deserialize(cls, attribute, value, objects)
+
+    def validate(self):
+        """ A StopConditionExpression must return a Boolean """
+        return ExpressionMethods.validate(self, return_type=bool)
+
+
+class StopCondition(obj_model.Model):
+    """ StopCondition: Simulation of a model terminates when its StopCondition is true.
+
+    A mathematical expression of Functions, Observbles, Parameters and Python functions `StopCondition`s
+    are optional. It must return a Boolean.
+
+    Attributes:
+        id (:obj:`str`): unique id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
+        comments (:obj:`str`): comments
+
+    Related attributes:
+        expressions (:obj:`Expressions`): expressions
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='stop_conditions')
+    expression = StopConditionExpressionAttribute(related_name='stop_condition')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'expression', 'comments')
+        expression_model = StopConditionExpression
+
+    def get_id(self):
+        """ Provide id
+
+        Returns:
+            :obj:`str`: value of id
+        """
+        return self.id
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: value of related `StopConditionExpression`
         """
         return self.expression.serialize()
 
@@ -2663,76 +2801,6 @@ class Parameter(obj_model.Model):
                                                    name=self.name)
 
         return sbml_parameter
-
-
-class StopCondition(obj_model.Model):
-    """ Stop condition (Boolean-valued expression of one or more observables)
-
-    Attributes:
-        id (:obj:`str`): unique identifier
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-        expression (:obj:`str`): expression
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
-        comments (:obj:`str`): comments
-    """
-    id = SlugAttribute()
-    name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='stop_conditions')
-    expression = LongStringAttribute()
-    comments = LongStringAttribute()
-
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in a `StopCondition`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `StopCondition` is allowed to reference in its `expression`
-        """
-        attribute_order = ('id', 'name', 'expression', 'comments')
-        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_used_models = ('Parameter', 'Observable', 'Function')
-
-    def validate(self):
-        """ Determine whether a `StopCondition` is valid by checking whether
-        `expression` is a valid Python expression.
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
-        """
-        expr = self.expression
-
-        # to evaluate the expression, set variables for the observable identifiers to their values
-        # test validation with values of 1.0
-        errors = []
-
-        for match in re.findall(r'(\A|\b)([a-z][a-z0-9_]*)(\b|\Z)', expr, re.IGNORECASE):
-            if not self.model.observables.get_one(id=match[1]):
-                errors.append('Observable "{}" not defined'.format(match[1]))
-            # todo: recreates the suffix match bug: fix by parsing expression
-            expr = expr.replace(match[1], '1.')
-
-        local_ns = {func.__name__: func for func in self.Meta.valid_functions}
-
-        try:
-            if not isinstance(eval(expr, {}, local_ns), bool):
-                errors.append("expression must be Boolean-valued: {}".format(self.expression))
-        except SyntaxError as error:
-            errors.append("syntax error in expression '{}'".format(self.expression))
-        except NameError as error:
-            errors.append("NameError in expression '{}'".format(self.expression))
-        except Exception as error:
-            errors.append("cannot eval expression '{}'".format(self.expression))
-
-        if errors:
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, errors)
-            return InvalidObject(self, [attr_err])
-
-        """ return `None` to indicate valid object """
-        return None
 
 
 class Reference(obj_model.Model):

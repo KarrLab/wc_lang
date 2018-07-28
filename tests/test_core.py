@@ -20,6 +20,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           DatabaseReference,
                           RateLaw, RateLawEquation, RateLawEquationAttribute,
                           Function, FunctionExpression, FunctionExpressionAttribute,
+                          StopCondition, StopConditionExpression, StopConditionExpressionAttribute,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction, StopCondition, 
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
@@ -1632,25 +1633,36 @@ class TestCore(unittest.TestCase):
 
         return model, objects, id_map
 
-    def do_test_valid_function_expression(self, model, objects, expr, expected_val, expected_attrs):
-        attr = Function.Meta.attributes['expression']
-        func_expr, error = FunctionExpression.deserialize(attr, expr, objects)
+    def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
+        expected_related_objs=None):
+        """ Test a valid expression
+
+        Args:
+            expression_class (:obj:`obj_model.Model`): expression class being tested
+            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            objects (:obj:`dict`): dict of objects which can be used by `expr`
+            expr (:obj:`str`): the expression
+            expected_val (:obj:`obj`): the value expected when the expression is evaluated
+            expected_related_objs (:obj:`dict`, optional): objects that should be used by the deserialize expression
+        """
+        attr = parent_class.Meta.attributes['expression']
+        expr_obj, error = expression_class.deserialize(attr, expr, objects)
         self.assertEqual(error, None)
-        self.assertEqual(func_expr.serialize(), expr)
-        self.assertEqual(func_expr.expression, expr)
-        self.assertEqual(func_expr, objects[FunctionExpression][expr])
-        # check on FunctionExpression attributes
-        if expected_attrs:
-            for modifier, elements in expected_attrs.items():
-                self.assertEqual(set(getattr(func_expr, modifier)), set(elements))
-        error = func_expr.validate()
+        self.assertEqual(expr_obj.serialize(), expr)
+        self.assertEqual(expr_obj.expression, expr)
+        self.assertEqual(expr_obj, objects[expression_class][expr])
+        # check used objects in expression_class attributes
+        if expected_related_objs:
+            for modifier, elements in expected_related_objs.items():
+                self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
+        error = expr_obj.validate()
         self.assertEqual(error, None)
-        self.assertEqual(func_expr.analyzed_expr.test_eval_expr(), expected_val)
+        self.assertEqual(expr_obj.analyzed_expr.test_eval_expr(), expected_val)
 
     def test_valid_function_expressions(self):
-        model, objects, id_map = self.make_objects()
+        _, objects, id_map = self.make_objects()
 
-        for expr, expected_test_val, expected_attrs in [
+        for expr, expected_test_val, expected_related_objs in [
             ('ccc', 1, {'observables':[id_map['Observable.ccc']]}),
             ('ccc', 1, {'observables':[id_map['Observable.ccc']]}),     # reuse the FunctionExpression
             ('ccc + ddd', 2, {'observables':[id_map['Observable.ccc'], id_map['Observable.ddd']]}),
@@ -1669,39 +1681,59 @@ class TestCore(unittest.TestCase):
                 {'observables':[id_map['Observable.ccc']],
                 'functions':[id_map['Function.duped_id']]})
             ]:
-            self.do_test_valid_function_expression(model, objects, expr, expected_test_val, expected_attrs)
+            self.do_test_valid_expression(FunctionExpression, Function,
+                objects, expr, expected_test_val, expected_related_objs)
 
-    def do_test_function_expression_deserialize_error(self, objects, expr, msg_substr):
-        attr = Function.Meta.attributes['expression']
-        func_expr, error = FunctionExpression.deserialize(attr, expr, objects)
+    def do_test_expr_deserialize_error(self, expression_class, parent_class, objects, expr, error_msg_substr):
+        """ Test an expression that fails to deserialize
+
+        Args:
+            expression_class (:obj:`obj_model.Model`): expression class being tested
+            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            objects (:obj:`dict`): dict of objects which can be used by `expr`
+            expr (:obj:`str`): the expression
+            error_msg_substr (:obj:`str`): substring expected in error message
+        """
+        attr = parent_class.Meta.attributes['expression']
+        func_expr, error = expression_class.deserialize(attr, expr, objects)
         self.assertEqual(func_expr, None)
         self.assertTrue(isinstance(error, InvalidAttribute))
-        self.assertIn(msg_substr, error.messages[0])
+        self.assertIn(error_msg_substr, error.messages[0])
 
     def test_function_expression_deserialize_errors(self):
-        model, objects, _ = self.make_objects()
+        _, objects, _ = self.make_objects()
 
-        self.do_test_function_expression_deserialize_error(objects, 'id1[id2', "Python syntax error")
+        self.do_test_expr_deserialize_error(FunctionExpression, Function, objects, 'id1[id2', "Python syntax error")
+
         bad_id = 'no_such_obj'
-
-        self.do_test_function_expression_deserialize_error(objects, bad_id,
+        self.do_test_expr_deserialize_error(FunctionExpression, Function, objects, bad_id,
             "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
-        self.do_test_function_expression_deserialize_error({Function:{}}, '', "'Parameter' missing from objects")
+        self.do_test_expr_deserialize_error(FunctionExpression, Function,
+            {Function:{}}, '', "'Parameter' missing from objects")
 
-    def do_test_invalid_function_expression(self, model, objects, expr, msg_substr):
-        attr = Function.Meta.attributes['expression']
-        func_expr, error = FunctionExpression.deserialize(attr, expr, objects)
+    def do_test_invalid_expression(self, expression_class, parent_class, objects, expr, error_msg_substr):
+        """ Test an expression that fails to validate
+
+        Args:
+            expression_class (:obj:`obj_model.Model`): expression class being tested
+            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            objects (:obj:`dict`): dict of objects which can be used by `expr`
+            expr (:obj:`str`): the expression
+            error_msg_substr (:obj:`str`): substring expected in error message
+        """
+        attr = parent_class.Meta.attributes['expression']
+        func_expr, error = expression_class.deserialize(attr, expr, objects)
         self.assertEqual(error, None)
         invalid_obj = func_expr.validate()
         self.assertTrue(isinstance(invalid_obj, InvalidObject))
-        self.assertIn(msg_substr, invalid_obj.attributes[0].messages[0])
+        self.assertIn(error_msg_substr, invalid_obj.attributes[0].messages[0])
 
     def test_invalid_function_expressions(self):
-        model, objects, _ = self.make_objects()
+        _, objects, _ = self.make_objects()
 
         bad_expr = '1 +'
-        self.do_test_invalid_function_expression(model, objects, bad_expr,
+        self.do_test_invalid_expression(FunctionExpression, Function, objects, bad_expr,
             "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
 
     def test_function(self):
@@ -1720,50 +1752,59 @@ class TestCore(unittest.TestCase):
         func.expression = func_expr
         self.assertEqual(func.serialize(), expr)
 
-    def test_stop_condition_validate(self):
-        model = Model()
-        model.species_types.create(id='A')
-        model.species_types.create(id='BB')
-        model.compartments.create(id='a')
-        model.compartments.create(id='bb')
-        model.observables.create(id='CCC')
-        model.observables.create(id='DDD')
+    def test_valid_stop_conditions(self):
+        _, objects, id_map = self.make_objects()
 
-        cond = model.stop_conditions.create(id='cond', expression='CCC > 3')
-        self.assertEqual(cond.validate(), None)
+        some_used_objs = {'observables':[id_map['Observable.ccc'], id_map['Observable.ddd']],
+            'functions':[id_map['Function.f'], id_map['Function.g']],
+            'parameters':[id_map['Parameter.a']]}
+        for expr, expected_test_val, expected_attrs in [
+            ('ccc > 10', False, {'observables':[id_map['Observable.ccc']]}),
+            ('ccc > 0', True, {'observables':[id_map['Observable.ccc']]}),
+            ('ccc > 0', True, {'observables':[id_map['Observable.ccc']]}),    # reuse StopConditionExpression
+            ('ccc + ddd - a + f() * g() + 10 > 0', True, some_used_objs)
+            ]:
+            self.do_test_valid_expression(StopConditionExpression, StopCondition,
+                objects, expr, expected_test_val, expected_attrs)
 
-        cond = model.stop_conditions.create(id='cond', expression='CCC + DDD > 3')
-        self.assertEqual(cond.validate(), None)
+    def test_stop_condition_expression_deserialize_errors(self):
+        _, objects, _ = self.make_objects()
 
-        cond = model.stop_conditions.create(id='cond', expression='CCC + 2 * DDD > 3')
-        self.assertEqual(cond.validate(), None)
+        bad_id = 'no_such_obj'
+        self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, bad_id,
+            "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
-        cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CCC > 3')
-        self.assertNotEqual(cond.validate(), None)
+        expr = '(ccc > 10 and ddd < 5) or (a + f() * g())'
+        self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, expr,
+            "contains the identifier(s) 'and', which aren't the id(s) of an object")
 
-        cond = model.stop_conditions.create(id='cond', expression='a[a] + BB[bb] + CCC > 3')
-        self.assertNotEqual(cond.validate(), None)
+    def test_invalid_stop_condition_expressions(self):
+        _, objects, _ = self.make_objects()
 
-        cond = model.stop_conditions.create(id='cond', expression='a[A] + BB[bb] + CCC > 3')
-        self.assertNotEqual(cond.validate(), None)
+        bad_expr = '1 + ccc'
+        self.do_test_invalid_expression(StopConditionExpression, StopCondition, objects, bad_expr,
+            "Evaluating '{}', a {} expression, should return a bool but it returns a float".format(
+                bad_expr, StopConditionExpression.__name__))
 
-        cond = model.stop_conditions.create(id='cond', expression='A[a] + BB[bb] + CC > 3')
-        self.assertNotEqual(cond.validate(), None)
-
-        cond = model.stop_conditions.create(id='cond', expression='CCC + 2 * DDD')
-        self.assertNotEqual(cond.validate(), None)
-
-        cond = model.stop_conditions.create(id='cond', expression=' > 3')
-        self.assertNotEqual(cond.validate(), None)
-
-        cond = model.stop_conditions.create(id='cond', expression='_x')
-        self.assertNotEqual(cond.validate(), None)
-
-        cond = model.stop_conditions.create(id='cond', expression='x() > 3')
-        self.assertNotEqual(cond.validate(), None)
+    def test_stop_condition(self):
+        model, objects, _ = self.make_objects()
+        kwargs = dict(id='stop_cond_1', name='name stop_cond_1', model=model, comments='no comment')
+        stop_condition = StopCondition(**kwargs)
+        self.assertEqual(stop_condition.id, kwargs['id'])
+        self.assertEqual(stop_condition.get_id(), kwargs['id'])
+        self.assertEqual(stop_condition.name, kwargs['name'])
+        self.assertEqual(stop_condition.model, model)
+        self.assertEqual(model.stop_conditions[-1], stop_condition)
+        self.assertEqual(stop_condition.comments, kwargs['comments'])
+        attr = StopCondition.Meta.attributes['expression']
+        expr = 'ccc + ddd'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(attr, expr, objects)
+        stop_condition.expression = stop_condition_expr
+        self.assertEqual(stop_condition.serialize(), expr)
 
     def test_valid_model_types(self):
-        for model_type in [RateLawEquation, FunctionExpression, StopCondition, ObjectiveFunction, Observable]:
+        for model_type in [RateLawEquation, FunctionExpression, StopConditionExpression,
+            ObjectiveFunction, Observable]:
             self.assertTrue(hasattr(model_type.Meta, 'valid_used_models'))
             for valid_model_type in model_type.Meta.valid_used_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))

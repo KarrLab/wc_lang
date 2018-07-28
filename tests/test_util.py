@@ -10,7 +10,7 @@ from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeT
                      Compartment, SpeciesCoefficient, ObservableCoefficient, BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
                      RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
-                     Observable, Function, FunctionExpression, StopCondition)
+                     Observable, Function, FunctionExpression, StopCondition, StopConditionExpression)
 from wc_lang import util
 import shutil
 import tempfile
@@ -135,7 +135,7 @@ class TestUtil(unittest.TestCase):
         ])
         inline_models = set([
             Species, SpeciesCoefficient, ObservableCoefficient, RateLawEquation, ObjectiveFunction,
-            FunctionExpression
+            FunctionExpression, StopConditionExpression
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)

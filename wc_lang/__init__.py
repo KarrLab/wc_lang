@@ -9,8 +9,8 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationU
                    Model, Taxon, Submodel, ObjectiveFunction, Compartment,
                    SpeciesType, Species, Observable, Function, FunctionExpression, Concentration,
                    Reaction, SpeciesCoefficient, ObservableCoefficient, RateLaw, RateLawEquation,
-                   BiomassComponent, BiomassReaction, Parameter, StopCondition, Reference,
-                   DatabaseReference)
+                   BiomassComponent, BiomassReaction, Parameter, StopCondition, StopConditionExpression,
+                   Reference, DatabaseReference)
 from . import config
 from . import io
 from . import prepare
