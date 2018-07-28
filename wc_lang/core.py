@@ -1930,6 +1930,9 @@ class FunctionExpression(obj_model.Model):
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         valid_used_models = ('Parameter', 'Observable', 'Function')
 
+    def serialize(self):
+        return ExpressionMethods.serialize(self)
+
     @classmethod
     def deserialize(cls, attribute, value, objects, decoded=None):
         return ExpressionMethods.deserialize(cls, attribute, value, objects)
@@ -2010,6 +2013,9 @@ class StopConditionExpression(obj_model.Model):
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         valid_used_models = ('Parameter', 'Observable', 'Function')
+
+    def serialize(self):
+        return ExpressionMethods.serialize(self)
 
     @classmethod
     def deserialize(cls, attribute, value, objects, decoded=None):
