@@ -1709,9 +1709,6 @@ class TestCore(unittest.TestCase):
         self.do_test_expr_deserialize_error(FunctionExpression, Function, objects, bad_id,
             "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
-        self.do_test_expr_deserialize_error(FunctionExpression, Function,
-            {Function:{}}, '', "'Parameter' missing from objects")
-
     def do_test_invalid_expression(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to validate
 

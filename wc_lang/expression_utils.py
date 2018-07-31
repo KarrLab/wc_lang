@@ -23,13 +23,25 @@ PARAMETERS_DICT = 'parameters'
 # TODOS
 '''
 build
-expression utils core:
+wc_lang:
     use WcLangExpression to deserialize and validate all wc_lang expressions:
-        first convert StopCondition
-    convert Observable, ObjectiveFunction, and RateLawEquation
+        Observable next:
+            eliminate ObservableSpeciesParticipantAttribute, ObservableObservableParticipantAttribute,
+            ObservableCoefficient and stop using SpeciesCoefficient
+        start with 290 occurrences of 'observable' in wc_lang
+        in validation, ensure that an Observable expression looks like
+            [float * obj_id [+/-]] | obj_id [+/-]
+            FSA validation: states: expecting float or obj_id, expecting *, expecting obj_id, expecting end or +/-
+        then convert ObjectiveFunction, and RateLawEquation
     what about k_cat and k_m?
-extra
-    make Parameter.id unique
+wc_sim:
+    end-to-end stop conditions
+        test functional stop condition
+    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+    handle any multiplicity of StopConditions; allow execution to choose among multiple StopConditions,
+        or use them all
+extra:
+    Parameter: make Parameter.id unique; ensure that Parameters are constants
     test multiple instances of the same used model in an expression
     incorporate id into error_suffix in test_eval_expr
     test with real WC models
@@ -37,13 +49,7 @@ extra
     rename Function to Macro; need to change model files too -- argh
     expand Jupyter example
     support logical operators (or, and, not) in expressions, esp. StopConditions
-wc_sim
-    handle any multiplicity of StopConditions; allow execution to choose among multiple StopConditions,
-        or use them all
-    get Functions & StopCondition working in wc_sim
-        complete DynamicExpression
-    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
-cleanup
+cleanup:
     discard existing RE parsing and expression eval code
     globally replace Species.id() with Species.get_id()
     provide data so CheckModel._get_self_references can handle all classes similarly
@@ -706,7 +712,7 @@ class WcLangExpression(object):
                     elif isinstance(result, LexMatch):
                         matches.append(result)
                     else:   # pragma no cover
-                        assert True, "result is neither str nor LexMatch '{}'".format(result)
+                        assert False, "result is neither str nor LexMatch '{}'".format(result)
 
             # should find either matches or errors
             assert matches or tmp_errors, "No matches or errors found in '{}'".format(self.expression)

@@ -1834,14 +1834,9 @@ class ExpressionMethods(object):
         """
         # objects must contain all objects types in valid_used_models
         used_model_types = []
-        errors = []
         for used_model in model_class.Meta.valid_used_models:
             used_model_type = globals()[used_model]
-            if used_model_type not in objects:
-                errors.append("'{}' missing from objects".format(used_model_type.__name__))
             used_model_types.append(used_model_type)
-        if errors:
-            return (None, InvalidAttribute(attribute, errors))
         expr_field = 'expression'
         try:
             analyzed_expr = WcLangExpression(model_class, expr_field, value, objects)
