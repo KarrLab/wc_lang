@@ -18,7 +18,7 @@ from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, 
     FunctionExpression, Function,
     StopCondition, ObjectiveFunction, Observable, Parameter, BiomassReaction, Compartment)
 from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
-    WcLangExpression, WcLangExpressionError)
+    WcLangExpression, WcLangExpressionError, ExpressionVerifier, LinearExpressionVerifier)
 
 
 class TestRateLawUtils(unittest.TestCase):
@@ -224,12 +224,16 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertRegex(result, self.esc_re_center(expected_error))
 
     def test_fun_call_id_errors(self):
-        self.do_fun_call_error_test('log(3)', ["contains the func name '",
-            "but {}.Meta doesn't define 'valid_functions'".format(Observable.__name__)],
-            obj_type=Observable)
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
             "but it isn't in {}.Meta.valid_functions".format(RateLawEquation.__name__)])
-
+        
+        class TestModelExpression(obj_model.Model):
+            class Meta(obj_model.Model.Meta):
+                valid_used_models = ('Function',)
+        self.do_fun_call_error_test('foo(3)', ["contains the func name ",
+            "but {}.Meta doesn't define 'valid_functions'".format(TestModelExpression.__name__)],
+                obj_type=TestModelExpression)
+                    
     def test_fun_call_id(self):
         wc_lang_expr = self.make_wc_lang_expr('log(3)')
         lex_match = wc_lang_expr.fun_call_id(0)
@@ -237,7 +241,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.function_pattern))
         self.assertEqual(len(lex_match.wc_lang_tokens), 2)
         self.assertEqual(lex_match.wc_lang_tokens[0], WcLangToken(TokCodes.math_fun_id, 'log'))
-        self.assertEqual(lex_match.wc_lang_tokens[1], WcLangToken(TokCodes.other, '('))
+        self.assertEqual(lex_match.wc_lang_tokens[1], WcLangToken(TokCodes.op, '('))
 
         # no token match
         wc_lang_expr = self.make_wc_lang_expr('no_fun + 3')
@@ -278,9 +282,19 @@ class TestWcLangExpression(unittest.TestCase):
         return d
 
     def test_non_identifier_tokens(self):
-        for expr in ['3', ' 7 * ( 5 - 3 ) / 2']:
-            expected_wc_tokens = [WcLangToken(tok_code=TokCodes.other, token_string=tok) for tok in expr.strip().split()]
-            self.do_tokenize_id_test(expr, expected_wc_tokens, {})
+        expr = ' 7 * ( 5 - 3 ) / 2'
+        expected_wc_tokens = [
+            WcLangToken(tok_code=TokCodes.number, token_string='7'),
+            WcLangToken(tok_code=TokCodes.op, token_string='*'),
+            WcLangToken(tok_code=TokCodes.op, token_string='('),
+            WcLangToken(tok_code=TokCodes.number, token_string='5'),
+            WcLangToken(tok_code=TokCodes.op, token_string='-'),
+            WcLangToken(tok_code=TokCodes.number, token_string='3'),
+            WcLangToken(tok_code=TokCodes.op, token_string=')'),
+            WcLangToken(tok_code=TokCodes.op, token_string='/'),
+            WcLangToken(tok_code=TokCodes.number, token_string='2'),
+        ]
+        self.do_tokenize_id_test(expr, expected_wc_tokens, {})
 
     def test_tokenize_w_ids(self):
         # test related_object_id
@@ -295,9 +309,9 @@ class TestWcLangExpression(unittest.TestCase):
         expected_wc_tokens = [
             WcLangToken(TokCodes.wc_lang_obj_id, 'Parameter.duped_id', Parameter, 'duped_id',
                 self.objects_hard[Parameter]['duped_id']),
-            WcLangToken(TokCodes.other, '+'),
-            WcLangToken(TokCodes.other, '2'),
-            WcLangToken(TokCodes.other, '*'),
+            WcLangToken(TokCodes.op, '+'),
+            WcLangToken(TokCodes.number, '2'),
+            WcLangToken(TokCodes.op, '*'),
             WcLangToken(TokCodes.wc_lang_obj_id, 'Observable.duped_id', Observable, 'duped_id',
                 self.objects_hard[Observable]['duped_id']),
         ]
@@ -309,14 +323,14 @@ class TestWcLangExpression(unittest.TestCase):
         expr = 'log(3) + fun_2() - Function.Observable()'
         expected_wc_tokens = [
             WcLangToken(tok_code=TokCodes.math_fun_id, token_string='log'),
-            WcLangToken(TokCodes.other, '('),
-            WcLangToken(TokCodes.other, '3'),
-            WcLangToken(TokCodes.other, ')'),
-            WcLangToken(TokCodes.other, '+'),
+            WcLangToken(TokCodes.op, '('),
+            WcLangToken(TokCodes.number, '3'),
+            WcLangToken(TokCodes.op, ')'),
+            WcLangToken(TokCodes.op, '+'),
             WcLangToken(TokCodes.wc_lang_obj_id, 'fun_2', Function, 'fun_2', self.objects_hard[Function]['fun_2']),
-            WcLangToken(TokCodes.other, '('),
-            WcLangToken(TokCodes.other, ')'),
-            WcLangToken(TokCodes.other, '-'),
+            WcLangToken(TokCodes.op, '('),
+            WcLangToken(TokCodes.op, ')'),
+            WcLangToken(TokCodes.op, '-'),
             WcLangToken(TokCodes.wc_lang_obj_id, 'Function.Observable()', Function, 'Observable',
                 self.objects_hard[Function]['Observable'])
         ]
@@ -328,7 +342,7 @@ class TestWcLangExpression(unittest.TestCase):
         expr = 'TEST_ID - Parameter.DUPED_ID'
         expected_wc_tokens = [
             WcLangToken(TokCodes.wc_lang_obj_id, 'TEST_ID', Observable, 'test_id', self.objects_hard[Observable]['test_id']),
-            WcLangToken(TokCodes.other, '-'),
+            WcLangToken(TokCodes.op, '-'),
             WcLangToken(TokCodes.wc_lang_obj_id, 'Parameter.DUPED_ID', Parameter, 'duped_id',
                 self.objects_hard[Parameter]['duped_id']),
         ]
@@ -457,3 +471,70 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegexp(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
             "successfully tokenized".format(expr))):
             wc_lang_expr.test_eval_expr()
+
+
+class TestExpressionVerifier(unittest.TestCase):
+
+    def test_expression_verifier(self):
+
+        number_is_good_transitions = [   # (current state, message, next state)
+            ('start', (TokCodes.number, None), 'accept'),
+        ]
+        expression_verifier = ExpressionVerifier('start', 'accept', number_is_good_transitions)
+        number_is_good = [
+            WcLangToken(TokCodes.number, '3'),
+        ]
+        valid, error = expression_verifier.validate(number_is_good)
+        self.assertTrue(valid)
+        self.assertTrue(error is None)
+        # an empty expression is invalid
+        valid, error = expression_verifier.validate([])
+        self.assertFalse(valid)
+
+    def test_linear_expression_verifier(self):
+
+        valid_linear_expr = [   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
+            WcLangToken(TokCodes.wc_lang_obj_id, 'id0'),
+            WcLangToken(TokCodes.op, '-'),
+            WcLangToken(TokCodes.number, '3'),
+            WcLangToken(TokCodes.op, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'id1'),
+            WcLangToken(TokCodes.op, '-'),
+            WcLangToken(TokCodes.number, '3.5'),
+            WcLangToken(TokCodes.op, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'id1'),
+            WcLangToken(TokCodes.op, '+'),
+            WcLangToken(TokCodes.number, '3.14e+2'),
+            WcLangToken(TokCodes.op, '*'),
+            WcLangToken(TokCodes.wc_lang_obj_id, 'id3'),
+        ]
+
+        linear_expression_verifier = LinearExpressionVerifier()
+        valid, error = linear_expression_verifier.validate(valid_linear_expr)
+        self.assertTrue(valid)
+        self.assertTrue(error is None)
+        # dropping any single token from valid_linear_expr produces an invalid expression
+        for i in range(len(valid_linear_expr)):
+            valid_linear_expr_without_i = valid_linear_expr[:i] + valid_linear_expr[i+1:]
+            valid, error = linear_expression_verifier.validate(valid_linear_expr_without_i)
+            self.assertFalse(valid)
+
+        # an empty expression is valid
+        valid, error = linear_expression_verifier.validate([])
+        self.assertTrue(valid)
+        self.assertTrue(error is None)
+
+        invalid_linear_exprressions = [
+            [WcLangToken(TokCodes.math_fun_id, 'log')],     # math functions not allowed
+            [WcLangToken(TokCodes.number, '3j')],           # numbers must be floats
+        ]
+        for invalid_linear_exprression in invalid_linear_exprressions:
+            valid, error = linear_expression_verifier.validate(invalid_linear_exprression)
+            self.assertFalse(valid)
+
+        invalid_linear_exprressions = [
+            [WcLangToken(TokCodes.other, ',')],             # other not allowed
+        ]
+        for invalid_linear_exprression in invalid_linear_exprressions:
+            error = linear_expression_verifier.make_dfsa_messages(invalid_linear_exprression)
+            self.assertTrue(error is None)

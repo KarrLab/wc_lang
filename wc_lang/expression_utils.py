@@ -14,6 +14,7 @@ from collections import namedtuple
 
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.enumerate import CaseInsensitiveEnum
+from wc_utils.util.misc import DFSMAcceptor
 import obj_model
 import wc_lang
 
@@ -24,24 +25,22 @@ PARAMETERS_DICT = 'parameters'
 '''
 build
 wc_lang:
+    have ExpressionMethods.make_obj() call validate()
     use WcLangExpression to deserialize and validate all wc_lang expressions:
-        Observable next:
-            eliminate ObservableSpeciesParticipantAttribute, ObservableObservableParticipantAttribute,
-            ObservableCoefficient and stop using SpeciesCoefficient
         start with 290 occurrences of 'observable' in wc_lang
-        in validation, ensure that an Observable expression looks like
-            [float * obj_id [+/-]] | obj_id [+/-]
-            FSA validation: states: expecting float or obj_id, expecting *, expecting obj_id, expecting end or +/-
-        then convert ObjectiveFunction, and RateLawEquation
-    what about k_cat and k_m?
+        last, convert ObjectiveFunction, and RateLawEquation (what about k_cat and k_m?)
+    fix test_io_roundtrip.py:test_create()
 wc_sim:
-    end-to-end stop conditions
-        test functional stop condition
-    ensure that all types of related Models can be evaluated through dynamic_model, and create dynamic Models for them
+    ensure that all related objects made befoe their using objects in DynamicModel.__init__()
+    add execution of DynamicExpressions:
+        DynamicFunction: nothing to do -- simply used by DynamicFunction & DynamicStopCondition
+        DynamicObservable: save in checkpoint results
+        DynamicStopCondition: use in stopping simulation
     handle any multiplicity of StopConditions; allow execution to choose among multiple StopConditions,
         or use them all
 extra:
     Parameter: make Parameter.id unique; ensure that Parameters are constants
+    make test for "AssertionError: No matches or errors found in 'obs_1'" by providing empty objects
     test multiple instances of the same used model in an expression
     incorporate id into error_suffix in test_eval_expr
     test with real WC models
@@ -50,15 +49,19 @@ extra:
     expand Jupyter example
     support logical operators (or, and, not) in expressions, esp. StopConditions
 cleanup:
+    robust tests of run_results that examine the data
     discard existing RE parsing and expression eval code
+    remove transcode_and_check_rate_law_equations, which will be redundant (and ignores concentraion units)
+    more docstrings and better naming for ExpressionVerifier
+    use ExpressionMethods.make_expression_obj() wherever possible
+    better error than "Not a linear expression of species and observables"
     globally replace Species.id() with Species.get_id()
-    provide data so CheckModel._get_self_references can handle all classes similarly
-    use data to replace the "model_name.endswith('Expression'):" code in verify_acyclic_dependencies
+    do a better job of getting the plural in "if not used_model_type_attr.endswith('s'):"
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
     replace all validation and deserialization code
     fix the cheats in test_expression_utils.py
-    remove transcode_and_check_rate_law_equations, which will be redundant (and ignores concentraion units)
+    fix test_find_shared_species
 '''
 
 
@@ -268,7 +271,9 @@ class TokCodes(int, CaseInsensitiveEnum):
     """ Token codes used in parsed expressions """
     wc_lang_obj_id = 1
     math_fun_id = 2
-    other = 3
+    number = 3
+    op = 4
+    other = 5
 
 
 # a matched token pattern used by tokenize
@@ -638,7 +643,7 @@ class WcLangExpression(object):
         if fun_match:
             fun_name = self.tokens[idx].string
             # function_pattern is "identifier ("
-            # the closing paren ")" will simply be encoded as a WcLangToken with tok_code == other
+            # the closing paren ")" will simply be encoded as a WcLangToken with tok_code == op
 
             # are Python math functions defined?
             if not hasattr(self.model_class.Meta, 'valid_functions'):
@@ -656,7 +661,7 @@ class WcLangExpression(object):
 
             # return a lexical match about a math function
             return LexMatch(
-                [WcLangToken(TokCodes.math_fun_id, fun_name), WcLangToken(TokCodes.other, '(')],
+                [WcLangToken(TokCodes.math_fun_id, fun_name), WcLangToken(TokCodes.op, '(')],
                 len(self.function_pattern))
 
         # no match
@@ -695,10 +700,17 @@ class WcLangExpression(object):
         idx = 0
         while idx < len(self.tokens):
 
+            # categorize token codes
+            token_code = TokCodes.other
+            if self.tokens[idx].type == token.OP:
+                token_code = TokCodes.op
+            elif self.tokens[idx].type == token.NUMBER:
+                token_code = TokCodes.number
+
             # a token that isn't an identifier needs no processing
             if self.tokens[idx].type != token.NAME:
                 # record non-identifier token
-                self.wc_tokens.append(WcLangToken(TokCodes.other, self.tokens[idx].string))
+                self.wc_tokens.append(WcLangToken(token_code, self.tokens[idx].string))
                 idx += 1
                 continue
 
@@ -810,3 +822,132 @@ class WcLangExpression(object):
         rv.append("errors: {}".format(self.errors))
         rv.append("wc_tokens: {}".format(self.wc_tokens))
         return '\n'.join(rv)
+
+
+class ExpressionVerifier(object):
+    """ Verify whether a sequence of `WcLangToken` tokens
+
+    An `ExpressionVerifier` consists of two parts:
+        * An optional method `valid_wc_lang_tokens` that examines the content of individual tokens
+        and returns `(True, True)` if they are all valid, or (`False`, error) otherwise. It can be
+        overridden by subclasses.
+        * A `DFSMAcceptor` which determines whether the tokens describe a particular pattern
+    `validate()` combines these parts.
+
+    Attributes:
+        dfsm_acceptor (:obj:`DFSMAcceptor`): the DFSM acceptor
+        empty_is_valid (:obj:`bool`): if set, then an empty sequence of tokens is valid
+    """
+
+    def __init__(self, start_state, accepting_state, transitions, empty_is_valid=False):
+        self.dfsm_acceptor = DFSMAcceptor(start_state, accepting_state, transitions)
+        self.empty_is_valid = empty_is_valid
+
+    def valid_wc_lang_tokens(self, wc_lang_tokens):
+        return (True, True)
+
+    def make_dfsa_messages(self, wc_lang_tokens):
+        """ Convert a sequence of `WcLangToken`s into a list of messages for transitions
+
+        Args:
+            wc_lang_tokens (:obj:`iterator` of `WcLangToken`): sequence of `WcLangToken`s
+
+        Returns:
+            :obj:`object`: `None` if `wc_lang_tokens` cannot be converted into a sequence of messages,
+                or a `list` of `tuple` of pairs (token code, message modifier)
+        """
+        messages = []
+        for wc_lang_tok in wc_lang_tokens:
+            messages.append((wc_lang_tok.tok_code, None))
+        return messages
+
+    def validate(self, wc_lang_tokens):
+        """ Indicate whether `wc_lang_tokens` is valid
+
+        Args:
+            wc_lang_tokens (:obj:`iterator` of `WcLangToken`): sequence of `WcLangToken`s
+
+        Returns:
+            :obj:`tuple`: (`False`, error) if `wc_lang_tokens` is valid, or (`True`, `None`) if it is
+        """
+        if self.empty_is_valid and not wc_lang_tokens:
+            return (True, None)
+        valid, error = self.valid_wc_lang_tokens(wc_lang_tokens)
+        if not valid:
+            return (False, error)
+        dfsa_messages = self.make_dfsa_messages(wc_lang_tokens)
+        if DFSMAcceptor.ACCEPT == self.dfsm_acceptor.run(dfsa_messages):
+            return (True, None)
+        else:
+            return (False, "Not a linear expression of species and observables")
+
+
+class LinearExpressionVerifier(ExpressionVerifier):
+    """ Verify whether a sequence of tokens (`WcLangToken`s) describes a linear function of identifiers
+
+    In particular, a valid linear expression must have the structure:
+        * `(identifier | number '*' identifier) (('+' | '-') (identifier | number '*' identifier))*`
+    """
+
+    # Transitions in valid linear expression
+    linear_expr_transitions = [   # (current state, message, next state)
+        ('need number or id', (TokCodes.number, None), 'need *'),
+        ('need *', (TokCodes.op, '*'), 'need id'),
+        ('need id', (TokCodes.wc_lang_obj_id, None), 'need + | - | end'),
+        ('need number or id', (TokCodes.wc_lang_obj_id, None), 'need + | - | end'),
+        ('need + | - | end', (TokCodes.op, '+'), 'need number or id'),
+        ('need + | - | end', (TokCodes.op, '-'), 'need number or id'),
+        ('need + | - | end', (None, None), 'end')
+    ]
+
+    def __init__(self):
+        super().__init__(start_state='need number or id', accepting_state='end',
+            transitions=self.linear_expr_transitions, empty_is_valid=True)
+
+    def valid_wc_lang_tokens(self, wc_lang_tokens):
+        """ Check whether the content of a sequence of `WcLangToken`s is valid
+
+        In particular, all numbers in `wc_lang_tokens` must be floats, and all token codes must not
+        be `math_fun_id` or `other`.
+
+        Args:
+            wc_lang_tokens (:obj:`iterator` of `WcLangToken`): sequence of `WcLangToken`s
+
+        Returns:
+            :obj:`tuple`: (`False`, error) if `wc_lang_tokens` cannot be a linear expression, or
+                (`True`, `True`) if it can
+        """
+        for wc_lang_tok in wc_lang_tokens:
+            if wc_lang_tok.tok_code in set([TokCodes.math_fun_id, TokCodes.other]):
+                return (False, "messages do not use token codes math_fun_id or other")
+            if wc_lang_tok.tok_code == TokCodes.number:
+                try:
+                    float(wc_lang_tok.token_string)
+                except ValueError as e:
+                    return (False, str(e))
+        return (True, True)
+
+    def make_dfsa_messages(self, wc_lang_tokens):
+        """ Convert a sequence of `WcLangToken`s into a list of messages for transitions in `linear_expr_transitions`
+
+        Args:
+            wc_lang_tokens (:obj:`iterator` of `WcLangToken`): sequence of `WcLangToken`s
+
+        Returns:
+            :obj:`object`: `None` if `wc_lang_tokens` cannot be converted into a sequence of messages
+                to validate a linear expression, or a `list` of `tuple` of pairs (token code, message modifier)
+        """
+        messages = []
+        for wc_lang_tok in wc_lang_tokens:
+            message_tok_code = wc_lang_tok.tok_code
+            if wc_lang_tok.tok_code == TokCodes.wc_lang_obj_id:
+                message_modifier = None
+            elif wc_lang_tok.tok_code == TokCodes.number:
+                message_modifier = None
+            elif wc_lang_tok.tok_code == TokCodes.op:
+                message_modifier = wc_lang_tok.token_string
+            else:
+                return None
+            messages.append((message_tok_code, message_modifier))
+        messages.append((None, None))
+        return messages

@@ -56,7 +56,8 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
-from wc_lang.expression_utils import RateLawUtils, WcLangExpression, WcLangExpressionError
+from wc_lang.expression_utils import (RateLawUtils, WcLangExpression, WcLangExpressionError,
+                                        LinearExpressionVerifier)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -267,7 +268,7 @@ class OneToOneSpeciesAttribute(OneToOneAttribute):
         """
         return Species.deserialize(self, value, objects)
 
-
+'''
 class ObservableSpeciesParticipantAttribute(ManyToManyAttribute):
     """ Inline separated list of species and their weights of an observable
 
@@ -375,8 +376,9 @@ class ObservableSpeciesParticipantAttribute(ManyToManyAttribute):
         if errors:
             return (None, InvalidAttribute(self, errors))
         return (spec_coeff_objs, None)
+'''
 
-
+'''
 class ObservableObservableParticipantAttribute(ManyToManyAttribute):
     """ Inline separated list of observables and their weights of an observable
 
@@ -471,6 +473,7 @@ class ObservableObservableParticipantAttribute(ManyToManyAttribute):
         if errors:
             return (None, InvalidAttribute(self, errors))
         return (obs_coeff_objs, None)
+'''
 
 
 class ReactionParticipantAttribute(ManyToManyAttribute):
@@ -796,6 +799,46 @@ class StopConditionExpressionAttribute(ManyToOneAttribute):
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
         return StopConditionExpression.deserialize(self, value, objects)
+
+
+class ObservableExpressionAttribute(ManyToOneAttribute):
+    """ Observable expression attribute """
+    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
+        """
+        Args:
+            related_name (:obj:`str`, optional): name of related attribute on `related_class`
+            verbose_name (:obj:`str`, optional): verbose name
+            verbose_related_name (:obj:`str`, optional): verbose related name
+            help (:obj:`str`, optional): help message
+        """
+        super().__init__('ObservableExpression',
+            related_name=related_name, min_related=1, min_related_rev=1,
+            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+
+    def serialize(self, observable_expression, encoded=None):
+        """ Serialize related object
+
+        Args:
+            observable_expression (:obj:`ObservableExpression`): the referenced `ObservableExpression`
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        return observable_expression.serialize()
+
+    def deserialize(self, value, objects, decoded=None):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        return ObservableExpression.deserialize(self, value, objects)
 
 
 class Model(obj_model.Model):
@@ -1762,7 +1805,7 @@ class Concentration(obj_model.Model):
         """
         return self.species.serialize()
 
-
+'''
 class Observable(obj_model.Model):
     """ An observable is a weighted sum of the abundances of one or more species or other observables
 
@@ -1803,6 +1846,7 @@ class Observable(obj_model.Model):
             :obj:`str`: canonical id for an `Observable`
         """
         return self.id
+'''
 
 
 class ExpressionMethods(object):
@@ -1855,7 +1899,9 @@ class ExpressionMethods(object):
             obj = model_class(expression=value)
             objects[model_class][value] = obj
             for used_model_type in used_model_types:
-                used_model_type_attr = used_model_type.__name__.lower()+'s'
+                used_model_type_attr = used_model_type.__name__.lower()
+                if not used_model_type_attr.endswith('s'):
+                    used_model_type_attr = used_model_type_attr+'s'
                 attr_value = []
                 if used_model_type in used_objects:
                     attr_value = list(used_objects[used_model_type].values())
@@ -1890,6 +1936,143 @@ class ExpressionMethods(object):
         except WcLangExpressionError as e:
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
+
+    @staticmethod
+    def make_expression_obj(model_type, expression, objects):
+        """ Make an expression object
+
+        Args:
+            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
+                `Function` and `Observable`
+            expression (:obj:`str`): the expression used by the `model_type` being created
+            objects (:obj:`dict` of `dict`): all objects that are referenced in `expression`
+
+        Returns:
+            :obj:`tuple`: if successful, (`obj_model.Model`, `None`) containing a new instance of
+                `model_type`'s expression helper class; otherwise, (`None`, `InvalidAttribute`)
+                reporting the error
+        """
+        attr = model_type.Meta.attributes['expression']
+        expr_model_type = model_type.Meta.expression_model
+        return expr_model_type.deserialize(attr, expression, objects)
+
+    @staticmethod
+    def make_obj(model, model_type, id, expression, objects, allow_invalid_objects=False):
+        """ Make a model that contains an expression by using its expression helper class
+
+        For example, this uses `FunctionExpression` to make a `Function`.
+
+        Args:
+            model (:obj:`obj_model.Model`): a `wc_lang.core.Model` which is the root model
+            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
+                `Function` and `Observable`
+            id (:obj:`str`): the id of the `model_type` being created
+            expression (:obj:`str`): the expression used by the `model_type` being created
+            objects (:obj:`dict` of `dict`): all objects that are referenced in `expression`
+            allow_invalid_objects (:obj:`bool`, optional): if set, return object - not error - if
+                the expression object does not validate
+
+        Returns:
+            :obj:`obj_model.Model` or `InvalidAttribute`: a new instance of `model_type`, or,
+                if an error occurs, an `InvalidAttribute` reporting the error
+        """
+        expr_model_obj, error = ExpressionMethods.make_expression_obj(model_type, expression, objects)
+        if error:
+            return error
+        error_or_none = expr_model_obj.validate()
+        if error_or_none is not None and not allow_invalid_objects:
+            return error_or_none
+        related_name = model_type.Meta.attributes['model'].related_name
+        related_in_model = getattr(model, related_name)
+        new_obj = related_in_model.create(id=id, expression=expr_model_obj)
+        return new_obj
+
+
+class ObservableExpression(obj_model.Model):
+    """ A mathematical expression of Observables and Species
+
+    The expression used by a `Observable`.
+
+    Attributes:
+        expression (:obj:`str`): mathematical expression for an Observable
+        analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        observables (:obj:`list` of `Observable`): other Observables used by this Observable expression
+        species (:obj:`list` of `Species`): Species used by this Observable expression
+
+    Related attributes:
+        observable (:obj:`Observable`): observable
+    """
+
+    expression = LongStringAttribute(primary=True, unique=True)
+    observables = ManyToManyAttribute('Observable', related_name='observables')
+    species = ManyToManyAttribute('Species', related_name='species')
+
+    class Meta(obj_model.Model.Meta):
+        """
+        Attributes:
+            valid_Observables (:obj:`tuple` of `builtin_Observable_or_method`): tuple of Observables that
+                can be used in this `Observable`s `expression`
+            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `Observable` is allowed to reference in its `expression`
+        """
+        tabular_orientation = TabularOrientation.inline
+        valid_used_models = ('Species', 'Observable')
+
+    def serialize(self):
+        return ExpressionMethods.serialize(self)
+
+    @classmethod
+    def deserialize(cls, attribute, value, objects, decoded=None):
+        return ExpressionMethods.deserialize(cls, attribute, value, objects)
+
+    def validate(self):
+        # ensure that the observable is a linear function
+        valid, error = LinearExpressionVerifier().validate(self.analyzed_expr.wc_tokens)
+        if not valid:
+            attr = self.__class__.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, [error])
+            return InvalidObject(self, [attr_err])
+        return ExpressionMethods.validate(self)
+
+
+class Observable(obj_model.Model):
+    """ Observable: a linear function of other Observbles and Species
+
+    Attributes:
+        id (:obj:`str`): unique id
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        expression (:obj:`ObservableExpression`): mathematical expression for an Observable
+        comments (:obj:`str`): comments
+
+    Related attributes:
+        expressions (:obj:`Expressions`): expressions
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='observables')
+    expression = ObservableExpressionAttribute(related_name='observable')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'expression', 'comments')
+        expression_model = ObservableExpression
+
+    def get_id(self):
+        """ Provide id
+
+        Returns:
+            :obj:`str`: value of id
+        """
+        return self.id
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: value of related `ObservableExpression`
+        """
+        return self.expression.serialize()
 
 
 class FunctionExpression(obj_model.Model):
@@ -2303,7 +2486,7 @@ class SpeciesCoefficient(obj_model.Model):
             attr = cls.Meta.attributes['species']
             return (None, InvalidAttribute(attr, ['Invalid species coefficient']))
 
-
+'''
 class ObservableCoefficient(obj_model.Model):
     """ A tuple of observable and coefficient
 
@@ -2396,6 +2579,7 @@ class ObservableCoefficient(obj_model.Model):
         else:
             attr = cls.Meta.attributes['observable']
             return (None, InvalidAttribute(attr, ['Invalid observable coefficient']))
+'''
 
 
 class RateLaw(obj_model.Model):

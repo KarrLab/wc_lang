@@ -16,7 +16,7 @@ from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
                      Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
-                     BiomassReaction, Observable, Function, FunctionExpression)
+                     BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
 from wc_lang.expression_utils import RateLawUtils
 
 # configuration
@@ -852,28 +852,6 @@ class CheckModel(object):
                     "is {}".format(species_type.id, species_type.molecular_weight))
         return errors
 
-    @staticmethod
-    def _get_self_references(model):
-        """ Get the references to models of the same type used in `model`'s expression
-
-        Args:
-            model (:obj:`obj_model.Model`): a Model instance
-
-        Returns:
-            :obj:`set` of :obj:`obj_model.Model`: the `obj_model.Model` instances used by `model`
-        """
-        references_used = set()
-        # unfortunately, different obj_model.Model in wc_lang store references in different ways
-        # todo: normalize this
-        if isinstance(model, Observable):
-            for observable_coeffs in model.observables:
-                references_used.add(observable_coeffs.observable)
-        elif isinstance(model, Function):
-            if hasattr(model.expression, 'analyzed_expr'):
-                if Function in model.expression.analyzed_expr.related_objects:
-                    references_used = set(model.expression.analyzed_expr.related_objects[Function].values())
-        return references_used
-
     def verify_acyclic_dependencies(self, model_types):
         """ Verify that the network of depencencies for model types in `model_types` are acyclic
 
@@ -882,7 +860,7 @@ class CheckModel(object):
                 include Observable and FunctionExpression
 
         Args:
-            model_types (:obj:`list`): model types (subclasses of `obj_model.Model`) to test
+            model_types (:obj:`list` of `type`): model types (subclasses of `obj_model.Model`) to test
 
         Returns:
             :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
@@ -890,21 +868,30 @@ class CheckModel(object):
         """
         errors = []
         for model_type in model_types:
-            digraph = nx.DiGraph()
-            model_name = model_type.__name__
-            if model_name.endswith('Expression'):
-                model_name = model_name[:-len('Expression')]
-            collective_attr = "{}s".format(model_name.lower())
-            models = getattr(self.model, collective_attr)
-            for model in models:
-                digraph.add_node(model)
 
-            for model in models:
-                for ref in self._get_self_references(model):
-                    digraph.add_edge(model, ref)
-            cycle_generator = nx.simple_cycles(digraph)
-            for cycle in cycle_generator:
-                cyc = [o.id for o in cycle]
-                cyc.append(cyc[0])
-                errors.append("dependency cycle among {}s: {}".format(model_type.__name__, '->'.join(cyc)))
+            # get all instances of model_type in self.model
+            all_models = None
+            for name, attr in self.model.Meta.related_attributes.items():
+                if hasattr(self.model.Meta.related_attributes[name], 'primary_class') and \
+                    self.model.Meta.related_attributes[name].primary_class == model_type:
+                    all_models = getattr(self.model, name)
+
+            # get self-referential attribute, if any
+            expression_model = model_type.Meta.expression_model
+            name_self_ref_attr = None
+            for name in expression_model.Meta.attributes.keys():
+                if hasattr(expression_model.Meta.attributes[name], 'related_class') and \
+                    expression_model.Meta.attributes[name].related_class == model_type:
+                    name_self_ref_attr = name
+
+            if all_models and name_self_ref_attr:
+                digraph = nx.DiGraph()
+                for model in all_models:
+                    for ref in getattr(model.expression, name_self_ref_attr):
+                        digraph.add_edge(model, ref)
+                cycle_generator = nx.simple_cycles(digraph)
+                for cycle in cycle_generator:
+                    cyc = [o.id for o in cycle]
+                    cyc.append(cyc[0])
+                    errors.append("dependency cycle among {}s: {}".format(model_type.__name__, '->'.join(cyc)))
         return errors

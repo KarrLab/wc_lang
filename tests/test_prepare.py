@@ -14,9 +14,10 @@ import six
 import unittest
 
 from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
-                     Compartment, SpeciesCoefficient, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
-                     BiomassComponent, BiomassReaction, SpeciesTypeType, Observable, Parameter,
-                     ObservableCoefficient, Function, FunctionExpression)
+                     Compartment, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
+                     BiomassComponent, BiomassReaction, SpeciesTypeType, Parameter,
+                     Observable, ObservableExpression, Function, FunctionExpression,
+                     ExpressionMethods)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel, CheckModel, AnalyzeModel
 from wc_lang.expression_utils import WcLangExpression
@@ -619,7 +620,7 @@ class TestCheckModel(unittest.TestCase):
         actual_errors = self.check_model.verify_species_types()
         self.assertEqual(set(expected_errors), set(actual_errors))
 
-    def make_three_functions(self):
+    def make_some_objects(self):
         objects = {}
         objects[Parameter] = {}
         objects[Observable] = {}
@@ -627,51 +628,66 @@ class TestCheckModel(unittest.TestCase):
         for i in range(1, 4):
             id = "fun_{}".format(i)
             objects[Function][id] = self.model.functions.create(id=id)
+            id = "obs_{}".format(i)
+            objects[Observable][id] = self.model.observables.create(id=id)
         return objects
 
     def test_verify_acyclic_dependencies(self):
         # Observable
-        obs_1 = self.model.observables.create(id='obs_1')
-        obs_2 = self.model.observables.create(id='obs_2')
-        obs_3 = self.model.observables.create(id='obs_3')
-        obs_coeff_1 = ObservableCoefficient(observable=obs_1, coefficient=1.)
-        obs_coeff_2 = ObservableCoefficient(observable=obs_2, coefficient=2.)
-        obs_coeff_3 = ObservableCoefficient(observable=obs_3, coefficient=3.)
+        objects = {
+            Observable:{}
+        }
+        num = 3
+        for i in range(num):
+            id = "obs_{}".format(i)
+            objects[Observable][id] = ExpressionMethods.make_obj(self.model, Observable, id, '', {},
+                allow_invalid_objects=True)
+        '''
+        for i in range(num):
+            id = "obs_{}".format(i)
+            objects[Observable][id] = Observable(id=id)
+        '''
         errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(errors, [])
-        obs_2.observables.append(obs_coeff_1)
-        obs_3.observables.append(obs_coeff_2)
+
+        # create cyclic dependencies: each observable references the next, mod num
+        for i in range(num):
+            obs_expr, e = ExpressionMethods.make_expression_obj(Observable, 'obs_{}'.format((i+1)%num), objects)
+            self.assertEqual(e, None)
+            id = "obs_{}".format(i)
+            objects[Observable][id].expression = obs_expr
         errors = self.check_model.verify_acyclic_dependencies([Observable])
-        self.assertEqual(errors, [])
-        obs_1.observables.append(obs_coeff_3)
-        obs_1.observables.append(obs_coeff_1)
-        errors = self.check_model.verify_acyclic_dependencies([Observable])
-        self.assertEqual(len(errors), 2)
+        self.assertEqual(len(errors), 1)
         for e in errors:
             self.assertIn('dependency cycle among Observables', e)
 
         # Function
-        # each function calls the next
-        objects = self.make_three_functions()
-        attr = Function.Meta.attributes['expression']
-        func_expr, e = FunctionExpression.deserialize(attr, 'fun_2()', objects)
-        objects[Function]['fun_1'].expression = func_expr
-        func_expr, _ = FunctionExpression.deserialize(attr, 'fun_3()', objects)
-        objects[Function]['fun_2'].expression = func_expr
-        errors = self.check_model.verify_acyclic_dependencies([FunctionExpression])
+        objects = {
+            Parameter:{},
+            Observable:{},
+            Function:{}
+        }
+
+        id = 'fun_3'
+        # First 2 functions call the next one; make before referencing
+        objects[Function][id] = ExpressionMethods.make_obj(self.model, Function, id, '', {},
+                allow_invalid_objects=True)
+        for i in range(2, 0, -1):
+            id = 'fun_{}'.format(i)
+            objects[Function][id] = \
+                ExpressionMethods.make_obj(self.model, Function, id, 'fun_{}()'.format(i+1), objects)
+        errors = self.check_model.verify_acyclic_dependencies([Function])
         self.assertEqual(errors, [])
 
         # test cyclic recursion: have fun_1 call itself
-        objects = self.make_three_functions()
-        objects[Function]['fun_1'].expression = \
-            FunctionExpression.deserialize(attr, 'fun_1() + fun_2()', objects)[0]
-        objects[Function]['fun_2'].expression = \
-            FunctionExpression.deserialize(attr, 'fun_3()', objects)[0]
+        fun_expr, error = ExpressionMethods.make_expression_obj(Function, 'fun_1() + fun_2()', objects)
+        self.assertEqual(error, None)
+        objects[Function]['fun_1'].expression = fun_expr
         # and fun_3 call fun_1
         objects[Function]['fun_3'].expression = \
-            FunctionExpression.deserialize(attr, 'fun_1()', objects)[0]
+            ExpressionMethods.make_expression_obj(Function, 'fun_1()', objects)[0]
 
-        errors = self.check_model.verify_acyclic_dependencies([FunctionExpression])
+        errors = self.check_model.verify_acyclic_dependencies([Function])
         self.assertEqual(len(errors), 2)
         for e in errors:
-            self.assertIn('dependency cycle among FunctionExpressions', e)
+            self.assertIn('dependency cycle among Functions', e)

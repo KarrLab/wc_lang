@@ -8,10 +8,11 @@
 """
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
-                     Species, Observable, Compartment, SpeciesCoefficient, ObservableCoefficient,
+                     Species, Compartment, SpeciesCoefficient,
                      BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopCondition, StopConditionExpression,
+                     Observable, ObservableExpression,
                      RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -79,30 +80,29 @@ class TestSimpleModel(unittest.TestCase):
                 species_coefficients[part_serialized] = SpeciesCoefficient(species=species, coefficient=coefficient)
             return species_coefficients[part_serialized]
 
-        observable_coefficients = {}
-
-        def get_or_create_observable_coefficient(observable=None, coefficient=None):
-            part_serialized = ObservableCoefficient._serialize(observable, coefficient)
-            if part_serialized not in observable_coefficients:
-                observable_coefficients[part_serialized] = ObservableCoefficient(observable=observable, coefficient=coefficient)
-            return observable_coefficients[part_serialized]
-
         self.observables = observables = []
+        attr = Observable.Meta.attributes['expression']
+        objects = {Species: {}, Observable: {}}
         for i in range(8):
-            obs = mdl.observables.create(id='obs_{}'.format(i))
+            expr_parts = []
             for j in range(i + 1):
-                obs.species.append(get_or_create_species_coefficient(species=species[j], coefficient=j + 1))
+                objects[Species][species[j].get_id()] = species[j]
+                expr_parts.append("{} * {}".format(j + 1, species[j].get_id()))
+            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            id = 'obs_{}'.format(i)
+            obs = mdl.observables.create(id=id, expression=obs_expr)
             observables.append(obs)
+            objects[Observable][id] = obs
         for i in range(3):
-            obs = mdl.observables.create(id='obs_{}'.format(i + 8))
+            expr_parts = []
             for j in range(i + 1):
-                obs.observables.append(get_or_create_observable_coefficient(observable=observables[j], coefficient=j + 1))
+                expr_parts.append("{} * {}".format(j + 1, observables[j].get_id()))
+            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            obs = mdl.observables.create(id='obs_{}'.format(i + 8), expression=obs_expr)
             observables.append(obs)
 
         obs_expr = ' + 2 * '.join(o.id for o in observables[0:j + 1])
-        objects = {Observable:{o.get_id():o for o in observables},
-                    Parameter:{},
-                    Function:{}}
+        objects = {Observable:{o.get_id():o for o in observables}}
         attr = Function.Meta.attributes['expression']
         func_expr, _ = FunctionExpression.deserialize(attr, obs_expr, objects)
         self.functions = functions = []
@@ -355,9 +355,10 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         species_type = model.species_types.create(id='species_type')
         compartment = model.compartments.create(id='compartment')
         species = Species(species_type=species_type, compartment=compartment)
-        species_coefficient = SpeciesCoefficient(species=species, coefficient=1.)
-        observable = species_coefficient.observables.create(id='observable')
-        observable.model = model
+        attr = Observable.Meta.attributes['expression']
+        s_id = species.get_id()
+        obs_expr, _ = ObservableExpression.deserialize(attr, s_id, {Species:{s_id:species}})
+        observable = model.observables.create(id='observable', expression=obs_expr)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)

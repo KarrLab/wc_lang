@@ -15,14 +15,15 @@ import math
 from obj_model.core import InvalidAttribute
 import wc_lang
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
-                          Reaction, SpeciesType, SpeciesTypeType, Species, Observable, Compartment,
-                          SpeciesCoefficient, ObservableCoefficient, Parameter, Reference, ReferenceType,
+                          Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
+                          SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
                           RateLaw, RateLawEquation, RateLawEquationAttribute,
                           Function, FunctionExpression, FunctionExpressionAttribute,
+                          Observable, ObservableExpression, ObservableExpressionAttribute,
                           StopCondition, StopConditionExpression, StopConditionExpressionAttribute,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction, StopCondition, 
-                          OneToOneSpeciesAttribute, ReactionParticipantAttribute,
+                          OneToOneSpeciesAttribute, ReactionParticipantAttribute, ExpressionMethods,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
@@ -457,6 +458,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(species4, None)
         self.assertEqual(set(objs[Species].values()), set([species0, species1]))
 
+    '''
     def test_observable_species_serialize(self):
         st_a = SpeciesType(id='a')
         st_b = SpeciesType(id='bb')
@@ -626,6 +628,7 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(attr.deserialize('(2) obs_a - (3.5) obs_b', objs)[0], None)
         self.assertEqual(attr.deserialize('(2) obs_d + (3.5) obs_b', objs)[0], None)
+    '''
 
     def test_concentration_serialize(self):
         self.assertEqual(self.concentrations[0].serialize(), 'spec_type_0[comp_0]')
@@ -1611,7 +1614,8 @@ class TestCore(unittest.TestCase):
         objects = {
             Observable: {},
             Parameter: {},
-            Function: {}
+            Function: {},
+            Species: {},
         }
         for id in ['a', 'b', 'duped_id']:
             param = model.parameters.create(id=id)
@@ -1625,6 +1629,10 @@ class TestCore(unittest.TestCase):
             function = model.functions.create(id=id)
             objects[Function][id] = function
 
+        # use existing species
+        for s in self.species:
+            objects[Species][s.get_id()] = s
+
         id_map = {}
         for model_type in objects.keys():
             for id, obj in objects[model_type].items():
@@ -1632,6 +1640,32 @@ class TestCore(unittest.TestCase):
                 id_map[typed_id] = obj
 
         return model, objects, id_map
+
+    def test_make_obj(self):
+        model = Model()
+        _, objects, id_map = self.make_objects()
+        expr = 'ccc + 2 * ddd'
+        fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', expr, objects)
+        self.assertTrue(isinstance(fun_obj, Function))
+        self.assertEqual(fun_obj.id, 'fun_id')
+        self.assertEqual(fun_obj.model, model)
+        self.assertTrue(isinstance(fun_obj.expression, FunctionExpression))
+        self.assertTrue(fun_obj in model.functions)
+        fun_expr = fun_obj.expression
+        self.assertEqual(fun_expr.expression, expr)
+        self.assertEqual(set(fun_expr.observables),
+            set([id_map['Observable.ccc'], id_map['Observable.ddd']]))
+        self.assertEqual(set(fun_expr.parameters), set([]))
+        self.assertEqual(set(fun_expr.functions), set([]))
+
+        expr = 'ccc + 2 * x'
+        expr_model_obj, error = ExpressionMethods.make_expression_obj(Function, expr, objects)
+        self.assertTrue(expr_model_obj is None)
+        self.assertTrue(isinstance(error, InvalidAttribute))
+
+        fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', '', objects,
+            allow_invalid_objects=True)
+        self.assertTrue(isinstance(fun_obj, Function))
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
         expected_related_objs=None):
@@ -1703,11 +1737,20 @@ class TestCore(unittest.TestCase):
     def test_function_expression_deserialize_errors(self):
         _, objects, _ = self.make_objects()
 
-        self.do_test_expr_deserialize_error(FunctionExpression, Function, objects, 'id1[id2', "Python syntax error")
+        for expr_model, model in [(FunctionExpression, Function),
+                                    (StopConditionExpression, StopCondition),
+                                    (ObservableExpression, Observable)]:
+            self.do_test_expr_deserialize_error(expr_model, model, objects, 'id1[id2', "Python syntax error")
+            bad_id = 'no_such_obj'
+            self.do_test_expr_deserialize_error(expr_model, model, objects, bad_id,
+                "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
-        bad_id = 'no_such_obj'
-        self.do_test_expr_deserialize_error(FunctionExpression, Function, objects, bad_id,
-            "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
+    def test_stop_condition_expression_deserialize_errors(self):
+        _, objects, _ = self.make_objects()
+
+        expr = '(ccc > 10 and ddd < 5) or (a + f() * g())'
+        self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, expr,
+            "contains the identifier(s) 'and', which aren't the id(s) of an object")
 
     def do_test_invalid_expression(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to validate
@@ -1764,17 +1807,6 @@ class TestCore(unittest.TestCase):
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
                 objects, expr, expected_test_val, expected_attrs)
 
-    def test_stop_condition_expression_deserialize_errors(self):
-        _, objects, _ = self.make_objects()
-
-        bad_id = 'no_such_obj'
-        self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, bad_id,
-            "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
-
-        expr = '(ccc > 10 and ddd < 5) or (a + f() * g())'
-        self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, expr,
-            "contains the identifier(s) 'and', which aren't the id(s) of an object")
-
     def test_invalid_stop_condition_expressions(self):
         _, objects, _ = self.make_objects()
 
@@ -1799,9 +1831,51 @@ class TestCore(unittest.TestCase):
         stop_condition.expression = stop_condition_expr
         self.assertEqual(stop_condition.serialize(), expr)
 
+    def test_valid_observable_expressions(self):
+        _, objects, id_map = self.make_objects()
+
+        for expr, expected_test_val, expected_related_objs in [
+            ('3 * spec_type_0[comp_0]', 3, {'species':[id_map['Species.spec_type_0[comp_0]']]}),
+            ('spec_type_0[comp_0] + 4e2*spec_type_1[comp_0] - 1  * spec_type_3[comp_1]', 400,
+                {'species':[
+                    id_map['Species.spec_type_0[comp_0]'],
+                    id_map['Species.spec_type_1[comp_0]'],
+                    id_map['Species.spec_type_3[comp_1]']
+                ]}),
+            ('1.5 * spec_type_0[comp_0] - ddd + Observable.duped_id', 1.5,
+                {'species':[id_map['Species.spec_type_0[comp_0]']],
+                'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']],
+                }),
+            ]:
+            self.do_test_valid_expression(ObservableExpression, Observable,
+                objects, expr, expected_test_val, expected_related_objs)
+
+    def test_invalid_observable_expressions(self):
+        _, objects, _ = self.make_objects()
+
+        non_linear_expression = 'ccc * ccc'
+        self.do_test_invalid_expression(ObservableExpression, Observable, objects, non_linear_expression,
+            "Not a linear expression of species and observables".format())
+
+    def test_observable(self):
+        model, objects, _ = self.make_objects()
+        kwargs = dict(id='obs_1', name='name obs_1', model=model, comments='no comment')
+        obs = Observable(**kwargs)
+        self.assertEqual(obs.id, kwargs['id'])
+        self.assertEqual(obs.get_id(), kwargs['id'])
+        self.assertEqual(obs.name, kwargs['name'])
+        self.assertEqual(obs.model, model)
+        self.assertEqual(model.observables[-1], obs)
+        self.assertEqual(obs.comments, kwargs['comments'])
+        attr = Observable.Meta.attributes['expression']
+        expr = 'ccc + ddd - 2 * spec_type_0[comp_0]'
+        func_expr, _ = ObservableExpression.deserialize(attr, expr, objects)
+        obs.expression = func_expr
+        self.assertEqual(obs.serialize(), expr)
+
     def test_valid_model_types(self):
         for model_type in [RateLawEquation, FunctionExpression, StopConditionExpression,
-            ObjectiveFunction, Observable]:
+            ObjectiveFunction, ObservableExpression]:
             self.assertTrue(hasattr(model_type.Meta, 'valid_used_models'))
             for valid_model_type in model_type.Meta.valid_used_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))
