@@ -642,11 +642,6 @@ class TestCheckModel(unittest.TestCase):
             id = "obs_{}".format(i)
             objects[Observable][id] = ExpressionMethods.make_obj(self.model, Observable, id, '', {},
                 allow_invalid_objects=True)
-        '''
-        for i in range(num):
-            id = "obs_{}".format(i)
-            objects[Observable][id] = Observable(id=id)
-        '''
         errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(errors, [])
 

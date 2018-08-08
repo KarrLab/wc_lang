@@ -25,7 +25,7 @@ PARAMETERS_DICT = 'parameters'
 '''
 build
 wc_lang:
-    have ExpressionMethods.make_obj() call validate()
+    method to build up expression models from references rather then expressions and then recreate the source expression
     use WcLangExpression to deserialize and validate all wc_lang expressions:
         start with 290 occurrences of 'observable' in wc_lang
         last, convert ObjectiveFunction, and RateLawEquation (what about k_cat and k_m?)
