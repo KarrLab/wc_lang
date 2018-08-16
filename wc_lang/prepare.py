@@ -850,7 +850,7 @@ class CheckModel(object):
             if not 0<species_type.molecular_weight:
                 errors.append("species types must contain positive molecular weights, but the MW for {} "
                     "is {}".format(species_type.id, species_type.molecular_weight))
-        return errors
+        return []
 
     def verify_acyclic_dependencies(self, model_types):
         """ Verify that the network of depencencies for model types in `model_types` are acyclic
