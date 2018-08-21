@@ -808,7 +808,7 @@ class CheckModel(object):
                     rate_law.direction.name, reaction.id, str(error)))
         return errors
 
-    # TODO(Arthur): reconsider; not good for dFBA models; perhaps good for dynamic models
+    # TODO(Arthur): reconsider; not good for dFBA submodels; perhaps good for dynamic submodels
     def verify_reactant_compartments(self):
         """ Verify that all reactants in each submodel's reactions are in the submodel's compartment
 

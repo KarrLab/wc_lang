@@ -22,7 +22,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Function, FunctionExpression, FunctionExpressionAttribute,
                           Observable, ObservableExpression, ObservableExpressionAttribute,
                           StopCondition, StopConditionExpression, StopConditionExpressionAttribute,
-                          SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction, StopCondition, 
+                          SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction,
                           OneToOneSpeciesAttribute, ReactionParticipantAttribute, ExpressionMethods,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
@@ -1470,8 +1470,7 @@ class TestCore(unittest.TestCase):
         return model, objects, id_map
 
     def test_make_obj(self):
-        model = Model()
-        _, objects, id_map = self.make_objects()
+        model, objects, id_map = self.make_objects()
         expr = 'ccc + 2 * ddd'
         fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', expr, objects)
         self.assertTrue(isinstance(fun_obj, Function))

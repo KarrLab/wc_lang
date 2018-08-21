@@ -25,17 +25,14 @@ PARAMETERS_DICT = 'parameters'
 '''
 build
 wc_lang:
-    method to build up expression models from references rather then expressions and then recreate the source expression
+    easier way to create expression models in code -- perhaps postpone deserialization until all objects created
     use WcLangExpression to deserialize and validate all wc_lang expressions:
-        start with 290 occurrences of 'observable' in wc_lang
         last, convert ObjectiveFunction, and RateLawEquation (what about k_cat and k_m?)
     fix test_io_roundtrip.py:test_create()
 wc_sim:
-    ensure that all related objects made befoe their using objects in DynamicModel.__init__()
-    add execution of DynamicExpressions:
-        DynamicFunction: nothing to do -- simply used by DynamicFunction & DynamicStopCondition
-        DynamicObservable: save in checkpoint results
-        DynamicStopCondition: use in stopping simulation
+    put dict of submodels in dynamic_model
+    can a reaction's reactants and modifiers be contained in multiple compartements
+    ensure that all related objects made before their using objects in DynamicModel.__init__()
     handle any multiplicity of StopConditions; allow execution to choose among multiple StopConditions,
         or use them all
 extra:
@@ -50,7 +47,6 @@ extra:
     support logical operators (or, and, not) in expressions, esp. StopConditions
 cleanup:
     robust tests of run_results that examine the data
-    discard existing RE parsing and expression eval code
     remove transcode_and_check_rate_law_equations, which will be redundant (and ignores concentraion units)
     more docstrings and better naming for ExpressionVerifier
     use ExpressionMethods.make_expression_obj() wherever possible
@@ -60,7 +56,6 @@ cleanup:
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
     replace all validation and deserialization code
-    fix the cheats in test_expression_utils.py
     fix test_find_shared_species
 '''
 
@@ -75,8 +70,8 @@ class RateLawUtils(object):
 
         Args:
             rate_law_equation (:obj:`wc_lang.core.RateLawEquation`): a rate law equation
-            species_ids (:obj:`set` of `str`): ids of the species that use the rate law
-            parameter_ids (:obj:`set` of `str`): ids of the parameters that use the rate law
+            species_ids (:obj:`set` of `str`): ids of the species that the rate law might use
+            parameter_ids (:obj:`set` of `str`): ids of the parameters that the rate law might use
 
         Returns:
             The python expression, or None if the rate law doesn't have an equation
@@ -247,6 +242,7 @@ class RateLawUtils(object):
         if not transcoded_equation:
             transcoded_equation = rate_law.equation.transcoded
 
+        # todo: optimization: precompute local_ns for functions, k_cat, and k_m
         local_ns = {func.__name__: func for func in wc_lang.RateLawEquation.Meta.valid_functions}
         if hasattr(rate_law, 'k_cat') and not isnan(rate_law.k_cat):
             local_ns['k_cat'] = rate_law.k_cat

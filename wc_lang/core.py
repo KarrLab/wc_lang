@@ -2303,16 +2303,25 @@ class RateLaw(obj_model.Model):
         """ return `None` to indicate valid object """
         return None
 
+    def get_id(self):
+        """ Provide id
+
+        Since `RateLaw` does not have an id, use the associated reaction's id.
+
+        Returns:
+            :obj:`str`: value of id
+        """
+        return self.reaction.id
+
 
 class RateLawEquation(obj_model.Model):
     """ Rate law equation
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
-        parameters (:obj:`list` of `Species`): parameters whose values are used in the rate law
+        parameters (:obj:`list` of `Parameter`): parameters whose values are used in the rate law
 
     Related attributes:
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
