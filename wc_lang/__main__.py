@@ -6,15 +6,14 @@
 :License: MIT
 """
 
-from cement.core.foundation import CementApp
-from cement.core.controller import CementBaseController, expose
 from wc_lang import transform
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
+import cement
 import wc_lang
 
 
-class BaseController(CementBaseController):
+class BaseController(cement.Controller):
     """ Base controller for command line application """
 
     class Meta:
@@ -24,12 +23,12 @@ class BaseController(CementBaseController):
             (['-v', '--version'], dict(action='version', version=wc_lang.__version__)),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         self.app.args.print_help()
 
 
-class ValidateController(CementBaseController):
+class ValidateController(cement.Controller):
     """ Validate model definition and display errors """
 
     class Meta:
@@ -43,8 +42,8 @@ class ValidateController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
         try:
             Reader().run(args.path, strict=args.strict)  # reader already does validation
@@ -53,7 +52,7 @@ class ValidateController(CementBaseController):
             raise ValueError('Model is invalid: ' + str(exception))
 
 
-class DifferenceController(CementBaseController):
+class DifferenceController(cement.Controller):
     """ Display difference between two model definitions """
 
     class Meta:
@@ -70,8 +69,8 @@ class DifferenceController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
 
         if args.compare_files:
@@ -95,7 +94,7 @@ for trans in transform.get_transforms().values():
     transform_list += '\n  {}: {}'.format(trans.Meta.id, trans.Meta.label)
 
 
-class TransformController(CementBaseController):
+class TransformController(cement.Controller):
     """ Apply one, or more, transforms to a model and save the result """
 
     class Meta:
@@ -112,8 +111,8 @@ class TransformController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
 
         if not args.transforms:
@@ -133,7 +132,7 @@ class TransformController(CementBaseController):
         Writer().run(model, args.dest, set_repo_metadata_from_path=False)
 
 
-class NormalizeController(CementBaseController):
+class NormalizeController(cement.Controller):
     """ Normalize model definition """
 
     class Meta:
@@ -148,8 +147,8 @@ class NormalizeController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
         model = Reader().run(args.source, strict=args.strict)
         if args.dest:
@@ -158,7 +157,7 @@ class NormalizeController(CementBaseController):
             Writer().run(model, args.source, set_repo_metadata_from_path=False)
 
 
-class ConvertController(CementBaseController):
+class ConvertController(cement.Controller):
     """ Convert model definition among Excel (.xlsx), comma separated (.csv), JavaScript Object Notation (.json),
     tab separated (.tsv), and Yet Another Markup Language (.yaml, .yml) formats """
 
@@ -174,13 +173,13 @@ class ConvertController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
         convert(args.source, args.dest, strict=args.strict)
 
 
-class CreateTemplateController(CementBaseController):
+class CreateTemplateController(cement.Controller):
     """ Create file with model template (i.e. create file with row and column labels) """
 
     class Meta:
@@ -195,13 +194,13 @@ class CreateTemplateController(CementBaseController):
                                                     'the parent directory of `path`'))),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
         create_template(args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
-class UpdateVersionMetadataController(CementBaseController):
+class UpdateVersionMetadataController(cement.Controller):
     """ Update the version metadata (repository URL, branch, revision; wc_lang version) of a model """
 
     class Meta:
@@ -218,15 +217,15 @@ class UpdateVersionMetadataController(CementBaseController):
                                 help='If set, do not validate the format of the model file(s)')),
         ]
 
-    @expose(hide=True)
-    def default(self):
+    @cement.ex(hide=True)
+    def _default(self):
         args = self.app.pargs
         model = Reader().run(args.path, strict=args.strict)
         model.wc_lang_version = wc_lang.__version__
         Writer().run(model, args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
-class App(CementApp):
+class App(cement.App):
     """ Command line application """
     class Meta:
         label = 'wc_lang'
