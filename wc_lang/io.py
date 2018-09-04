@@ -36,7 +36,7 @@ class Writer(object):
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
             set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
-                branch, revision) for the knowledge base from the parent directory of :obj:`core_path`
+                branch, revision) for the model from the parent directory of :obj:`core_path`
         """
         self.validate_implicit_relationships()
 
@@ -197,7 +197,7 @@ def create_template(path, set_repo_metadata_from_path=True):
     Args:
         path (:obj:`str`): path to file(s)
         set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
-            branch, revision) for the knowledge base from the parent directory of :obj:`core_path`
+            branch, revision) for the model from the parent directory of :obj:`core_path`
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
     Writer().run(model, path, set_repo_metadata_from_path=set_repo_metadata_from_path)

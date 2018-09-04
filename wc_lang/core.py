@@ -1332,6 +1332,7 @@ class SpeciesType(obj_model.Model):
         references (:obj:`list` of `Reference`): references
 
     Related attributes:
+        species (:obj:`list` of `Species`): species
         database_references (:obj:`list` of `DatabaseReference`): database references
         concentrations (:obj:`list` of `Concentration`): concentrations
     """

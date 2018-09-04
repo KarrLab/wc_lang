@@ -23,14 +23,20 @@ PARAMETERS_DICT = 'parameters'
 
 # TODOS
 '''
+replace MakeModels
+'''
+'''
 build
 wc_lang:
-    easier way to create expression models in code -- perhaps postpone deserialization until all objects created
+    right template for wc_sim_test
     use WcLangExpression to deserialize and validate all wc_lang expressions:
         last, convert ObjectiveFunction, and RateLawEquation (what about k_cat and k_m?)
     fix test_io_roundtrip.py:test_create()
+    in DynamicReaction() init submodels must have compartments: enforce this
+    more rigerously create rate laws, whose kinetics must be MA, MM, or custom
 wc_sim:
     put dict of submodels in dynamic_model
+    give abstract compartments control over their volumes
     can a reaction's reactants and modifiers be contained in multiple compartements
     ensure that all related objects made before their using objects in DynamicModel.__init__()
     handle any multiplicity of StopConditions; allow execution to choose among multiple StopConditions,
