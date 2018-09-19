@@ -54,7 +54,7 @@ class TestRateLawUtils(unittest.TestCase):
         rate_law_equation.transcoded = 'log(1.)'
         self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}, {}), [0])
 
-        with self.assertRaisesRegexp(Exception, 'Error: unable to eval transcoded rate law'):
+        with self.assertRaisesRegex(Exception, 'Error: unable to eval transcoded rate law'):
             RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, {}, transcoded_equation='"x" + concentrations["x"]')
 
 
@@ -96,10 +96,10 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function:{}, Parameter:{}})
         self.assertEqual(wc_lang_expr.valid_functions, set(FunctionExpression.Meta.valid_functions))
         expr = 'id1[id2'
-        with self.assertRaisesRegexp(WcLangExpressionError,
+        with self.assertRaisesRegex(WcLangExpressionError,
             "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
             self.make_wc_lang_expr(expr)
-        with self.assertRaisesRegexp(WcLangExpressionError,
+        with self.assertRaisesRegex(WcLangExpressionError,
             "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
             WcLangExpression(Species, 'attr', '', {})
 
@@ -434,7 +434,7 @@ class TestWcLangExpression(unittest.TestCase):
         objects = {
             Foo: {'foo_1':Foo(), 'foo_2':Foo()}
         }
-        with self.assertRaisesRegexp(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
+        with self.assertRaisesRegex(WcLangExpressionError, "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
 
     def do_test_eval_expr(self, expr, obj_type, related_obj_val, expected_val):
@@ -460,7 +460,7 @@ class TestWcLangExpression(unittest.TestCase):
         model_type = RateLawEquation
         wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
         wc_lang_expr.tokenize()
-        with self.assertRaisesRegexp(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {}".format(
+        with self.assertRaisesRegex(WcLangExpressionError, "SyntaxError: cannot eval expression .* in {}".format(
             model_type.__name__)):
             wc_lang_expr.test_eval_expr()
 
@@ -468,7 +468,7 @@ class TestWcLangExpression(unittest.TestCase):
         expr = 'foo(6)'
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=model_type)
         wc_lang_expr.tokenize()
-        with self.assertRaisesRegexp(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
+        with self.assertRaisesRegex(WcLangExpressionError, re.escape("cannot evaluate '{}', as it not been "
             "successfully tokenized".format(expr))):
             wc_lang_expr.test_eval_expr()
 

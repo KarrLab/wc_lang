@@ -60,7 +60,7 @@ class TestCli(unittest.TestCase):
         filename = path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
-        with self.assertRaisesRegexp(ValueError, '^Model is invalid: '):
+        with self.assertRaisesRegex(ValueError, '^Model is invalid: '):
             with __main__.App(argv=['validate', filename]) as app:
                 app.run()
 
@@ -117,7 +117,7 @@ class TestCli(unittest.TestCase):
         Writer().run(model, source, set_repo_metadata_from_path=False)
 
         dest = path.join(self.tempdir, 'dest.xlsx')
-        with self.assertRaisesRegexp(ValueError, 'Please select at least one transform'):
+        with self.assertRaisesRegex(ValueError, 'Please select at least one transform'):
             with __main__.App(argv=['transform', source, dest]) as app:
                 app.run()
 
@@ -179,9 +179,9 @@ class TestCli(unittest.TestCase):
         with mock.patch('sys.argv', ['wc_lang', '--help']):
             with self.assertRaises(SystemExit) as context:
                 __main__.main()
-                self.assertRegexpMatches(context.Exception, 'usage: wc_lang')
+                self.assertRegex(context.Exception, 'usage: wc_lang')
 
         with mock.patch('sys.argv', ['wc_lang']):
             with CaptureOutput() as capturer:
                 __main__.main()
-                self.assertRegexpMatches(capturer.get_text(), 'usage: wc_lang')
+                self.assertRegex(capturer.get_text(), 'usage: wc_lang')

@@ -65,7 +65,7 @@ class TestPrepareModel(unittest.TestCase):
                          set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
 
         # test exception
-        with self.assertRaisesRegexp(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
             self.prepare_model.create_dfba_exchange_rxns(Submodel(algorithm=SubmodelAlgorithm.ssa), None)
 
     def test_confirm_dfba_submodel_obj_func(self):
@@ -131,7 +131,7 @@ class TestPrepareModel(unittest.TestCase):
             self.assertIn(msg, str(context.exception))
 
         # test exception
-        with self.assertRaisesRegexp(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
             self.prepare_model.parse_dfba_submodel_obj_func(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
     def test__proc_mult(self):
@@ -142,7 +142,7 @@ class TestPrepareModel(unittest.TestCase):
         node.right.op = ast.USub()
         node.left.operand = ast.Num()
         node.right.operand = ast.Num()
-        with self.assertRaisesRegexp(ValueError, "bad Mult"):
+        with self.assertRaisesRegex(ValueError, "bad Mult"):
             self.prepare_model._proc_mult(node, [])
 
     def test_assign_linear_objective_fn(self):
@@ -176,19 +176,19 @@ class TestPrepareModel(unittest.TestCase):
                          (0, 0))
 
         # test exception
-        with self.assertRaisesRegexp(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
             self.prepare_model.apply_default_dfba_submodel_flux_bounds(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
         submodel = Submodel(algorithm=SubmodelAlgorithm.dfba)
         submodel.reactions.create(min_flux=float('nan'))
         with mock.patch('wc_lang.prepare.config_wc_lang', {}):
-            with self.assertRaisesRegexp(ValueError, "cannot obtain default_min_flux_bound and default_max_flux_bound="):
+            with self.assertRaisesRegex(ValueError, "cannot obtain default_min_flux_bound and default_max_flux_bound="):
                 self.prepare_model.apply_default_dfba_submodel_flux_bounds(submodel)
 
         submodel = Submodel(algorithm=SubmodelAlgorithm.dfba)
         submodel.reactions.create(min_flux=float('nan'))
         with mock.patch('wc_lang.prepare.config_wc_lang', {'default_min_flux_bound': 1, 'default_max_flux_bound': -1}):
-            with self.assertRaisesRegexp(ValueError, "default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:"):
+            with self.assertRaisesRegex(ValueError, "default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:"):
                 self.prepare_model.apply_default_dfba_submodel_flux_bounds(submodel)
 
     def test_run(self):
@@ -342,7 +342,7 @@ class TestAnalyzeModel(unittest.TestCase):
                          sorted(self.dfba_submodel.reactions, key=lambda x: x.id))
 
         # check exceptions
-        with self.assertRaisesRegexp(ValueError, 'not a dfba submodel'):
+        with self.assertRaisesRegex(ValueError, 'not a dfba submodel'):
             prep_mdl.identify_dfba_submodel_rxn_gaps(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
     def test_digraph_of_rxn_network(self):
@@ -429,10 +429,10 @@ class TestAnalyzeModel(unittest.TestCase):
         self.assertEqual(len(paths), 0)
 
         # test exceptions
-        with self.assertRaisesRegexp(ValueError, "'ex_species' should be a Species instance, but "):
+        with self.assertRaisesRegex(ValueError, "'ex_species' should be a Species instance, but "):
             self.analyze_model.unbounded_paths(None, 'species', None)
 
-        with self.assertRaisesRegexp(ValueError, "elements of 'obj_fn_species' should be Species instances, but "):
+        with self.assertRaisesRegex(ValueError, "elements of 'obj_fn_species' should be Species instances, but "):
             self.analyze_model.unbounded_paths(None, Species(), ['species'])
 
     def test_path_bounds_analysis(self):
@@ -606,7 +606,7 @@ class TestCheckModel(unittest.TestCase):
 
     def test_run_exception(self):
         self.dfba_submodel.reactions[0].min_flux = float('nan')
-        with self.assertRaisesRegexp(ValueError, 'no min_flux'):
+        with self.assertRaisesRegex(ValueError, 'no min_flux'):
             CheckModel(self.model).run()
 
     def test_verify_species_types(self):

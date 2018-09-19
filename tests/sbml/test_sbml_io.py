@@ -169,7 +169,7 @@ class TestSbml(unittest.TestCase):
         met_submodel.parameters.append(Parameter(id='param_1'))
         met_submodel.parameters.append(Parameter(id='param_1'))
 
-        with self.assertRaisesRegexp(UserWarning, 'Some data will not be written because objects are not valid'):
+        with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")
             warnings.simplefilter("error", UserWarning)
             sbml_document = sbml_io.SBMLExchange.write_submodel(met_submodel)
@@ -197,9 +197,9 @@ class TestSbml(unittest.TestCase):
         self.assertIn('cannot write to directory', str(context.exception))
         self.assertIn('no_such_dir', str(context.exception))
 
-        with self.assertRaisesRegexp(ValueError, 'No submodel.algorithm in algorithms'):
+        with self.assertRaisesRegex(ValueError, 'No submodel.algorithm in algorithms'):
             sbml_io.Writer.run(self.model, algorithms=[])
 
         with mock.patch('libsbml.writeSBMLToFile', return_value=False):
-            with self.assertRaisesRegexp(ValueError, ' could not be written to '):
+            with self.assertRaisesRegex(ValueError, ' could not be written to '):
                 sbml_io.Writer.run(self.model, path=self.dirname)

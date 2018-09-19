@@ -233,16 +233,16 @@ class TestDebug(unittest.TestCase):
     def test_SBML_wrap_libsbml_with_debug(self):
         with capturer.CaptureOutput() as capture_output:
             wrap_libsbml(self.document.setIdAttribute, 'id', debug=True)
-            self.assertRegexpMatches(capture_output.get_text(), 'libSBML call:')
-            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')
+            self.assertRegex(capture_output.get_text(), 'libSBML call:')
+            self.assertRegex(capture_output.get_text(), 'libSBML returns:')
 
         sbml_model = wrap_libsbml(self.document.createModel)
         unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
         unit = add_sbml_unit(unit_def, UNIT_KIND_AVOGADRO)
         with capturer.CaptureOutput() as capture_output:
             wrap_libsbml(unit.getKind, returns_int=False, debug=True)
-            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')
+            self.assertRegex(capture_output.get_text(), 'libSBML returns:')
 
         with capturer.CaptureOutput() as capture_output:
             wrap_libsbml(self.document.getIdAttribute, debug=True)
-            self.assertRegexpMatches(capture_output.get_text(), 'libSBML returns:')
+            self.assertRegex(capture_output.get_text(), 'libSBML returns:')

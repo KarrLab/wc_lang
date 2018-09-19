@@ -216,7 +216,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename, wb)
 
-        with self.assertRaisesRegexp(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
         model = Reader().run(filename, strict=False)
         self.assertEqual(model.validate(), None)
@@ -253,7 +253,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename_xls1, wb)
 
-        with self.assertRaisesRegexp(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
         convert(filename_xls1, filename_csv, strict=False)
 
@@ -312,7 +312,7 @@ class TestReaderException(unittest.TestCase):
         filename = os.path.join(self.tempdir, 'model.xlsx')
         obj_model.io.WorkbookWriter().run(filename, [model1, model2], Writer.model_order, include_all_attributes=False)
 
-        with self.assertRaisesRegexp(ValueError, ' should define one model$'):
+        with self.assertRaisesRegex(ValueError, ' should define one model$'):
             Reader().run(filename)
 
 
@@ -347,7 +347,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
         parameter.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
-        with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
+        with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
             Writer().run(model, filename, set_repo_metadata_from_path=False)
 
     def test_write_other(self):
@@ -364,13 +364,13 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
         observable.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
-        with self.assertRaisesRegexp(ValueError, 'must be set to the instance of `Model`'):
+        with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
             Writer().run(model, filename, set_repo_metadata_from_path=False)
 
     def test_read(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
         obj_model.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], Writer.model_order, include_all_attributes=False)
-        with self.assertRaisesRegexp(ValueError, 'cannot contain instances of'):
+        with self.assertRaisesRegex(ValueError, 'cannot contain instances of'):
             Reader().run(filename)
 
     def test_validate(self):
@@ -378,11 +378,11 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
             id = obj_model.StringAttribute(primary=True, unique=True)
 
         Model.Meta.attributes['test'] = obj_model.OneToOneAttribute(TestModel, related_name='a')
-        with self.assertRaisesRegexp(Exception, 'Relationships from `Model` not supported'):
+        with self.assertRaisesRegex(Exception, 'Relationships from `Model` not supported'):
             io.Writer.validate_implicit_relationships()
         Model.Meta.attributes.pop('test')
 
         Model.Meta.related_attributes['test'] = obj_model.OneToManyAttribute(TestModel, related_name='b')
-        with self.assertRaisesRegexp(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
+        with self.assertRaisesRegex(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
             io.Writer.validate_implicit_relationships()
         Model.Meta.related_attributes.pop('test')

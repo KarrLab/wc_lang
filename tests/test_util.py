@@ -158,7 +158,7 @@ class TestUtil(unittest.TestCase):
         model = Model()
         self.assertEqual(model.url, '')
 
-        with self.assertRaisesRegexp(ValueError, 'is not a Git repository'):
+        with self.assertRaisesRegex(ValueError, 'is not a Git repository'):
             util.set_git_repo_metadata_from_path(model, path=tempdir)
         self.assertEqual(model.url, '')
 

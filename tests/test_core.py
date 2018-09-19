@@ -381,7 +381,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_component('reference', 'ref_1'), self.references[1])
         self.assertEqual(model.get_component('reaction', 'rxn_3'), None)
 
-        with self.assertRaisesRegexp(ValueError, ' not one of '):
+        with self.assertRaisesRegex(ValueError, ' not one of '):
             model.get_component('undefined', 'rxn_3')
 
     def test_species_type_is_carbon_containing(self):
@@ -1434,7 +1434,7 @@ class TestCore(unittest.TestCase):
                 ),
             ],
         )
-        with self.assertRaisesRegexp(ValueError, 'does not belong to submodel'):
+        with self.assertRaisesRegex(ValueError, 'does not belong to submodel'):
             obj_func.get_products()
 
     def make_objects(self):
