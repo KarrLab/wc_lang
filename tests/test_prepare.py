@@ -519,7 +519,7 @@ class TestCheckModel(unittest.TestCase):
         # remove a reaction to test that all species used in biomass reactions are defined
         del self.dfba_submodel.reactions[-1]
         errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
-        self.assertEquals(len(errors), 1)
+        self.assertEqual(len(errors), 1)
         six.assertRegex(self, errors[0],
                         "Error: undefined species '.*' in biomass reaction '.*' used by submodel")
 
