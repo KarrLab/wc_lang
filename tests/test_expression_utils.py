@@ -251,7 +251,7 @@ class TestWcLangExpression(unittest.TestCase):
         rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).tokenize()
         self.assertEqual(rv, None)
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
-            self.assertRegex(errors[0], ".*contains bad token\(s\):.*" + re.escape(bad_tok) + ".*")
+            self.assertRegex(errors[0], r'.*contains bad token\(s\):.*' + re.escape(bad_tok) + '.*')
         # test bad tokens that don't have string values
         rv, errors = WcLangExpression(RateLawEquation, 'test', """
  3
