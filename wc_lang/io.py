@@ -171,7 +171,7 @@ def convert(source, destination, strict=True):
     """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated (.tsv) file formats
 
     Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
-    delimiter separated set of models must be represented by a Unix glob pattern (with a \*) that
+    delimiter separated set of models must be represented by a Unix glob pattern (with a *) that
     matches all delimiter separated files.
 
     Args:
