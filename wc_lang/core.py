@@ -338,14 +338,14 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         """
         errors = []
 
-        id = '[a-z][a-z0-9_]*'
-        stoch = '\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
-        gbl_part = '({} *)*({})'.format(stoch, id)
-        lcl_part = '({} *)*({}\[{}\])'.format(stoch, id, id)
-        gbl_side = '{}( *\+ *{})*'.format(gbl_part, gbl_part)
-        lcl_side = '{}( *\+ *{})*'.format(lcl_part, lcl_part)
-        gbl_pattern = '^\[({})\]: *({}|) *==> *({}|)$'.format(id, gbl_side, gbl_side)
-        lcl_pattern = '^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)
+        id = r'[a-z][a-z0-9_]*'
+        stoch = r'\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
+        gbl_part = r'({} *)*({})'.format(stoch, id)
+        lcl_part = r'({} *)*({}\[{}\])'.format(stoch, id, id)
+        gbl_side = r'{}( *\+ *{})*'.format(gbl_part, gbl_part)
+        lcl_side = r'{}( *\+ *{})*'.format(lcl_part, lcl_part)
+        gbl_pattern = r'^\[({})\]: *({}|) *==> *({}|)$'.format(id, gbl_side, gbl_side)
+        lcl_pattern = r'^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)
 
         value = value.strip(' ')
         global_match = re.match(gbl_pattern, value, flags=re.I)
@@ -395,7 +395,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 * :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
                 * :obj:`list` of :obj:`Exception`: list of errors
         """
-        parts_str = re.findall('(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I)
+        parts_str = re.findall(r'(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I)
 
         if global_comp:
             temp = [part[4] for part in parts_str]
@@ -661,11 +661,11 @@ class Model(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
+    version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
     url = obj_model.core.StringAttribute(verbose_name='URL')
     branch = obj_model.core.StringAttribute()
     revision = obj_model.core.StringAttribute()
-    wc_lang_version = RegexAttribute(min_length=1, pattern='^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
+    wc_lang_version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
                                      default=wc_lang_version, verbose_name='wc_lang version')
     comments = LongStringAttribute()
 
@@ -1340,7 +1340,7 @@ class SpeciesType(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
-    empirical_formula = RegexAttribute(pattern='^([A-Z][a-z]?\d*)*$')
+    empirical_formula = RegexAttribute(pattern=r'^([A-Z][a-z]?\d*)*$')
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
@@ -1473,7 +1473,7 @@ class Species(obj_model.Model):
         if cls in objects and value in objects[cls]:
             return (objects[cls][value], None)
 
-        match = re.match('^([a-z][a-z0-9_]*)\[([a-z][a-z0-9_]*)\]$', value, flags=re.I)
+        match = re.match(r'^([a-z][a-z0-9_]*)\[([a-z][a-z0-9_]*)\]$', value, flags=re.I)
         if match:
             errors = []
 
@@ -2200,9 +2200,9 @@ class SpeciesCoefficient(obj_model.Model):
         errors = []
 
         if compartment:
-            pattern = '^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)$'
+            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)$'
         else:
-            pattern = '^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
+            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
 
         match = re.match(pattern, value, flags=re.I)
         if match:
@@ -2369,9 +2369,9 @@ class RateLawEquation(obj_model.Model):
         modifiers = []
         parameters = []
         errors = []
-        modifier_pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+        modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
                                                                            Compartment.id.pattern[1:-1])
-        parameter_pattern = '(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
+        parameter_pattern = r'(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
 
         reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
 
@@ -2421,7 +2421,7 @@ class RateLawEquation(obj_model.Model):
 
         # check modifiers
         modifier_ids = set((x.serialize() for x in self.modifiers))
-        modifier_pattern = '(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
+        modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
                                                                            Compartment.id.pattern[1:-1])
         entity_ids = set([x[1] for x in re.findall(modifier_pattern, self.expression, flags=re.I)])
         if modifier_ids != entity_ids:
@@ -2433,7 +2433,7 @@ class RateLawEquation(obj_model.Model):
 
         # check parameters
         parameter_ids = set((x.serialize() for x in self.parameters))
-        parameter_pattern = '(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
+        parameter_pattern = r'(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
         entity_ids = set([x[1] for x in re.findall(parameter_pattern, self.expression, flags=re.I)])
         reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
         entity_ids -= reserved_names
