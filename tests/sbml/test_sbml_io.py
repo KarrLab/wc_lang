@@ -92,7 +92,6 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 test_case.assertEqual(element.getName(), wc_lang_reaction.name)
                 test_case.assertEqual(element.getReversible(), wc_lang_reaction.reversible)
                 test_case.assertEqual(element.getFast(), False)
-                test_case.assertEqual(element.getCompartment(), wc_lang_reaction.submodel.compartment.id)
                 continue
                 # not checking: participants and flux bounds
 

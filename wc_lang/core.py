@@ -943,7 +943,6 @@ class Submodel(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
-        compartment (:obj:`Compartment`): the compartment that contains the submodel's species
         biomass_reaction (:obj:`BiomassReaction`): the growth reaction for a dFBA submodel
         objective_function (:obj:`ObjectiveFunction`, optional): objective function for a dFBA submodel;
             if not initialized, then `biomass_reaction` is used as the objective function
@@ -959,7 +958,6 @@ class Submodel(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
-    compartment = ManyToOneAttribute('Compartment', related_name='submodels')
     biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='submodels')
     objective_function = ObjectiveFunctionAttribute(related_name='submodels')
     comments = LongStringAttribute()
@@ -967,7 +965,7 @@ class Submodel(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'algorithm', 'compartment', 'biomass_reaction',
+                           'algorithm', 'biomass_reaction',
                            'objective_function', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -1275,7 +1273,6 @@ class Compartment(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of `Species`): species in this compartment
-        submodels (:obj:`list` of `Submodel`): submodels that model reactions in this compartment
         database_references (:obj:`list` of `DatabaseReference`): database references
         biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions defined for this
             compartment
@@ -2085,7 +2082,6 @@ class Reaction(obj_model.Model):
         wrap_libsbml(sbml_reaction.setName, self.name)
         wrap_libsbml(sbml_reaction.setReversible, self.reversible)
         wrap_libsbml(sbml_reaction.setFast, False)
-        wrap_libsbml(sbml_reaction.setCompartment, self.submodel.compartment.id)
         if self.comments:
             wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 

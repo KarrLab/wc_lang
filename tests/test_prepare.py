@@ -592,15 +592,6 @@ class TestCheckModel(unittest.TestCase):
         submodel.reactions[1].rate_laws[0].equation = None
         self.check_model.transcode_and_check_rate_law_equations()
 
-    def test_verify_reactant_compartments(self):
-        actual_errors = self.check_model.verify_reactant_compartments()
-        expected_errors = [
-            "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_1 in another compartment: e",
-            "submodel 'dfba_submodel' models compartment c, but its reaction reaction_1 uses specie specie_2 in another compartment: e",
-            "submodel 'ssa_submodel' must contain a compartment attribute",
-        ]
-        self.assertEqual(set(expected_errors), set(actual_errors))
-
     def test_run(self):
         self.check_model.run()
 

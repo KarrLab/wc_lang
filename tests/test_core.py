@@ -94,7 +94,7 @@ class TestCore(unittest.TestCase):
         self.submdl_1 = submdl_1 = mdl.submodels.create(
             id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba, compartment=comp_0,
+            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba,
             biomass_reaction=biomass_reaction)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
@@ -1296,7 +1296,6 @@ class TestCore(unittest.TestCase):
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
         self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
-        self.assertEqual(sbml_reaction.getCompartment(), self.rxn_2.submodel.compartment.id)
         fbc_plugin = sbml_reaction.getPlugin('fbc')
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),

@@ -66,7 +66,7 @@ class RoundTripTestCase(unittest.TestCase):
         comp = model.compartments.create(id='compartment_1')
         species_type = model.species_types.create(id='species_type_1')
         species = comp.species.create(species_type=species_type)
-        submdl = model.submodels.create(id='submodel_1', compartment=comp)
+        submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ObservableExpressionAttribute.deserialize()
         species.concentration = Concentration(value=1, units=ConcentrationUnit.M)

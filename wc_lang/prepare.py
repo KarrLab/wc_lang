@@ -808,32 +808,6 @@ class CheckModel(object):
                     rate_law.direction.name, reaction.id, str(error)))
         return errors
 
-    # TODO(Arthur): reconsider; not good for dFBA submodels; perhaps good for dynamic submodels
-    def verify_reactant_compartments(self):
-        """ Verify that all reactants in each submodel's reactions are in the submodel's compartment
-
-        Returns:
-            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-        for submodel in self.model.get_submodels():
-            compartment = submodel.compartment
-            if compartment is None:
-                errors.append("submodel '{}' must contain a compartment attribute".format(submodel.id))
-                continue
-            for reaction in submodel.reactions:
-                for participant in reaction.participants:
-                    if participant.coefficient < 0:     # select reactants
-                        if participant.species.compartment != compartment:
-                            error = "submodel '{}' models compartment {}, but its reaction {} uses "\
-                                "specie {} in another compartment: {}".format(
-                                    submodel.id,
-                                    compartment.id, reaction.id, participant.species.species_type.id,
-                                    participant.species.compartment.id)
-                            errors.append(error)
-        return errors
-
     def verify_species_types(self):
         """ Verify all species types
 
