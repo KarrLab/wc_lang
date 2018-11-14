@@ -67,6 +67,7 @@ class TestSimpleModel(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
+            spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
             species.append(spec)
 
             conc = Concentration(species=spec, value=3 * i, units=ConcentrationUnit.M)
@@ -86,8 +87,8 @@ class TestSimpleModel(unittest.TestCase):
         for i in range(8):
             expr_parts = []
             for j in range(i + 1):
-                objects[Species][species[j].get_id()] = species[j]
-                expr_parts.append("{} * {}".format(j + 1, species[j].get_id()))
+                objects[Species][species[j].id] = species[j]
+                expr_parts.append("{} * {}".format(j + 1, species[j].id))
             obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
             id = 'obs_{}'.format(i)
             obs = mdl.observables.create(id=id, expression=obs_expr)
@@ -96,13 +97,13 @@ class TestSimpleModel(unittest.TestCase):
         for i in range(3):
             expr_parts = []
             for j in range(i + 1):
-                expr_parts.append("{} * {}".format(j + 1, observables[j].get_id()))
+                expr_parts.append("{} * {}".format(j + 1, observables[j].id))
             obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
             obs = mdl.observables.create(id='obs_{}'.format(i + 8), expression=obs_expr)
             observables.append(obs)
 
         obs_expr = ' + 2 * '.join(o.id for o in observables[0:j + 1])
-        objects = {Observable:{o.get_id():o for o in observables}}
+        objects = {Observable: {o.id: o for o in observables}}
         attr = Function.Meta.attributes['expression']
         func_expr, _ = FunctionExpression.deserialize(attr, obs_expr, objects)
         self.functions = functions = []
@@ -354,16 +355,21 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         species_type = model.species_types.create(id='species_type')
         compartment = model.compartments.create(id='compartment')
-        species = Species(species_type=species_type, compartment=compartment)
+        species = Species(
+            id=Species.gen_id(species_type.id, compartment.id),
+            species_type=species_type,
+            compartment=compartment)
         attr = Observable.Meta.attributes['expression']
-        s_id = species.get_id()
-        obs_expr, _ = ObservableExpression.deserialize(attr, s_id, {Species:{s_id:species}})
+        s_id = species.serialize()
+        obs_expr, _ = ObservableExpression.deserialize(attr, s_id, {Species: {s_id: species}})
         observable = model.observables.create(id='observable', expression=obs_expr)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
-        observable.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
+        model2 = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
+        observable.model = model2
+        print(observable.expression.species[0])
         with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
             Writer().run(model, filename, set_repo_metadata_from_path=False)
 

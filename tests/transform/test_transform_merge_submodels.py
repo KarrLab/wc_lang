@@ -29,7 +29,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
             spec_type = SpeciesType(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
             mdl.species_types.add(spec_type)
 
-            spec = Species(species_type=spec_type, compartment=cmp)
+            spec = Species(id=Species.gen_id(spec_type.id, cmp.id),
+                           species_type=spec_type,
+                           compartment=cmp)
             specs.append(spec)
 
         submdl_0 = Submodel(id='submdl_0', algorithm=SubmodelAlgorithm.SSA)

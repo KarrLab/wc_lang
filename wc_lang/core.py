@@ -57,7 +57,7 @@ from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
 from wc_lang.expression_utils import (RateLawUtils, WcLangExpression, WcLangExpressionError,
-                                        LinearExpressionVerifier)
+                                      LinearExpressionVerifier)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -227,48 +227,6 @@ class ObjectiveFunctionAttribute(ManyToOneAttribute):
         return ObjectiveFunction.deserialize(self, value, objects)
 
 
-class OneToOneSpeciesAttribute(OneToOneAttribute):
-    """ Species attribute """
-
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super(OneToOneSpeciesAttribute, self).__init__('Species',
-                                                       related_name=related_name, min_related=1, min_related_rev=0,
-                                                       verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, value, encoded=None):
-        """ Serialize related object
-
-        Args:
-            value (:obj:`Model`): Python representation
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation
-        """
-        return value.serialize()
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of :obj:`list` of :obj:`SpeciesCoefficient`, :obj:`InvalidAttribute` or :obj:`None`: :obj:`tuple` of cleaned value
-                and cleaning error
-        """
-        return Species.deserialize(self, value, objects)
-
-
 class ReactionParticipantAttribute(ManyToManyAttribute):
     """ Reaction participants """
 
@@ -427,11 +385,10 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             if part_errors:
                 errors += part_errors
             else:
-                spec_primary_attribute = Species.gen_id(species_type, compartment)
-                species, error = Species.deserialize(self, spec_primary_attribute, objects)
+                species_id = Species.gen_id(species_type.id, compartment.id)
+                species, error = Species.deserialize(species_id, objects)
                 if error:
-                    raise ValueError('Invalid species "{}"'.format(spec_primary_attribute)
-                                     )  # pragma: no cover # unreachable due to error checking above
+                    raise ValueError('Invalid species "{}"'.format(species_id)) # pragma: no cover; unreachable due to above error checking of species types and compartments
 
                 if coefficient != 0:
                     if SpeciesCoefficient not in objects:
@@ -516,6 +473,7 @@ class RateLawEquationAttribute(ManyToOneAttribute):
 
 class FunctionExpressionAttribute(ManyToOneAttribute):
     """ Function expression attribute """
+
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
         """
         Args:
@@ -525,8 +483,8 @@ class FunctionExpressionAttribute(ManyToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super().__init__('FunctionExpression',
-            related_name=related_name, min_related=1, min_related_rev=1,
-            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+                         related_name=related_name, min_related=1, min_related_rev=1,
+                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, function_expression, encoded=None):
         """ Serialize related object
@@ -556,6 +514,7 @@ class FunctionExpressionAttribute(ManyToOneAttribute):
 
 class StopConditionExpressionAttribute(ManyToOneAttribute):
     """ StopCondition expression attribute """
+
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
         """
         Args:
@@ -565,8 +524,8 @@ class StopConditionExpressionAttribute(ManyToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super().__init__('StopConditionExpression',
-            related_name=related_name, min_related=1, min_related_rev=1,
-            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+                         related_name=related_name, min_related=1, min_related_rev=1,
+                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, stop_condition_expression, encoded=None):
         """ Serialize related object
@@ -596,6 +555,7 @@ class StopConditionExpressionAttribute(ManyToOneAttribute):
 
 class ObservableExpressionAttribute(ManyToOneAttribute):
     """ Observable expression attribute """
+
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
         """
         Args:
@@ -605,8 +565,8 @@ class ObservableExpressionAttribute(ManyToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super().__init__('ObservableExpression',
-            related_name=related_name, min_related=1, min_related_rev=1,
-            verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+                         related_name=related_name, min_related=1, min_related_rev=1,
+                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, observable_expression, encoded=None):
         """ Serialize related object
@@ -1248,8 +1208,8 @@ class ObjectiveFunction(obj_model.Model):
         for biomass_reaction in self.biomass_reactions:
             for biomass_component in biomass_reaction.biomass_components:
                 if 0 < biomass_component.coefficient:
-                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type,
-                                                          biomass_reaction.compartment))
+                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type.id,
+                                                          biomass_reaction.compartment.id))
         for submodel in self.submodels:
             tmp_species = Species.get(tmp_species_ids, submodel.get_species())
             for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
@@ -1365,70 +1325,67 @@ class Species(obj_model.Model):
     """ Species (tuple of species type, compartment)
 
     Attributes:
+        id (:obj:`str`): identifier equal to `{species_type.id}[{compartment.id}]`
+        name (:obj:`str`): name
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
+        comments (:obj:`str`): comments
+        references (:obj:`list` of `Reference`): references
 
     Related attributes:
         concentration (:obj:`Concentration`): concentration
         species_coefficients (:obj:`list` of `SpeciesCoefficient`): participations in reactions and observables
         rate_law_equations (:obj:`list` of `RateLawEquation`): rate law equations
+        observable_expressions (:obj:`ObservableExpression`): observable expressions
     """
+    id = StringAttribute(primary=True, unique=True)
+    name = StringAttribute()
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
     compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('species_type', 'compartment')
+        attribute_order = ('id', 'name', 'species_type', 'compartment', 'comments', 'references')
         frozen_columns = 1
-        tabular_orientation = TabularOrientation.inline
-        unique_together = (('species_type', 'compartment', ), )
-        ordering = ('species_type', 'compartment')
+        # unique_together = (('species_type', 'compartment', ), )
+        ordering = ('id',)
         indexed_attrs_tuples = (('species_type', 'compartment'), )
         token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
 
     @staticmethod
-    def gen_id(species_type, compartment):
-        """ Generate a Species' primary identifier
+    def gen_id(species_type_id, compartment_id):
+        """ Generate identifier
 
         Args:
-            species_type (:obj:`object`): a `SpeciesType`, or its id
-            compartment (:obj:`object`): a `Compartment`, or its id
+            species_type_id (:obj:`str`): species type id
+            compartment_id (:obj:`str`): species type id
 
         Returns:
-            :obj:`str`: canonical identifier for a specie in a compartment, 'species_type_id[compartment_id]'
+            :obj:`str`: identifier
         """
-        if isinstance(species_type, SpeciesType) and isinstance(compartment, Compartment):
-            species_type_id = species_type.get_primary_attribute()
-            compartment_id = compartment.get_primary_attribute()
-        elif isinstance(species_type, string_types) and isinstance(compartment, string_types):
-            species_type_id = species_type
-            compartment_id = compartment
-        else:
-            raise ValueError("gen_id: incorrect parameter types: {}, {}".format(species_type, compartment))
         return '{}[{}]'.format(species_type_id, compartment_id)
 
-    def id(self):
-        """ Provide a Species' primary identifier
+    def validate(self):
+        """ Validate that identifier is equal to `{species_type.id}[{compartment.id}]`
 
         Returns:
-            :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return self.serialize()
+        invalid_obj = super(Species, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
 
-    def get_id(self):
-        """ Provide a Species' primary identifier
+        if self.id != self.gen_id(self.species_type.id, self.compartment.id):
+            errors.append(InvalidAttribute(self.Meta.attributes['id'],
+                                           ['Id must be {}'.format(self.gen_id(self.species_type.id, self.compartment.id))]))
 
-        Returns:
-            :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
-        """
-        return self.id()
-
-    def serialize(self):
-        """ Provide a Species' primary identifier
-
-        Returns:
-            :obj:`str`: canonical identifier for a specie in a compartment, 'specie_id[compartment_id]'
-        """
-        return self.gen_id(self.species_type, self.compartment)
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
     @staticmethod
     def get(ids, species_iterator):
@@ -1448,56 +1405,11 @@ class Species(obj_model.Model):
         for id in ids:
             s = None
             for specie in species_iterator:
-                if specie.id() == id:
+                if specie.id == id:
                     s = specie
-                    # one match is enough
                     break
             rv.append(s)
         return rv
-
-    @classmethod
-    def deserialize(cls, attribute, value, objects):
-        """ Deserialize value
-
-        Args:
-            attribute (:obj:`Attribute`): attribute
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        if cls in objects and value in objects[cls]:
-            return (objects[cls][value], None)
-
-        match = re.match(r'^([a-z][a-z0-9_]*)\[([a-z][a-z0-9_]*)\]$', value, flags=re.I)
-        if match:
-            errors = []
-
-            if match.group(1) in objects[SpeciesType]:
-                species_type = objects[SpeciesType][match.group(1)]
-            else:
-                errors.append('Species type "{}" is not defined'.format(match.group(1)))
-
-            if match.group(2) in objects[Compartment]:
-                compartment = objects[Compartment][match.group(2)]
-            else:
-                errors.append('Compartment "{}" is not defined'.format(match.group(2)))
-
-            if errors:
-                return (None, InvalidAttribute(attribute, errors))
-            else:
-                if cls not in objects:
-                    objects[cls] = {}
-                serialized_val = cls.gen_id(species_type, compartment)
-                if serialized_val in objects[cls]:
-                    obj = objects[cls][serialized_val]
-                else:
-                    obj = cls(species_type=species_type, compartment=compartment)
-                    objects[cls][serialized_val] = obj
-                return (obj, None)
-
-        return (None, InvalidAttribute(attribute, ['Invalid species']))
 
     def xml_id(self):
         """ Make a Species id that satisfies the SBML string id syntax.
@@ -1515,7 +1427,7 @@ class Species(obj_model.Model):
     def make_xml_id(species_type_id, compartment_id):
         """ Make a Species id that satisfies the SBML string id syntax.
 
-        Replaces the '[' and ']' in Species.id() with double-underscores '__'.
+        Replaces the '[' and ']' in Species.id with double-underscores '__'.
         See Finney and Hucka, "Systems Biology Markup Language (SBML) Level 2: Structures and
         Facilities for Model Definitions", 2003, section 3.4.
 
@@ -1575,7 +1487,7 @@ class Concentration(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
     """
-    species = OneToOneSpeciesAttribute(related_name='concentration')
+    species = OneToOneAttribute(Species, related_name='concentration')
     value = FloatAttribute(min=0)
     units = EnumAttribute(ConcentrationUnit)
     comments = LongStringAttribute()
@@ -1592,9 +1504,9 @@ class Concentration(obj_model.Model):
         """ Generate string representation
 
         Returns:
-            :obj:`str`: value of primary attribute
+            :obj:`str`: string representation
         """
-        return self.species.serialize()
+        return 'conc-{}'.format(self.species.id)
 
 
 class ExpressionMethods(object):
@@ -1674,9 +1586,9 @@ class ExpressionMethods(object):
             if return_type is not None:
                 if not isinstance(rv, return_type):
                     attr_err = InvalidAttribute(attr,
-                        ["Evaluating '{}', a {} expression, should return a {} but it returns a {}".format(
-                            model_obj.expression, model_obj.__class__.__name__,
-                            return_type.__name__, type(rv).__name__)])
+                                                ["Evaluating '{}', a {} expression, should return a {} but it returns a {}".format(
+                                                    model_obj.expression, model_obj.__class__.__name__,
+                                                    return_type.__name__, type(rv).__name__)])
                     return InvalidObject(model_obj, [attr_err])
 
             # return `None` to indicate valid object
@@ -1748,12 +1660,12 @@ class ObservableExpression(obj_model.Model):
         species (:obj:`list` of `Species`): Species used by this Observable expression
 
     Related attributes:
-        observable (:obj:`Observable`): observable
+        observable_expressions (:obj:`ObservableExpression`): observable expressions
     """
 
     expression = LongStringAttribute(primary=True, unique=True)
-    observables = ManyToManyAttribute('Observable', related_name='observables')
-    species = ManyToManyAttribute('Species', related_name='species')
+    observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
+    species = ManyToManyAttribute(Species, related_name='observable_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1805,14 +1717,6 @@ class Observable(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'expression', 'comments')
         expression_model = ObservableExpression
-
-    def get_id(self):
-        """ Provide id
-
-        Returns:
-            :obj:`str`: value of id
-        """
-        return self.id
 
     def serialize(self):
         """ Generate string representation
@@ -1889,14 +1793,6 @@ class Function(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'expression', 'comments')
         expression_model = FunctionExpression
-
-    def get_id(self):
-        """ Provide id
-
-        Returns:
-            :obj:`str`: value of id
-        """
-        return self.id
 
     def serialize(self):
         """ Generate string representation
@@ -1978,14 +1874,6 @@ class StopCondition(obj_model.Model):
         attribute_order = ('id', 'name', 'expression', 'comments')
         expression_model = StopConditionExpression
 
-    def get_id(self):
-        """ Provide id
-
-        Returns:
-            :obj:`str`: value of id
-        """
-        return self.id
-
     def serialize(self):
         """ Generate string representation
 
@@ -2027,14 +1915,6 @@ class Reaction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
-
-    def get_id(self):
-        """ Provide a Reaction's primary identifier
-
-        Returns:
-            :obj:`str`: canonical identifier for a Reaction
-        """
-        return self.id
 
     def get_species(self, __type=None, **kwargs):
         """ Get species
@@ -2211,17 +2091,13 @@ class SpeciesCoefficient(obj_model.Model):
             else:
                 species_id = match.group(5)
 
-            species, error = Species.deserialize(attribute, species_id, objects)
+            species, error = Species.deserialize(species_id, objects)
             if error:
                 return (None, error)
 
-            serial_val = cls._serialize(species, coefficient)
-            if cls in objects and serial_val in objects[cls]:
-                return (objects[cls][serial_val], None)
-
+            serialized_val = cls._serialize(species, coefficient)
             if cls not in objects:
                 objects[cls] = {}
-            serialized_val = cls._serialize(species, coefficient)
             if serialized_val in objects[cls]:
                 obj = objects[cls][serialized_val]
             else:
@@ -2281,13 +2157,13 @@ class RateLaw(obj_model.Model):
         """ Check that rate law evaluates """
         if self.equation:
             try:
-                species_ids = set([s.id() for s in self.equation.modifiers])
+                species_ids = set([s.id for s in self.equation.modifiers])
                 parameter_ids = set([p.id for p in self.equation.parameters])
                 transcoded = RateLawUtils.transcode(self.equation, species_ids, parameter_ids)
                 concentrations = {}
                 parameters = {}
                 for s in self.equation.modifiers:
-                    concentrations[s.id()] = 1.0
+                    concentrations[s.id] = 1.0
                 for p in self.equation.parameters:
                     parameters[p.id] = 1.0
                 RateLawUtils.eval_rate_law(self, concentrations, parameters, transcoded_equation=transcoded)
@@ -2299,16 +2175,6 @@ class RateLaw(obj_model.Model):
 
         """ return `None` to indicate valid object """
         return None
-
-    def get_id(self):
-        """ Provide id
-
-        Since `RateLaw` does not have an id, use the associated reaction's id.
-
-        Returns:
-            :obj:`str`: value of id
-        """
-        return self.reaction.id
 
 
 class RateLawEquation(obj_model.Model):
@@ -2366,16 +2232,16 @@ class RateLawEquation(obj_model.Model):
         parameters = []
         errors = []
         modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                           Compartment.id.pattern[1:-1])
+                                                                            Compartment.id.pattern[1:-1])
         parameter_pattern = r'(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
 
         reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
 
         try:
             for match in re.findall(modifier_pattern, value, flags=re.I):
-                species, error = Species.deserialize(attribute, match[1], objects)
+                species, error = Species.deserialize(match[1], objects)
                 if error:
-                    errors += error.messages
+                    errors.append(['Invalid species'])
                 else:
                     modifiers.append(species)
             for match in re.findall(parameter_pattern, value, flags=re.I):
@@ -2418,7 +2284,7 @@ class RateLawEquation(obj_model.Model):
         # check modifiers
         modifier_ids = set((x.serialize() for x in self.modifiers))
         modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                           Compartment.id.pattern[1:-1])
+                                                                            Compartment.id.pattern[1:-1])
         entity_ids = set([x[1] for x in re.findall(modifier_pattern, self.expression, flags=re.I)])
         if modifier_ids != entity_ids:
             for id in modifier_ids.difference(entity_ids):
@@ -2507,14 +2373,6 @@ class BiomassReaction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'compartment', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
-
-    def get_id(self):
-        """ Provide a BiomassReaction's primary identifier
-
-        Returns:
-            :obj:`str`: canonical identifier for a BiomassReaction
-        """
-        return self.id
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add a BiomassReaction to a libsbml SBML document.
@@ -2609,14 +2467,6 @@ class Parameter(obj_model.Model):
                            'value', 'units',
                            'comments', 'references')
 
-    def get_id(self):
-        """ Provide a Parameter's primary identifier
-
-        Returns:
-            :obj:`str`: canonical identifier for a Parameter
-        """
-        return self.id
-
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Parameter to a libsbml SBML document.
 
@@ -2678,6 +2528,7 @@ class Reference(obj_model.Model):
         submodels (:obj:`list` of `Submodel`): submodels
         compartments (:obj:`list` of `Compartment`): compartments
         species_types (:obj:`list` of `SpeciesType`): species types
+        species (:obj:`list` of `Species`): species
         concentrations (:obj:`list` of `Concentration`): concentrations
         reactions (:obj:`list` of `Reaction`): reactions
         rate_laws (:obj:`list` of `RateLaw`): rate laws

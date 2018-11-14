@@ -23,7 +23,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
                           Observable, ObservableExpression, ObservableExpressionAttribute,
                           StopCondition, StopConditionExpression, StopConditionExpressionAttribute,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction,
-                          OneToOneSpeciesAttribute, ReactionParticipantAttribute, ExpressionMethods,
+                          ReactionParticipantAttribute, ExpressionMethods,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
@@ -67,6 +67,7 @@ class TestCore(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
+            spec.id = spec.gen_id(spec.species_type.id, spec.compartment.id)
             species.append(spec)
 
             conc = Concentration(species=spec, value=3 * i)
@@ -361,12 +362,12 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(self.objective_function.get_products()), set([
             self.species[3],
             self.species[4],
-            Species.get([Species.gen_id(self.species_types[1], self.biomass_reaction.compartment)], mdl.get_species())[0],
+            Species.get([Species.gen_id(self.species_types[1].id, self.biomass_reaction.compartment.id)], mdl.get_species())[0],
         ]))
         self.assertEqual(set(self.objective_function.get_products(__type=Species)), set([
             self.species[3],
             self.species[4],
-            Species.get([Species.gen_id(self.species_types[1], self.biomass_reaction.compartment)], mdl.get_species())[0],
+            Species.get([Species.gen_id(self.species_types[1].id, self.biomass_reaction.compartment.id)], mdl.get_species())[0],
         ]))
         self.assertEqual(set(self.objective_function.get_products(__type=Reaction)), set())
 
@@ -388,21 +389,9 @@ class TestCore(unittest.TestCase):
         self.assertFalse(self.species_types[0].is_carbon_containing())
         self.assertTrue(self.species_types[1].is_carbon_containing())
 
-    def test_species_serialize(self):
-        self.assertEqual(self.species[0].serialize(), 'spec_type_0[comp_0]')
-        self.assertEqual(self.species[1].serialize(), 'spec_type_1[comp_0]')
-        self.assertEqual(self.species[2].serialize(), 'spec_type_2[comp_0]')
-        self.assertEqual(self.species[3].serialize(), 'spec_type_3[comp_1]')
-
     def test_species_gen_id(self):
-        self.assertEqual(Species.gen_id(self.species[3].species_type, self.species[3].compartment),
+        self.assertEqual(Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
                          'spec_type_3[comp_1]')
-        self.assertEqual(
-            Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
-            'spec_type_3[comp_1]')
-        with self.assertRaises(ValueError) as context:
-            Species.gen_id(self.species[3].species_type.id, self.species[3].compartment)
-        self.assertIn('gen_id: incorrect parameter types', str(context.exception))
 
     def test_species_get(self):
         self.assertEqual(Species.get([], self.species), [])
@@ -413,56 +402,11 @@ class TestCore(unittest.TestCase):
         ids.append('X')
         self.assertEqual(Species.get(ids, self.species), self.species[4:] + [None])
 
-    def test_species_deserialize(self):
-        objs = {
-            SpeciesType: {
-                'spec_0': SpeciesType(id='spec_0'),
-                'spec_1': SpeciesType(id='spec_1'),
-                'spec_2': SpeciesType(id='spec_2')},
-            Compartment: {
-                'c_0': Compartment(id='c_0'),
-                'c_1': Compartment(id='c_1'),
-                'c_2': Compartment(id='c_2')
-            },
-        }
-
-        attr = Concentration.Meta.attributes['species']
-
-        val = 'spec_0[c_0]'
-        species0, error = Species.deserialize(attr, val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(species0.serialize(), val)
-        self.assertEqual(set(objs[Species].values()), set([species0]))
-
-        val = 'spec_2[c_1]'
-        species1, error = Species.deserialize(attr, val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(species1.serialize(), val)
-        self.assertEqual(set(objs[Species].values()), set([species0, species1]))
-
-        val = 'spec_2[c_3]'
-        species2, error = Species.deserialize(attr, val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(species2, None)
-        self.assertEqual(set(objs[Species].values()), set([species0, species1]))
-
-        val = 'spec_2'
-        species3, error = Species.deserialize(attr, val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(species3, None)
-        self.assertEqual(set(objs[Species].values()), set([species0, species1]))
-
-        val = '[c_3]'
-        species4, error = Species.deserialize(attr, val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(species4, None)
-        self.assertEqual(set(objs[Species].values()), set([species0, species1]))
-
     def test_concentration_serialize(self):
-        self.assertEqual(self.concentrations[0].serialize(), 'spec_type_0[comp_0]')
-        self.assertEqual(self.concentrations[1].serialize(), 'spec_type_1[comp_0]')
-        self.assertEqual(self.concentrations[2].serialize(), 'spec_type_2[comp_0]')
-        self.assertEqual(self.concentrations[3].serialize(), 'spec_type_3[comp_1]')
+        self.assertEqual(self.concentrations[0].serialize(), 'conc-spec_type_0[comp_0]')
+        self.assertEqual(self.concentrations[1].serialize(), 'conc-spec_type_1[comp_0]')
+        self.assertEqual(self.concentrations[2].serialize(), 'conc-spec_type_2[comp_0]')
+        self.assertEqual(self.concentrations[3].serialize(), 'conc-spec_type_3[comp_1]')
 
     def test_reaction_participant_serialize(self):
         self.assertEqual(set([part.serialize() for part in self.rxn_0.participants]), set([
@@ -480,7 +424,17 @@ class TestCore(unittest.TestCase):
                 'c_1': Compartment(id='c_1'),
                 'c_2': Compartment(id='c_2')
             },
+            Species: {
+            },
         }
+        objs[Species]['spec_0[c_0]'] = Species(
+            id='spec_0[c_0]',
+            species_type=objs[SpeciesType]['spec_0'],
+            compartment=objs[Compartment]['c_0'])
+        objs[Species]['spec_0[c_1]'] = Species(
+            id='spec_0[c_1]',
+            species_type=objs[SpeciesType]['spec_0'],
+            compartment=objs[Compartment]['c_1'])
 
         attr = Reaction.Meta.attributes['participants']
 
@@ -490,7 +444,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(part0.coefficient, 1)
         self.assertEqual(part0.species.serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0]))
-        self.assertEqual(set(objs[Species].values()), set([part0.species]))
+        self.assertEqual(len(objs[Species]), 2)
 
         val = '(2) spec_0[c_0]'
         part1, error = SpeciesCoefficient.deserialize(attr, val, objs)
@@ -498,7 +452,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(part1.coefficient, 2)
         self.assertEqual(part1.species.serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1]))
-        self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species]))
+        self.assertEqual(len(objs[Species]), 2)
 
         val = '(2.) spec_0[c_1]'
         part2, error = SpeciesCoefficient.deserialize(attr, val, objs)
@@ -506,7 +460,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(part2.coefficient, 2)
         self.assertEqual(part2.species.serialize(), 'spec_0[c_1]')
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2]))
-        self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species, part2.species]))
+        self.assertEqual(len(objs[Species]), 2)
 
         val = '(2.5) spec_0[c_0]'
         part3, error = SpeciesCoefficient.deserialize(attr, val, objs)
@@ -514,7 +468,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(part3.coefficient, 2.5)
         self.assertEqual(part3.species.serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3]))
-        self.assertEqual(set(objs[Species].values()), set([part0.species, part1.species, part2.species, part3.species]))
+        self.assertEqual(len(objs[Species]), 2)
 
         val = '(.5) spec_0[c_0]'
         part4, error = SpeciesCoefficient.deserialize(attr, val, objs)
@@ -522,19 +476,19 @@ class TestCore(unittest.TestCase):
         self.assertEqual(part4.coefficient, 0.5)
         self.assertEqual(part4.species.serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4]))
-        self.assertEqual(set(objs[Species].values()), set(
-            [part0.species, part1.species, part2.species, part3.species, part4.species]))
+        self.assertEqual(len(objs[Species]), 2)
 
-        val = '(1) spec_1'
-        part5, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
-        self.assertEqual(error, None)
-        self.assertEqual(part5.coefficient, 1)
-        self.assertEqual(part5.species.serialize(), 'spec_1[c_0]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4, part5]))
-        self.assertEqual(set(objs[Species].values()), set(
-            [part0.species, part1.species, part2.species, part3.species, part4.species, part5.species]))
+        val = '(.5) spec_0[c_0]'
+        part4b, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        self.assertEqual(part4b, part4)
+        self.assertTrue(part4b is part4)
 
         # negative examples
+        val = '(1) spec_1'
+        part5, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        self.assertNotEqual(error, None)
+        self.assertEqual(part5, None)
+
         val = '(-1) spec_0[c_0]'
         part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
         self.assertNotEqual(error, None)
@@ -560,9 +514,8 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4, part5]))
-        self.assertEqual(set(objs[Species].values()), set(
-            [part0.species, part1.species, part2.species, part3.species, part4.species, part5.species]))
+        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4]))
+        self.assertEqual(len(objs[Species]), 2)
 
         val = '(1) spec_3'
         part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
@@ -572,7 +525,7 @@ class TestCore(unittest.TestCase):
         val = '(2) spec_0'
         objs[SpeciesCoefficient] = {
             '(2) spec_0[c_0]': SpeciesCoefficient(
-                species=Species(species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
+                species=Species(id='spec_0[c_0]', species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
                 coefficient=2)
         }
         part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
@@ -610,8 +563,22 @@ class TestCore(unittest.TestCase):
             Parameter: {
                 'p_1': Parameter(id='p_1'),
                 'p_2': Parameter(id='p_2'),
-            }
+            },
+            Species: {
+            },
         }
+        objs[Species]['spec_0[c_0]'] = Species(id='spec_0[c_0]',
+                                               species_type=objs[SpeciesType]['spec_0'],
+                                               compartment=objs[Compartment]['c_0'])
+        objs[Species]['spec_0[c_1]'] = Species(id='spec_0[c_1]',
+                                               species_type=objs[SpeciesType]['spec_0'],
+                                               compartment=objs[Compartment]['c_1'])
+        objs[Species]['spec_2[c_1]'] = Species(id='spec_2[c_1]',
+                                               species_type=objs[SpeciesType]['spec_2'],
+                                               compartment=objs[Compartment]['c_1'])
+        objs[Species]['spec_1[c_1]'] = Species(id='spec_1[c_1]',
+                                               species_type=objs[SpeciesType]['spec_1'],
+                                               compartment=objs[Compartment]['c_1'])
 
         expression = 'k_cat * spec_0[c_0]'
         attr = RateLaw.Meta.attributes['equation']
@@ -684,7 +651,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
             equation=equation,
@@ -706,7 +673,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
             equation=equation
@@ -718,7 +685,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
             equation=equation
@@ -730,13 +697,14 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
             k_cat=2,
             k_m=1,
             equation=equation
         )
+        error = rate_law.validate()
         self.assertEqual(rate_law.validate(), None)
 
         # No error with parameters
@@ -744,7 +712,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[
                 parameters[0],
@@ -777,7 +745,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         self.assertEqual(equation.validate(), None)
 
@@ -785,8 +753,8 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0]),
-                Species(species_type=species_types[1], compartment=compartments[2]),
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
+                Species(id='spec_1[c_2]', species_type=species_types[1], compartment=compartments[2]),
             ])
         self.assertEqual(equation.validate(), None)
 
@@ -794,9 +762,9 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0]),
-                Species(species_type=species_types[1], compartment=compartments[1]),
-                Species(species_type=species_types[1], compartment=compartments[2]),
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
+                Species(id='spec_1[c_1]', species_type=species_types[1], compartment=compartments[1]),
+                Species(id='spec_1[c_2]', species_type=species_types[1], compartment=compartments[2]),
             ])
         self.assertNotEqual(equation.validate(), None)
 
@@ -804,7 +772,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0]),
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
             ])
         self.assertNotEqual(equation.validate(), None)
 
@@ -813,7 +781,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[0]])
         self.assertEqual(equation.validate(), None)
@@ -822,7 +790,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[0], parameters[1]])
         self.assertNotEqual(equation.validate(), None)
@@ -831,7 +799,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[])
         self.assertNotEqual(equation.validate(), None)
@@ -840,7 +808,7 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression=expression,
             modifiers=[
-                Species(species_type=species_types[0], compartment=compartments[0])
+                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[2]])
         self.assertNotEqual(equation.validate(), None)
@@ -911,30 +879,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.database_references[1].serialize(), '{}: {}'.format('x', 'yy'))
         self.assertEqual(self.database_references[2].serialize(), '{}: {}'.format('x', 'yyy'))
 
-    def test_OneToOneSpeciesAttribute_serialize(self):
-        attr = OneToOneSpeciesAttribute()
-        self.assertEqual(attr.serialize(self.species[0]), 'spec_type_0[comp_0]')
-
-    def test_OneToOneSpeciesAttribute_deserialize(self):
-        objs = {
-            SpeciesType: {
-                'spec_0': SpeciesType(id='spec_0'),
-                'spec_1': SpeciesType(id='spec_1'),
-                'spec_2': SpeciesType(id='spec_2')},
-            Compartment: {
-                'c_0': Compartment(id='c_0'),
-                'c_1': Compartment(id='c_1'),
-                'c_2': Compartment(id='c_2')
-            },
-        }
-
-        val = 'spec_0[c_0]'
-        attr = OneToOneSpeciesAttribute()
-        species0, error = attr.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(species0.serialize(), val)
-        self.assertEqual(list(objs[Species].values()), [species0])
-
     def test_ReactionParticipantAttribute_serialize(self):
         attr = ReactionParticipantAttribute()
         self.assertEqual(attr.serialize(self.rxn_0.participants),
@@ -954,7 +898,23 @@ class TestCore(unittest.TestCase):
                 'c_1': Compartment(id='c_1'),
                 'c_2': Compartment(id='c_2')
             },
+            Species: {
+            },
         }
+        objs[Species]['spec_0[c_0]'] = Species(
+            species_type=objs[SpeciesType]['spec_0'],
+            compartment=objs[Compartment]['c_0'])
+        objs[Species]['spec_1[c_0]'] = Species(
+            species_type=objs[SpeciesType]['spec_1'],
+            compartment=objs[Compartment]['c_0'])
+        objs[Species]['spec_2[c_0]'] = Species(
+            species_type=objs[SpeciesType]['spec_2'],
+            compartment=objs[Compartment]['c_0'])
+        objs[Species]['spec_2[c_1]'] = Species(
+            species_type=objs[SpeciesType]['spec_2'],
+            compartment=objs[Compartment]['c_1'])
+        for species in objs[Species].values():
+            species.id = species.gen_id(species.species_type.id, species.compartment.id)
 
         attr = ReactionParticipantAttribute()
 
@@ -967,8 +927,7 @@ class TestCore(unittest.TestCase):
         ]))
         self.assertEqual(len(objs[SpeciesCoefficient]), 3)
         self.assertEqual(set(objs[SpeciesCoefficient].values()), set(parts1))
-        self.assertEqual(len(objs[Species]), 3)
-        self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1]))
+        self.assertEqual(len(objs[Species]), 4)
 
         parts2, error = attr.deserialize(
             '(2) spec_0[c_0] + (3) spec_1[c_0] ==> (2) spec_2[c_1]', objs)
@@ -978,7 +937,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set([p.serialize() for p in objs[SpeciesCoefficient].values()]),
                          set([p.serialize() for p in parts1 + parts2]))
         self.assertEqual(len(objs[Species]), 4)
-        self.assertEqual(set(objs[Species].values()), set([p.species for p in parts1 + parts2]))
 
         # negative examples
         parts3, error = attr.deserialize(
@@ -1061,7 +1019,7 @@ class TestCore(unittest.TestCase):
 
         # repeated species
         objs[Species] = {
-            'spec_2[c_1]': Species(species_type=objs[SpeciesType]['spec_2'], compartment=objs[Compartment]['c_1']),
+            'spec_2[c_1]': Species(id='spec_2[c_1]', species_type=objs[SpeciesType]['spec_2'], compartment=objs[Compartment]['c_1']),
         }
         objs[SpeciesCoefficient] = {
             '(-1) spec_2[c_1]': SpeciesCoefficient(species=objs[Species]['spec_2[c_1]'], coefficient=-1),
@@ -1085,10 +1043,10 @@ class TestCore(unittest.TestCase):
             Compartment(id='e'),
         ]
         species = [
-            Species(species_type=species_types[0], compartment=compartments[0]),
-            Species(species_type=species_types[0], compartment=compartments[1]),
-            Species(species_type=species_types[1], compartment=compartments[0]),
-            Species(species_type=species_types[1], compartment=compartments[1]),
+            Species(id='A[c]', species_type=species_types[0], compartment=compartments[0]),
+            Species(id='A[e]', species_type=species_types[0], compartment=compartments[1]),
+            Species(id='B[c]', species_type=species_types[1], compartment=compartments[0]),
+            Species(id='B[e]', species_type=species_types[1], compartment=compartments[1]),
         ]
 
         attr = ReactionParticipantAttribute()
@@ -1139,14 +1097,20 @@ class TestCore(unittest.TestCase):
                 'c_1': Compartment(id='c_1'),
                 'c_2': Compartment(id='c_2')
             },
+            Species: {
+            },
         }
+        objs[Species]['spec_0[c_0]'] = Species(
+            id='spec_0[c_0]',
+            species_type=objs[SpeciesType]['spec_0'],
+            compartment=objs[Compartment]['c_0'])
 
         expression = 'k_cat * spec_0[c_0]'
         attr = RateLawEquationAttribute()
         equation1, error = attr.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
-        self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
+        self.assertEqual(equation1.modifiers[0], objs[Species]['spec_0[c_0]'])
         self.assertEqual(list(objs[RateLawEquation].values()), [equation1])
 
     def test_objective_function_deserialize(self):
@@ -1395,9 +1359,9 @@ class TestCore(unittest.TestCase):
         compartment_0 = model.compartments.create(id='c_0')
         compartment_1 = model.compartments.create(id='c_1')
         compartment_2 = model.compartments.create(id='c_2')
-        species_0 = Species(species_type=species_type_0, compartment=compartment_0)
-        species_1 = Species(species_type=species_type_1, compartment=compartment_1)
-        species_2 = Species(species_type=species_type_2, compartment=compartment_2)
+        species_0 = Species(id='spec_0[c_0]', species_type=species_type_0, compartment=compartment_0)
+        species_1 = Species(id='spec_1[c_1]', species_type=species_type_1, compartment=compartment_1)
+        species_2 = Species(id='spec_2[c_2]', species_type=species_type_2, compartment=compartment_2)
 
         obj_func = submodel.objective_function = ObjectiveFunction(
             reactions=[
@@ -1458,7 +1422,7 @@ class TestCore(unittest.TestCase):
 
         # use existing species
         for s in self.species:
-            objects[Species][s.get_id()] = s
+            objects[Species][s.id] = s
 
         id_map = {}
         for model_type in objects.keys():
@@ -1480,7 +1444,7 @@ class TestCore(unittest.TestCase):
         fun_expr = fun_obj.expression
         self.assertEqual(fun_expr.expression, expr)
         self.assertEqual(set(fun_expr.observables),
-            set([id_map['Observable.ccc'], id_map['Observable.ddd']]))
+                         set([id_map['Observable.ccc'], id_map['Observable.ddd']]))
         self.assertEqual(set(fun_expr.parameters), set([]))
         self.assertEqual(set(fun_expr.functions), set([]))
 
@@ -1490,11 +1454,11 @@ class TestCore(unittest.TestCase):
         self.assertTrue(isinstance(error, InvalidAttribute))
 
         fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', '', objects,
-            allow_invalid_objects=True)
+                                             allow_invalid_objects=True)
         self.assertTrue(isinstance(fun_obj, Function))
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
-        expected_related_objs=None):
+                                 expected_related_objs=None):
         """ Test a valid expression
 
         Args:
@@ -1523,26 +1487,26 @@ class TestCore(unittest.TestCase):
         _, objects, id_map = self.make_objects()
 
         for expr, expected_test_val, expected_related_objs in [
-            ('ccc', 1, {'observables':[id_map['Observable.ccc']]}),
-            ('ccc', 1, {'observables':[id_map['Observable.ccc']]}),     # reuse the FunctionExpression
-            ('ccc + ddd', 2, {'observables':[id_map['Observable.ccc'], id_map['Observable.ddd']]}),
+            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}),
+            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}),     # reuse the FunctionExpression
+            ('ccc + ddd', 2, {'observables': [id_map['Observable.ccc'], id_map['Observable.ddd']]}),
             ('ccc + 2 * ddd', 3, {}),
             ('ccc + 2 * ddd > 3', False, {}),
             ('a + f()', 2,
-                {'parameters':[id_map['Parameter.a']],
-                'functions':[id_map['Function.f']]}),
+                {'parameters': [id_map['Parameter.a']],
+                 'functions':[id_map['Function.f']]}),
             ('log(a)', math.log(1), {}),
             ('max(a, b)', 1,
-                {'parameters':[id_map['Parameter.a'], id_map['Parameter.b']]}),
+                {'parameters': [id_map['Parameter.a'], id_map['Parameter.b']]}),
             ('Observable.ccc + Observable.duped_id - Parameter.duped_id', 1,
-                {'parameters':[id_map['Parameter.duped_id']],
-                'observables':[id_map['Observable.duped_id'], id_map['Observable.ccc']]}),
+                {'parameters': [id_map['Parameter.duped_id']],
+                 'observables':[id_map['Observable.duped_id'], id_map['Observable.ccc']]}),
             ('ccc * Function.duped_id()', 1,
-                {'observables':[id_map['Observable.ccc']],
-                'functions':[id_map['Function.duped_id']]})
-            ]:
+                {'observables': [id_map['Observable.ccc']],
+                 'functions':[id_map['Function.duped_id']]})
+        ]:
             self.do_test_valid_expression(FunctionExpression, Function,
-                objects, expr, expected_test_val, expected_related_objs)
+                                          objects, expr, expected_test_val, expected_related_objs)
 
     def do_test_expr_deserialize_error(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to deserialize
@@ -1564,19 +1528,19 @@ class TestCore(unittest.TestCase):
         _, objects, _ = self.make_objects()
 
         for expr_model, model in [(FunctionExpression, Function),
-                                    (StopConditionExpression, StopCondition),
-                                    (ObservableExpression, Observable)]:
+                                  (StopConditionExpression, StopCondition),
+                                  (ObservableExpression, Observable)]:
             self.do_test_expr_deserialize_error(expr_model, model, objects, 'id1[id2', "Python syntax error")
             bad_id = 'no_such_obj'
             self.do_test_expr_deserialize_error(expr_model, model, objects, bad_id,
-                "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
+                                                "contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id))
 
     def test_stop_condition_expression_deserialize_errors(self):
         _, objects, _ = self.make_objects()
 
         expr = '(ccc > 10 and ddd < 5) or (a + f() * g())'
         self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, expr,
-            "contains the identifier(s) 'and', which aren't the id(s) of an object")
+                                            "contains the identifier(s) 'and', which aren't the id(s) of an object")
 
     def do_test_invalid_expression(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to validate
@@ -1600,14 +1564,13 @@ class TestCore(unittest.TestCase):
 
         bad_expr = '1 +'
         self.do_test_invalid_expression(FunctionExpression, Function, objects, bad_expr,
-            "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
+                                        "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
 
     def test_function(self):
         model, objects, _ = self.make_objects()
         kwargs = dict(id='fun_1', name='name fun_1', model=model, comments='no comment')
         func = Function(**kwargs)
         self.assertEqual(func.id, kwargs['id'])
-        self.assertEqual(func.get_id(), kwargs['id'])
         self.assertEqual(func.name, kwargs['name'])
         self.assertEqual(func.model, model)
         self.assertEqual(model.functions[-1], func)
@@ -1621,32 +1584,31 @@ class TestCore(unittest.TestCase):
     def test_valid_stop_conditions(self):
         _, objects, id_map = self.make_objects()
 
-        some_used_objs = {'observables':[id_map['Observable.ccc'], id_map['Observable.ddd']],
-            'functions':[id_map['Function.f'], id_map['Function.g']],
-            'parameters':[id_map['Parameter.a']]}
+        some_used_objs = {'observables': [id_map['Observable.ccc'], id_map['Observable.ddd']],
+                          'functions': [id_map['Function.f'], id_map['Function.g']],
+                          'parameters': [id_map['Parameter.a']]}
         for expr, expected_test_val, expected_attrs in [
-            ('ccc > 10', False, {'observables':[id_map['Observable.ccc']]}),
-            ('ccc > 0', True, {'observables':[id_map['Observable.ccc']]}),
-            ('ccc > 0', True, {'observables':[id_map['Observable.ccc']]}),    # reuse StopConditionExpression
+            ('ccc > 10', False, {'observables': [id_map['Observable.ccc']]}),
+            ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),
+            ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),    # reuse StopConditionExpression
             ('ccc + ddd - a + f() * g() + 10 > 0', True, some_used_objs)
-            ]:
+        ]:
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
-                objects, expr, expected_test_val, expected_attrs)
+                                          objects, expr, expected_test_val, expected_attrs)
 
     def test_invalid_stop_condition_expressions(self):
         _, objects, _ = self.make_objects()
 
         bad_expr = '1 + ccc'
         self.do_test_invalid_expression(StopConditionExpression, StopCondition, objects, bad_expr,
-            "Evaluating '{}', a {} expression, should return a bool but it returns a float".format(
-                bad_expr, StopConditionExpression.__name__))
+                                        "Evaluating '{}', a {} expression, should return a bool but it returns a float".format(
+                                            bad_expr, StopConditionExpression.__name__))
 
     def test_stop_condition(self):
         model, objects, _ = self.make_objects()
         kwargs = dict(id='stop_cond_1', name='name stop_cond_1', model=model, comments='no comment')
         stop_condition = StopCondition(**kwargs)
         self.assertEqual(stop_condition.id, kwargs['id'])
-        self.assertEqual(stop_condition.get_id(), kwargs['id'])
         self.assertEqual(stop_condition.name, kwargs['name'])
         self.assertEqual(stop_condition.model, model)
         self.assertEqual(model.stop_conditions[-1], stop_condition)
@@ -1661,34 +1623,33 @@ class TestCore(unittest.TestCase):
         _, objects, id_map = self.make_objects()
 
         for expr, expected_test_val, expected_related_objs in [
-            ('3 * spec_type_0[comp_0]', 3, {'species':[id_map['Species.spec_type_0[comp_0]']]}),
+            ('3 * spec_type_0[comp_0]', 3, {'species': [id_map['Species.spec_type_0[comp_0]']]}),
             ('spec_type_0[comp_0] + 4e2*spec_type_1[comp_0] - 1  * spec_type_3[comp_1]', 400,
-                {'species':[
+                {'species': [
                     id_map['Species.spec_type_0[comp_0]'],
                     id_map['Species.spec_type_1[comp_0]'],
                     id_map['Species.spec_type_3[comp_1]']
                 ]}),
             ('1.5 * spec_type_0[comp_0] - ddd + Observable.duped_id', 1.5,
-                {'species':[id_map['Species.spec_type_0[comp_0]']],
-                'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']],
-                }),
-            ]:
+                {'species': [id_map['Species.spec_type_0[comp_0]']],
+                 'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']],
+                 }),
+        ]:
             self.do_test_valid_expression(ObservableExpression, Observable,
-                objects, expr, expected_test_val, expected_related_objs)
+                                          objects, expr, expected_test_val, expected_related_objs)
 
     def test_invalid_observable_expressions(self):
         _, objects, _ = self.make_objects()
 
         non_linear_expression = 'ccc * ccc'
         self.do_test_invalid_expression(ObservableExpression, Observable, objects, non_linear_expression,
-            "Not a linear expression of species and observables".format())
+                                        "Not a linear expression of species and observables".format())
 
     def test_observable(self):
         model, objects, _ = self.make_objects()
         kwargs = dict(id='obs_1', name='name obs_1', model=model, comments='no comment')
         obs = Observable(**kwargs)
         self.assertEqual(obs.id, kwargs['id'])
-        self.assertEqual(obs.get_id(), kwargs['id'])
         self.assertEqual(obs.name, kwargs['name'])
         self.assertEqual(obs.model, model)
         self.assertEqual(model.observables[-1], obs)
@@ -1701,7 +1662,7 @@ class TestCore(unittest.TestCase):
 
     def test_valid_model_types(self):
         for model_type in [RateLawEquation, FunctionExpression, StopConditionExpression,
-            ObjectiveFunction, ObservableExpression]:
+                           ObjectiveFunction, ObservableExpression]:
             self.assertTrue(hasattr(model_type.Meta, 'valid_used_models'))
             for valid_model_type in model_type.Meta.valid_used_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))

@@ -24,9 +24,9 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         t1 = model.species_types.create(id='s1', type=SpeciesTypeType.metabolite)
         t2 = model.species_types.create(id='s2', type=SpeciesTypeType.metabolite)
 
-        s0 = Species(species_type=t0, compartment=c)
-        s1 = Species(species_type=t1, compartment=c)
-        s2 = Species(species_type=t2, compartment=c)
+        s0 = Species(id='s0[c]', species_type=t0, compartment=c)
+        s1 = Species(id='s1[c]', species_type=t1, compartment=c)
+        s2 = Species(id='s2[c]', species_type=t2, compartment=c)
 
         submodel = model.submodels.create(id='submodel', algorithm='SSA')
 

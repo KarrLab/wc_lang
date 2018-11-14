@@ -24,8 +24,8 @@ from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
-                      Species, Concentration, Reaction, RateLaw, RateLawEquation,
-                      BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
+                     Species, Concentration, Reaction, RateLaw, RateLawEquation,
+                     BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.prepare import PrepareModel, CheckModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
@@ -48,16 +48,22 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
         wc_lang_model (:obj:`Model`): a wc lang `Model` with species, reactions, compartments or parameters
         test_case (:obj:`unittest.TestCase`): a unittest TestCase
     """
+    all_wc_lang_compartments = wc_lang_model.get_compartments()
+    all_wc_lang_species = wc_lang_model.get_species()
+    all_wc_lang_parameters = wc_lang_model.get_parameters()
+    all_wc_lang_reactions = wc_lang_model.get_reactions()
+    all_wc_lang_biomass_reactions = wc_lang_model.get_biomass_reactions()
+    all_wc_lang_submodels = wc_lang_model.get_submodels()
+
     for element in sbml_document.getListOfAllElements():
 
         # compartments
         if isinstance(element, libsbmlCompartment):
-            wc_lang_compartment = get_component_by_id(wc_lang_model.get_compartments(),
+            wc_lang_compartment = get_component_by_id(all_wc_lang_compartments,
                                                       element.getIdAttribute())
             test_case.assertEqual(element.getName(), wc_lang_compartment.name)
             test_case.assertEqual(element.getSpatialDimensions(), 3)
             test_case.assertEqual(element.getSize(), wc_lang_compartment.initial_volume)
-            continue
             # not checking: comments
 
         # parameters
@@ -66,36 +72,29 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             if element.getIdAttribute().startswith(prefix):
                 # only parameters that start with 'parameter' are wc_lang Parameters
                 wc_lang_id = element.getIdAttribute()[len(prefix):]
-                wc_lang_parameter = get_component_by_id(wc_lang_model.get_parameters(), wc_lang_id)
+                wc_lang_parameter = get_component_by_id(all_wc_lang_parameters, wc_lang_id)
                 test_case.assertEqual(element.getName(), wc_lang_parameter.name)
                 test_case.assertEqual(element.getValue(), wc_lang_parameter.value)
-            continue
             # not checking: units, SBML parameters not in wc_lang Parameters
 
         if isinstance(element, libsbmlSpecies):
-            # because Species.id() is a method, get_component_by_id() cannot search it
-            species_index = {species.id(): species for species in wc_lang_model.get_species()}
             wc_lang_id = Species.xml_id_to_id(element.getIdAttribute())
-            if not wc_lang_id in species_index:
-                test_case.assertFail("Cannot find species id '{}' in species index".format(wc_lang_id))
-            wc_lang_species = species_index[wc_lang_id]
+            wc_lang_species = get_component_by_id(all_wc_lang_species, wc_lang_id)
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
             test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.value)
-            continue
             # not checking: comments
 
         if isinstance(element, libsbmlReaction):
-            wc_lang_reaction = get_component_by_id(wc_lang_model.get_reactions(), element.getIdAttribute())
+            wc_lang_reaction = get_component_by_id(all_wc_lang_reactions, element.getIdAttribute())
             # test Reaction
             if wc_lang_reaction:
                 test_case.assertEqual(element.getName(), wc_lang_reaction.name)
                 test_case.assertEqual(element.getReversible(), wc_lang_reaction.reversible)
                 test_case.assertEqual(element.getFast(), False)
-                continue
                 # not checking: participants and flux bounds
 
-            wc_lang_biomass_reaction = get_component_by_id(wc_lang_model.get_biomass_reactions(),
+            wc_lang_biomass_reaction = get_component_by_id(all_wc_lang_biomass_reactions,
                                                            element.getIdAttribute())
             # test BiomassReaction
             if wc_lang_biomass_reaction:
@@ -103,22 +102,19 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 test_case.assertEqual(element.getReversible(), False)
                 test_case.assertEqual(element.getFast(), False)
                 test_case.assertEqual(element.getCompartment(), wc_lang_biomass_reaction.compartment.id)
-                continue
                 # not checking: components, flux bounds, and comments
 
         if isinstance(element, libsbmlModel):
             # test a submodel
-            wc_lang_submodel = get_component_by_id(wc_lang_model.get_submodels(), element.getIdAttribute())
+            wc_lang_submodel = get_component_by_id(all_wc_lang_submodels, element.getIdAttribute())
             if wc_lang_submodel.name:
                 test_case.assertEqual(element.getName(), wc_lang_submodel.name)
-            continue
             # not checking: comments
 
         if isinstance(element, libsbmlObjective):
             # test an ObjectiveFunction
             test_case.assertEqual(element.getType(), 'maximize')
             test_case.assertEqual(element.getIdAttribute(), ObjectiveFunction.ACTIVE_OBJECTIVE)
-            continue
             # not checking: reactions, or biomass_reactions
 
             # TODO: check remaining elements

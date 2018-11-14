@@ -10,12 +10,13 @@
 import obj_model
 import os
 import pytest
+import re
 import shutil
 import tempfile
 import unittest
 
 from wc_lang.core import (Model, SpeciesCoefficient, ExpressionMethods, Species, Observable, Function,
-    Concentration, ConcentrationUnit, Parameter)
+                          Concentration, ConcentrationUnit, Parameter)
 from wc_lang.io import Reader, Writer
 
 
@@ -26,37 +27,35 @@ class RoundTripTestCase(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
-    @unittest.expectedFailure
-    def test_create(self):
+    def test_write_error(self):
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
         species_type = model.species_types.create(id='species_type_1')
         species = comp.species.create(species_type=species_type)
-        submdl = model.submodels.create(id='submodel_1', compartment=comp)
+        species.id = ''
+        submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ObservableExpressionAttribute.deserialize()
         species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
-        objects = {Species:{}}
-        objects[Species][species.get_id()] = species
-        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.get_id(), objects)
+        objects = {Species: {}}
+        objects[Species][species.id] = species
+        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
 
         coefficient = 1
         rxn_species_coeff = species.species_coefficients.create(coefficient=coefficient)
         rxn = submdl.reactions.create(id='reaction_1')
         rxn.participants.append(rxn_species_coeff)
 
-        self.assertNotEqual(obj_model.Validator().run(model, get_related=True), None)
+        errors = obj_model.Validator().run(model, get_related=True)
+        self.assertNotEqual(errors, None)
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
         with pytest.warns(obj_model.io.IoWarning, match='objects are not valid'):
             Writer().run(model, filename, set_repo_metadata_from_path=False)
-        model_2 = Reader().run(filename)
+        with self.assertRaisesRegex(ValueError, re.escape('contains error(s)')):
+            Reader().run(filename)
 
-        self.assertNotEqual(model.difference(model_2), '')
-        self.assertFalse(model_2.is_equal(model))
-        self.assertFalse(model.is_equal(model_2))
-
-    def test_get_or_create(self):
+    def test_successful_roundtrip(self):
         """
         Args:
             species_coefficient_creation_method (:obj:`str`): name of method to use to get or create 
@@ -66,18 +65,19 @@ class RoundTripTestCase(unittest.TestCase):
         comp = model.compartments.create(id='compartment_1')
         species_type = model.species_types.create(id='species_type_1')
         species = comp.species.create(species_type=species_type)
+        species.id = species.gen_id(species_type.id, comp.id)
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ObservableExpressionAttribute.deserialize()
         species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
-        objects = {Species:{}}
-        objects[Species][species.get_id()] = species
-        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.get_id(), objects)
-        objects = {Observable:{'observable_1':observable_1}}
+        objects = {Species: {}}
+        objects[Species][species.id] = species
+        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
+        objects = {Observable: {'observable_1': observable_1}}
         ExpressionMethods.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
         param = model.parameters.create(id='param_1')
-        objects = {Parameter:{'param_1':param}}
+        objects = {Parameter: {'param_1': param}}
         ExpressionMethods.make_obj(model, Function, 'fun_1', 'param_1', objects)
 
         coefficient = 1
@@ -86,7 +86,8 @@ class RoundTripTestCase(unittest.TestCase):
         rxn = submdl.reactions.create(id='reaction_1')
         rxn.participants.append(rxn_species_coeff)
 
-        self.assertEqual(obj_model.Validator().run(model, get_related=True), None)
+        errors = obj_model.Validator().run(model, get_related=True)
+        self.assertEqual(errors, None, str(errors))
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)

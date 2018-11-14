@@ -40,6 +40,7 @@ class TestUtil(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
+            spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
             species.append(spec)
 
             conc = Concentration(species=spec, value=1)
@@ -130,12 +131,12 @@ class TestUtil(unittest.TestCase):
     def test_get_models(self):
         non_inline_models = set([
             Model, Taxon,
-            Submodel, Compartment, SpeciesType, Observable, Concentration,
+            Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
             Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
             Function, StopCondition, Reference, DatabaseReference,
         ])
         inline_models = set([
-            Species, SpeciesCoefficient, RateLawEquation, ObjectiveFunction,
+            SpeciesCoefficient, RateLawEquation, ObjectiveFunction,
             FunctionExpression, StopConditionExpression, ObservableExpression
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)

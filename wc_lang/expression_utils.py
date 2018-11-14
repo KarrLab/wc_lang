@@ -57,7 +57,6 @@ cleanup:
     more docstrings and better naming for ExpressionVerifier
     use ExpressionMethods.make_expression_obj() wherever possible
     better error than "Not a linear expression of species and observables"
-    globally replace Species.id() with Species.get_id()
     do a better job of getting the plural in "if not used_model_type_attr.endswith('s'):"
     have valid_functions defined as sets, not tuples
     stop using & and remove RateLawUtils
@@ -89,7 +88,7 @@ class RateLawUtils(object):
         def possible_specie_id(tokens):
             '''Indicate whether `tokens` begins with 4 tokens whose syntax id_matches a specie ID
 
-            Specie IDs have the form `string[string]`, as documented in `wc_lang.core.Species.id()`.
+            Specie IDs have the form `string[string]`, as documented in `wc_lang.core.Species`.
 
             Args:
                 tokens (:obj:`list` of (token_num, token_val)): a list of Python tokens
@@ -311,6 +310,7 @@ class Error(Exception):
     Attributes:
         message (:obj:`str`): the exception's message
     """
+
     def __init__(self, message=None):
         super().__init__(message)
 
@@ -321,6 +321,7 @@ class WcLangExpressionError(Error):
     Attributes:
         message (:obj:`str`): the exception's message
     """
+
     def __init__(self, message=None):
         super().__init__(message)
 
@@ -385,9 +386,9 @@ class WcLangExpression(object):
     # enumerate and detect Python tokens that are illegal in wc_lang expressions
     # TODO: consider the handful of other tokens that may also be illegal: COMMA, SEMI, TILDE, CIRCUMFLEX, and AT
     illegal_token_names = ['ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
-        'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
-        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
-        'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET']
+                           'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
+                           'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
+                           'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET']
     illegal_tokens = set()
     for illegal_name in illegal_token_names:
         illegal_tokens.add(getattr(token, illegal_name))
@@ -483,7 +484,7 @@ class WcLangExpression(object):
                 return False
             # because a wc_lang ID shouldn't contain white space, do not allow it between the self.tokens
             # that match token_pattern
-            if 0<tok_idx and self.tokens[idx+tok_idx-1].end != self.tokens[idx+tok_idx].start:
+            if 0 < tok_idx and self.tokens[idx+tok_idx-1].end != self.tokens[idx+tok_idx].start:
                 return False
         match_val = ''.join([self.tokens[idx+i].string for i in range(len(token_pattern))])
         return match_val
@@ -516,14 +517,14 @@ class WcLangExpression(object):
             # the disambiguation model type must be Function
             if self.tokens[idx].string != wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
-                    "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
+                        "model type".format(self.expression, self.model_class.__name__, self.attribute, fun_match))
             # the identifier must be in the Function objects
             if wc_lang.core.Function not in self.valid_used_models or possible_macro_id not in self.objects[wc_lang.core.Function]:
                 return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function in 'objects'".format(
                     self.expression, self.model_class.__name__, self.attribute, fun_match)
             return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, fun_match, wc_lang.core.Function,
-                possible_macro_id, self.objects[wc_lang.core.Function][possible_macro_id])],
-                len(self.fun_type_disambig_patttern))
+                                         possible_macro_id, self.objects[wc_lang.core.Function][possible_macro_id])],
+                            len(self.fun_type_disambig_patttern))
 
         disambig_model_match = self.match_tokens(self.model_type_disambig_pattern, idx)
         if disambig_model_match:
@@ -534,15 +535,17 @@ class WcLangExpression(object):
             # the disambiguation model type cannot be Function
             if disambig_model_type == wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
-                    "model type but doesn't use Function syntax".format(self.expression, self.model_class.__name__,
-                    self.attribute, disambig_model_match))
+                        "model type but doesn't use Function syntax".format(self.expression, self.model_class.__name__,
+                                                                            self.attribute, disambig_model_match))
 
             # the disambiguation model type must be in self.valid_used_models
             wc_lang_model_type = self.get_wc_lang_model_type(disambig_model_type)
             if wc_lang_model_type is None:
                 return ("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
-                    "cannot be referenced by '{}' expressions".format(self.expression, self.model_class.__name__,
-                    self.attribute, disambig_model_match, disambig_model_type, self.model_class.__name__))
+                        "cannot be referenced by '{}' expressions".format(
+                            self.expression, self.model_class.__name__,
+                            self.attribute, disambig_model_match, disambig_model_type,
+                            self.model_class.__name__))
 
             if possible_model_id not in self.objects[wc_lang_model_type]:
                 return "'{}', a {}.{}, contains '{}', but '{}' is not the id of a '{}'".format(
@@ -550,8 +553,8 @@ class WcLangExpression(object):
                     possible_model_id, disambig_model_type)
 
             return LexMatch([WcLangToken(TokCodes.wc_lang_obj_id, disambig_model_match, wc_lang_model_type,
-                possible_model_id, self.objects[wc_lang_model_type][possible_model_id])],
-                len(self.model_type_disambig_pattern))
+                                         possible_model_id, self.objects[wc_lang_model_type][possible_model_id])],
+                            len(self.model_type_disambig_pattern))
 
         # no match
         return None
@@ -593,8 +596,9 @@ class WcLangExpression(object):
         if not id_matches:
             if token_matches:
                 return ("'{}', a {}.{}, contains the identifier(s) '{}', which aren't "
-                    "the id(s) of an object in 'objects'".format(self.expression,
-                    self.model_class.__name__, self.attribute, "', '".join(token_matches)))
+                        "the id(s) of an object in 'objects'".format(
+                            self.expression, self.model_class.__name__,
+                            self.attribute, "', '".join(token_matches)))
             return None
 
         if 1 < len(id_matches):
@@ -609,10 +613,10 @@ class WcLangExpression(object):
         if 1 < len(id_matches):
             # error: multiple, maximal length matches
             matches_error = ["'{}' as a {} id".format(id_val, model_type.__name__)
-                for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
+                             for model_type, _, id_val in sorted(id_matches, key=lambda id_match: id_match.model_type.__name__)]
             matches_error = ', '.join(matches_error)
-            return "'{}', a {}.{}, contains multiple model object id matches: {}".format(self.expression,
-                self.model_class.__name__, self.attribute, matches_error)
+            return "'{}', a {}.{}, contains multiple model object id matches: {}".format(
+                self.expression, self.model_class.__name__, self.attribute, matches_error)
 
         else:
             # return a lexical match about a related id
@@ -622,7 +626,7 @@ class WcLangExpression(object):
                 right_case_match_string = match.match_string.casefold()
             return LexMatch(
                 [WcLangToken(TokCodes.wc_lang_obj_id, match.match_string, match.model_type, right_case_match_string,
-                    self.objects[match.model_type][right_case_match_string])],
+                             self.objects[match.model_type][right_case_match_string])],
                 len(match.token_pattern))
 
     def fun_call_id(self, idx, case_fold_match='unused'):
@@ -650,16 +654,16 @@ class WcLangExpression(object):
             # are Python math functions defined?
             if not hasattr(self.model_class.Meta, 'valid_functions'):
                 return ("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
-                    "define 'valid_functions'".format(self.expression,
-                    self.model_class.__name__, self.attribute, fun_name, self.model_class.__name__))
+                        "define 'valid_functions'".format(self.expression,
+                                                          self.model_class.__name__, self.attribute, fun_name, self.model_class.__name__))
 
             function_ids = set([f.__name__ for f in self.model_class.Meta.valid_functions])
 
             # is the function allowed?
             if fun_name not in function_ids:
                 return ("'{}', a {}.{}, contains the func name '{}', but it isn't in "
-                    "{}.Meta.valid_functions: {}".format(self.expression, self.model_class.__name__,
-                    self.attribute, fun_name, self.model_class.__name__, ', '.join(function_ids)))
+                        "{}.Meta.valid_functions: {}".format(self.expression, self.model_class.__name__,
+                                                             self.attribute, fun_name, self.model_class.__name__, ', '.join(function_ids)))
 
             # return a lexical match about a math function
             return LexMatch(
@@ -695,8 +699,9 @@ class WcLangExpression(object):
                 else:
                     bad_tokens.add(token.tok_name[tok.type])
         if bad_tokens:
-            self.errors.append("'{}', a {}.{}, contains bad token(s): '{}'".format(self.expression,
-                self.model_class.__name__, self.attribute, "', '".join(bad_tokens)))
+            self.errors.append("'{}', a {}.{}, contains bad token(s): '{}'".format(
+                self.expression, self.model_class.__name__,
+                self.attribute, "', '".join(bad_tokens)))
             return (None, self.errors)
 
         idx = 0
@@ -802,7 +807,7 @@ class WcLangExpression(object):
         local_ns = {func.__name__: func for func in self.valid_functions}
 
         error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
-            self.model_class.__name__)
+                                                                     self.model_class.__name__)
 
         try:
             return eval(expression, {}, local_ns)
@@ -904,7 +909,7 @@ class LinearExpressionVerifier(ExpressionVerifier):
 
     def __init__(self):
         super().__init__(start_state='need number or id', accepting_state='end',
-            transitions=self.linear_expr_transitions, empty_is_valid=True)
+                         transitions=self.linear_expr_transitions, empty_is_valid=True)
 
     def valid_wc_lang_tokens(self, wc_lang_tokens):
         """ Check whether the content of a sequence of `WcLangToken`s is valid

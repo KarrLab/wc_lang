@@ -226,7 +226,10 @@ class TestAnalyzeModel(unittest.TestCase):
         for i in range(1, self.num_species+1):
             spec_type = self.model.species_types.create(id=self.sp_id(i),
                                                         type=SpeciesTypeType.metabolite)
-            self.species.append(Species(species_type=spec_type, compartment=comp))
+            self.species.append(Species(
+                id=Species.gen_id(spec_type.id, comp.id),
+                species_type=spec_type,
+                compartment=comp))
         self.dfba_submodel = self.model.submodels.create(
             id='metabolism', algorithm=SubmodelAlgorithm.dfba)
 
@@ -359,7 +362,7 @@ class TestAnalyzeModel(unittest.TestCase):
             if isinstance(n, Reaction):
                 self.assertTrue(TestAnalyzeModel.RNX_ID_PREFIX in n.id)
             elif isinstance(n, Species):
-                self.assertTrue(TestAnalyzeModel.SPECIES_ID_PREFIX in n.id())
+                self.assertTrue(TestAnalyzeModel.SPECIES_ID_PREFIX in n.id)
 
         # test expected vs. actual edges
         # expected edge id pairs
@@ -385,7 +388,7 @@ class TestAnalyzeModel(unittest.TestCase):
                     ids.append(n.id)
                 if isinstance(n, Species):
                     # remove compartment suffix '[some_comp]'
-                    sp_type_id = n.id().split('[')[0]
+                    sp_type_id = n.id.split('[')[0]
                     ids.append(sp_type_id)
             s_id, d_id = ids
             graph_edges.add((s_id, d_id))
@@ -583,7 +586,7 @@ class TestCheckModel(unittest.TestCase):
         self.assertIn("'cos' not a known parameter".format(TEST_ID),
                       self.check_model.transcode_and_check_rate_law_equations()[0])
 
-        # rate laws that fail evaluation                
+        # rate laws that fail evaluation
         rate_law_equation.expression = '{{{*'
         self.assertIn("EOF in multi-line statement",
                       self.check_model.transcode_and_check_rate_law_equations()[0])
@@ -626,19 +629,19 @@ class TestCheckModel(unittest.TestCase):
     def test_verify_acyclic_dependencies(self):
         # Observable
         objects = {
-            Observable:{}
+            Observable: {}
         }
         num = 3
         for i in range(num):
             id = "obs_{}".format(i)
             objects[Observable][id] = ExpressionMethods.make_obj(self.model, Observable, id, '', {},
-                allow_invalid_objects=True)
+                                                                 allow_invalid_objects=True)
         errors = self.check_model.verify_acyclic_dependencies([Observable])
         self.assertEqual(errors, [])
 
         # create cyclic dependencies: each observable references the next, mod num
         for i in range(num):
-            obs_expr, e = ExpressionMethods.make_expression_obj(Observable, 'obs_{}'.format((i+1)%num), objects)
+            obs_expr, e = ExpressionMethods.make_expression_obj(Observable, 'obs_{}'.format((i+1) % num), objects)
             self.assertEqual(e, None)
             id = "obs_{}".format(i)
             objects[Observable][id].expression = obs_expr
@@ -649,15 +652,15 @@ class TestCheckModel(unittest.TestCase):
 
         # Function
         objects = {
-            Parameter:{},
-            Observable:{},
-            Function:{}
+            Parameter: {},
+            Observable: {},
+            Function: {}
         }
 
         id = 'fun_3'
         # First 2 functions call the next one; make before referencing
         objects[Function][id] = ExpressionMethods.make_obj(self.model, Function, id, '', {},
-                allow_invalid_objects=True)
+                                                           allow_invalid_objects=True)
         for i in range(2, 0, -1):
             id = 'fun_{}'.format(i)
             objects[Function][id] = \

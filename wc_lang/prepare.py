@@ -226,7 +226,7 @@ class AnalyzeModel(object):
         all_unbounded_paths = dict()
         for ex_specie in ex_species:
             paths = AnalyzeModel.unbounded_paths(digraph, ex_specie, obj_fn_species)
-            all_unbounded_paths[ex_specie.id()] = paths
+            all_unbounded_paths[ex_specie.id] = paths
         return all_unbounded_paths
 
     # todo: replace the constant in min_non_finite_ub=1000.0
@@ -632,7 +632,7 @@ class PrepareModel(object):
         """ Initialize missing concentration values to 0 """
         for specie in self.model.get_species():
             if specie.concentration is None:
-                warn("setting concentration for {} to 0.0".format(specie.id()))
+                warn("setting concentration for {} to 0.0".format(specie.id))
                 specie.concentrations = Concentration(species=specie, value=0.0)
 
 
@@ -725,7 +725,7 @@ class CheckModel(object):
             errors.append("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(submodel.name))
 
         else:
-            submodel_species_ids = set([s.id() for s in submodel.get_species()])
+            submodel_species_ids = set([s.id for s in submodel.get_species()])
             for biomass_component in submodel.biomass_reaction.biomass_components:
                 species_id = Species.gen_id(biomass_component.species_type.id,
                                             submodel.biomass_reaction.compartment.id)
@@ -791,7 +791,7 @@ class CheckModel(object):
         for parameter in parameters:
             parameter_values[parameter.id] = parameter.value
 
-        species_ids = set([specie.id() for specie in self.model.get_species()])
+        species_ids = set([specie.id for specie in self.model.get_species()])
         for reaction in self.model.get_reactions():
             for rate_law in reaction.rate_laws:
                 if getattr(rate_law, 'equation', None) is None:
@@ -821,9 +821,9 @@ class CheckModel(object):
         """
         errors = []
         for species_type in self.model.get_species_types():
-            if not 0<species_type.molecular_weight:
+            if not 0 < species_type.molecular_weight:
                 errors.append("species types must contain positive molecular weights, but the MW for {} "
-                    "is {}".format(species_type.id, species_type.molecular_weight))
+                              "is {}".format(species_type.id, species_type.molecular_weight))
         return errors
 
     def verify_acyclic_dependencies(self, model_types):
@@ -847,7 +847,7 @@ class CheckModel(object):
             all_models = None
             for name, attr in self.model.Meta.related_attributes.items():
                 if hasattr(self.model.Meta.related_attributes[name], 'primary_class') and \
-                    self.model.Meta.related_attributes[name].primary_class == model_type:
+                        self.model.Meta.related_attributes[name].primary_class == model_type:
                     all_models = getattr(self.model, name)
 
             # get self-referential attribute, if any
@@ -855,7 +855,7 @@ class CheckModel(object):
             name_self_ref_attr = None
             for name in expression_model.Meta.attributes.keys():
                 if hasattr(expression_model.Meta.attributes[name], 'related_class') and \
-                    expression_model.Meta.attributes[name].related_class == model_type:
+                        expression_model.Meta.attributes[name].related_class == model_type:
                     name_self_ref_attr = name
 
             if all_models and name_self_ref_attr:
