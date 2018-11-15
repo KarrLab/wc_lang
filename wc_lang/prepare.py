@@ -15,7 +15,7 @@ from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-                     Species, Concentration, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
+                     Species, Concentration, ConcentrationUnit, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
                      BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
 from wc_lang.expression_utils import RateLawUtils
 
@@ -75,7 +75,7 @@ class AnalyzeModel(object):
                 * :obj:`set` of :obj:`Reaction`: `Reaction`s not in the minimal reaction network
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
+            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         all_dead_end_species = AnalyzeModel.find_dead_end_species(submodel, set())
         delta_dead_end_species = all_dead_end_species
@@ -249,7 +249,7 @@ class AnalyzeModel(object):
             are considered finite
 
         Returns:
-            :obj:`list` of `list` of :obj:: a list of the reaction paths from `ex_species`
+            :obj:`list` of :obj:`list` of :obj:: a list of the reaction paths from `ex_species`
             to objective function components that lack a finite flux upper bound.
             A path is a list of `Species`, `Reaction`, `Species`, ..., `Species`, starting with
             `ex_species` and ending with an objective function component.
@@ -342,7 +342,7 @@ class PrepareModel(object):
             :obj:`int`: the number of reactions created
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
+            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         reaction_number = 1
 
@@ -377,7 +377,7 @@ class PrepareModel(object):
             ValueError: if `submodel` cannot use its biomass reaction '{}' as an objective function
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
+            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         if not submodel.objective_function is None:
             submodel.objective_function.reaction_coefficients = []
@@ -385,9 +385,9 @@ class PrepareModel(object):
             return None
 
         # use the biomass reaction as the objective, because no objective function is specified
-        of = ObjectiveFunction(expression=submodel.biomass_reaction.id,
+        of = ObjectiveFunction(expression=' + '.join(rxn.id for rxn in submodel.biomass_reactions),
                                reactions=[],
-                               biomass_reactions=[submodel.biomass_reaction])
+                               biomass_reactions=submodel.biomass_reactions)
 
         of.reaction_coefficients = []
         of.biomass_reaction_coefficients = [1.0]
@@ -422,7 +422,7 @@ class PrepareModel(object):
                 reaction id, or uses an id multiple times
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
+            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         linear_expr = []    # list of (coeff, reaction_id)
         objective_function = submodel.objective_function
@@ -487,7 +487,7 @@ class PrepareModel(object):
 
         Args:
             node (:obj:`ast.BinOp`): an ast binary operation that uses multiplication
-            linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
+            linear_expr (:obj:`list` of :obj:`tuple`): pairs of (coefficient, reaction_id)
 
         Raises:
             :obj:`ValueError`: if the Mult node does not have one Name and one Num (which may be negative)
@@ -516,7 +516,7 @@ class PrepareModel(object):
 
         Args:
             node (:obj:`ast.BinOp`): an ast binary operation that uses addition
-            linear_expr (:obj:`list` of `tuple`): pairs of (coefficient, reaction_id)
+            linear_expr (:obj:`list` of :obj:`tuple`): pairs of (coefficient, reaction_id)
 
         Raises:
             :obj:`ValueError`: if the Add node does not have a total of 2 Names, Mults, and Adds.
@@ -593,7 +593,7 @@ class PrepareModel(object):
                 * obj:`int`: number of max flux bounds set to the default
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dfba submodel".format(submodel.name))
+            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         need_default_flux_bounds = False
         for rxn in submodel.reactions:
@@ -630,10 +630,15 @@ class PrepareModel(object):
 
     def init_concentrations(self):
         """ Initialize missing concentration values to 0 """
-        for specie in self.model.get_species():
-            if specie.concentration is None:
-                warn("setting concentration for {} to 0.0".format(specie.id))
-                specie.concentrations = Concentration(species=specie, value=0.0)
+        missing_species_ids = []
+        for species in self.model.get_species():
+            if species.concentration is None:
+                missing_species_ids.append(species.id)
+                species.concentrations = Concentration(
+                    species=species,
+                    value=0.0, units=ConcentrationUnit.molecules)
+        warn("Assuming missing concentrations for the following metabolites 0:\n  {}".format(
+            '\n  '.join(missing_species_ids)))
 
 
 class CheckModel(object):
@@ -719,19 +724,27 @@ class CheckModel(object):
                         reaction.min_flux, reaction.name, submodel.name))
 
         if submodel.objective_function is None:
-            errors.append("Error: submodel '{}' uses dfba but lacks an objective function".format(submodel.name))
+            errors.append("Error: submodel '{}' uses dFBA but lacks an objective function".format(submodel.name))
 
-        if submodel.biomass_reaction is None or not submodel.biomass_reaction.biomass_components:
-            errors.append("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(submodel.name))
+        has_biomass_components = False
+        for biomass_reaction in submodel.biomass_reactions:
+            if biomass_reaction.biomass_components:
+                has_biomass_components = True
+                break
+        if not has_biomass_components:
+            errors.append("Error: submodel '{}' uses dFBA but lacks a biomass reaction".format(
+                submodel.name))
 
         else:
             submodel_species_ids = set([s.id for s in submodel.get_species()])
-            for biomass_component in submodel.biomass_reaction.biomass_components:
-                species_id = Species.gen_id(biomass_component.species_type.id,
-                                            submodel.biomass_reaction.compartment.id)
-                if species_id not in submodel_species_ids:
-                    errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
-                                  "submodel '{}'.".format(species_id, submodel.biomass_reaction.name, submodel.name))
+            for biomass_reaction in submodel.biomass_reactions:
+                for biomass_component in biomass_reaction.biomass_components:
+                    species_id = biomass_component.species.id
+                    if species_id not in submodel_species_ids:
+                        errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
+                                      "submodel '{}'.".format(species_id,
+                                                              biomass_reaction.name,
+                                                              submodel.name))
 
         return errors
 
@@ -776,7 +789,7 @@ class CheckModel(object):
         succesfully transcode are stored in `rate_law.equation.transcoded`.
 
         Returns:
-            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
         """
         errors = []
@@ -816,7 +829,7 @@ class CheckModel(object):
             * All species types have positive molecular weights
 
         Returns:
-            :obj:`list` of `str`: if no errors, returns an empty `list`; otherwise a `list` of
+            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
             error messages
         """
         errors = []
@@ -834,7 +847,7 @@ class CheckModel(object):
                 include Observable and FunctionExpression
 
         Args:
-            model_types (:obj:`list` of `type`): model types (subclasses of `obj_model.Model`) to test
+            model_types (:obj:`list` of :obj:`type`): model types (subclasses of `obj_model.Model`) to test
 
         Returns:
             :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of

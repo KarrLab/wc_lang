@@ -25,8 +25,10 @@ class Writer(object):
 
     model_order = [
         core.Model, core.Taxon, core.Submodel, core.Compartment, core.SpeciesType, core.Species,
-        core.Concentration, core.Observable, core.Function, core.Reaction, core.RateLaw, core.BiomassComponent,
-        core.BiomassReaction, core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
+        core.Concentration, core.Observable, core.Function,
+        core.Reaction, core.RateLaw,
+        core.BiomassReaction, core.BiomassComponent,
+        core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
     ]
 
     def run(self, model, path, set_repo_metadata_from_path=True):
@@ -43,7 +45,6 @@ class Writer(object):
         # check that there is only 1 :obj:`Model`and that each relationship to :obj:`Model` is set. This is necessary to
         # enable the relationships to :obj:`Model` to be implicit in the Excel output and added by :obj:`Reader.run`
         for obj in model.get_related():
-            print(obj)
             for attr in obj.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
                         attr.related_class == core.Model:

@@ -215,7 +215,7 @@ class RateLawUtils(object):
                 a dictionary of parameter values
 
         Returns:
-            (:obj:`list` of `float`): the reaction's forward and, perhaps, backward rates
+            (:obj:`list` of :obj:`float`): the reaction's forward and, perhaps, backward rates
         '''
         rates = []
         for rate_law in reaction.rate_laws:
@@ -372,8 +372,8 @@ class WcLangExpression(object):
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `objects`
         related_objects (:obj:`dict`): models that are referenced in `expression`; maps model type to
             dict that maps model id to model instance
-        errors (:obj:`list` of `str`): errors found when parsing an `expression` fails
-        wc_tokens (:obj:`list` of `WcLangToken`): tokens obtained when an `expression` is successfully
+        errors (:obj:`list` of :obj:`str`): errors found when parsing an `expression` fails
+        wc_tokens (:obj:`list` of :obj:`WcLangToken`): tokens obtained when an `expression` is successfully
             `tokenize`d; if empty, then this `WcLangExpression` cannot use `eval_expr()`
     """
 

@@ -25,29 +25,29 @@ import wc_lang
 wc_lang to SBML mapping to support FBA modeling
 Individual wc_lang submodels that use dFBA are mapped to individual SBML documents and files.
 
-WC			            SBML                                                Status
+WC                      SBML                                                Status
 -----                   -----                                               ------
 Model                   Model                                               Ignored
-Taxon			        None, perhaps make SBML annotations                 Ignored
-Submodel			    Model                                               Implemented
+Taxon                   None, perhaps make SBML annotations                 Ignored
+Submodel                Model                                               Implemented
 ObjectiveFunction       Objective                                           Mostly Implemented
-Compartment			    Compartment                                         Implemented
-SpeciesType			    SpeciesType aren't defined                          NA
-Species			        Species                                             Implemented
-Concentration			Concentrations are incorporated in Species          NA
-Reaction			    Reaction, with FbcReactionPlugin for DFBA submodels Implemented
-SpeciesCoefficient		SpeciesReference in a Reaction                      Implemented
-RateLaw			        KineticLaw                                          Ignored
-RateLawEquation			
+Compartment             Compartment                                         Implemented
+SpeciesType             SpeciesType aren't defined                          NA
+Species                 Species                                             Implemented
+Concentration           Concentrations are incorporated in Species          NA
+Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
+SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
+RateLaw                 KineticLaw                                          Ignored
+RateLawEquation         
 BiomassComponent
-BiomassReaction			                                                    TBD
-Parameter			    Parameter                                           Implemented
-Reference			
-DatabaseReference			
+BiomassReaction                                                             TBD
+Parameter               Parameter                                           Implemented
+Reference           
+DatabaseReference           
 
 wc_lang attribute to SBML mapping:
 
-WC Model			    SBML Model
+WC Model                SBML Model
 --------                ----------
 comments                notes
 references              notes, as a Python dict
@@ -108,7 +108,8 @@ class Writer(object):
         sbml_documents = {}
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:
-                objects = [submodel, submodel.objective_function, submodel.biomass_reaction] + \
+                objects = [submodel, submodel.objective_function] + \
+                    submodel.biomass_reactions + \
                     model.get_compartments() + \
                     submodel.get_species() + submodel.parameters + submodel.reactions
                 sbml_documents[submodel.id] = SBMLExchange.write(objects)
@@ -122,7 +123,7 @@ class Writer(object):
             files = []
             if not os.access(dirname, os.W_OK):
                 raise ValueError("Writer.run() cannot write to directory '{}'.".format(dirname))
-            for id,sbml_doc in iteritems(sbml_documents):
+            for id, sbml_doc in iteritems(sbml_documents):
                 dest = join(dirname, basename + '-' + id + ext)
                 dest = str(dest)
                 files.append(dest)
@@ -130,6 +131,7 @@ class Writer(object):
                     raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
                         id, dest))
             return files
+
 
 class SBMLExchange(object):
     """ Exchange `wc_lang` model to/from a libSBML SBML representation """
@@ -194,7 +196,7 @@ class SBMLExchange(object):
             wc_lang.Reaction,
             wc_lang.BiomassReaction,
             wc_lang.ObjectiveFunction,
-            ]
+        ]
 
         # add objects into libsbml.SBMLDocument
         for model in model_order:
@@ -221,14 +223,13 @@ class SBMLExchange(object):
             :obj:`ValueError`: if the SBMLDocument cannot be created
         """
         objects = [submodel] + \
+            submodel.model.get_compartments() + \
             submodel.get_species() + \
             submodel.reactions + \
-            submodel.model.get_compartments() + \
+            submodel.biomass_reactions + \
             submodel.model.get_parameters()
         if submodel.objective_function:
             objects.append(submodel.objective_function)
-        if submodel.biomass_reaction:
-            objects.append(submodel.biomass_reaction)
 
         return SBMLExchange.write(objects)
 

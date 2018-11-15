@@ -76,7 +76,6 @@ class TestCore(unittest.TestCase):
         self.biomass_reaction = biomass_reaction = BiomassReaction(
             id='biomass_reaction_1',
             name='biomass reaction',
-            compartment=comp_0,
             comments="Nobody will ever deprive the American people of the right to vote except the "
             "American people themselves")
         BiomassReaction.get_manager().insert_all_new()
@@ -86,8 +85,8 @@ class TestCore(unittest.TestCase):
             biomass_components.append(
                 biomass_reaction.biomass_components.create(
                     id='biomass_comp_{}'.format(i + 1),
-                    coefficient=2 * (float(i) - 0.5),     # create a reactant and a product
-                    species_type=species_types[i]))
+                    coefficient=2 * (float(i) - 0.5), # create a reactant and a product
+                    species=species[i]))
         self.biomass_components = biomass_components
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -96,7 +95,7 @@ class TestCore(unittest.TestCase):
             id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba,
-            biomass_reaction=biomass_reaction)
+            biomass_reactions=[biomass_reaction])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.parameters = parameters = []
@@ -253,8 +252,8 @@ class TestCore(unittest.TestCase):
             self.assertEqual(self.biomass_components[i].biomass_reaction, self.biomass_reaction)
             # self.assertEqual(self.biomass_reaction.submodels[0], self.submodels[2])
             # species types
-            self.assertEqual(self.biomass_components[i].species_type, self.species_types[i])
-            self.assertEqual(self.biomass_components[i], self.species_types[i].biomass_components[0])
+            self.assertEqual(self.biomass_components[i].species, self.species[i])
+            self.assertEqual(self.biomass_components[i], self.species[i].biomass_components[0])
 
         # parameters
         for reference, parameter in zip(self.references, self.parameters):
@@ -359,15 +358,16 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(set(mdl.get_biomass_reactions(__type=BiomassReaction)), set())
         self.assertEqual(set(mdl.get_biomass_reactions(__type=Reaction)), set())
 
+        prod = self.objective_function.get_products()
         self.assertEqual(set(self.objective_function.get_products()), set([
             self.species[3],
             self.species[4],
-            Species.get([Species.gen_id(self.species_types[1].id, self.biomass_reaction.compartment.id)], mdl.get_species())[0],
+            self.species[1],
         ]))
         self.assertEqual(set(self.objective_function.get_products(__type=Species)), set([
             self.species[3],
             self.species[4],
-            Species.get([Species.gen_id(self.species_types[1].id, self.biomass_reaction.compartment.id)], mdl.get_species())[0],
+            self.species[1],
         ]))
         self.assertEqual(set(self.objective_function.get_products(__type=Reaction)), set())
 
@@ -1247,7 +1247,7 @@ class TestCore(unittest.TestCase):
         for species in self.submdl_2.get_species():
             sbml_species = species.add_to_sbml_doc(document)
             self.assertTrue(sbml_species.hasRequiredAttributes())
-            self.assertEqual(sbml_species.getIdAttribute(), species.xml_id())
+            self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
             self.assertEqual(sbml_species.getName(), species.species_type.name)
             self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
             self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.value)
@@ -1270,11 +1270,11 @@ class TestCore(unittest.TestCase):
                          len(self.rxn_2.participants))
         for reactant in sbml_reaction.getListOfReactants():
             for participant in self.rxn_2.participants:
-                if reactant.getSpecies() == participant.species.xml_id():
+                if reactant.getSpecies() == participant.species.gen_sbml_id():
                     self.assertEqual(reactant.getStoichiometry(), -participant.coefficient)
         for product in sbml_reaction.getListOfProducts():
             for participant in self.rxn_2.participants:
-                if product.getSpecies() == participant.species.xml_id():
+                if product.getSpecies() == participant.species.gen_sbml_id():
                     self.assertEqual(product.getStoichiometry(), participant.coefficient)
 
         # Write the biomass reaction to the SBML document
@@ -1372,8 +1372,7 @@ class TestCore(unittest.TestCase):
             ],
             biomass_reactions=[
                 BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=-1, species_type=species_type_1)],
-                    compartment=compartment_1,
+                    biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
                 ),
             ],
         )
@@ -1388,12 +1387,10 @@ class TestCore(unittest.TestCase):
             ],
             biomass_reactions=[
                 BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=-1, species_type=species_type_1)],
-                    compartment=compartment_1,
+                    biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
                 ),
                 BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=1, species_type=species_type_2)],
-                    compartment=compartment_2,
+                    biomass_components=[BiomassComponent(coefficient=1, species=species_2)],
                 ),
             ],
         )

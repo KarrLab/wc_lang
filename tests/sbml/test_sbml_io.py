@@ -78,7 +78,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             # not checking: units, SBML parameters not in wc_lang Parameters
 
         if isinstance(element, libsbmlSpecies):
-            wc_lang_id = Species.xml_id_to_id(element.getIdAttribute())
+            wc_lang_id = Species.sbml_id_to_id(element.getIdAttribute())
             wc_lang_species = get_component_by_id(all_wc_lang_species, wc_lang_id)
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
@@ -101,7 +101,6 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 test_case.assertEqual(element.getName(), wc_lang_biomass_reaction.name)
                 test_case.assertEqual(element.getReversible(), False)
                 test_case.assertEqual(element.getFast(), False)
-                test_case.assertEqual(element.getCompartment(), wc_lang_biomass_reaction.compartment.id)
                 # not checking: components, flux bounds, and comments
 
         if isinstance(element, libsbmlModel):

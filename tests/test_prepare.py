@@ -65,7 +65,7 @@ class TestPrepareModel(unittest.TestCase):
                          set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
 
         # test exception
-        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dFBA submodel$'):
             self.prepare_model.create_dfba_exchange_rxns(Submodel(algorithm=SubmodelAlgorithm.ssa), None)
 
     def test_confirm_dfba_submodel_obj_func(self):
@@ -77,14 +77,14 @@ class TestPrepareModel(unittest.TestCase):
         self.dfba_submodel.algorithm = None
         with self.assertRaises(ValueError) as context:
             confirm_dfba_submodel_obj_func(self.dfba_submodel)
-        self.assertIn("not a dfba submodel", str(context.exception))
+        self.assertIn("not a dFBA submodel", str(context.exception))
         self.dfba_submodel.algorithm = SubmodelAlgorithm.dfba
 
         self.dfba_submodel.objective_function = None
         self.assertEqual(confirm_dfba_submodel_obj_func(self.dfba_submodel), None)
         # self.dfba_submodel should be using its biomass reaction as its objective function
         self.assertEqual(self.dfba_submodel.objective_function.expression,
-                         self.dfba_submodel.biomass_reaction.id)
+                         self.dfba_submodel.biomass_reactions[0].id)
         self.assertEqual(self.dfba_submodel.objective_function.reactions, [])
         self.assertEqual(self.dfba_submodel.objective_function.biomass_reaction_coefficients, [1.0])
 
@@ -131,7 +131,7 @@ class TestPrepareModel(unittest.TestCase):
             self.assertIn(msg, str(context.exception))
 
         # test exception
-        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dFBA submodel$'):
             self.prepare_model.parse_dfba_submodel_obj_func(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
     def test__proc_mult(self):
@@ -176,7 +176,7 @@ class TestPrepareModel(unittest.TestCase):
                          (0, 0))
 
         # test exception
-        with self.assertRaisesRegex(ValueError, ' not a dfba submodel$'):
+        with self.assertRaisesRegex(ValueError, ' not a dFBA submodel$'):
             self.prepare_model.apply_default_dfba_submodel_flux_bounds(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
         submodel = Submodel(algorithm=SubmodelAlgorithm.dfba)
@@ -345,7 +345,7 @@ class TestAnalyzeModel(unittest.TestCase):
                          sorted(self.dfba_submodel.reactions, key=lambda x: x.id))
 
         # check exceptions
-        with self.assertRaisesRegex(ValueError, 'not a dfba submodel'):
+        with self.assertRaisesRegex(ValueError, 'not a dFBA submodel'):
             prep_mdl.identify_dfba_submodel_rxn_gaps(Submodel(algorithm=SubmodelAlgorithm.ssa))
 
     def test_digraph_of_rxn_network(self):
@@ -500,21 +500,21 @@ class TestCheckModel(unittest.TestCase):
     def test_check_dfba_submodel_3(self):
 
         # remove all BiomassComponents from the BiomassReaction
-        self.dfba_submodel.biomass_reaction.biomass_components = []
+        self.dfba_submodel.biomass_reactions[0].biomass_components = []
         errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
-        self.assertIn("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(self.dfba_submodel.name),
+        self.assertIn("Error: submodel '{}' uses dFBA but lacks a biomass reaction".format(self.dfba_submodel.name),
                       errors[0])
 
         # remove the BiomassReaction
         self.dfba_submodel.biomass_reaction = None
         errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
-        self.assertIn("Error: submodel '{}' uses dfba but lacks a biomass reaction".format(self.dfba_submodel.name),
+        self.assertIn("Error: submodel '{}' uses dFBA but lacks a biomass reaction".format(self.dfba_submodel.name),
                       errors[0])
 
         # remove the objective function
         self.dfba_submodel.objective_function = None
         errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
-        self.assertIn("Error: submodel '{}' uses dfba but lacks an objective function".format(self.dfba_submodel.name),
+        self.assertIn("Error: submodel '{}' uses dFBA but lacks an objective function".format(self.dfba_submodel.name),
                       errors[0])
 
     def test_check_dfba_submodel_4(self):

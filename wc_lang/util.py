@@ -68,7 +68,7 @@ def get_models(inline=True):
         inline (:obj:`bool`, optional): if true, return inline models
 
     Returns:
-        :obj:`list` of `class`: list of models
+        :obj:`list` of :obj:`class`: list of models
     """
 
     return base_get_models(module=core, inline=inline)

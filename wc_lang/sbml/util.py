@@ -161,7 +161,7 @@ def wrap_libsbml(method, *args, **kwargs):
 
     Args:
         method (:obj:`obj`): a reference to the `libsbml` method to execute
-        args (:obj:`list` of `obj`): a `list` of arguments to the `libsbml` method
+        args (:obj:`list` of :obj:`obj`): a `list` of arguments to the `libsbml` method
         kwargs (:obj:`dict` of `obj`): a `dict` of options:
         returns_int (:obj:`bool`, optional): whether the method returns an integer; if `returns_int`
             is `True`, then an exception will not be raised if the method call returns an integer

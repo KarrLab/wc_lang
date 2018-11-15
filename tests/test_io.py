@@ -289,7 +289,13 @@ class TestExampleModel(unittest.TestCase):
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
-            self.assertEqual(copy[sheet], original[sheet], msg=sheet)
+            for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
+                self.assertEqual(copy_row, original_row, 
+                    msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
+            print(sheet)
+            print(copy[sheet])
+            print(original[sheet])
+            self.assertEqual(copy[sheet], original[sheet], msg='{} sheets are not equal'.format(sheet))
 
         self.assertEqual(copy, original)
 
@@ -369,7 +375,6 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
 
         model2 = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
         observable.model = model2
-        print(observable.expression.species[0])
         with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
             Writer().run(model, filename, set_repo_metadata_from_path=False)
 

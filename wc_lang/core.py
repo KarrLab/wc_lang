@@ -295,7 +295,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         """ Serialize related object
 
         Args:
-            participants (:obj:`list` of `SpeciesCoefficient`): Python representation of reaction participants
+            participants (:obj:`list` of :obj:`SpeciesCoefficient`): Python representation of reaction participants
             encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
@@ -456,7 +456,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
         Args:
             obj (:obj:`Reaction`): object being validated
-            value (:obj:`list` of `SpeciesCoefficient`): value of attribute to validate
+            value (:obj:`list` of :obj:`SpeciesCoefficient`): value of attribute to validate
 
         Returns:
             :obj:`InvalidAttribute` or None: None if attribute is valid, other return list of errors as an instance of `InvalidAttribute`
@@ -657,15 +657,15 @@ class Model(obj_model.Model):
 
     Related attributes:
         taxon (:obj:`Taxon`): taxon
-        submodels (:obj:`list` of `Submodel`): submodels
-        compartments (:obj:`list` of `Compartment`): compartments
-        species_types (:obj:`list` of `SpeciesType`): species types
-        functions (:obj:`list` of `Function`): functions
-        observables (:obj:`list` of `Observable`): observables
-        parameters (:obj:`list` of `Parameter`): parameters
-        stop_conditions (:obj:`list` of `StopCondition`): stop conditions
-        references (:obj:`list` of `Reference`): references
-        database_references (:obj:`list` of `DatabaseReference`): database references
+        submodels (:obj:`list` of :obj:`Submodel`): submodels
+        compartments (:obj:`list` of :obj:`Compartment`): compartments
+        species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        functions (:obj:`list` of :obj:`Function`): functions
+        observables (:obj:`list` of :obj:`Observable`): observables
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
+        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        references (:obj:`list` of :obj:`Reference`): references
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -690,7 +690,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Compartment`: compartments
+            :obj:`list` of :obj:`Compartment`: compartments
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -706,7 +706,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `SpeciesType`: species types
+            :obj:`list` of :obj:`SpeciesType`: species types
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -722,7 +722,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Submodel`: submodels
+            :obj:`list` of :obj:`Submodel`: submodels
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -738,7 +738,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Species`: species
+            :obj:`list` of :obj:`Species`: species
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -763,7 +763,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Concentration`: concentations
+            :obj:`list` of :obj:`Concentration`: concentations
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -784,7 +784,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Reaction`: reactions
+            :obj:`list` of :obj:`Reaction`: reactions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -803,15 +803,16 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `BiomassReaction`: biomass reactions
+            :obj:`list` of :obj:`BiomassReaction`: biomass reactions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
         biomass_reactions = []
         for submodel in self.submodels:
-            if submodel.biomass_reaction and submodel.biomass_reaction.has_attr_vals(__type=__type, **kwargs):
-                biomass_reactions.append(submodel.biomass_reaction)
+            for biomass_reaction in submodel.biomass_reactions:
+                if biomass_reaction.has_attr_vals(__type=__type, **kwargs):
+                    biomass_reactions.append(biomass_reaction)
         return det_dedupe(biomass_reactions)
 
     def get_rate_laws(self, __type=None, **kwargs):
@@ -823,7 +824,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `RateLaw`: rate laws
+            :obj:`list` of :obj:`RateLaw`: rate laws
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -842,7 +843,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Parameter`: parameters
+            :obj:`list` of :obj:`Parameter`: parameters
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -861,7 +862,7 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Reference`: references
+            :obj:`list` of :obj:`Reference`: references
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -924,10 +925,10 @@ class Taxon(obj_model.Model):
         model (:obj:`Model`): model
         rank (:obj:`TaxonRank`): rank
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        database_references (:obj:`list` of `DatabaseReference`): database references
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -950,31 +951,30 @@ class Submodel(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        algorithm (:obj:`SubmodelAlgorithm`): algorithm
-        biomass_reaction (:obj:`BiomassReaction`): the growth reaction for a dFBA submodel
+        algorithm (:obj:`SubmodelAlgorithm`): algorithm        
         objective_function (:obj:`ObjectiveFunction`, optional): objective function for a dFBA submodel;
             if not initialized, then `biomass_reaction` is used as the objective function
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        database_references (:obj:`list` of `DatabaseReference`): database references
-        reactions (:obj:`list` of `Reaction`): reactions
-        parameters (:obj:`list` of `Parameter`): parameters
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
+        reactions (:obj:`list` of :obj:`Reaction`): reactions
+        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): the growth reaction for a dFBA submodel
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
-    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
-    biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='submodels')
+    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)    
     objective_function = ObjectiveFunctionAttribute(related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'algorithm', 'biomass_reaction',
-                           'objective_function', 'comments', 'references')
+                           'algorithm', 'objective_function', 
+                           'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def get_species(self, __type=None, **kwargs):
@@ -986,7 +986,7 @@ class Submodel(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Species`: species in reactions
+            :obj:`list` of :obj:`Species`: species in reactions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -1027,12 +1027,12 @@ class ObjectiveFunction(obj_model.Model):
         expression (:obj:`str`): input mathematical expression of the objective function
         analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
         linear (:obj:`bool`): indicates whether objective function is linear function of reaction fluxes
-        reactions (:obj:`list` of `Reaction`): if linear, reactions whose fluxes are used in the
+        reactions (:obj:`list` of :obj:`Reaction`): if linear, reactions whose fluxes are used in the
             objective function
-        reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for reactions
-        biomass_reactions (:obj:`list` of `BiomassReaction`): if linear, biomass reactions whose
+        reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for reactions
+        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): if linear, biomass reactions whose
             fluxes are used in the objective function
-        biomass_reaction_coefficients (:obj:`list` of `float`): parallel list of coefficients for
+        biomass_reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for
             reactions in biomass_reactions
 
     Related attributes:
@@ -1235,7 +1235,7 @@ class ObjectiveFunction(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of `Species`: species produced by this objective function
+            :obj:`list` of :obj:`Species`: species produced by this objective function
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -1256,8 +1256,7 @@ class ObjectiveFunction(obj_model.Model):
         for biomass_reaction in self.biomass_reactions:
             for biomass_component in biomass_reaction.biomass_components:
                 if 0 < biomass_component.coefficient:
-                    tmp_species_ids.append(Species.gen_id(biomass_component.species_type.id,
-                                                          biomass_reaction.compartment.id))
+                    tmp_species_ids.append(biomass_component.species.id)
         for submodel in self.submodels:
             tmp_species = Species.get(tmp_species_ids, submodel.get_species())
             for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
@@ -1277,13 +1276,11 @@ class Compartment(obj_model.Model):
         model (:obj:`Model`): model
         initial_volume (:obj:`float`): initial volume (L)
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        species (:obj:`list` of `Species`): species in this compartment
-        database_references (:obj:`list` of `DatabaseReference`): database references
-        biomass_reactions (:obj:`list` of `BiomassReaction`): biomass reactions defined for this
-            compartment
+        species (:obj:`list` of :obj:`Species`): species in this compartment
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1334,12 +1331,12 @@ class SpeciesType(obj_model.Model):
         charge (:obj:`int`): charge
         type (:obj:`SpeciesTypeType`): type
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        species (:obj:`list` of `Species`): species
-        database_references (:obj:`list` of `DatabaseReference`): database references
-        concentrations (:obj:`list` of `Concentration`): concentrations
+        species (:obj:`list` of :obj:`Species`): species
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
+        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1378,13 +1375,14 @@ class Species(obj_model.Model):
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
         concentration (:obj:`Concentration`): concentration
-        species_coefficients (:obj:`list` of `SpeciesCoefficient`): participations in reactions and observables
-        rate_law_equations (:obj:`list` of `RateLawEquation`): rate law equations
-        observable_expressions (:obj:`ObservableExpression`): observable expressions
+        species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
+        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
@@ -1444,7 +1442,7 @@ class Species(obj_model.Model):
             species_iterator (:obj:`Iterator`): an iterator over some species
 
         Returns:
-            :obj:`list` of `Species` or `None`: each element of the `list` corresponds to an element
+            :obj:`list` of :obj:`Species` or `None`: each element of the `list` corresponds to an element
                 of `ids` and contains either a `Species` with `id()` equal to the element in `ids`,
                 or `None` indicating that `species_iterator` does not contain a matching `Species`
         """
@@ -1459,20 +1457,7 @@ class Species(obj_model.Model):
             rv.append(s)
         return rv
 
-    def xml_id(self):
-        """ Make a Species id that satisfies the SBML string id syntax.
-
-        Use `make_xml_id()` to make a SBML id.
-
-        Returns:
-            :obj:`str`: an SBML id
-        """
-        return Species.make_xml_id(
-            self.species_type.get_primary_attribute(),
-            self.compartment.get_primary_attribute())
-
-    @staticmethod
-    def make_xml_id(species_type_id, compartment_id):
+    def gen_sbml_id(self):
         """ Make a Species id that satisfies the SBML string id syntax.
 
         Replaces the '[' and ']' in Species.id with double-underscores '__'.
@@ -1480,18 +1465,18 @@ class Species(obj_model.Model):
         Facilities for Model Definitions", 2003, section 3.4.
 
         Returns:
-            :obj:`str`: an SBML id
+            :obj:`str`: SBML id
         """
-        return '{}__{}__'.format(species_type_id, compartment_id)
+        return '{}__{}__'.format(self.species_type.id, self.compartment.id)
 
     @staticmethod
-    def xml_id_to_id(xml_id):
-        """ Convert an `xml_id` to its species id.
+    def sbml_id_to_id(sbml_id):
+        """ Convert an `sbml_id` to its species id.
 
         Returns:
-            :obj:`str`: a species id
+            :obj:`str`: species id
         """
-        return xml_id.replace('__', '[', 1).replace('__', ']', 1)
+        return sbml_id.replace('__', '[', 1).replace('__', ']', 1)
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Species to a libsbml SBML document.
@@ -1509,7 +1494,7 @@ class Species(obj_model.Model):
         sbml_species = wrap_libsbml(sbml_model.createSpecies)
         # initDefaults() isn't wrapped in wrap_libsbml because it returns None
         sbml_species.initDefaults()
-        wrap_libsbml(sbml_species.setIdAttribute, self.xml_id())
+        wrap_libsbml(sbml_species.setIdAttribute, self.gen_sbml_id())
 
         # add some SpeciesType data
         wrap_libsbml(sbml_species.setName, self.species_type.name)
@@ -1537,7 +1522,7 @@ class Concentration(obj_model.Model):
         value (:obj:`float`): value
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
     """
     species = OneToOneAttribute(Species, related_name='concentration')
     value = FloatAttribute(min=0)
@@ -1708,8 +1693,8 @@ class ObservableExpression(obj_model.Model):
     Attributes:
         expression (:obj:`str`): mathematical expression for an Observable
         analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
-        observables (:obj:`list` of `Observable`): other Observables used by this Observable expression
-        species (:obj:`list` of `Species`): Species used by this Observable expression
+        observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
+        species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
 
     Related attributes:
         observable_expressions (:obj:`ObservableExpression`): observable expressions
@@ -1787,9 +1772,9 @@ class FunctionExpression(obj_model.Model):
     Attributes:
         expression (:obj:`str`): mathematical expression for a Function
         analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
-        observables (:obj:`list` of `Observable`): Observables used by this function expression
-        parameters (:obj:`list` of `Parameter`): Parameters used by this function expression
-        functions (:obj:`list` of `Function`): other Functions used by this function expression
+        observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
+        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
+        functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
 
     Related attributes:
         function (:obj:`Function`): function
@@ -1863,9 +1848,9 @@ class StopConditionExpression(obj_model.Model):
     Attributes:
         expression (:obj:`str`): mathematical expression for a StopCondition
         analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
-        observables (:obj:`list` of `Observable`): Observables used by this stop condition expression
-        parameters (:obj:`list` of `Parameter`): Parameters used by this stop condition expression
-        functions (:obj:`list` of `Function`): Functions used by this stop condition expression
+        observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
+        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
+        functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
 
     Related attributes:
         stop_condition (:obj:`StopCondition`): stop condition
@@ -1942,16 +1927,16 @@ class Reaction(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         submodel (:obj:`Submodel`): submodel that reaction belongs to
-        participants (:obj:`list` of `SpeciesCoefficient`): participants
+        participants (:obj:`list` of :obj:`SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
         min_flux (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         max_flux (:obj:`float`): maximum flux bound for solving an FBA model
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        database_references (:obj:`list` of `DatabaseReference`): database references
-        rate_laws (:obj:`list` of `RateLaw`): rate laws; if present, rate_laws[0] is the forward
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
+        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
             rate law, and rate_laws[0] is the backward rate law
     """
     id = SlugAttribute()
@@ -2025,7 +2010,7 @@ class Reaction(obj_model.Model):
             elif 0 < participant.coefficient:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
                 wrap_libsbml(species_reference.setStoichiometry, participant.coefficient)
-            wrap_libsbml(species_reference.setSpecies, participant.species.xml_id())
+            wrap_libsbml(species_reference.setSpecies, participant.species.gen_sbml_id())
             wrap_libsbml(species_reference.setConstant, True)
 
         # for dFBA submodels, write flux bounds to SBML document
@@ -2172,7 +2157,7 @@ class RateLaw(obj_model.Model):
         k_cat (:obj:`float`): v_max (reactions enz^-1 s^-1)
         k_m (:obj:`float`): k_m (M)
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
     """
 
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
@@ -2235,8 +2220,8 @@ class RateLawEquation(obj_model.Model):
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
         transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
-        modifiers (:obj:`list` of `Species`): species whose concentrations are used in the rate law
-        parameters (:obj:`list` of `Parameter`): parameters whose values are used in the rate law
+        modifiers (:obj:`list` of :obj:`Species`): species whose concentrations are used in the rate law
+        parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
 
     Related attributes:
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
@@ -2379,22 +2364,22 @@ class BiomassComponent(obj_model.Model):
         name (:obj:`str`): name
         biomass_reaction (:obj:`BiomassReaction`): the biomass reaction that uses the biomass component
         coefficient (:obj:`float`): the specie's reaction coefficient
-        species_type (:obj:`SpeciesType`): the specie type
+        species (:obj:`Species`): species
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
     """
     id = SlugAttribute()
     name = StringAttribute()
     biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='biomass_components')
     coefficient = FloatAttribute()
-    species_type = ManyToOneAttribute(SpeciesType, related_name='biomass_components')
+    species = ManyToOneAttribute(Species, related_name='biomass_components')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_components')
 
     class Meta(obj_model.Model.Meta):
-        unique_together = (('biomass_reaction', 'species_type'), )
+        unique_together = (('biomass_reaction', 'species'), )
         attribute_order = ('id', 'name', 'biomass_reaction',
-                           'coefficient', 'species_type',
+                           'coefficient', 'species',
                            'comments', 'references')
 
 
@@ -2405,24 +2390,23 @@ class BiomassReaction(obj_model.Model):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
-        compartment (:obj:`Compartment`): the compartment containing this BiomassReaction's species
+        submodel (:obj:`Submodel`): submodel that uses this reaction
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
-    Related attributes:
-        submodels (:obj:`list` of `Submodel`): submodels that use this biomass reaction
-        objective_functions (:obj:`list` of `ObjectiveFunction`): objective functions that use this
+    Related attributes:        
+        objective_functions (:obj:`list` of :obj:`ObjectiveFunction`): objective functions that use this
             biomass reaction
-        biomass_components (:obj:`list` of `BiomassComponent`): the components of this biomass reaction
+        biomass_components (:obj:`list` of :obj:`BiomassComponent`): the components of this biomass reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
-    compartment = ManyToOneAttribute(Compartment, related_name='biomass_reactions')
+    submodel = ManyToOneAttribute('Submodel', related_name='biomass_reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'compartment', 'comments', 'references')
+        attribute_order = ('id', 'name', 'submodel', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def add_to_sbml_doc(self, sbml_document):
@@ -2449,7 +2433,6 @@ class BiomassReaction(obj_model.Model):
         sbml_reaction = wrap_libsbml(sbml_model.createReaction)
         wrap_libsbml(sbml_reaction.setIdAttribute, self.id)
         wrap_libsbml(sbml_reaction.setName, self.name)
-        wrap_libsbml(sbml_reaction.setCompartment, self.compartment.id)
         wrap_libsbml(sbml_reaction.setReversible, False)
         wrap_libsbml(sbml_reaction.setFast, False)
         if self.comments:
@@ -2463,9 +2446,7 @@ class BiomassReaction(obj_model.Model):
             elif 0 < biomass_component.coefficient:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
                 wrap_libsbml(species_reference.setStoichiometry, biomass_component.coefficient)
-            id = Species.make_xml_id(
-                biomass_component.species_type.get_primary_attribute(),
-                self.compartment.id)
+            id = biomass_component.species.gen_sbml_id()
             wrap_libsbml(species_reference.setSpecies, id)
             wrap_libsbml(species_reference.setConstant, True)
 
@@ -2497,10 +2478,10 @@ class Parameter(obj_model.Model):
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         comments (:obj:`str`): comments
-        references (:obj:`list` of `Reference`): references
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        functions (:obj:`list` of `FunctionExpression`): FunctionExpressions that use a Parameter
+        functions (:obj:`list` of :obj:`FunctionExpression`): FunctionExpressions that use a Parameter
     """
     id = SlugAttribute(unique=False)
     name = StringAttribute()
@@ -2574,16 +2555,17 @@ class Reference(obj_model.Model):
         comments (:obj:`str`): comments
 
     Related attributes:
-        database_references (:obj:`list` of `DatabaseReference`): database references
-        taxa (:obj:`list` of `Taxon`): taxa
-        submodels (:obj:`list` of `Submodel`): submodels
-        compartments (:obj:`list` of `Compartment`): compartments
-        species_types (:obj:`list` of `SpeciesType`): species types
-        species (:obj:`list` of `Species`): species
-        concentrations (:obj:`list` of `Concentration`): concentrations
-        reactions (:obj:`list` of `Reaction`): reactions
-        rate_laws (:obj:`list` of `RateLaw`): rate laws
-        parameters (:obj:`list` of `Parameter`): parameters
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
+        taxa (:obj:`list` of :obj:`Taxon`): taxa
+        submodels (:obj:`list` of :obj:`Submodel`): submodels
+        compartments (:obj:`list` of :obj:`Compartment`): compartments
+        species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        species (:obj:`list` of :obj:`Species`): species
+        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        reactions (:obj:`list` of :obj:`Reaction`): reactions
+        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()
