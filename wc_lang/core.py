@@ -158,7 +158,7 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('pM', 6),
     ('fM', 7),
     ('aM', 8),
-    ('moles dm^-2', 9),
+    ('mol dm^-2', 9),
 ])
 
 
@@ -388,7 +388,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 species_id = Species.gen_id(species_type.id, compartment.id)
                 species, error = Species.deserialize(species_id, objects)
                 if error:
-                    raise ValueError('Invalid species "{}"'.format(species_id)) # pragma: no cover; unreachable due to above error checking of species types and compartments
+                    raise ValueError('Invalid species "{}"'.format(species_id)
+                                     )  # pragma: no cover; unreachable due to above error checking of species types and compartments
 
                 if coefficient != 0:
                     if SpeciesCoefficient not in objects:
@@ -1483,13 +1484,13 @@ class Concentration(obj_model.Model):
     Attributes:
         species (:obj:`Species`): species
         value (:obj:`float`): value
-        units (:obj:`str`): units; default units is 'M'
+        units (:obj:`ConcentrationUnit`): units; default units is `M`
         comments (:obj:`str`): comments
         references (:obj:`list` of `Reference`): references
     """
     species = OneToOneAttribute(Species, related_name='concentration')
     value = FloatAttribute(min=0)
-    units = EnumAttribute(ConcentrationUnit)
+    units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
@@ -2347,9 +2348,8 @@ class BiomassComponent(obj_model.Model):
 
 
 class BiomassReaction(obj_model.Model):
-    """ BiomassReaction
-
-    A pseudo-reaction used to estimate a cell's growth.
+    """ A pseudo-reaction used to represent the interface between metabolism and other 
+    cell processes.
 
     Attributes:
         id (:obj:`str`): unique identifier
