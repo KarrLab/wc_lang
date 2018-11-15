@@ -12,12 +12,13 @@ Includes
 :License: MIT
 """
 
-import sys
-from libsbml import (LIBSBML_OPERATION_SUCCESS, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_GRAM,
-                     UNIT_KIND_DIMENSIONLESS, OperationReturnValue_toString, SBMLNamespaces, SBMLDocument)
-
+from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
+                     SBMLNamespaces, SBMLDocument)
 from warnings import warn
+import libsbml
 import six
+import sys
+import wc_lang.core
 
 # Centralize code that depends on levels and versions
 # SBML level and version
@@ -142,6 +143,7 @@ class LibSBMLInterface(object):
             wrap_libsbml(sbml_parameter.setConstant, constant)
             return sbml_parameter
 
+
 create_sbml_doc_w_fbc = LibSBMLInterface._create_sbml_doc_w_fbc
 add_sbml_unit = LibSBMLInterface._add_sbml_unit
 create_sbml_parameter = LibSBMLInterface._create_sbml_parameter
@@ -192,7 +194,7 @@ def wrap_libsbml(method, *args, **kwargs):
     for arg in args:
         # if on Python 2, convert unicode text to str(), because libSBML doesn't use SWIG_PYTHON_2_UNICODE
         if six.PY2 and isinstance(arg, six.text_type):
-            new_args.append(str(arg)) # pragma: no cover # Python 2 only
+            new_args.append(str(arg))  # pragma: no cover # Python 2 only
         else:
             new_args.append(arg)
     if new_args:
@@ -272,18 +274,27 @@ def init_sbml_model(sbml_document):
     # and 'multiplier' defined.
     per_second = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(per_second.setIdAttribute, 'per_second')
-    add_sbml_unit(per_second, UNIT_KIND_SECOND, exponent=-1)
+    add_sbml_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
+
+    for unit_def, unit_def_meta in wc_lang.core.ConcentrationUnit.Meta.items():
+        sbml_unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
+        wrap_libsbml(sbml_unit_def.setIdAttribute, unit_def_meta['xml_id'])
+        substance_unit = unit_def_meta['substance_units']
+        add_sbml_unit(sbml_unit_def,
+                      getattr(libsbml, 'UNIT_KIND_' + substance_unit['kind'].upper()),
+                      exponent=substance_unit['exponent'],
+                      scale=substance_unit['scale'])
 
     mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
-    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_MOLE, scale=-3)
-    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_GRAM, exponent=-1)
-    add_sbml_unit(mmol_per_gDW_per_hr, UNIT_KIND_SECOND, exponent=-1,
+    add_sbml_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_MOLE, scale=-3)
+    add_sbml_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_GRAM, exponent=-1)
+    add_sbml_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_SECOND, exponent=-1,
                   multiplier=3600.0)
 
     dimensionless = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
-    add_sbml_unit(dimensionless, UNIT_KIND_DIMENSIONLESS)
+    add_sbml_unit(dimensionless, libsbml.UNIT_KIND_DIMENSIONLESS)
 
     return sbml_model
 

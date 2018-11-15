@@ -55,7 +55,7 @@ import obj_model
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
-                               init_sbml_model, create_sbml_parameter, add_sbml_unit, UNIT_KIND_DIMENSIONLESS)
+                               init_sbml_model, create_sbml_parameter, add_sbml_unit)
 from wc_lang.expression_utils import (RateLawUtils, WcLangExpression, WcLangExpressionError,
                                       LinearExpressionVerifier)
 
@@ -160,6 +160,53 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('aM', 8),
     ('mol dm^-2', 9),
 ])
+ConcentrationUnit.Meta = {
+    ConcentrationUnit['molecules']: {
+        'xml_id': 'molecules',
+        'substance_units': {'kind': 'item', 'exponent': 1, 'scale': 0},
+        'volume_units': None,
+    },
+    ConcentrationUnit['M']: {
+        'xml_id': 'M',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': 0},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['mM']: {
+        'xml_id': 'mM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -3},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['uM']: {
+        'xml_id': 'uM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -6},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['nM']: {
+        'xml_id': 'nM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -9},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['pM']: {
+        'xml_id': 'pM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -12},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['fM']: {
+        'xml_id': 'fM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -15},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['aM']: {
+        'xml_id': 'aM',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -18},
+        'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
+    },
+    ConcentrationUnit['mol dm^-2']: {
+        'xml_id': 'mol_per_dm_2',
+        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': 0},
+        'volume_units': {'kind': 'metre', 'exponent': -2, 'scale': -1},
+    },
+}
 
 
 class RateLawDirection(int, CaseInsensitiveEnum):
@@ -1474,6 +1521,10 @@ class Species(obj_model.Model):
 
         # set the Initial Concentration
         wrap_libsbml(sbml_species.setInitialConcentration, self.concentration.value)
+
+        # set units
+        unit_xml_id = ConcentrationUnit.Meta[self.concentration.units]['xml_id']
+        wrap_libsbml(sbml_species.setSubstanceUnits, unit_xml_id)
 
         return sbml_species
 
