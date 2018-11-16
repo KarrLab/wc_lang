@@ -966,14 +966,14 @@ class Submodel(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
-    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)    
+    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     objective_function = ObjectiveFunctionAttribute(related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'algorithm', 'objective_function', 
+                           'algorithm', 'objective_function',
                            'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -1356,13 +1356,13 @@ class SpeciesType(obj_model.Model):
 
         indexed_attrs_tuples = (('id',), )
 
-    # todo: move to compiled model
     def is_carbon_containing(self):
         """ Returns `True` is species contains at least one carbon atom.
 
         Returns:
             :obj:`bool`: `True` is species contains at least one carbon atom.
         """
+        # todo: move to compiled model
         return re.match('C[1-9]', self.empirical_formula) is not None
 
 
