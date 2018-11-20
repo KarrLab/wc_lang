@@ -7,13 +7,14 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
+from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
                      BiomassComponent, BiomassReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopCondition, StopConditionExpression,
                      Observable, ObservableExpression,
-                     RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
+                     RateLaw, RateLawEquation, RateLawDirection,
+                     SubmodelAlgorithm, Concentration, ConcentrationUnit)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
@@ -82,14 +83,13 @@ class TestSimpleModel(unittest.TestCase):
             return species_coefficients[part_serialized]
 
         self.observables = observables = []
-        attr = Observable.Meta.attributes['expression']
         objects = {Species: {}, Observable: {}}
         for i in range(8):
             expr_parts = []
             for j in range(i + 1):
                 objects[Species][species[j].id] = species[j]
                 expr_parts.append("{} * {}".format(j + 1, species[j].id))
-            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            obs_expr, _ = ObservableExpression.deserialize(' + '.join(expr_parts), objects)
             id = 'obs_{}'.format(i)
             obs = mdl.observables.create(id=id, expression=obs_expr)
             observables.append(obs)
@@ -98,17 +98,18 @@ class TestSimpleModel(unittest.TestCase):
             expr_parts = []
             for j in range(i + 1):
                 expr_parts.append("{} * {}".format(j + 1, observables[j].id))
-            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            obs_expr, _ = ObservableExpression.deserialize(' + '.join(expr_parts), objects)
             obs = mdl.observables.create(id='obs_{}'.format(i + 8), expression=obs_expr)
             observables.append(obs)
 
-        obs_expr = ' + 2 * '.join(o.id for o in observables[0:j + 1])
         objects = {Observable: {o.id: o for o in observables}}
-        attr = Function.Meta.attributes['expression']
-        func_expr, _ = FunctionExpression.deserialize(attr, obs_expr, objects)
         self.functions = functions = []
         for i in range(8):
-            func = mdl.functions.create(id='func_{}'.format(i), expression=func_expr)
+            obs_expr = ' + 2 * '.join(o.id for o in observables[0:i + 1])
+            func_expr, _ = FunctionExpression.deserialize(obs_expr,
+                                                          objects)
+            func = mdl.functions.create(id='func_{}'.format(i),
+                                        expression=func_expr)
             functions.append(func)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -127,7 +128,10 @@ class TestSimpleModel(unittest.TestCase):
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_0 = rxn_0.rate_laws.create(
+            id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
@@ -136,7 +140,10 @@ class TestSimpleModel(unittest.TestCase):
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_1 = rxn_1.rate_laws.create(
+            id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
@@ -145,7 +152,10 @@ class TestSimpleModel(unittest.TestCase):
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_2 = rxn_2.rate_laws.create(
+            id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
@@ -171,11 +181,10 @@ class TestSimpleModel(unittest.TestCase):
             database_references.append(x_ref)
 
         self.stop_conditions = stop_conditions = []
-        attr = StopCondition.Meta.attributes['expression']
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
             expr = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
-            cond.expression = StopConditionExpression.deserialize(attr, expr, objects)[0]
+            cond.expression = StopConditionExpression.deserialize(expr, objects)[0]
             self.stop_conditions.append(cond)
 
         self.dirname = tempfile.mkdtemp()
@@ -290,11 +299,8 @@ class TestExampleModel(unittest.TestCase):
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
-                self.assertEqual(copy_row, original_row, 
-                    msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
-            print(sheet)
-            print(copy[sheet])
-            print(original[sheet])
+                self.assertEqual(copy_row, original_row,
+                                 msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
             self.assertEqual(copy[sheet], original[sheet], msg='{} sheets are not equal'.format(sheet))
 
         self.assertEqual(copy, original)
@@ -365,9 +371,8 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
             id=Species.gen_id(species_type.id, compartment.id),
             species_type=species_type,
             compartment=compartment)
-        attr = Observable.Meta.attributes['expression']
         s_id = species.serialize()
-        obs_expr, _ = ObservableExpression.deserialize(attr, s_id, {Species: {s_id: species}})
+        obs_expr, _ = ObservableExpression.deserialize(s_id, {Species: {s_id: species}})
         observable = model.observables.create(id='observable', expression=obs_expr)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')

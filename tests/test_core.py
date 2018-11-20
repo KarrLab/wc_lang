@@ -9,19 +9,21 @@
 
 import os
 import pytest
+import re
 import unittest
 import warnings
 import math
 from obj_model.core import InvalidAttribute
 import wc_lang
-from wc_lang.core import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction,
+from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
+                          DfbaObjective, DfbaObjectiveExpression,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
-                          RateLaw, RateLawEquation, RateLawEquationAttribute,
-                          Function, FunctionExpression, FunctionExpressionAttribute,
-                          Observable, ObservableExpression, ObservableExpressionAttribute,
-                          StopCondition, StopConditionExpression, StopConditionExpressionAttribute,
+                          RateLaw, RateLawEquation, RateLawEquationAttribute, RateLawDirection,
+                          Function, FunctionExpression,
+                          Observable, ObservableExpression,
+                          StopCondition, StopConditionExpression,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction,
                           ReactionParticipantAttribute, ExpressionMethods,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
@@ -85,7 +87,7 @@ class TestCore(unittest.TestCase):
             biomass_components.append(
                 biomass_reaction.biomass_components.create(
                     id='biomass_comp_{}'.format(i + 1),
-                    coefficient=2 * (float(i) - 0.5), # create a reactant and a product
+                    coefficient=2 * (float(i) - 0.5),  # create a reactant and a product
                     species=species[i]))
         self.biomass_components = biomass_components
 
@@ -113,7 +115,10 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_0 = rxn_0.rate_laws.create(
+            id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
         rxn_1.participants.create(species=species[0], coefficient=-2)
@@ -122,7 +127,10 @@ class TestCore(unittest.TestCase):
         equation = RateLawEquation(
             expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_1 = rxn_1.rate_laws.create(
+            id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
         rxn_2.participants.create(species=species[0], coefficient=-2)
@@ -132,17 +140,22 @@ class TestCore(unittest.TestCase):
             expression='{1} * {0} / ({2} + {0})'.format(species[7].serialize(), parameters[0].id, parameters[1].id),
             modifiers=species[7:8],
             parameters=parameters[0:2])
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rate_law_2 = rxn_2.rate_laws.create(
+            id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
+            direction=RateLawDirection.forward,
+            equation=equation, k_cat=2, k_m=1)
 
         Reaction.get_manager().insert_all_new()
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
 
-        self.objective_function = of = biomass_reaction.objective_functions.create()
-        of.submodels.append(submdl_2)
-        of.reactions.append(rxn_1)
-        of.reactions.append(rxn_2)
+        self.dfba_obj = of = DfbaObjective()
+        of.submodel = submdl_2
+        of.expression = DfbaObjectiveExpression()
+        of.expression.reactions.append(rxn_1)
+        of.expression.reactions.append(rxn_2)
+        biomass_reaction.dfba_obj_expression = of.expression
 
         self.references = references = []
         self.database_references = database_references = []
@@ -358,18 +371,17 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(set(mdl.get_biomass_reactions(__type=BiomassReaction)), set())
         self.assertEqual(set(mdl.get_biomass_reactions(__type=Reaction)), set())
 
-        prod = self.objective_function.get_products()
-        self.assertEqual(set(self.objective_function.get_products()), set([
+        self.assertEqual(set(self.dfba_obj.get_products()), set([
             self.species[3],
             self.species[4],
             self.species[1],
         ]))
-        self.assertEqual(set(self.objective_function.get_products(__type=Species)), set([
+        self.assertEqual(set(self.dfba_obj.get_products(__type=Species)), set([
             self.species[3],
             self.species[4],
             self.species[1],
         ]))
-        self.assertEqual(set(self.objective_function.get_products(__type=Reaction)), set())
+        self.assertEqual(set(self.dfba_obj.get_products(__type=Reaction)), set())
 
     def test_get_component(self):
         model = self.model
@@ -436,10 +448,8 @@ class TestCore(unittest.TestCase):
             species_type=objs[SpeciesType]['spec_0'],
             compartment=objs[Compartment]['c_1'])
 
-        attr = Reaction.Meta.attributes['participants']
-
         val = 'spec_0[c_0]'
-        part0, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part0, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part0.coefficient, 1)
         self.assertEqual(part0.species.serialize(), 'spec_0[c_0]')
@@ -447,7 +457,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(2) spec_0[c_0]'
-        part1, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part1, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part1.coefficient, 2)
         self.assertEqual(part1.species.serialize(), 'spec_0[c_0]')
@@ -455,7 +465,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(2.) spec_0[c_1]'
-        part2, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part2, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part2.coefficient, 2)
         self.assertEqual(part2.species.serialize(), 'spec_0[c_1]')
@@ -463,7 +473,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(2.5) spec_0[c_0]'
-        part3, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part3, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part3.coefficient, 2.5)
         self.assertEqual(part3.species.serialize(), 'spec_0[c_0]')
@@ -471,7 +481,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(.5) spec_0[c_0]'
-        part4, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part4, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(error, None)
         self.assertEqual(part4.coefficient, 0.5)
         self.assertEqual(part4.species.serialize(), 'spec_0[c_0]')
@@ -479,38 +489,38 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(.5) spec_0[c_0]'
-        part4b, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part4b, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertEqual(part4b, part4)
         self.assertTrue(part4b is part4)
 
         # negative examples
         val = '(1) spec_1'
-        part5, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part5, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
         self.assertNotEqual(error, None)
         self.assertEqual(part5, None)
 
         val = '(-1) spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = '(1) spec_0'
-        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = '(1.1.) spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = ' spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
         val = ' spec_3[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(attr, val, objs)
+        part6, error = SpeciesCoefficient.deserialize(val, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(part6, None)
 
@@ -518,7 +528,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(len(objs[Species]), 2)
 
         val = '(1) spec_3'
-        part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
         self.assertNotEqual(error, None)
         self.assertEqual(part, None)
 
@@ -528,14 +538,14 @@ class TestCore(unittest.TestCase):
                 species=Species(id='spec_0[c_0]', species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
                 coefficient=2)
         }
-        part, error = SpeciesCoefficient.deserialize(attr, val, objs, compartment=objs[Compartment]['c_0'])
+        part, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
         self.assertEqual(error, None)
         self.assertEqual(part, objs[SpeciesCoefficient]['(2) spec_0[c_0]'])
 
-    def test_rate_law_serialize(self):
-        self.assertEqual(self.rate_laws[0].serialize(), 'rxn_0.forward')
-        self.assertEqual(self.rate_laws[1].serialize(), 'rxn_1.forward')
-        self.assertEqual(self.rate_laws[2].serialize(), 'rxn_2.forward')
+    def test_rate_gen_id(self):
+        self.assertEqual(self.rate_laws[0].id, 'rxn_0-forward')
+        self.assertEqual(self.rate_laws[1].id, 'rxn_1-forward')
+        self.assertEqual(self.rate_laws[2].id, 'rxn_2-forward')
 
     def test_rate_law_equation_serialize(self):
         self.assertEqual(self.rate_laws[0].equation.serialize(),
@@ -581,45 +591,39 @@ class TestCore(unittest.TestCase):
                                                compartment=objs[Compartment]['c_1'])
 
         expression = 'k_cat * spec_0[c_0]'
-        attr = RateLaw.Meta.attributes['equation']
-        equation1, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation1, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
         self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1]))
 
         expression = 'k_cat * spec_0[c_1] / (k_m + spec_2[c_1])'
-        attr = RateLaw.Meta.attributes['equation']
-        equation2, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation2, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation2.expression, expression)
         self.assertEqual(set([x.serialize() for x in equation2.modifiers]), set(['spec_0[c_1]', 'spec_2[c_1]']))
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
         expression = 'k_cat * spec_0[c_3] / (k_m + spec_1[c_1])'
-        attr = RateLaw.Meta.attributes['equation']
-        equation, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
         expression = 'k_cat * spec_3[c_0] / (k_m + spec_1[c_1])'
-        attr = RateLaw.Meta.attributes['equation']
-        equation, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
         # exception
-        attr = RateLaw.Meta.attributes['equation']
-        equation, error = RateLawEquation.deserialize(attr, 2, objs)
+        equation, error = RateLawEquation.deserialize(2, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
 
         # with parameters
         expression = 'p_1 * spec_0[c_1] / (p_2 + spec_2[c_1])'
-        attr = RateLaw.Meta.attributes['equation']
-        equation3, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation3, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation3.expression, expression)
         self.assertEqual(set([x.serialize() for x in equation3.modifiers]), set(['spec_0[c_1]', 'spec_2[c_1]']))
@@ -627,8 +631,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3]))
 
         expression = 'p_3 * spec_0[c_1] / (p_2 + spec_2[c_1])'
-        attr = RateLaw.Meta.attributes['equation']
-        equation, error = RateLawEquation.deserialize(attr, expression, objs)
+        equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3]))
@@ -654,6 +657,8 @@ class TestCore(unittest.TestCase):
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
             equation=equation,
         )
         self.assertNotEqual(rate_law.validate(), None)
@@ -664,6 +669,8 @@ class TestCore(unittest.TestCase):
             expression=expression,
             parameters=[parameters[0]])
         rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
             equation=equation,
         )
         self.assertNotEqual(rate_law.validate(), None)
@@ -676,6 +683,8 @@ class TestCore(unittest.TestCase):
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
             equation=equation
         )
         self.assertNotEqual(rate_law.validate(), None)
@@ -688,6 +697,8 @@ class TestCore(unittest.TestCase):
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
             equation=equation
         )
         self.assertNotEqual(rate_law.validate(), None)
@@ -700,12 +711,14 @@ class TestCore(unittest.TestCase):
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
         rate_law = RateLaw(
-            k_cat=2,
-            k_m=1,
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
+            k_cat=2.,
+            k_m=1.,
             equation=equation
         )
         error = rate_law.validate()
-        self.assertEqual(rate_law.validate(), None)
+        self.assertEqual(rate_law.validate(), None, str(error))
 
         # No error with parameters
         expression = 'p_0 * spec_0[c_0]'
@@ -718,11 +731,22 @@ class TestCore(unittest.TestCase):
                 parameters[0],
             ],)
         rate_law = RateLaw(
-            k_cat=2,
-            k_m=1,
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
+            k_cat=2.,
+            k_m=1.,
             equation=equation
         )
         self.assertEqual(rate_law.validate(), None)
+
+        # k_cat is integer
+        rate_law.k_cat = 2
+        self.assertNotEqual(rate_law.validate(), None)
+
+        # id doesn't match template
+        rate_law.k_cat = 2.
+        rate_law.id = 'rxn-backward'
+        self.assertNotEqual(rate_law.validate(), None)
 
     def test_rate_law_equation_validate(self):
         species_types = [
@@ -1113,7 +1137,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(equation1.modifiers[0], objs[Species]['spec_0[c_0]'])
         self.assertEqual(list(objs[RateLawEquation].values()), [equation1])
 
-    def test_objective_function_deserialize(self):
+    def test_dfba_obj_deserialize(self):
 
         objs = {
             Reaction: {
@@ -1127,95 +1151,197 @@ class TestCore(unittest.TestCase):
             },
         }
 
-        attr = ObjectiveFunction.Meta.attributes['expression']
-
         value = None
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertTrue(of is None)
-        self.assertTrue(invalid_attribute is None)
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(of_expr.expression, '')
+        self.assertEqual(of_expr.reactions, [])
+        self.assertEqual(of_expr.biomass_reactions, [])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+        self.assertEqual(invalid_attribute, None)
+
+        value = ''
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(of_expr.expression, '')
+        self.assertEqual(of_expr.reactions, [])
+        self.assertEqual(of_expr.biomass_reactions, [])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+        self.assertEqual(invalid_attribute, None)
+
+        value = "2*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
+        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+
+        value = "2*biomass_reaction_1 - pow( reaction_1, 1)"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
+        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertEqual(of.reactions[0], objs[Reaction]['reaction_1'])
-        self.assertEqual(of.biomass_reactions[0], objs[BiomassReaction]['biomass_reaction_1'])
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
+        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
 
         objs[Reaction]['biomass_reaction_1'] = Reaction(id='biomass_reaction_1')
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertTrue(of is None)
-        self.assertIn("id 'biomass_reaction_1' ambiguous between a Reaction and a BiomassReaction",
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertTrue(of_expr is None)
+        self.assertIn(("contains multiple model object id matches: "
+                       "'biomass_reaction_1' as a BiomassReaction id, "
+                       "'biomass_reaction_1' as a Reaction id"),
                       invalid_attribute.messages[0])
 
         del objs[Reaction]['biomass_reaction_1']
         value = "2*biomass_reaction_1 - pow( reaction_x, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertTrue(of is None)
-        self.assertIn("id 'reaction_x' not a Reaction or a BiomassReaction identifier",
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertTrue(of_expr is None)
+        self.assertIn("contains the identifier(s) 'reaction_x', which aren't the id(s) of an object",
                       invalid_attribute.messages[0])
 
         value = "2*biomass_reaction_1 - pow( biomass_reaction_1, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertEqual(of.reactions, [])
-        self.assertEqual(of.biomass_reactions[0], objs[BiomassReaction]['biomass_reaction_1'])
-        self.assertEqual(len(of.biomass_reactions), 1)
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr.reactions, [])
+        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
 
-    def test_objective_function_deserialize_invalid_ids(self):
+    def test_dfba_obj_deserialize_invalid_ids(self):
 
         objs = {
             Reaction: {
-                'pow': Reaction(id='reaction_0'),
+                'pow': Reaction(id='pow'),
                 'reaction_x': Reaction(id='reaction_x'),
             },
             BiomassReaction: {
-                'exp': BiomassReaction(id='biomass_reaction_0'),
+                'exp': BiomassReaction(id='exp'),
             },
         }
 
-        attr = ObjectiveFunction.Meta.attributes['expression']
         value = "2*exp - pow( reaction_x, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertTrue(of is None)
-        self.assertIn("reaction id(s) {pow} ambiguous between a Reaction and a valid function",
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(of_expr, None)
+        self.assertIn("Token `pow` is ambiguous",
                       invalid_attribute.messages[0])
-        self.assertIn("reaction id(s) {exp} ambiguous between a BiomassReaction and a valid function",
-                      invalid_attribute.messages[1])
+        self.assertIn("Token matches a Reaction and a function",
+                      invalid_attribute.messages[0])
 
-    def test_objective_function_validate(self):
+    def test_dfba_obj_validate(self):
 
         objs = {
+            BiomassReaction: {
+                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
+                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
+            },
             Reaction: {
                 'reaction_0': Reaction(id='reaction_0'),
                 'reaction_1': Reaction(id='reaction_1'),
                 'reaction_2': Reaction(id='reaction_2'),
             },
-            BiomassReaction: {
-                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
-                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
-            },
         }
 
-        attr = ObjectiveFunction.Meta.attributes['expression']
+        value = "2*biomass_reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        value = "2*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        value = "2*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.expression = of_expr.expression[0:-1]
+        rv = of_expr.validate()
+        self.assertTrue(isinstance(rv, InvalidObject))
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
+
+        value = "2*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.expression += ')'
+        rv = of_expr.validate()
+        self.assertTrue(isinstance(rv, InvalidObject))
+        self.assertRegex(rv.attributes[0].messages[0], "Python syntax error")
+
+        value = "2*biomass_reaction_1 -  3*reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.biomass_reactions = []
+        rv = of_expr.validate()
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
+
+        value = "2*biomass_reaction_1 * reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None)
+
+        value = "2*biomass_reaction_1 ** 2"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        self.assertTrue(invalid_attribute is None)
-        rv = of.validate()
-        self.assertTrue(rv is None)
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None)
 
-        value = "2*biomass_reaction_1 - pow( reaction_1, 2"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        rv = of.validate()
+        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        of_expr.expression = "2*biomass_reaction_1 - min( reaction_1, 2)"
+        rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
-        self.assertEqual(rv.attributes[0].messages[0], "syntax error in expression '{}'".format(value))
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        value = "2*biomass_reaction_1 - pow( 3*reaction_1, 2)"
-        (of, invalid_attribute) = ObjectiveFunction.deserialize(attr, value, objs)
-        of.biomass_reactions = []
-        rv = of.validate()
-        self.assertEqual(rv.attributes[0].messages[0], "NameError in expression '{}'".format(value))
+        of_expr = DfbaObjectiveExpression(expression="1.")
+        rv = of_expr.validate()
+        self.assertEqual(rv, None)
 
-        obj_func = ObjectiveFunction(expression="'str' + 1.")
-        self.assertNotEqual(obj_func.validate(), None)
+        of_expr = DfbaObjectiveExpression(expression="1")
+        rv = of_expr.validate()
+        self.assertEqual(rv, None)
+
+        of_expr = DfbaObjectiveExpression(expression="True")
+        rv = of_expr.validate()
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
+
+        of_expr = DfbaObjectiveExpression(expression="'str' + 1.")
+        rv = of_expr.validate()
+        self.assertRegex(rv.attributes[0].messages[0], "cannot eval expression")
+
+        of = DfbaObjective(id='dfba-obj-submdl_1',
+                           submodel=Submodel(id='submdl_1'),
+                           expression=DfbaObjectiveExpression(expression='1.'))
+        self.assertEqual(of.validate(), None)
+
+        of = DfbaObjective(id='invalid_id',
+                           submodel=Submodel(id='submdl_2'),
+                           expression=DfbaObjectiveExpression(expression='1.'))
+        self.assertNotEqual(of.validate(), None)
+
+        of = DfbaObjective(id='dfba-obj-submdl_3',
+                           expression=DfbaObjectiveExpression(expression='1.'))
+        self.assertNotEqual(of.validate(), None)
+
+        value = "3*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of = DfbaObjective(id='dfba-obj-submdl_4',
+                           submodel=Submodel(id='submdl_4'),
+                           expression=of_expr)
+        errors = of_expr.validate()
+        self.assertEqual(errors, None, str(errors))
+        of_expr.reactions.append(objs[Reaction]['reaction_0'])
+        self.assertNotEqual(of_expr.validate(), None)
 
     def test_validate(self):
         self.assertEqual(self.model.validate(), None)
@@ -1307,8 +1433,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_param.getValue(), param.value)
 
         # Write an objective function to the model
-        #   create objectiveFunction
-        attr = ObjectiveFunction.Meta.attributes['expression']
+        #   create DfbaObjective
         rxn_id = 'rxn_2'
         biomass_reaction_id = 'biomass_reaction_1'
         objs = {
@@ -1318,15 +1443,15 @@ class TestCore(unittest.TestCase):
             BiomassReaction: {
                 biomass_reaction_id: self.biomass_reaction},
         }
-        (of, _) = ObjectiveFunction.deserialize(attr, 'biomass_reaction_1 + 2*rxn_2', objs)
-        self.submdl_2.objective_function = of
+        (of_expr, _) = DfbaObjectiveExpression.deserialize('biomass_reaction_1 + 2*rxn_2', objs)
+        of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
 
         prepare_model = PrepareModel(self.model)
         (reactions, biomass_reactions) = prepare_model.parse_dfba_submodel_obj_func(self.submdl_2)
         PrepareModel.assign_linear_objective_fn(self.submdl_2, reactions, biomass_reactions)
-        self.submdl_2.objective_function.linear = True
+        self.submdl_2.dfba_obj.expression.linear = True
 
-        #   write ObjectiveFunction to the model, and test
+        #   write DfbaObjective to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
         self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
         self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
@@ -1345,12 +1470,14 @@ class TestCore(unittest.TestCase):
             print(document.getError(i).getMessage())
         self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
 
-        # exceptions
-        obj_func = ObjectiveFunction(linear=False, submodels=[Submodel(id='Metabolism')])
+        # exceptions -- dFBA objective isn't linear
+        expression, invalid_attribute = DfbaObjectiveExpression.deserialize('pow(1, 2)', {})
+        self.assertEqual(invalid_attribute, None)
+        obj_func = DfbaObjective(expression=expression, submodel=Submodel(id='Metabolism'))
         with pytest.warns(UserWarning):
-            obj_func.add_to_sbml_doc(None)
+            obj_func.add_to_sbml_doc(document)
 
-    def test_objective_function_get_products(self):
+    def test_dfba_obj_get_products(self):
         model = Model()
         submodel = model.submodels.create()
         species_type_0 = model.species_types.create(id='spec_0')
@@ -1363,36 +1490,40 @@ class TestCore(unittest.TestCase):
         species_1 = Species(id='spec_1[c_1]', species_type=species_type_1, compartment=compartment_1)
         species_2 = Species(id='spec_2[c_2]', species_type=species_type_2, compartment=compartment_2)
 
-        obj_func = submodel.objective_function = ObjectiveFunction(
-            reactions=[
-                Reaction(
-                    reversible=True,
-                    participants=[SpeciesCoefficient(species=species_0)],
-                ),
-            ],
-            biomass_reactions=[
-                BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
-                ),
-            ],
+        obj_func = submodel.dfba_obj = DfbaObjective(
+            expression=DfbaObjectiveExpression(
+                reactions=[
+                    Reaction(
+                        reversible=True,
+                        participants=[SpeciesCoefficient(species=species_0)],
+                    ),
+                ],
+                biomass_reactions=[
+                    BiomassReaction(
+                        biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
+                    ),
+                ],
+            ),
         )
         self.assertEqual(obj_func.get_products(), [species_0])
 
-        obj_func = submodel.objective_function = ObjectiveFunction(
-            reactions=[
-                Reaction(
-                    reversible=True,
-                    participants=[SpeciesCoefficient(species=species_0)],
-                ),
-            ],
-            biomass_reactions=[
-                BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
-                ),
-                BiomassReaction(
-                    biomass_components=[BiomassComponent(coefficient=1, species=species_2)],
-                ),
-            ],
+        obj_func = submodel.dfba_obj = DfbaObjective(
+            expression=DfbaObjectiveExpression(
+                reactions=[
+                    Reaction(
+                        reversible=True,
+                        participants=[SpeciesCoefficient(species=species_0)],
+                    ),
+                ],
+                biomass_reactions=[
+                    BiomassReaction(
+                        biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
+                    ),
+                    BiomassReaction(
+                        biomass_components=[BiomassComponent(coefficient=1, species=species_2)],
+                    ),
+                ],
+            ),
         )
         with self.assertRaisesRegex(ValueError, 'does not belong to submodel'):
             obj_func.get_products()
@@ -1409,7 +1540,7 @@ class TestCore(unittest.TestCase):
             param = model.parameters.create(id=id)
             objects[Parameter][id] = param
 
-        for id in ['ccc', 'ddd', 'duped_id']:
+        for id in ['ccc', 'ddd', 'eee', 'duped_id']:
             observable = model.observables.create(id=id)
             objects[Observable][id] = observable
 
@@ -1455,7 +1586,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(isinstance(fun_obj, Function))
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
-                                 expected_related_objs=None):
+                                 expected_related_objs=None, expected_error=None):
         """ Test a valid expression
 
         Args:
@@ -1466,44 +1597,56 @@ class TestCore(unittest.TestCase):
             expected_val (:obj:`obj`): the value expected when the expression is evaluated
             expected_related_objs (:obj:`dict`, optional): objects that should be used by the deserialize expression
         """
-        attr = parent_class.Meta.attributes['expression']
-        expr_obj, error = expression_class.deserialize(attr, expr, objects)
-        self.assertEqual(error, None)
-        self.assertEqual(expr_obj.serialize(), expr)
-        self.assertEqual(expr_obj.expression, expr)
-        self.assertEqual(expr_obj, objects[expression_class][expr])
-        # check used objects in expression_class attributes
-        if expected_related_objs:
-            for modifier, elements in expected_related_objs.items():
-                self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
-        error = expr_obj.validate()
-        self.assertEqual(error, None)
-        self.assertEqual(expr_obj.analyzed_expr.test_eval_expr(), expected_val)
+        expr_obj, error = expression_class.deserialize(expr, objects)
+        if expected_error:
+            self.assertIn(expected_error, str(error))
+        else:
+            self.assertEqual(error, None, str(error))
+            self.assertEqual(expr_obj.serialize(), expr)
+            self.assertEqual(expr_obj.expression, expr)
+            self.assertEqual(expr_obj, objects[expression_class][expr])
+            # check used objects in expression_class attributes
+            if expected_related_objs:
+                for modifier, elements in expected_related_objs.items():
+                    self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
+            error = expr_obj.validate()
+            self.assertEqual(error, None)
+            self.assertEqual(expr_obj._analyzed_expr.test_eval_expr(), expected_val)
 
     def test_valid_function_expressions(self):
         _, objects, id_map = self.make_objects()
 
-        for expr, expected_test_val, expected_related_objs in [
-            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}),
-            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}),     # reuse the FunctionExpression
-            ('ccc + ddd', 2, {'observables': [id_map['Observable.ccc'], id_map['Observable.ddd']]}),
-            ('ccc + 2 * ddd', 3, {}),
-            ('ccc + 2 * ddd > 3', False, {}),
+        i = 0
+        for expr, expected_test_val, expected_related_objs, error in [
+            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),
+            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),     # reuse the FunctionExpression
+            ('ddd + eee', 2, {'observables': [id_map['Observable.ddd'], id_map['Observable.eee']]}, None),
+            ('ddd + 2 * eee', 3, {}, None),
+            ('ddd + 2 * eee > 3', False, {}, None),
+            ('1 * duped_id', None, {}, 'multiple model object id matches'),
+            ('1 * Observable.duped_id', 1,
+                {'observables': [id_map['Observable.duped_id']]},
+                None),
             ('a + f()', 2,
                 {'parameters': [id_map['Parameter.a']],
-                 'functions':[id_map['Function.f']]}),
-            ('log(a)', math.log(1), {}),
+                 'functions':[id_map['Function.f']]},
+                None),
+            ('log(a)', math.log(1), {}, None),
             ('max(a, b)', 1,
-                {'parameters': [id_map['Parameter.a'], id_map['Parameter.b']]}),
-            ('Observable.ccc + Observable.duped_id - Parameter.duped_id', 1,
+                {'parameters': [id_map['Parameter.a'], id_map['Parameter.b']]},
+                None),
+            ('Observable.ddd + Observable.duped_id - Parameter.duped_id', 1,
                 {'parameters': [id_map['Parameter.duped_id']],
-                 'observables':[id_map['Observable.duped_id'], id_map['Observable.ccc']]}),
-            ('ccc * Function.duped_id()', 1,
-                {'observables': [id_map['Observable.ccc']],
-                 'functions':[id_map['Function.duped_id']]})
+                 'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']]},
+                None),
+            ('ddd * Function.duped_id()', 1,
+                {'observables': [id_map['Observable.ddd']],
+                 'functions':[id_map['Function.duped_id']]},
+                None),
         ]:
             self.do_test_valid_expression(FunctionExpression, Function,
-                                          objects, expr, expected_test_val, expected_related_objs)
+                                          objects, expr, expected_test_val, expected_related_objs,
+                                          expected_error=error)
 
     def do_test_expr_deserialize_error(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to deserialize
@@ -1515,8 +1658,7 @@ class TestCore(unittest.TestCase):
             expr (:obj:`str`): the expression
             error_msg_substr (:obj:`str`): substring expected in error message
         """
-        attr = parent_class.Meta.attributes['expression']
-        func_expr, error = expression_class.deserialize(attr, expr, objects)
+        func_expr, error = expression_class.deserialize(expr, objects)
         self.assertEqual(func_expr, None)
         self.assertTrue(isinstance(error, InvalidAttribute))
         self.assertIn(error_msg_substr, error.messages[0])
@@ -1549,8 +1691,7 @@ class TestCore(unittest.TestCase):
             expr (:obj:`str`): the expression
             error_msg_substr (:obj:`str`): substring expected in error message
         """
-        attr = parent_class.Meta.attributes['expression']
-        func_expr, error = expression_class.deserialize(attr, expr, objects)
+        func_expr, error = expression_class.deserialize(expr, objects)
         self.assertEqual(error, None)
         invalid_obj = func_expr.validate()
         self.assertTrue(isinstance(invalid_obj, InvalidObject))
@@ -1572,11 +1713,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(func.model, model)
         self.assertEqual(model.functions[-1], func)
         self.assertEqual(func.comments, kwargs['comments'])
-        attr = Function.Meta.attributes['expression']
         expr = 'ccc + ddd'
-        func_expr, _ = FunctionExpression.deserialize(attr, expr, objects)
+        func_expr, _ = FunctionExpression.deserialize(expr, objects)
         func.expression = func_expr
-        self.assertEqual(func.serialize(), expr)
 
     def test_valid_stop_conditions(self):
         _, objects, id_map = self.make_objects()
@@ -1610,11 +1749,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(stop_condition.model, model)
         self.assertEqual(model.stop_conditions[-1], stop_condition)
         self.assertEqual(stop_condition.comments, kwargs['comments'])
-        attr = StopCondition.Meta.attributes['expression']
         expr = 'ccc + ddd'
-        stop_condition_expr, _ = StopConditionExpression.deserialize(attr, expr, objects)
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         stop_condition.expression = stop_condition_expr
-        self.assertEqual(stop_condition.serialize(), expr)
 
     def test_valid_observable_expressions(self):
         _, objects, id_map = self.make_objects()
@@ -1640,7 +1777,7 @@ class TestCore(unittest.TestCase):
 
         non_linear_expression = 'ccc * ccc'
         self.do_test_invalid_expression(ObservableExpression, Observable, objects, non_linear_expression,
-                                        "Not a linear expression of species and observables".format())
+                                        "Expression must be linear")
 
     def test_observable(self):
         model, objects, _ = self.make_objects()
@@ -1651,17 +1788,15 @@ class TestCore(unittest.TestCase):
         self.assertEqual(obs.model, model)
         self.assertEqual(model.observables[-1], obs)
         self.assertEqual(obs.comments, kwargs['comments'])
-        attr = Observable.Meta.attributes['expression']
         expr = 'ccc + ddd - 2 * spec_type_0[comp_0]'
-        func_expr, _ = ObservableExpression.deserialize(attr, expr, objects)
+        func_expr, _ = ObservableExpression.deserialize(expr, objects)
         obs.expression = func_expr
-        self.assertEqual(obs.serialize(), expr)
 
     def test_valid_model_types(self):
         for model_type in [RateLawEquation, FunctionExpression, StopConditionExpression,
-                           ObjectiveFunction, ObservableExpression]:
-            self.assertTrue(hasattr(model_type.Meta, 'valid_used_models'))
-            for valid_model_type in model_type.Meta.valid_used_models:
+                           DfbaObjectiveExpression, ObservableExpression]:
+            self.assertTrue(hasattr(model_type.Meta, 'valid_models'))
+            for valid_model_type in model_type.Meta.valid_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))
 
 

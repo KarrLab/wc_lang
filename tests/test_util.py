@@ -6,12 +6,17 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
-                     Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
-                     Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
-                     RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
-                     Observable, Function, FunctionExpression, StopCondition, StopConditionExpression,
-                     ObservableExpression)
+from wc_lang.core import (Model, Taxon, Submodel, SubmodelAlgorithm,
+                          Compartment,
+                          SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, Concentration,
+                          Reaction, RateLaw, RateLawEquation, Parameter,
+                          BiomassComponent, BiomassReaction,
+                          DfbaObjective, DfbaObjectiveExpression,
+                          Observable, ObservableExpression,
+                          Function, FunctionExpression,
+                          StopCondition, StopConditionExpression,
+                          Reference, ReferenceType, DatabaseReference,
+                          )
 from wc_lang import util
 import shutil
 import tempfile
@@ -132,12 +137,13 @@ class TestUtil(unittest.TestCase):
         non_inline_models = set([
             Model, Taxon,
             Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
-            Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
-            Function, StopCondition, Reference, DatabaseReference,
+            DfbaObjective,
+            Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter, Function,
+            StopCondition, Reference, DatabaseReference,
         ])
         inline_models = set([
-            SpeciesCoefficient, RateLawEquation, ObjectiveFunction,
-            FunctionExpression, StopConditionExpression, ObservableExpression
+            SpeciesCoefficient, RateLawEquation,
+            DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)

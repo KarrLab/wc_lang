@@ -16,7 +16,7 @@ import obj_model
 from wc_lang.io import Reader
 from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species,
                      FunctionExpression, Function,
-                     StopCondition, ObjectiveFunction, Observable, Parameter,
+                     StopCondition, Observable, Parameter,
                      BiomassReaction, Compartment)
 from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
                                       WcLangExpression, WcLangExpressionError,
@@ -126,9 +126,9 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {})
-        self.assertEqual(wc_lang_expr.valid_functions, set())
+        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawEquation.Meta.valid_functions))
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function: {}, Parameter: {}})
-        self.assertEqual(wc_lang_expr.valid_functions, set(FunctionExpression.Meta.valid_functions))
+        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawEquation.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
                 WcLangExpressionError,
@@ -136,7 +136,7 @@ class TestWcLangExpression(unittest.TestCase):
             self.make_wc_lang_expr(expr)
         with self.assertRaisesRegex(
                 WcLangExpressionError,
-                "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
+                "model_class 'Species' doesn't have a 'Meta.valid_models' attribute"):
             WcLangExpression(Species, 'attr', '', {})
 
     def test_get_wc_lang_model_type(self):
@@ -191,7 +191,7 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', which doesn't use 'Function' as a disambiguation model type")
         self.do_disambiguated_id_error_test(
             'Function.foo2()',
-            "contains '{}', which doesn't refer to a Function in 'objects'")
+            "contains '{}', which doesn't refer to a Function")
 
         self.do_disambiguated_id_test('Function.fun_1()', Function, 'fun_1',
                                       WcLangExpression.fun_type_disambig_patttern)
@@ -279,7 +279,7 @@ class TestWcLangExpression(unittest.TestCase):
 
         class TestModelExpression(obj_model.Model):
             class Meta(obj_model.Model.Meta):
-                valid_used_models = ('Function',)
+                valid_models = ('Function',)
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
                                                "but {}.Meta doesn't define 'valid_functions'".format(
                                                    TestModelExpression.__name__)],

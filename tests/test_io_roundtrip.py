@@ -35,7 +35,7 @@ class RoundTripTestCase(unittest.TestCase):
         species.id = ''
         submdl = model.submodels.create(id='submodel_1')
 
-        # create a Concentration so that Species are provided to ObservableExpressionAttribute.deserialize()
+        # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
         species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
@@ -58,7 +58,7 @@ class RoundTripTestCase(unittest.TestCase):
     def test_successful_roundtrip(self):
         """
         Args:
-            species_coefficient_creation_method (:obj:`str`): name of method to use to get or create 
+            species_coefficient_creation_method (:obj:`str`): name of method to use to get or create
                 an instance of :obj:`wc_lang.SpeciesCoefficient`
         """
         model = Model(id='test_model', version='0.0.0')
@@ -68,7 +68,7 @@ class RoundTripTestCase(unittest.TestCase):
         species.id = species.gen_id(species_type.id, comp.id)
         submdl = model.submodels.create(id='submodel_1')
 
-        # create a Concentration so that Species are provided to ObservableExpressionAttribute.deserialize()
+        # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
         species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species

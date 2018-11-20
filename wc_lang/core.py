@@ -5,7 +5,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Taxon`
 * :obj:`Model`
 * :obj:`Submodel`
-* :obj:`ObjectiveFunction`
+* :obj:`DfbaObjective`
 * :obj:`Compartment`
 * :obj:`SpeciesType`
 * :obj:`Species`
@@ -230,50 +230,6 @@ class ReferenceType(int, CaseInsensitiveEnum):
     misc = 9
 
 
-class ObjectiveFunctionAttribute(ManyToOneAttribute):
-    """ Objective function attribute """
-
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super(ObjectiveFunctionAttribute, self).__init__('ObjectiveFunction',
-                                                         related_name=related_name,
-                                                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, value, encoded=None):
-        """ Serialize related object
-
-        Args:
-            value (:obj:`ObjectiveFunction`): the referenced ObjectiveFunction
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation
-        """
-        if value is None:
-            return None
-        else:
-            return value.serialize()
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        return ObjectiveFunction.deserialize(self, value, objects)
-
-
 class ReactionParticipantAttribute(ManyToManyAttribute):
     """ Reaction participants """
 
@@ -392,7 +348,6 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
             global_comp (:obj:`Compartment`): global compartment of the reaction
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
             :obj:`tuple`:
@@ -516,35 +471,23 @@ class RateLawEquationAttribute(ManyToOneAttribute):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        return RateLawEquation.deserialize(self, value, objects)
+        return RateLawEquation.deserialize(value, objects)
 
 
-class FunctionExpressionAttribute(ManyToOneAttribute):
-    """ Function expression attribute """
+class ExpressionAttribute(OneToOneAttribute):
+    """ Expression attribute """
 
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super().__init__('FunctionExpression',
-                         related_name=related_name, min_related=1, min_related_rev=1,
-                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, function_expression, encoded=None):
+    def serialize(self, expression, encoded=None):
         """ Serialize related object
 
         Args:
-            function_expression (:obj:`FunctionExpression`): the referenced `FunctionExpression`
+            expression (:obj:`obj_model.Model`): the referenced Expression
             encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: simple Python representation
         """
-        return function_expression.serialize()
+        return expression.serialize()
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -557,89 +500,7 @@ class FunctionExpressionAttribute(ManyToOneAttribute):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        return FunctionExpression.deserialize(self, value, objects)
-
-
-class StopConditionExpressionAttribute(ManyToOneAttribute):
-    """ StopCondition expression attribute """
-
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super().__init__('StopConditionExpression',
-                         related_name=related_name, min_related=1, min_related_rev=1,
-                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, stop_condition_expression, encoded=None):
-        """ Serialize related object
-
-        Args:
-            stop_condition_expression (:obj:`StopConditionExpression`): the referenced `StopConditionExpression`
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation
-        """
-        return stop_condition_expression.serialize()
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        return StopConditionExpression.deserialize(self, value, objects)
-
-
-class ObservableExpressionAttribute(ManyToOneAttribute):
-    """ Observable expression attribute """
-
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super().__init__('ObservableExpression',
-                         related_name=related_name, min_related=1, min_related_rev=1,
-                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, observable_expression, encoded=None):
-        """ Serialize related object
-
-        Args:
-            observable_expression (:obj:`ObservableExpression`): the referenced `ObservableExpression`
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation
-        """
-        return observable_expression.serialize()
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        return ObservableExpression.deserialize(self, value, objects)
+        return self.related_class.deserialize(value, objects)
 
 
 class Model(obj_model.Model):
@@ -951,30 +812,27 @@ class Submodel(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        algorithm (:obj:`SubmodelAlgorithm`): algorithm        
-        objective_function (:obj:`ObjectiveFunction`, optional): objective function for a dFBA submodel;
-            if not initialized, then `biomass_reaction` is used as the objective function
+        algorithm (:obj:`SubmodelAlgorithm`): algorithm
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
+        dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
+            if not initialized, then `biomass_reaction` is used as the objective function
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): the growth reaction for a dFBA submodel
         parameters (:obj:`list` of :obj:`Parameter`): parameters
+        database_references (:obj:`list` of :obj:`DatabaseReference`): database references
     """
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
-    objective_function = ObjectiveFunctionAttribute(related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name',
-                           'algorithm', 'objective_function',
-                           'comments', 'references')
+        attribute_order = ('id', 'name', 'algorithm', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def get_species(self, __type=None, **kwargs):
@@ -1014,183 +872,142 @@ class Submodel(obj_model.Model):
         wrap_libsbml(sbml_model.setIdAttribute, self.id)
         if self.name:
             wrap_libsbml(sbml_model.setName, self.name)
-        # compartment, objective_function, and parameters are created separately
+        # compartment, dfba_obj, and parameters are created separately
         if self.comments:
             wrap_libsbml(sbml_model.appendNotes, str_to_xmlstr(self.comments))
         return sbml_model
 
 
-class ObjectiveFunction(obj_model.Model):
-    """ Objective function
+class DfbaObjectiveExpression(obj_model.Model):
+    """ A mathematical expression of Reactions and BiomassReactions
+
+    The expression used by a :obj:`DfbaObjective`.
 
     Attributes:
-        expression (:obj:`str`): input mathematical expression of the objective function
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed expression
-        linear (:obj:`bool`): indicates whether objective function is linear function of reaction fluxes
-        reactions (:obj:`list` of :obj:`Reaction`): if linear, reactions whose fluxes are used in the
-            objective function
+        expression (:obj:`str`): mathematical expression
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        reactions (:obj:`list` of :obj:`Reaction`): Reactions used by this expression
         reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for reactions
-        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): if linear, biomass reactions whose
-            fluxes are used in the objective function
+        biomass_reactions (:obj:`list` of :obj:`Species`): Biomass reactions used by this expression
         biomass_reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for
             reactions in biomass_reactions
 
     Related attributes:
-        submodel (:obj:`Submodel`): the `Submodel` which uses this `ObjectiveFunction`
+        dfba_obj (:obj:`DfbaObjective`): dFBA objective
     """
-    linear = BooleanAttribute()
-    expression = LongStringAttribute()
-    reactions = ManyToManyAttribute('Reaction', related_name='objective_functions')
-    biomass_reactions = ManyToManyAttribute('BiomassReaction', related_name='objective_functions')
+
+    expression = LongStringAttribute(primary=True, unique=True, default='')
+    reactions = OneToManyAttribute('Reaction', related_name='dfba_obj_expression')
+    biomass_reactions = OneToManyAttribute('BiomassReaction', related_name='dfba_obj_expression')
 
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in this `ObjectiveFunction`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that an
-                `ObjectiveFunction` is allowed to reference in its `expression`
+                can be used in this `Function`s `expression`
+            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+                `DfbaObjective` is allowed to reference in its `expression`
         """
-        attribute_order = ('linear', 'expression', 'reactions', 'biomass_reactions')
         tabular_orientation = TabularOrientation.inline
-        # because objective functions must be continuous, the functions they use must be as well
-        valid_functions = (exp, pow, log, log10)
-        valid_used_models = ('Parameter', 'Observable', 'Reaction', 'BiomassReaction')
+        valid_functions = (pow,)
+        valid_models = ('Reaction', 'BiomassReaction')
 
     def serialize(self):
         """ Generate string representation
 
         Returns:
-            :obj:`str`: value of primary attribute
+            :obj:`str`: string representation
         """
-        return self.expression
+        return ExpressionMethods.serialize(self)
 
     @classmethod
-    def deserialize(cls, attribute, value, objects):
+    def deserialize(cls, value, objects):
         """ Deserialize value
 
         Args:
-            attribute (:obj:`Attribute`): attribute
             value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of all `Model` objects, grouped by model
+            objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+            :obj:`tuple` of :obj:`DfbaObjectiveExpression`, `InvalidAttribute` or `None`: tuple
+                of cleaned value and cleaning error
         """
-        # if value is None don't create an ObjectiveFunction
-        if value is None:
-            # wc_lang.prepare.Prepare() will instantiate an ObjectiveFunction with the biomass reaction
-            return (None, None)
-
-        # parse identifiers
-        pattern = '(^|[^a-z0-9_])({})([^a-z0-9_]|$)'.format(SlugAttribute().pattern[1:-1])
-        identifiers = []
-        for match in re.findall(pattern, value, flags=re.I):
-            identifiers.append(match[1])
-
-        # allocate identifiers between reactions and biomass_reactions
-        reactions_dict = objects[Reaction]
-        reaction_ids = reactions_dict.keys()
-        reactions = []
-        biomass_reactions_dict = objects[BiomassReaction]
-        biomass_reaction_ids = biomass_reactions_dict.keys()
-        biomass_reactions = []
-        valid_functions_names = set(map(lambda f: f.__name__, cls.Meta.valid_functions))
-        errors = []
-
-        # do not allow Reaction or BiomassReaction instances with ids equal to a valid_function
-        invalid_reaction_ids = valid_functions_names & set(reaction_ids) & set(identifiers)
-        if invalid_reaction_ids:
-            errors.append("reaction id(s) {{{}}} ambiguous between a Reaction and a "
-                          "valid function in '{}'".format(', '.join(list(invalid_reaction_ids)), value))
-        invalid_biomass_reaction_ids = valid_functions_names & set(biomass_reaction_ids) & set(identifiers)
-        if invalid_biomass_reaction_ids:
-            errors.append("reaction id(s) {{{}}} ambiguous between a BiomassReaction "
-                          "and a valid function in '{}'".format(', '.join(list(invalid_biomass_reaction_ids)), value))
-
-        for id in identifiers:
-
-            if id in valid_functions_names:
-                continue
-
-            is_reaction = id in reaction_ids
-            is_biomass_reaction = id in biomass_reaction_ids
-
-            # redundant names
-            # TODO: prevent this in a check method
-            if is_reaction and is_biomass_reaction:
-                errors.append("id '{}' ambiguous between a Reaction and a "
-                              "BiomassReaction in '{}'".format(id, value))
-
-            # missing reaction
-            if not (is_reaction or is_biomass_reaction):
-                errors.append("id '{}' not a Reaction or a "
-                              "BiomassReaction identifier in '{}'".format(id, value))
-
-            if is_reaction:
-                # a reaction may be used multiple times in an objective function
-                if reactions_dict[id] not in reactions:
-                    reactions.append(reactions_dict[id])
-
-            if is_biomass_reaction:
-                if biomass_reactions_dict[id] not in biomass_reactions:
-                    biomass_reactions.append(biomass_reactions_dict[id])
-
-        if errors:
-            return (None, InvalidAttribute(attribute, errors, value=value))
-
-        # create new ObjectiveFunction
-        if cls not in objects:
-            objects[cls] = {}
-        serialized_val = value
-        if serialized_val in objects[cls]:
-            obj = objects[cls][serialized_val]
-        else:
-            obj = cls(expression=value, reactions=reactions, biomass_reactions=biomass_reactions)
-            objects[cls][serialized_val] = obj
-        return (obj, None)
+        return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ Determine whether an `ObjectiveFunction` is valid
-
-        Ensure that self.expression evaluates as valid Python.
+        """ Check that the expression is a valid linear function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
+                otherwise return a list of errors as an instance of `InvalidObject`
         """
+        return ExpressionMethods.validate(self)
 
-        # to evaluate the expression, set variables for the reaction identifiers to their fluxes
-        # test validation with fluxes of 1.0
-        local_ns = {func.__name__: func for func in self.Meta.valid_functions}
-        local_ns.update({rxn.id: 1.0 for rxn in self.reactions})
-        local_ns.update({biomass_rxn.id: 1.0 for biomass_rxn in self.biomass_reactions})
-        errors = []
 
-        try:
-            eval(self.expression, {}, local_ns)
-        except SyntaxError as error:
-            errors.append("syntax error in expression '{}'".format(self.expression))
-        except NameError as error:
-            errors.append("NameError in expression '{}'".format(self.expression))
-        except Exception as error:
-            errors.append("cannot eval expression '{}'".format(self.expression))
+class DfbaObjective(obj_model.Model):
+    """ dFBA objective function
+
+    Attributes:
+        id (:obj:`str`): identifier equal to `dfba-obj-{submodel.id}`
+        name (:obj:`str`): name
+        submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
+        expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
+        comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
+    """
+    id = StringAttribute(primary=True, unique=True)
+    name = StringAttribute()
+    submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1)
+    expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
+                                     min_related=1, min_related_rev=1)
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='dfba_objs')
+
+    class Meta(obj_model.Model.Meta):
+        verbose_name = 'dFBA objective'
+        attribute_order = ('id', 'name', 'submodel', 'expression', 'comments', 'references')
+        expression_model = DfbaObjectiveExpression
+
+    @staticmethod
+    def gen_id(submodel_id):
+        """ Generate identifier
+
+        Args:
+            submodel_id (:obj:`str`): submodel id
+
+        Returns:
+            :obj:`str`: identifier
+        """
+        return 'dfba-obj-{}'.format(submodel_id)
+
+    def validate(self):
+        """ Validate that identifier is equal to `dfba-obj-{submodel.id}]`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(DfbaObjective, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.submodel and self.id != self.gen_id(self.submodel.id):
+            errors.append(InvalidAttribute(self.Meta.attributes['id'],
+                                           ['Id must be {}'.format(self.gen_id(self.submodel.id))]))
 
         if errors:
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, errors)
-            return InvalidObject(self, [attr_err])
-
-        """ return `None` to indicate valid object """
+            return InvalidObject(self, errors)
         return None
 
     ACTIVE_OBJECTIVE = 'active_objective'
 
     def add_to_sbml_doc(self, sbml_document):
-        """ Add this ObjectiveFunction to a libsbml SBML document in a `libsbml.model.ListOfObjectives`.
+        """ Add this DfbaObjective to a libsbml SBML document in a `libsbml.model.ListOfObjectives`.
 
         This uses version 2 of the 'Flux Balance Constraints' extension. SBML assumes that an
-        ObjectiveFunction is a linear combination of reaction fluxes.
+        DfbaObjective is a linear combination of reaction fluxes.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
@@ -1202,9 +1019,9 @@ class ObjectiveFunction(obj_model.Model):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         # issue warning if objective function not linear
-        if not self.linear:
-            warnings.warn("submodels '{}' can't add non-linear objective function to SBML FBC model".format(
-                ', '.join(s.id for s in self.submodels)), UserWarning)
+        if not self.expression._analyzed_expr.is_linear:
+            warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
+                self.submodel.id), UserWarning)
             return
         sbml_model = wrap_libsbml(sbml_document.getModel)
         fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
@@ -1212,17 +1029,17 @@ class ObjectiveFunction(obj_model.Model):
         wrap_libsbml(sbml_objective.setType, 'maximize')
         # In SBML 3 FBC 2, the 'activeObjective' attribute must be set on ListOfObjectives.
         # Since a submodel has only one Objective, it must be the active one.
-        wrap_libsbml(sbml_objective.setIdAttribute, ObjectiveFunction.ACTIVE_OBJECTIVE)
+        wrap_libsbml(sbml_objective.setIdAttribute, DfbaObjective.ACTIVE_OBJECTIVE)
         list_of_objectives = wrap_libsbml(fbc_model_plugin.getListOfObjectives)
-        wrap_libsbml(list_of_objectives.setActiveObjective, ObjectiveFunction.ACTIVE_OBJECTIVE)
-        for idx, reaction in enumerate(self.reactions):
+        wrap_libsbml(list_of_objectives.setActiveObjective, DfbaObjective.ACTIVE_OBJECTIVE)
+        for idx, reaction in enumerate(self.expression.reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
             wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
-            wrap_libsbml(sbml_flux_objective.setCoefficient, self.reaction_coefficients[idx])
-        for idx, biomass_reaction in enumerate(self.biomass_reactions):
+            wrap_libsbml(sbml_flux_objective.setCoefficient, self.expression.reaction_coefficients[idx])
+        for idx, biomass_reaction in enumerate(self.expression.biomass_reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
             wrap_libsbml(sbml_flux_objective.setReaction, biomass_reaction.id)
-            wrap_libsbml(sbml_flux_objective.setCoefficient, self.biomass_reaction_coefficients[idx])
+            wrap_libsbml(sbml_flux_objective.setCoefficient, self.expression.biomass_reaction_coefficients[idx])
 
         return sbml_objective
 
@@ -1241,7 +1058,7 @@ class ObjectiveFunction(obj_model.Model):
             __type = kwargs.pop('__type')
 
         products = []
-        for reaction in self.reactions:
+        for reaction in self.expression.reactions:
             if reaction.reversible:
                 for part in reaction.participants:
                     if part.species.has_attr_vals(__type=__type, **kwargs):
@@ -1253,15 +1070,15 @@ class ObjectiveFunction(obj_model.Model):
                             products.append(part.species)
 
         tmp_species_ids = []
-        for biomass_reaction in self.biomass_reactions:
+        for biomass_reaction in self.expression.biomass_reactions:
             for biomass_component in biomass_reaction.biomass_components:
                 if 0 < biomass_component.coefficient:
                     tmp_species_ids.append(biomass_component.species.id)
-        for submodel in self.submodels:
-            tmp_species = Species.get(tmp_species_ids, submodel.get_species())
+        with self.submodel as submodel:
+            tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
             for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
                 if not tmp_specie:
-                    raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, submodel.id))
+                    raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, self.submodel.id))
                 if tmp_specie.has_attr_vals(__type=__type, **kwargs):
                     products.append(tmp_specie)
         return det_dedupe(products)
@@ -1560,79 +1377,145 @@ class ExpressionMethods(object):
         return model_obj.expression
 
     @staticmethod
-    def deserialize(model_class, attribute, value, objects, decoded=None):
+    def deserialize(model_cls, value, objects):
         """ Deserialize expression
 
         Args:
-            attribute (:obj:`Attribute`): expression attribute
+            model_cls (:obj:`type`): expression class
             value (:obj:`str`): string representation of the mathematical expression, in a
                 Python expression
             objects (:obj:`dict`): dictionary of objects which can be used in `expression`, grouped by model
 
         Returns:
             :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
-                otherwise return (object in this class with instantiated `analyzed_expr`, `None`)
+                otherwise return (object in this class with instantiated `_analyzed_expr`, `None`)
         """
-        # objects must contain all objects types in valid_used_models
+        # objects must contain all objects types in valid_models
+        value = value or ''
+
         used_model_types = []
-        for used_model in model_class.Meta.valid_used_models:
+        for used_model in model_cls.Meta.valid_models:
             used_model_type = globals()[used_model]
             used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
-            analyzed_expr = WcLangExpression(model_class, expr_field, value, objects)
+            _analyzed_expr = WcLangExpression(model_cls, expr_field, value, objects)
         except WcLangExpressionError as e:
-            return (None, InvalidAttribute(attribute, [str(e)]))
-        rv = analyzed_expr.tokenize()
+            attr = model_cls.Meta.attributes['expression']
+            return (None, InvalidAttribute(attr, [str(e)]))
+        rv = _analyzed_expr.tokenize()
         if rv[0] is None:
+            attr = model_cls.Meta.attributes['expression']
             errors = rv[1]
-            return (None, InvalidAttribute(attribute, errors))
+            return (None, InvalidAttribute(attr, errors))
         _, used_objects = rv
-        if model_class not in objects:
-            objects[model_class] = {}
-        if value in objects[model_class]:
-            obj = objects[model_class][value]
+        if model_cls not in objects:
+            objects[model_cls] = {}
+        if value in objects[model_cls]:
+            obj = objects[model_cls][value]
         else:
-            obj = model_class(expression=value)
-            objects[model_class][value] = obj
-            for used_model_type in used_model_types:
-                used_model_type_attr = used_model_type.__name__.lower()
-                if not used_model_type_attr.endswith('s'):
-                    used_model_type_attr = used_model_type_attr+'s'
-                attr_value = []
-                if used_model_type in used_objects:
-                    attr_value = list(used_objects[used_model_type].values())
-                setattr(obj, used_model_type_attr, attr_value)
-        obj.analyzed_expr = analyzed_expr
+            obj = model_cls(expression=value)
+            objects[model_cls][value] = obj
+
+            for attr_name, attr in model_cls.Meta.attributes.items():
+                if isinstance(attr, obj_model.RelatedAttribute) and \
+                        attr.related_class.__name__ in model_cls.Meta.valid_models:
+                    attr_value = list(used_objects.get(attr.related_class, {}).values())
+                    setattr(obj, attr_name, attr_value)
+        obj._analyzed_expr = _analyzed_expr
+
+        # check expression is linear
+        obj._analyzed_expr.is_linear, _ = LinearExpressionVerifier().validate(
+            obj._analyzed_expr.wc_tokens)
+
         return (obj, None)
 
-    @staticmethod
-    def validate(model_obj, return_type=None):
+    @classmethod
+    def validate(cls, model_obj, return_type=None, check_linear=False):
         """ Determine whether an expression model is valid by eval'ing its deserialized expression
 
         Args:
+            model_obj (`Expression`): expression object
             return_type (:obj:`type`, optional): if provided, an expression's required return type
+            check_linear (:obj:`bool`, optional): if :obj:`True`, validate that the expression is a
+                linear function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
-        attr = model_obj.__class__.Meta.attributes['expression']
+        model_cls = model_obj.__class__
+
+        # generate _analyzed_expr
+        objects = {}
+        for related_attr_name, related_attr in model_cls.Meta.attributes.items():
+            if isinstance(related_attr, obj_model.RelatedAttribute):
+                objects[related_attr.related_class] = {
+                    m.get_primary_attribute(): m for m in getattr(model_obj, related_attr_name)
+                }
         try:
-            rv = model_obj.analyzed_expr.test_eval_expr()
+            model_obj._analyzed_expr = WcLangExpression(model_obj.__class__, 'expression',
+                                                        model_obj.expression, objects)
+        except WcLangExpressionError as e:
+            attr = model_cls.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, [str(e)])
+            return InvalidObject(model_obj, [attr_err])
+
+        is_valid, errors = model_obj._analyzed_expr.tokenize()
+        if is_valid is None:
+            attr = model_cls.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, errors)
+            return InvalidObject(model_obj, [attr_err])
+        model_obj._analyzed_expr.is_linear, _ = LinearExpressionVerifier().validate(
+            model_obj._analyzed_expr.wc_tokens)
+
+        # check related objects matches the tokens of the _analyzed_expr
+        related_objs = {}
+        for related_attr_name, related_attr in model_cls.Meta.attributes.items():
+            if isinstance(related_attr, obj_model.RelatedAttribute):
+                related_model_objs = getattr(model_obj, related_attr_name)
+                if related_model_objs:
+                    related_objs[related_attr.related_class] = set(related_model_objs)
+
+        token_objs = {}
+        token_obj_ids = {}
+        for token in model_obj._analyzed_expr.wc_tokens:
+            if token.model_type is not None:
+                if token.model_type not in token_objs:
+                    token_objs[token.model_type] = set()
+                    token_obj_ids[token.model_type] = set()
+                token_objs[token.model_type].add(token.model)
+                token_obj_ids[token.model_type].add(token.token_string)
+
+        if related_objs != token_objs:
+            attr = model_cls.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, ['Related objects must match the tokens of the analyzed expression'])
+            return InvalidObject(model_obj, [attr_err])
+
+        # check expression is valid
+        try:
+            rv = model_obj._analyzed_expr.test_eval_expr()
             if return_type is not None:
                 if not isinstance(rv, return_type):
+                    attr = model_cls.Meta.attributes['expression']
                     attr_err = InvalidAttribute(attr,
                                                 ["Evaluating '{}', a {} expression, should return a {} but it returns a {}".format(
                                                     model_obj.expression, model_obj.__class__.__name__,
                                                     return_type.__name__, type(rv).__name__)])
                     return InvalidObject(model_obj, [attr_err])
-
-            # return `None` to indicate valid object
-            return None
         except WcLangExpressionError as e:
+            attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
+
+        # check expression is linear
+        if check_linear and not model_obj._analyzed_expr.is_linear:
+            attr = model_cls.Meta.attributes['expression']
+            attr_err = InvalidAttribute(attr, ['Expression must be linear'])
+            return InvalidObject(model_obj, [attr_err])
+
+        # return `None` to indicate valid object
+        return None
 
     @staticmethod
     def make_expression_obj(model_type, expression, objects):
@@ -1649,9 +1532,8 @@ class ExpressionMethods(object):
                 `model_type`'s expression helper class; otherwise, (`None`, `InvalidAttribute`)
                 reporting the error
         """
-        attr = model_type.Meta.attributes['expression']
         expr_model_type = model_type.Meta.expression_model
-        return expr_model_type.deserialize(attr, expression, objects)
+        return expr_model_type.deserialize(expression, objects)
 
     @staticmethod
     def make_obj(model, model_type, id, expression, objects, allow_invalid_objects=False):
@@ -1692,7 +1574,7 @@ class ObservableExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for an Observable
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
 
@@ -1700,7 +1582,7 @@ class ObservableExpression(obj_model.Model):
         observable_expressions (:obj:`ObservableExpression`): observable expressions
     """
 
-    expression = LongStringAttribute(primary=True, unique=True)
+    expression = LongStringAttribute(primary=True, unique=True, default='')
     observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
     species = ManyToManyAttribute(Species, related_name='observable_expressions')
 
@@ -1709,27 +1591,42 @@ class ObservableExpression(obj_model.Model):
         Attributes:
             valid_Observables (:obj:`tuple` of `builtin_Observable_or_method`): tuple of Observables that
                 can be used in this `Observable`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `Observable` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_used_models = ('Species', 'Observable')
+        valid_models = ('Species', 'Observable')
 
     def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
         return ExpressionMethods.serialize(self)
 
     @classmethod
-    def deserialize(cls, attribute, value, objects, decoded=None):
-        return ExpressionMethods.deserialize(cls, attribute, value, objects)
+    def deserialize(cls, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of :obj:`ObservableExpression`, `InvalidAttribute` or `None`:
+                tuple of cleaned value and cleaning error
+        """
+        return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        # ensure that the observable is a linear function
-        valid, error = LinearExpressionVerifier().validate(self.analyzed_expr.wc_tokens)
-        if not valid:
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, [error])
-            return InvalidObject(self, [attr_err])
-        return ExpressionMethods.validate(self)
+        """ Check that the observable is a valid linear function
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        return ExpressionMethods.validate(self, check_linear=True)
 
 
 class Observable(obj_model.Model):
@@ -1741,6 +1638,7 @@ class Observable(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
         comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
         expressions (:obj:`Expressions`): expressions
@@ -1748,30 +1646,23 @@ class Observable(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
-    expression = ObservableExpressionAttribute(related_name='observable')
+    expression = ExpressionAttribute('ObservableExpression', related_name='observable')
     comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='observables')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'comments')
+        attribute_order = ('id', 'name', 'expression', 'comments', 'references')
         expression_model = ObservableExpression
-
-    def serialize(self):
-        """ Generate string representation
-
-        Returns:
-            :obj:`str`: value of related `ObservableExpression`
-        """
-        return self.expression.serialize()
 
 
 class FunctionExpression(obj_model.Model):
     """ A mathematical expression of Functions, Observbles, Parameters and Python functions
 
-    The expression used by a `Function`.
+    The expression used by a :obj:`Function`.
 
     Attributes:
         expression (:obj:`str`): mathematical expression for a Function
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
         functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
@@ -1779,8 +1670,7 @@ class FunctionExpression(obj_model.Model):
     Related attributes:
         function (:obj:`Function`): function
     """
-
-    expression = LongStringAttribute(primary=True, unique=True)
+    expression = LongStringAttribute(primary=True, unique=True, default='')
     observables = ManyToManyAttribute(Observable, related_name='functions')
     parameters = ManyToManyAttribute('Parameter', related_name='functions')
     functions = ManyToManyAttribute('Function', related_name='functions')
@@ -1790,21 +1680,42 @@ class FunctionExpression(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in this `Function`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `Function` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_used_models = ('Parameter', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Observable', 'Function')
 
     def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
         return ExpressionMethods.serialize(self)
 
     @classmethod
-    def deserialize(cls, attribute, value, objects, decoded=None):
-        return ExpressionMethods.deserialize(cls, attribute, value, objects)
+    def deserialize(cls, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of :obj:`FunctionExpression`, `InvalidAttribute` or `None`: tuple of cleaned value
+                and cleaning error
+        """
+        return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
+        """ Check that the function is a valid Python function
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
         return ExpressionMethods.validate(self)
 
 
@@ -1817,6 +1728,7 @@ class Function(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
         comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
         expressions (:obj:`Expressions`): expressions
@@ -1824,30 +1736,23 @@ class Function(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='functions')
-    expression = FunctionExpressionAttribute(related_name='function')
+    expression = ExpressionAttribute('FunctionExpression', related_name='function')
     comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'comments')
+        attribute_order = ('id', 'name', 'expression', 'comments', 'references')
         expression_model = FunctionExpression
-
-    def serialize(self):
-        """ Generate string representation
-
-        Returns:
-            :obj:`str`: value of related `FunctionExpression`
-        """
-        return self.expression.serialize()
 
 
 class StopConditionExpression(obj_model.Model):
-    """ A mathematical expression of Functions, Observbles, Parameters and Python functions
+    """ A mathematical expression of Functions, Observables, Parameters and Python functions
 
-    The expression used by a `StopCondition`.
+    The expression used by a :obj:`StopCondition`.
 
     Attributes:
         expression (:obj:`str`): mathematical expression for a StopCondition
-        analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
@@ -1856,32 +1761,52 @@ class StopConditionExpression(obj_model.Model):
         stop_condition (:obj:`StopCondition`): stop condition
     """
 
-    expression = LongStringAttribute(primary=True, unique=True)
-    observables = OneToManyAttribute(Observable, related_name='stop_conditions')
-    parameters = OneToManyAttribute('Parameter', related_name='stop_conditions')
-    functions = OneToManyAttribute('Function', related_name='stop_conditions')
+    expression = LongStringAttribute(primary=True, unique=True, default='')
+    observables = ManyToManyAttribute(Observable, related_name='stop_conditions')
+    parameters = ManyToManyAttribute('Parameter', related_name='stop_conditions')
+    functions = ManyToManyAttribute('Function', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in this `StopCondition`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `StopCondition` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_used_models = ('Parameter', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Observable', 'Function')
 
     def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
         return ExpressionMethods.serialize(self)
 
     @classmethod
-    def deserialize(cls, attribute, value, objects, decoded=None):
-        return ExpressionMethods.deserialize(cls, attribute, value, objects)
+    def deserialize(cls, value, objects):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+
+        Returns:
+            :obj:`tuple` of :obj:`StopConditionExpression`, `InvalidAttribute` or `None`: tuple of
+                cleaned value and cleaning error
+        """
+        return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ A StopConditionExpression must return a Boolean """
+        """ Check that the expression is a valid Boolean function
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
         return ExpressionMethods.validate(self, return_type=bool)
 
 
@@ -1897,6 +1822,7 @@ class StopCondition(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
         expressions (:obj:`Expressions`): expressions
@@ -1904,20 +1830,13 @@ class StopCondition(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
-    expression = StopConditionExpressionAttribute(related_name='stop_condition')
+    expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
     comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'comments')
+        attribute_order = ('id', 'name', 'expression', 'comments', 'references')
         expression_model = StopConditionExpression
-
-    def serialize(self):
-        """ Generate string representation
-
-        Returns:
-            :obj:`str`: value of related `StopConditionExpression`
-        """
-        return self.expression.serialize()
 
 
 class Reaction(obj_model.Model):
@@ -2097,17 +2016,16 @@ class SpeciesCoefficient(obj_model.Model):
             return '{}{}'.format(coefficient_str, species.species_type.get_primary_attribute())
 
     @classmethod
-    def deserialize(cls, attribute, value, objects, compartment=None):
+    def deserialize(cls, value, objects, compartment=None):
         """ Deserialize value
 
         Args:
-            attribute (:obj:`Attribute`): attribute
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
             compartment (:obj:`Compartment`, optional): compartment
 
         Returns:
-            :obj:`tuple` of `list` of `SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of :obj:`SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         errors = []
@@ -2151,6 +2069,8 @@ class RateLaw(obj_model.Model):
     """ Rate law
 
     Attributes:
+        id (:obj:`str`): identifier equal to `{reaction.id}-{direction.name}`
+        name (:obj:`str`): name
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
         equation (:obj:`RateLawEquation`): equation
@@ -2159,7 +2079,8 @@ class RateLaw(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
-
+    id = StringAttribute(primary=True, unique=True)
+    name = StringAttribute()
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     equation = RateLawEquationAttribute(related_name='rate_laws')
@@ -2169,19 +2090,24 @@ class RateLaw(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('reaction', 'direction',
+        attribute_order = ('id', 'name', 'reaction', 'direction',
                            'equation', 'k_cat', 'k_m',
                            'comments', 'references')
-        unique_together = (('reaction', 'direction'), )
-        ordering = ('reaction', 'direction',)
+        #unique_together = (('reaction', 'direction'), )
+        ordering = ('id',)
 
-    def serialize(self):
-        """ Generate string representation
+    @staticmethod
+    def gen_id(reaction_id, direction_name):
+        """ Generate identifier
+
+        Args:
+            reaction_id (:obj:`str`): reaction id
+            direction_name (:obj:`str`): direction name
 
         Returns:
-            :obj:`str`: value of primary attribute
+            :obj:`str`: identifier
         """
-        return '{}.{}'.format(self.reaction.serialize(), self.direction.name)
+        return '{}-{}'.format(reaction_id, direction_name)
 
     def validate(self):
         """ Determine whether this `RateLaw` is valid
@@ -2190,6 +2116,17 @@ class RateLaw(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
+        invalid_obj = super(RateLaw, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.reaction and self.direction is not None and \
+                self.id != self.gen_id(self.reaction.id, self.direction.name):
+            errors.append(InvalidAttribute(
+                self.Meta.attributes['id'],
+                ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
 
         """ Check that rate law evaluates """
         if self.equation:
@@ -2207,10 +2144,11 @@ class RateLaw(obj_model.Model):
             except Exception as error:
                 msg = str(error)
                 attr = self.__class__.Meta.attributes['equation']
-                attr_err = InvalidAttribute(attr, [msg])
-                return InvalidObject(self, [attr_err])
+                errors.append(InvalidAttribute(attr, [msg]))
 
-        """ return `None` to indicate valid object """
+        """ return errors or `None` to indicate valid object """
+        if errors:
+            return InvalidObject(self, errors)
         return None
 
 
@@ -2226,7 +2164,7 @@ class RateLawEquation(obj_model.Model):
     Related attributes:
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
-    expression = LongStringAttribute(primary=True, unique=True)
+    expression = LongStringAttribute(primary=True, unique=True, default='')
     transcoded = LongStringAttribute()
     modifiers = ManyToManyAttribute(Species, related_name='rate_law_equations')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_equations')
@@ -2236,14 +2174,14 @@ class RateLawEquation(obj_model.Model):
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
                 can be used in a `RateLawEquation`s `expression`
-            valid_used_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
+            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `RateLawEquation` is allowed to reference in its `expression`
         """
         attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('rate_law',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_used_models = ('Species', 'Parameter', 'Observable', 'Function')
+        valid_models = ('Species', 'Parameter', 'Observable', 'Function')
 
     def serialize(self):
         """ Generate string representation
@@ -2251,19 +2189,19 @@ class RateLawEquation(obj_model.Model):
         Returns:
             :obj:`str`: value of primary attribute
         """
-        return self.expression
+        return ExpressionMethods.serialize(self)
 
     @classmethod
-    def deserialize(cls, attribute, value, objects):
+    def deserialize(cls, value, objects):
         """ Deserialize value
 
         Args:
-            attribute (:obj:`Attribute`): attribute
             value (:obj:`str`): String representation
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+            :obj:`tuple` of :obj:`RateLawEquation`, `InvalidAttribute` or `None`: tuple of cleaned value
+                and cleaning error
         """
         modifiers = []
         parameters = []
@@ -2293,7 +2231,7 @@ class RateLawEquation(obj_model.Model):
 
         if errors:
             attr = cls.Meta.attributes['expression']
-            return (None, InvalidAttribute(attribute, errors))
+            return (None, InvalidAttribute(attr, errors))
 
         # return value
         if cls not in objects:
@@ -2384,7 +2322,7 @@ class BiomassComponent(obj_model.Model):
 
 
 class BiomassReaction(obj_model.Model):
-    """ A pseudo-reaction used to represent the interface between metabolism and other 
+    """ A pseudo-reaction used to represent the interface between metabolism and other
     cell processes.
 
     Attributes:
@@ -2394,8 +2332,8 @@ class BiomassReaction(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
-    Related attributes:        
-        objective_functions (:obj:`list` of :obj:`ObjectiveFunction`): objective functions that use this
+    Related attributes:
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): objective functions that use this
             biomass reaction
         biomass_components (:obj:`list` of :obj:`BiomassComponent`): the components of this biomass reaction
     """
@@ -2562,10 +2500,14 @@ class Reference(obj_model.Model):
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
         concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        observables (:obj:`list` of :obj:`Observable`): observables
+        functions (:obj:`list` of :obj:`Function`): functions
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
         parameters (:obj:`list` of :obj:`Parameter`): parameters
+        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
     """
     id = SlugAttribute()
     name = StringAttribute()

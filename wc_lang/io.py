@@ -26,6 +26,7 @@ class Writer(object):
     model_order = [
         core.Model, core.Taxon, core.Submodel, core.Compartment, core.SpeciesType, core.Species,
         core.Concentration, core.Observable, core.Function,
+        core.DfbaObjective,
         core.Reaction, core.RateLaw,
         core.BiomassReaction, core.BiomassComponent,
         core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
@@ -34,10 +35,10 @@ class Writer(object):
     def run(self, model, path, set_repo_metadata_from_path=True):
         """ Write model to file(s)
 
-        Args:            
+        Args:
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
-            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
                 branch, revision) for the model from the parent directory of :obj:`core_path`
         """
         self.validate_implicit_relationships()
@@ -77,7 +78,7 @@ class Writer(object):
 
     @classmethod
     def validate_implicit_relationships(cls):
-        """ Check that relationships to :obj:`core.Model` do not need to be explicitly written to 
+        """ Check that relationships to :obj:`core.Model` do not need to be explicitly written to
         workbooks because they can be inferred by :obj:`Reader.run`
         """
         for attr in core.Model.Meta.attributes.values():
@@ -198,7 +199,7 @@ def create_template(path, set_repo_metadata_from_path=True):
 
     Args:
         path (:obj:`str`): path to file(s)
-        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
             branch, revision) for the model from the parent directory of :obj:`core_path`
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)

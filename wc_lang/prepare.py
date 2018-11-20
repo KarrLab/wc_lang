@@ -14,9 +14,11 @@ import networkx as nx
 from obj_model import utils
 from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
-from wc_lang import (SubmodelAlgorithm, Model, ObjectiveFunction, SpeciesType, SpeciesTypeType,
-                     Species, Concentration, ConcentrationUnit, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
-                     BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
+from wc_lang.core import (SubmodelAlgorithm, Model,
+                          DfbaObjective, DfbaObjectiveExpression,
+                          SpeciesType, SpeciesTypeType,
+                          Species, Concentration, ConcentrationUnit, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
+                          BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
 from wc_lang.expression_utils import RateLawUtils
 
 # configuration
@@ -220,7 +222,7 @@ class AnalyzeModel(object):
         """
         # todo: symmetrically, report reactions not on any path from ex species to obj fun components
         digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
-        obj_fn_species = submodel.objective_function.get_products()
+        obj_fn_species = submodel.dfba_obj.get_products()
         ex_compartment = submodel.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
         ex_species = submodel.get_species(compartment=ex_compartment)
         all_unbounded_paths = dict()
@@ -306,13 +308,13 @@ class PrepareModel(object):
                 warn("{} minimum and {} maximum default flux bounds set for submodel '{}'.".format(
                     min_bounds_set, max_bounds_set, submodel.name))
                 try:
-                    (reactions, biomass_reactions) = self.parse_dfba_submodel_obj_func(submodel)
+                    reactions, biomass_reactions = self.parse_dfba_submodel_obj_func(submodel)
                     PrepareModel.assign_linear_objective_fn(submodel, reactions, biomass_reactions)
-                    submodel.objective_function.linear = True
+                    submodel.dfba_obj.expression.linear = True
                 except Exception as e:
-                    submodel.objective_function.linear = False
-                    warn("Submodel '{}' has non-linear objective function '{}'.".format(submodel.name,
-                                                                                        submodel.objective_function.expression))
+                    submodel.dfba_obj.expression.linear = False
+                    warn("Submodel '{}' has non-linear objective function '{}'.".format(
+                        submodel.name, submodel.dfba_obj.expression.expression))
 
         self.init_concentrations()
 
@@ -379,19 +381,17 @@ class PrepareModel(object):
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
-        if not submodel.objective_function is None:
-            submodel.objective_function.reaction_coefficients = []
-            submodel.objective_function.biomass_reaction_coefficients = []
-            return None
-
-        # use the biomass reaction as the objective, because no objective function is specified
-        of = ObjectiveFunction(expression=' + '.join(rxn.id for rxn in submodel.biomass_reactions),
-                               reactions=[],
-                               biomass_reactions=submodel.biomass_reactions)
-
-        of.reaction_coefficients = []
-        of.biomass_reaction_coefficients = [1.0]
-        submodel.objective_function = of
+        if submodel.dfba_obj is None:
+            # use the biomass reaction as the objective, because no objective function is specified
+            submodel.dfba_obj = DfbaObjective(
+                expression=DfbaObjectiveExpression(
+                    expression=' + '.join(rxn.id for rxn in submodel.biomass_reactions),
+                    reactions=[],
+                    biomass_reactions=submodel.biomass_reactions,
+                ),
+            )
+        submodel.dfba_obj.expression.reaction_coefficients = []
+        submodel.dfba_obj.expression.biomass_reaction_coefficients = [1.0]
         return None
 
     def parse_dfba_submodel_obj_func(self, submodel):
@@ -417,7 +417,7 @@ class PrepareModel(object):
 
         Raises:
             ValueError: if `submodel` is not a dFBA submodel
-            ValueError: if `submodel.objective_function` is not a legal python expression, does not
+            ValueError: if `submodel.dfba_obj` is not a legal python expression, does not
                 have the form above, is not a linear function of reaction ids, uses an unknown
                 reaction id, or uses an id multiple times
         """
@@ -425,12 +425,12 @@ class PrepareModel(object):
             raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
         linear_expr = []    # list of (coeff, reaction_id)
-        objective_function = submodel.objective_function
-        objective_function.expression = objective_function.expression.strip()
+        dfba_obj = submodel.dfba_obj
+        expression = dfba_obj.expression.expression = dfba_obj.expression.expression.strip()
         expected_nodes = (ast.Add, ast.Expression, ast.Load, ast.Mult, ast.Num, ast.USub,
                           ast.UnaryOp, ast.Name)
         try:
-            for node in ast.walk(ast.parse(objective_function.expression, mode='eval')):
+            for node in ast.walk(ast.parse(expression, mode='eval')):
                 try:
                     # if linear_expr is empty then an ast.Name is the entire expression
                     if isinstance(node, ast.Name) and not linear_expr:
@@ -446,9 +446,9 @@ class PrepareModel(object):
                         raise ValueError()
                 except ValueError:
                     raise ValueError("Cannot parse objective function '{}' as a linear function of "
-                                     "reaction ids.".format(objective_function.expression))
+                                     "reaction ids.".format(expression))
         except Exception as e:
-            raise ValueError("Cannot parse objective function '{}'.".format(objective_function.expression))
+            raise ValueError("Cannot parse objective function '{}'.".format(expression))
 
         # error if multiple uses of a reaction in an objective function
         seen = set()
@@ -458,8 +458,7 @@ class PrepareModel(object):
                 dupes.append(id)
             seen.add(id)
         if dupes:
-            raise ValueError("Multiple uses of '{}' in objective function '{}'.".format(dupes,
-                                                                                        objective_function.expression))
+            raise ValueError("Multiple uses of '{}' in objective function '{}'.".format(dupes, expression))
         reactions = []
         biomass_reactions = []
 
@@ -476,7 +475,7 @@ class PrepareModel(object):
                 continue
 
             raise ValueError("Unknown reaction or biomass reaction id '{}' in objective function '{}'.".format(
-                id, objective_function.expression))
+                id, expression))
         return (reactions, biomass_reactions)
 
     @staticmethod
@@ -551,16 +550,13 @@ class PrepareModel(object):
             reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for reactions
             biomass_reactions (:obj:`list` of (`float`, `str`)): list of (coeff, id) pairs for
                 biomass reactions
-
-        Raises:
-            ValueError: if `submodel` is not a dFBA submodel
         """
-        of = submodel.objective_function
-        of.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff, id in reactions]
-        of.reaction_coefficients = [coeff for coeff, id in reactions]
-        of.biomass_reactions = [get_component_by_id(submodel.model.get_biomass_reactions(), id)
-                                for coeff, id in biomass_reactions]
-        of.biomass_reaction_coefficients = [coeff for coeff, id in biomass_reactions]
+        of = submodel.dfba_obj
+        of.expression.reactions = [get_component_by_id(submodel.model.get_reactions(), id) for coeff, id in reactions]
+        of.expression.reaction_coefficients = [coeff for coeff, id in reactions]
+        of.expression.biomass_reactions = [get_component_by_id(submodel.model.get_biomass_reactions(), id)
+                                           for coeff, id in biomass_reactions]
+        of.expression.biomass_reaction_coefficients = [coeff for coeff, id in biomass_reactions]
 
     def apply_default_dfba_submodel_flux_bounds(self, submodel):
         """ Apply default flux bounds to a dFBA submodel's reactions
@@ -665,7 +661,8 @@ class CheckModel(object):
         * All Species used in reactions have concentration values
         * Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
           for the reactions participate in at least one reaction in the submodel
-        * Ensure that Reaction and BiomassReaction ids don't overlap; can then simplify ObjectiveFunction.deserialize()
+        * Ensure that Reaction and BiomassReaction ids don't overlap; can then simplify
+          DfbaObjective.deserialize()
 
     # TODO: implement these, and expand the list of properties
     """
@@ -723,7 +720,7 @@ class CheckModel(object):
                     errors.append("Error: 0 < min_flux ({}) for reversible reaction '{}' in submodel '{}'".format(
                         reaction.min_flux, reaction.name, submodel.name))
 
-        if submodel.objective_function is None:
+        if submodel.dfba_obj is None:
             errors.append("Error: submodel '{}' uses dFBA but lacks an objective function".format(submodel.name))
 
         has_biomass_components = False

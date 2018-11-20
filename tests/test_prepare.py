@@ -13,7 +13,7 @@ import re
 import six
 import unittest
 
-from wc_lang import (Model, Submodel, ObjectiveFunction, Reaction, SpeciesType, Species,
+from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
                      Compartment, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
                      BiomassComponent, BiomassReaction, SpeciesTypeType, Parameter,
                      Observable, ObservableExpression, Function, FunctionExpression,
@@ -80,18 +80,18 @@ class TestPrepareModel(unittest.TestCase):
         self.assertIn("not a dFBA submodel", str(context.exception))
         self.dfba_submodel.algorithm = SubmodelAlgorithm.dfba
 
-        self.dfba_submodel.objective_function = None
+        self.dfba_submodel.dfba_obj = None
         self.assertEqual(confirm_dfba_submodel_obj_func(self.dfba_submodel), None)
         # self.dfba_submodel should be using its biomass reaction as its objective function
-        self.assertEqual(self.dfba_submodel.objective_function.expression,
+        self.assertEqual(self.dfba_submodel.dfba_obj.expression.expression,
                          self.dfba_submodel.biomass_reactions[0].id)
-        self.assertEqual(self.dfba_submodel.objective_function.reactions, [])
-        self.assertEqual(self.dfba_submodel.objective_function.biomass_reaction_coefficients, [1.0])
+        self.assertEqual(self.dfba_submodel.dfba_obj.expression.reactions, [])
+        self.assertEqual(self.dfba_submodel.dfba_obj.expression.biomass_reaction_coefficients, [1.0])
 
     def test_parse_dfba_submodel_obj_func(self):
         parse_dfba_submodel_obj_func = self.prepare_model.parse_dfba_submodel_obj_func
 
-        of = self.dfba_submodel.objective_function
+        of = self.dfba_submodel.dfba_obj
 
         # list of tests and expected results
         # (test, [(coef, reaction_id), ... ] [(coeff, biomass_reaction_id), ... ])
@@ -107,7 +107,7 @@ class TestPrepareModel(unittest.TestCase):
         for test_and_result in tests_and_results:
 
             test, reaction_results, biomass_results = test_and_result
-            of.expression = test
+            of.expression.expression = test
             (reactions, biomass_reactions) = parse_dfba_submodel_obj_func(self.dfba_submodel)
             for coeff, reaction in reaction_results:
                 self.assertIn((coeff, reaction), reactions)
@@ -125,7 +125,7 @@ class TestPrepareModel(unittest.TestCase):
             ('x', 'Unknown reaction or biomass reaction id'),
         ]
         for error_input, msg in error_inputs:
-            of.expression = error_input
+            of.expression.expression = error_input
             with self.assertRaises(ValueError) as context:
                 parse_dfba_submodel_obj_func(self.dfba_submodel)
             self.assertIn(msg, str(context.exception))
@@ -146,13 +146,14 @@ class TestPrepareModel(unittest.TestCase):
             self.prepare_model._proc_mult(node, [])
 
     def test_assign_linear_objective_fn(self):
-        of = self.dfba_submodel.objective_function
-        of.expression = 'Metabolism_biomass + reaction_1 + reaction_2*2.0'
+        of = self.dfba_submodel.dfba_obj
+        of.expression.expression = 'Metabolism_biomass + reaction_1 + reaction_2*2.0'
         (reactions, biomass_reactions) = self.prepare_model.parse_dfba_submodel_obj_func(self.dfba_submodel)
         PrepareModel.assign_linear_objective_fn(self.dfba_submodel, reactions, biomass_reactions)
-        self.assertEqual(of.biomass_reactions[0].id, 'Metabolism_biomass')
-        self.assertEqual(of.biomass_reaction_coefficients[0], 1.0)
-        coeffs_n_ids = zip(of.reaction_coefficients, [r.id for r in of.reactions])
+        self.assertEqual(of.expression.biomass_reactions[0].id, 'Metabolism_biomass')
+        self.assertEqual(of.expression.biomass_reaction_coefficients[0], 1.0)
+        coeffs_n_ids = zip(of.expression.reaction_coefficients,
+                           [r.id for r in of.expression.reactions])
         self.assertIn((1.0, 'reaction_1'), coeffs_n_ids)
         self.assertIn((2.0, 'reaction_2'), coeffs_n_ids)
 
@@ -192,13 +193,19 @@ class TestPrepareModel(unittest.TestCase):
                 self.prepare_model.apply_default_dfba_submodel_flux_bounds(submodel)
 
     def test_run(self):
-        of = self.dfba_submodel.objective_function
-        of.expression = 'Metabolism_biomass + reaction_1 + reaction_2*2.0'
+        of = self.dfba_submodel.dfba_obj
+
+        of.expression.expression = 'Metabolism_biomass + reaction_1 + reaction_2*2.0'
         self.prepare_model.run()
-        self.assertTrue(of.linear)
-        of.expression = 'reaction_1*reaction_1'
+        self.assertEqual(set([rxn.id for rxn in of.expression.reactions]),
+                         set(['reaction_1', 'reaction_2']))
+        self.assertEqual(set([rxn.id for rxn in of.expression.biomass_reactions]),
+                         set(['Metabolism_biomass']))
+        self.assertTrue(of.expression.linear)
+
+        of.expression.expression = 'reaction_1*reaction_1'
         self.prepare_model.run()
-        self.assertFalse(of.linear)
+        self.assertFalse(of.expression.linear)
 
 
 class TestAnalyzeModel(unittest.TestCase):
@@ -512,7 +519,7 @@ class TestCheckModel(unittest.TestCase):
                       errors[0])
 
         # remove the objective function
-        self.dfba_submodel.objective_function = None
+        self.dfba_submodel.dfba_obj = None
         errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
         self.assertIn("Error: submodel '{}' uses dFBA but lacks an objective function".format(self.dfba_submodel.name),
                       errors[0])

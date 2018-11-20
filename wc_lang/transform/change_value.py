@@ -1,4 +1,4 @@
-""" Change a value of an attribute of a model 
+""" Change a value of an attribute of a model
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2018-06-19
@@ -13,7 +13,7 @@ import itertools
 
 
 class ChangeValueTransform(Transform):
-    """ Change a value of an attribute of a model 
+    """ Change a value of an attribute of a model
 
     Attributes:
         target_type (:obj:`type`): type of the target to change, E.g.
@@ -53,7 +53,7 @@ class ChangeValueTransform(Transform):
     def __init__(self, target_type, target_id, target_attr, value):
         """
         Args:
-            target_type (:obj:`type`): type of the target to change, E.g. 
+            target_type (:obj:`type`): type of the target to change, E.g.
                 :obj:`wc_lang.Compartment`, :obj:`wc_lang.Function`
             target_id (:obj:`str`): id of the target to change
             target_attr (:obj:`list`): list of names of the nested attribute to change
@@ -65,7 +65,7 @@ class ChangeValueTransform(Transform):
         self.value = value
 
     def run(self, model):
-        """ Change a value of an attribute of a model 
+        """ Change a value of an attribute of a model
 
         Args:
             model (:obj:`Model`): model definition

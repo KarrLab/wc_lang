@@ -23,7 +23,7 @@ from libsbml import Model as libsbmlModel
 from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
-from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
+from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, DfbaObjective, Compartment,
                      Species, Concentration, Reaction, RateLaw, RateLawEquation,
                      BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.prepare import PrepareModel, CheckModel
@@ -111,9 +111,9 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             # not checking: comments
 
         if isinstance(element, libsbmlObjective):
-            # test an ObjectiveFunction
+            # test an DfbaObjective
             test_case.assertEqual(element.getType(), 'maximize')
-            test_case.assertEqual(element.getIdAttribute(), ObjectiveFunction.ACTIVE_OBJECTIVE)
+            test_case.assertEqual(element.getIdAttribute(), DfbaObjective.ACTIVE_OBJECTIVE)
             # not checking: reactions, or biomass_reactions
 
             # TODO: check remaining elements

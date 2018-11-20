@@ -30,7 +30,7 @@ WC                      SBML                                                Stat
 Model                   Model                                               Ignored
 Taxon                   None, perhaps make SBML annotations                 Ignored
 Submodel                Model                                               Implemented
-ObjectiveFunction       Objective                                           Mostly Implemented
+DfbaObjective   Objective                                           Mostly Implemented
 Compartment             Compartment                                         Implemented
 SpeciesType             SpeciesType aren't defined                          NA
 Species                 Species                                             Implemented
@@ -38,12 +38,12 @@ Concentration           Concentrations are incorporated in Species          NA
 Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
 SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
 RateLaw                 KineticLaw                                          Ignored
-RateLawEquation         
+RateLawEquation
 BiomassComponent
 BiomassReaction                                                             TBD
 Parameter               Parameter                                           Implemented
-Reference           
-DatabaseReference           
+Reference
+DatabaseReference
 
 wc_lang attribute to SBML mapping:
 
@@ -108,10 +108,14 @@ class Writer(object):
         sbml_documents = {}
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:
-                objects = [submodel, submodel.objective_function] + \
+                objects = [submodel] + \
                     submodel.biomass_reactions + \
                     model.get_compartments() + \
-                    submodel.get_species() + submodel.parameters + submodel.reactions
+                    submodel.get_species() + \
+                    submodel.parameters + \
+                    submodel.reactions
+                if submodel.dfba_obj:
+                    objects.append(submodel.dfba_obj)
                 sbml_documents[submodel.id] = SBMLExchange.write(objects)
         if not sbml_documents:
             raise ValueError("No submodel.algorithm in algorithms '{}'.".format(algorithms))
@@ -185,8 +189,8 @@ class SBMLExchange(object):
         #     Compartment must precede Reaction
         #     Species must precede Reaction
         #     Species must precede BiomassReaction
-        #     Reaction must precede ObjectiveFunction
-        #     BiomassReaction must precede ObjectiveFunction
+        #     Reaction must precede DfbaObjective
+        #     BiomassReaction must precede DfbaObjective
         # This partial order is satisfied by this sequence:
         model_order = [
             wc_lang.Submodel,
@@ -195,7 +199,7 @@ class SBMLExchange(object):
             wc_lang.Species,
             wc_lang.Reaction,
             wc_lang.BiomassReaction,
-            wc_lang.ObjectiveFunction,
+            wc_lang.DfbaObjective,
         ]
 
         # add objects into libsbml.SBMLDocument
@@ -228,8 +232,8 @@ class SBMLExchange(object):
             submodel.reactions + \
             submodel.biomass_reactions + \
             submodel.model.get_parameters()
-        if submodel.objective_function:
-            objects.append(submodel.objective_function)
+        if submodel.dfba_obj:
+            objects.append(submodel.dfba_obj)
 
         return SBMLExchange.write(objects)
 
