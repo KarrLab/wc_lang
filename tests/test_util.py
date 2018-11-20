@@ -48,7 +48,7 @@ class TestUtil(unittest.TestCase):
             spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
             species.append(spec)
 
-            conc = Concentration(species=spec, value=1)
+            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=1)
             concentrations.append(conc)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
@@ -61,27 +61,33 @@ class TestUtil(unittest.TestCase):
         rxn_0.participants.create(species=species[1], coefficient=-3)
         rxn_0.participants.create(species=species[2], coefficient=1)
         equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[5].get_primary_attribute()),
+            expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].get_primary_attribute()),
             modifiers=species[5:6])
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        equation.parameters.create(id='k_cat_0', value=2)
+        equation.parameters.create(id='k_m_0', value=1)
+        rate_law_0 = rxn_0.rate_laws.create(equation=equation)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1')
         rxn_1.participants.create(species=species[0], coefficient=-2)
         rxn_1.participants.create(species=species[1], coefficient=-3)
         rxn_1.participants.create(species=species[3], coefficient=2)
         equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[6].get_primary_attribute()),
+            expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].get_primary_attribute()),
             modifiers=species[6:7])
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        equation.parameters.create(id='k_cat_1', value=2)
+        equation.parameters.create(id='k_m_1', value=1)
+        rate_law_1 = rxn_1.rate_laws.create(equation=equation)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2')
         rxn_2.participants.create(species=species[0], coefficient=-2)
         rxn_2.participants.create(species=species[1], coefficient=-3)
         rxn_2.participants.create(species=species[4], coefficient=1)
         equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[7].get_primary_attribute()),
+            expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].get_primary_attribute()),
             modifiers=species[7:8])
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        equation.parameters.create(id='k_cat_2', value=2)
+        equation.parameters.create(id='k_m_2', value=1)
+        rate_law_2 = rxn_2.rate_laws.create(equation=equation)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]

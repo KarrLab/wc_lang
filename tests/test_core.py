@@ -72,7 +72,7 @@ class TestCore(unittest.TestCase):
             spec.id = spec.gen_id(spec.species_type.id, spec.compartment.id)
             species.append(spec)
 
-            conc = Concentration(species=spec, value=3 * i)
+            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=3 * i)
             concentrations.append(conc)
 
         self.biomass_reaction = biomass_reaction = BiomassReaction(
@@ -113,24 +113,32 @@ class TestCore(unittest.TestCase):
         rxn_0.participants.create(species=species[1], coefficient=-3.5)
         rxn_0.participants.create(species=species[2], coefficient=1)
         equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
+            expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
+        parameters.append(equation.parameters.create(id='k_cat_0', value=2,
+                                                     model=mdl))
+        parameters.append(equation.parameters.create(id='k_m_0', value=1,
+                                                     model=mdl))
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             direction=RateLawDirection.forward,
-            equation=equation, k_cat=2, k_m=1)
+            equation=equation)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
         rxn_1.participants.create(species=species[0], coefficient=-2)
         rxn_1.participants.create(species=species[1], coefficient=-3)
         rxn_1.participants.create(species=species[3], coefficient=2)
         equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
+            expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
+        parameters.append(equation.parameters.create(id='k_cat_1', value=2,
+                                                     model=mdl))
+        parameters.append(equation.parameters.create(id='k_m_1', value=1,
+                                                     model=mdl))
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             direction=RateLawDirection.forward,
-            equation=equation, k_cat=2, k_m=1)
+            equation=equation)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
         rxn_2.participants.create(species=species[0], coefficient=-2)
@@ -143,7 +151,7 @@ class TestCore(unittest.TestCase):
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             direction=RateLawDirection.forward,
-            equation=equation, k_cat=2, k_m=1)
+            equation=equation)
 
         Reaction.get_manager().insert_all_new()
 
@@ -549,9 +557,9 @@ class TestCore(unittest.TestCase):
 
     def test_rate_law_equation_serialize(self):
         self.assertEqual(self.rate_laws[0].equation.serialize(),
-                         'k_cat * {0} / (k_m + {0})'.format(self.species[5].serialize()))
+                         'k_cat_0 * {0} / (k_m_0 + {0})'.format(self.species[5].serialize()))
         self.assertEqual(self.rate_laws[1].equation.serialize(),
-                         'k_cat * {0} / (k_m + {0})'.format(self.species[6].serialize()))
+                         'k_cat_1 * {0} / (k_m_1 + {0})'.format(self.species[6].serialize()))
         self.assertEqual(self.rate_laws[2].equation.serialize(),
                          '{1} * {0} / ({2} + {0})'.format(
             self.species[7].serialize(),
@@ -576,6 +584,10 @@ class TestCore(unittest.TestCase):
             },
             Species: {
             },
+            Parameter: {
+                'k_cat': Parameter(id='k_cat', value=1),
+                'k_m': Parameter(id='k_m', value=2),
+            }
         }
         objs[Species]['spec_0[c_0]'] = Species(id='spec_0[c_0]',
                                                species_type=objs[SpeciesType]['spec_0'],
@@ -590,51 +602,53 @@ class TestCore(unittest.TestCase):
                                                species_type=objs[SpeciesType]['spec_1'],
                                                compartment=objs[Compartment]['c_1'])
 
-        expression = 'k_cat * spec_0[c_0]'
+        expression = 'spec_0[c_0]'
         equation1, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
-        self.assertEqual(equation1.modifiers[0].serialize(), 'spec_0[c_0]')
+        self.assertEqual(equation1.modifiers, [objs[Species]['spec_0[c_0]']])
+        self.assertEqual(equation1.parameters, [])
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1]))
 
-        expression = 'k_cat * spec_0[c_1] / (k_m + spec_2[c_1])'
+        expression = 'spec_0[c_1] / (spec_2[c_1])'
         equation2, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation2.expression, expression)
-        self.assertEqual(set([x.serialize() for x in equation2.modifiers]), set(['spec_0[c_1]', 'spec_2[c_1]']))
+        self.assertEqual(set(equation2.modifiers), set([objs[Species]['spec_0[c_1]'], objs[Species]['spec_2[c_1]']]))
+        self.assertEqual(equation2.parameters, [])
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
-        expression = 'k_cat * spec_0[c_3] / (k_m + spec_1[c_1])'
+        expression = 'spec_0[c_3] / (spec_1[c_1])'
         equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
-        expression = 'k_cat * spec_3[c_0] / (k_m + spec_1[c_1])'
+        expression = 'spec_3[c_0] / (spec_1[c_1])'
         equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
         self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2]))
 
         # exception
-        equation, error = RateLawEquation.deserialize(2, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(equation, None)
+        equation3, error = RateLawEquation.deserialize('2', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(equation3.expression, '2')
 
         # with parameters
-        expression = 'p_1 * spec_0[c_1] / (p_2 + spec_2[c_1])'
-        equation3, error = RateLawEquation.deserialize(expression, objs)
+        expression = 'k_cat * spec_0[c_1] / (k_m + spec_2[c_1])'
+        equation4, error = RateLawEquation.deserialize(expression, objs)
         self.assertEqual(error, None)
-        self.assertEqual(equation3.expression, expression)
-        self.assertEqual(set([x.serialize() for x in equation3.modifiers]), set(['spec_0[c_1]', 'spec_2[c_1]']))
-        self.assertEqual(set(equation3.parameters), set(objs[Parameter].values()))
-        self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3]))
+        self.assertEqual(equation4.expression, expression)
+        self.assertEqual(set(equation4.modifiers), set([objs[Species]['spec_0[c_1]'], objs[Species]['spec_2[c_1]']]))
+        self.assertEqual(set(equation4.parameters), set(objs[Parameter].values()))
+        self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3, equation4]))
 
-        expression = 'p_3 * spec_0[c_1] / (p_2 + spec_2[c_1])'
+        expression = 'p_1 * spec_0[c_1] / (p_2 + spec_2[c_1])'
         equation, error = RateLawEquation.deserialize(expression, objs)
         self.assertNotEqual(error, None)
         self.assertEqual(equation, None)
-        self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3]))
+        self.assertEqual(set(objs[RateLawEquation].values()), set([equation1, equation2, equation3, equation4]))
 
     def test_rate_law_validate(self):
         species_types = [
@@ -661,7 +675,7 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             equation=equation,
         )
-        self.assertNotEqual(rate_law.validate(), None)
+        self.assertNotEqual(rate_law.equation.validate(), None)
 
         # unknown parameter error
         expression = 'p_x'
@@ -673,7 +687,7 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             equation=equation,
         )
-        self.assertNotEqual(rate_law.validate(), None)
+        self.assertNotEqual(rate_law.equation.validate(), None)
 
         # Name error
         expression = 'not_k_cat * spec_0[c_0]'
@@ -687,7 +701,7 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             equation=equation
         )
-        self.assertNotEqual(rate_law.validate(), None)
+        self.assertNotEqual(rate_law.equation.validate(), None)
 
         # syntax error
         expression = '* spec_0[c_0]'
@@ -701,24 +715,26 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             equation=equation
         )
-        self.assertNotEqual(rate_law.validate(), None)
+        self.assertNotEqual(rate_law.equation.validate(), None)
 
         # No error
         expression = 'k_cat * spec_0[c_0]'
-        equation = RateLawEquation(
-            expression=expression,
-            modifiers=[
-                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
-            ])
+        equation, errors = RateLawEquation.deserialize(expression, {
+            Species: {
+                'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
+            },
+            Parameter: {
+                'k_cat': Parameter(id='k_cat', value=1),
+            },
+        })
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
-            k_cat=2.,
-            k_m=1.,
-            equation=equation
+            equation=equation,
         )
         error = rate_law.validate()
         self.assertEqual(rate_law.validate(), None, str(error))
+        self.assertEqual(rate_law.equation.validate(), None, str(error))
 
         # No error with parameters
         expression = 'p_0 * spec_0[c_0]'
@@ -733,20 +749,10 @@ class TestCore(unittest.TestCase):
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
-            k_cat=2.,
-            k_m=1.,
             equation=equation
         )
         self.assertEqual(rate_law.validate(), None)
-
-        # k_cat is integer
-        rate_law.k_cat = 2
-        self.assertNotEqual(rate_law.validate(), None)
-
-        # id doesn't match template
-        rate_law.k_cat = 2.
-        rate_law.id = 'rxn-backward'
-        self.assertNotEqual(rate_law.validate(), None)
+        self.assertEqual(rate_law.equation.validate(), None, str(error))
 
     def test_rate_law_equation_validate(self):
         species_types = [
@@ -835,7 +841,8 @@ class TestCore(unittest.TestCase):
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[2]])
-        self.assertNotEqual(equation.validate(), None)
+        invalid = equation.validate()
+        self.assertEqual(invalid, None, str(invalid))
 
     def test_rate_law_modifiers(self):
         self.assertEqual(self.rxn_0.rate_laws[0].equation.modifiers, self.species[5:6])
@@ -843,8 +850,8 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.rxn_2.rate_laws[0].equation.modifiers, self.species[7:8])
 
     def test_rate_law_parameters(self):
-        self.assertEqual(self.rxn_0.rate_laws[0].equation.parameters, [])
-        self.assertEqual(self.rxn_1.rate_laws[0].equation.parameters, [])
+        self.assertEqual([p.id for p in self.rxn_0.rate_laws[0].equation.parameters], ['k_cat_0', 'k_m_0'])
+        self.assertEqual([p.id for p in self.rxn_1.rate_laws[0].equation.parameters], ['k_cat_1', 'k_m_1'])
         self.assertEqual(self.rxn_2.rate_laws[0].equation.parameters, self.parameters[0:2])
 
     def test_parameter_validate_unique(self):
@@ -866,15 +873,15 @@ class TestCore(unittest.TestCase):
 
         submodel = Submodel()
         params = [
-            Parameter(id='a', submodels=[submodel]),
-            Parameter(id='b', submodels=[submodel]),
+            Parameter(id='a'),
+            Parameter(id='b'),
         ]
         self.assertEqual(Parameter.validate_unique(params), None)
 
         submodel = Submodel()
         params = [
-            Parameter(id='a', submodels=[submodel]),
-            Parameter(id='a', submodels=[submodel]),
+            Parameter(id='a'),
+            Parameter(id='a'),
         ]
         self.assertNotEqual(Parameter.validate_unique(params), None)
 
@@ -882,21 +889,21 @@ class TestCore(unittest.TestCase):
         submodel = Submodel()
         params = [
             Parameter(id='a', model=model),
-            Parameter(id='a', submodels=[submodel]),
-        ]
-        self.assertEqual(Parameter.validate_unique(params), None)
-
-        params = [
-            Parameter(id='a', submodels=[Submodel(id='a')]),
-            Parameter(id='a', submodels=[Submodel(id='b')]),
-        ]
-        self.assertEqual(Parameter.validate_unique(params), None)
-
-        params = [
-            Parameter(id='a', submodels=[Submodel()]),
-            Parameter(id='a', submodels=[Submodel()]),
+            Parameter(id='a', model=model),
         ]
         self.assertNotEqual(Parameter.validate_unique(params), None)
+
+        params = [
+            Parameter(id='a'),
+            Parameter(id='b'),
+        ]
+        self.assertEqual(Parameter.validate_unique(params), None)
+
+        params = [
+            Parameter(id='a', model=model),
+            Parameter(id='b', model=model),
+        ]
+        self.assertEqual(Parameter.validate_unique(params), None)
 
     def test_database_reference_serialize(self):
         self.assertEqual(self.database_references[0].serialize(), '{}: {}'.format('x', 'y'))
@@ -1123,6 +1130,9 @@ class TestCore(unittest.TestCase):
             },
             Species: {
             },
+            Parameter: {
+                'k_cat': Parameter(id='k_cat'),
+            }
         }
         objs[Species]['spec_0[c_0]'] = Species(
             id='spec_0[c_0]',
@@ -1134,7 +1144,8 @@ class TestCore(unittest.TestCase):
         equation1, error = attr.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(equation1.expression, expression)
-        self.assertEqual(equation1.modifiers[0], objs[Species]['spec_0[c_0]'])
+        self.assertEqual(equation1.modifiers, [objs[Species]['spec_0[c_0]']])
+        self.assertEqual(equation1.parameters, [objs[Parameter]['k_cat']])
         self.assertEqual(list(objs[RateLawEquation].values()), [equation1])
 
     def test_dfba_obj_deserialize(self):
@@ -1617,7 +1628,7 @@ class TestCore(unittest.TestCase):
         _, objects, id_map = self.make_objects()
 
         i = 0
-        for expr, expected_test_val, expected_related_objs, error in [
+        for i_expr, (expr, expected_test_val, expected_related_objs, error) in enumerate([
             ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),
             ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),     # reuse the FunctionExpression
             ('ddd + eee', 2, {'observables': [id_map['Observable.ddd'], id_map['Observable.eee']]}, None),
@@ -1643,7 +1654,7 @@ class TestCore(unittest.TestCase):
                 {'observables': [id_map['Observable.ddd']],
                  'functions':[id_map['Function.duped_id']]},
                 None),
-        ]:
+        ]):
             self.do_test_valid_expression(FunctionExpression, Function,
                                           objects, expr, expected_test_val, expected_related_objs,
                                           expected_error=error)

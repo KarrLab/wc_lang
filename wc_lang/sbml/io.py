@@ -112,7 +112,7 @@ class Writer(object):
                     submodel.biomass_reactions + \
                     model.get_compartments() + \
                     submodel.get_species() + \
-                    submodel.parameters + \
+                    submodel.get_parameters() + \
                     submodel.reactions
                 if submodel.dfba_obj:
                     objects.append(submodel.dfba_obj)

@@ -49,7 +49,7 @@ class Writer(object):
             for attr in obj.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
                         attr.related_class == core.Model:
-                    if attr.primary_class in (core.Parameter, core.DatabaseReference):
+                    if attr.primary_class in (core.DatabaseReference,):
                         if getattr(obj, attr.name) not in [None, model]:
                             raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
                     else:
@@ -87,7 +87,7 @@ class Writer(object):
 
         for attr in core.Model.Meta.related_attributes.values():
             if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)) and \
-                    attr.primary_class not in (core.Parameter, core.DatabaseReference):
+                    attr.primary_class not in (core.DatabaseReference,):
                 raise Exception('Only one-to-one and many-to-one relationships are supported to `Model`')
 
 
@@ -152,7 +152,7 @@ class Reader(object):
             for attr in cls.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
                         attr.related_class == core.Model and \
-                        attr.primary_class not in (core.Parameter, core.DatabaseReference):
+                        attr.primary_class not in (core.DatabaseReference,):
                     for cls_obj in cls_objects:
                         setattr(cls_obj, attr.name, model)
 

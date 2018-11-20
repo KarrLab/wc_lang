@@ -36,7 +36,7 @@ class RoundTripTestCase(unittest.TestCase):
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
+        species.concentration = Concentration(id=Concentration.gen_id(species.id), value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
         observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
@@ -69,7 +69,7 @@ class RoundTripTestCase(unittest.TestCase):
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(value=1, units=ConcentrationUnit.M)
+        species.concentration = Concentration(id=Concentration.gen_id(species.id), value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
         observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)

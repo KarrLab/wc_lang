@@ -560,48 +560,6 @@ class TestCheckModel(unittest.TestCase):
         errors = self.check_model.check_dynamic_submodel(ssa_submodel)
         self.assertIn("is reversible but has only a 'forward' rate law specified", errors[0])
 
-    def test_transcode_and_check_rate_law_equations(self):
-        # good laws
-        self.assertEqual(self.check_model.transcode_and_check_rate_law_equations(), [])
-
-        # test errors
-        # redefine one reaction
-        rate_law_equation = RateLawEquation(
-            expression='',
-            transcoded='',
-        )
-        rate_law = RateLaw(
-            equation=rate_law_equation,
-        )
-        rate_law_equation.rate_law = rate_law
-        a_reaction = self.model.get_reactions().pop()
-        a_reaction.rate_laws = [rate_law]
-        TEST_ID = 'test_id'
-        a_reaction.id = TEST_ID
-
-        # rate laws that fail transcoding
-        rate_law_equation.expression = '__ 0'
-        self.assertIn("Security risk: rate law expression '__",
-                      self.check_model.transcode_and_check_rate_law_equations()[0])
-        rate_law_equation.expression = 'not_a_specie[e]'
-        self.assertIn("'not_a_specie[e]' not a known specie",
-                      self.check_model.transcode_and_check_rate_law_equations()[0])
-        rate_law_equation.expression = 'foo foo'
-        self.assertIn("'foo' not a known parameter".format(TEST_ID),
-                      self.check_model.transcode_and_check_rate_law_equations()[0])
-        rate_law_equation.expression = 'cos(0)'
-        self.assertIn("'cos' not a known parameter".format(TEST_ID),
-                      self.check_model.transcode_and_check_rate_law_equations()[0])
-
-        # rate laws that fail evaluation
-        rate_law_equation.expression = '{{{*'
-        self.assertIn("EOF in multi-line statement",
-                      self.check_model.transcode_and_check_rate_law_equations()[0])
-
-        submodel = self.model.submodels.get_one(algorithm=SubmodelAlgorithm.ssa)
-        submodel.reactions[1].rate_laws[0].equation = None
-        self.check_model.transcode_and_check_rate_law_equations()
-
     def test_run(self):
         self.check_model.run()
 

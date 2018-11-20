@@ -78,9 +78,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         submdl_2.reactions.add(rxn_2_0)
         submdl_2.reactions.add(rxn_2_1)
 
-        submdl_0.parameters.create(id='param_0')
-        submdl_1.parameters.create(id='param_1')
-        submdl_2.parameters.create(id='param_2')
+        mdl.parameters.create(id='param_0')
+        mdl.parameters.create(id='param_1')
+        mdl.parameters.create(id='param_2')
 
         submdl_0.references.create(id='ref_0')
         submdl_1.references.create(id='ref_1')
@@ -117,9 +117,6 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
 
         self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
         self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
-
-        self.assertEqual(len(submdl_0.parameters) + len(submdl_1.parameters), len(merged_submdl_ssa.parameters))
-        self.assertEqual(len(submdl_2.parameters), len(merged_submdl_fba.parameters))
 
         self.assertEqual(len(submdl_0.references) + len(submdl_1.references), len(merged_submdl_ssa.references))
         self.assertEqual(len(submdl_2.references), len(merged_submdl_fba.references))

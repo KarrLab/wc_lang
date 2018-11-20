@@ -160,8 +160,8 @@ class TestSbml(unittest.TestCase):
     def test_SBML_Exchange_warning(self):
         model = Model(id='model')
         met_submodel = model.submodels.create(id='Metabolism', algorithm=SubmodelAlgorithm.ssa)
-        met_submodel.parameters.append(Parameter(id='param_1'))
-        met_submodel.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1'))
 
         with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")

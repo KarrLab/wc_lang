@@ -19,7 +19,6 @@ from wc_lang.core import (SubmodelAlgorithm, Model,
                           SpeciesType, SpeciesTypeType,
                           Species, Concentration, ConcentrationUnit, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
                           BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
-from wc_lang.expression_utils import RateLawUtils
 
 # configuration
 import wc_lang.config.core
@@ -631,6 +630,7 @@ class PrepareModel(object):
             if species.concentration is None:
                 missing_species_ids.append(species.id)
                 species.concentrations = Concentration(
+                    id=Concentration.gen_id(species.id),
                     species=species,
                     value=0.0, units=ConcentrationUnit.molecules)
         warn("Assuming missing concentrations for the following metabolites 0:\n  {}".format(
@@ -646,7 +646,6 @@ class CheckModel(object):
     Currently checked properties:
 
         * DFBA submodels contain a biomass reaction and an objective function
-        * Rate laws transcode and evaluate without error
         * All reactants in each submodel's reactions are in the submodel's compartment
         * All species types have positive molecular weights
         * The network of `Observable` depencencies is acyclic
@@ -682,7 +681,6 @@ class CheckModel(object):
                 self.errors.extend(self.check_dfba_submodel(submodel))
             if submodel.algorithm in [SubmodelAlgorithm.ssa, SubmodelAlgorithm.ode]:
                 self.errors.extend(self.check_dynamic_submodel(submodel))
-        self.errors.extend(self.transcode_and_check_rate_law_equations())
         self.errors.extend(self.verify_species_types())
         self.errors.extend(self.verify_acyclic_dependencies([Observable]))
         if self.errors:
@@ -777,45 +775,6 @@ class CheckModel(object):
                     errors.append("Error: reaction '{}' in submodel '{}' is not reversible but has "
                                   "a 'backward' rate law specified".format(reaction.name, submodel.name))
 
-        return errors
-
-    def transcode_and_check_rate_law_equations(self):
-        """ Transcode and evaluate all rate law equations in a model
-
-        Ensure that all rate law equations can be transcoded and evaluated. Rate laws that
-        succesfully transcode are stored in `rate_law.equation.transcoded`.
-
-        Returns:
-            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-
-        species_concentrations = {}
-        for concentration in self.model.get_concentrations():
-            species_concentrations[concentration.species.serialize()] = concentration.value
-
-        parameters = self.model.get_parameters()
-        parameter_ids = set([parameter.id for parameter in parameters])
-        parameter_values = {}
-        for parameter in parameters:
-            parameter_values[parameter.id] = parameter.value
-
-        species_ids = set([specie.id for specie in self.model.get_species()])
-        for reaction in self.model.get_reactions():
-            for rate_law in reaction.rate_laws:
-                if getattr(rate_law, 'equation', None) is None:
-                    continue
-                try:
-                    rate_law.equation.transcoded = RateLawUtils.transcode(rate_law.equation, species_ids, parameter_ids)
-                except Exception as error:
-                    errors.append('{} rate law for reaction "{}" cannot be transcoded: {}'.format(
-                        rate_law.direction.name, reaction.id, str(error)))
-            try:
-                rates = RateLawUtils.eval_reaction_rate_laws(reaction, species_concentrations, parameter_values)
-            except Exception as error:
-                errors.append('{} for reaction "{}" cannot be evaluated: {}'.format(
-                    rate_law.direction.name, reaction.id, str(error)))
         return errors
 
     def verify_species_types(self):

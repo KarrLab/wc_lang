@@ -51,10 +51,6 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                 for rxn in copy.copy(submodel.reactions):
                     rxn.submodel = merged_submodel
 
-                for param in copy.copy(submodel.parameters):
-                    param.submodels.remove(submodel)
-                    param.submodels.append(merged_submodel)
-
                 for x_ref in copy.copy(submodel.database_references):
                     x_ref.submodel = merged_submodel
 

@@ -38,8 +38,6 @@ class ChangeValueTransform(Transform):
         | Reaction    | Reaction.id                       | ['min_flux']                                              |
         | Reaction    | Reaction.id                       | ['max_flux']                                              |
         | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'equation', 'expression'] |
-        | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'k_cat']                  |
-        | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'k_m']                    |
         +-------------+-----------------------------------+-----------------------------------------------------------+
         | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'value']                                |
         | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                |
@@ -82,12 +80,9 @@ class ChangeValueTransform(Transform):
                     break
         elif self.target_type in [Species]:
             species_type_id, _, compartment_id = self.target_id[0:-1].partition('[')
-
             species_type = model.species_types.get_one(id=species_type_id)
             compartment = model.compartments.get_one(id=compartment_id)
             target_obj = species_type.species.get_one(compartment=compartment)
-        elif self.target_type in [Function]:
-            target_obj = model.functions.get_one(id=self.target_id)
         else:
             target_objs = getattr(model, self.target_type.Meta.attributes['model'].related_name)
             target_obj = target_objs.get_one(id=self.target_id)

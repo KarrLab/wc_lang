@@ -18,47 +18,9 @@ from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, 
                      FunctionExpression, Function,
                      StopCondition, Observable, Parameter,
                      BiomassReaction, Compartment)
-from wc_lang.expression_utils import (RateLawUtils, TokCodes, WcLangToken, LexMatch,
+from wc_lang.expression_utils import (TokCodes, WcLangToken, LexMatch,
                                       WcLangExpression, WcLangExpressionError,
                                       ExpressionVerifier, LinearExpressionVerifier)
-
-
-class TestRateLawUtils(unittest.TestCase):
-
-    # test_model_bad_species_names.xlsx contains the species names 'specie_1' and 'xspecie_1'.
-    # the former is a prefix of the latter and would fail to be transcoded by the RE method
-    MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures',
-                                  'test_model_bad_species_names.xlsx')
-
-    def setUp(self):
-        self.model = Reader().run(self.MODEL_FILENAME)
-
-    def test_eval_rate_law_exceptions(self):
-        rate_law_equation = RateLawEquation(
-            expression='',
-            transcoded='',
-        )
-        rate_law = RateLaw(
-            equation=rate_law_equation,
-        )
-        rate_law_equation.rate_law = rate_law
-        reaction = Reaction(
-            id='test_reaction',
-            name='test_reaction',
-            rate_laws=[rate_law]
-        )
-        rate_law_equation.transcoded = 'foo foo'
-        with self.assertRaises(ValueError):
-            RateLawUtils.eval_reaction_rate_laws(reaction, {}, {})
-        rate_law_equation.transcoded = 'cos(1.)'
-        with self.assertRaises(NameError):
-            RateLawUtils.eval_reaction_rate_laws(reaction, {}, {})
-        rate_law_equation.transcoded = 'log(1.)'
-        self.assertEqual(RateLawUtils.eval_reaction_rate_laws(reaction, {}, {}), [0])
-
-        with self.assertRaisesRegex(Exception, 'Error: unable to eval transcoded rate law'):
-            RateLawUtils.eval_rate_law(RateLaw(), {'x': 1.}, {},
-                                       transcoded_equation='"x" + concentrations["x"]')
 
 
 class TestWcLangExpression(unittest.TestCase):

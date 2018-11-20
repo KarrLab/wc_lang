@@ -56,7 +56,7 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression_utils import (RateLawUtils, WcLangExpression, WcLangExpressionError,
+from wc_lang.expression_utils import (WcLangExpression, WcLangExpressionError,
                                       LinearExpressionVerifier)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
@@ -636,6 +636,50 @@ class Model(obj_model.Model):
                     concentrations.append(species.concentration)
         return concentrations
 
+    def get_observables():
+        """ Get all observables
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Observables`: observables
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.observables.get(__type=__type, **kwargs)
+
+    def get_functions():
+        """ Get all functions
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Function`: functions
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.functions.get(__type=__type, **kwargs)
+
+    def get_dfba_objs(self):
+        """ Get all dFBA objectives
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives
+        """
+        dfba_objs = []
+        for submodel in self.submodels:
+            if submodel.dfba_obj:
+                dfba_objs.add(submodel.dfba_obj)
+        return dfba_objs
+
     def get_reactions(self, __type=None, **kwargs):
         """ Get all reactions from submodels
 
@@ -708,11 +752,23 @@ class Model(obj_model.Model):
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
+        return self.parameters.get(__type=__type, **kwargs)
 
-        parameters = self.parameters.get(__type=__type, **kwargs)
-        for submodel in self.submodels:
-            parameters.extend(submodel.parameters.get(__type=__type, **kwargs))
-        return det_dedupe(parameters)
+    def get_stop_conditions():
+        """ Get all stop conditions
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`StopCondition`: stop conditions
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.stop_conditions.get(__type=__type, **kwargs)
 
     def get_references(self, __type=None, **kwargs):
         """ Get all references from model and children
@@ -768,8 +824,9 @@ class Model(obj_model.Model):
         Returns:
             :obj:`obj_model.Model`: component with `id`, or `None` if there is no component with `id`=`id`
         """
-        types = ['compartment', 'species_type', 'submodel', 'reaction', 'biomass_reaction',
-                 'parameter', 'reference']
+        types = ['compartment', 'species_type', 'observable', 'function', 'submodel',
+                 'reaction', 'biomass_reaction',
+                 'parameter', 'stop_condition', 'reference']
         if type not in types:
             raise ValueError("Type '{}' not one of '{}'".format(type, ', '.join(types)))
 
@@ -855,6 +912,29 @@ class Submodel(obj_model.Model):
             species.extend(rxn.get_species(__type=__type, **kwargs))
 
         return det_dedupe(species)
+
+    def get_parameters(self, __type=None, **kwargs):
+        """ Get parameters in reactions
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Parameter`: parameters in reactions
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        parameters = []
+
+        for rxn in self.reactions:
+            for rate_law in rxn.rate_laws:
+                if rate_law.equation:
+                    parameters.extend(rate_law.equation.parameters.get(__type=__type, **kwargs))
+
+        return det_dedupe(parameters)
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
@@ -1335,12 +1415,16 @@ class Concentration(obj_model.Model):
     """ Species concentration
 
     Attributes:
+        id (:obj:`str`): identifier equal to `conc-{species.id}`
+        name (:obj:`str`): name
         species (:obj:`Species`): species
         value (:obj:`float`): value
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
+    id = StringAttribute(primary=True, unique=True)
+    name = StringAttribute()
     species = OneToOneAttribute(Species, related_name='concentration')
     value = FloatAttribute(min=0)
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
@@ -1348,19 +1432,44 @@ class Concentration(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(obj_model.Model.Meta):
-        unique_together = (('species', ), )
-        attribute_order = ('species', 'value', 'units', 'comments', 'references')
+        #unique_together = (('species', ), )
+        attribute_order = ('id', 'name', 'species', 'value', 'units', 'comments', 'references')
 
         frozen_columns = 1
-        ordering = ('species',)
+        ordering = ('id',)
 
-    def serialize(self):
+    @staticmethod
+    def gen_id(species_id):
         """ Generate string representation
+
+        Args:
+            species_id (:obj:`str`): species id
 
         Returns:
             :obj:`str`: string representation
         """
-        return 'conc-{}'.format(self.species.id)
+        return 'conc-{}'.format(species_id)
+
+    def validate(self):
+        """ Validate that identifier is equal to `conc-{species.id}]`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(Concentration, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.id != self.gen_id(self.species.id):
+            errors.append(InvalidAttribute(self.Meta.attributes['id'],
+                                           ['Id must be {}'.format(self.gen_id(self.species.id))]))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
 
 class ExpressionMethods(object):
@@ -1577,9 +1686,6 @@ class ObservableExpression(obj_model.Model):
         _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
-
-    Related attributes:
-        observable_expressions (:obj:`ObservableExpression`): observable expressions
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -1641,7 +1747,10 @@ class Observable(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        expressions (:obj:`Expressions`): expressions
+        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1671,9 +1780,9 @@ class FunctionExpression(obj_model.Model):
         function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    observables = ManyToManyAttribute(Observable, related_name='functions')
-    parameters = ManyToManyAttribute('Parameter', related_name='functions')
-    functions = ManyToManyAttribute('Function', related_name='functions')
+    observables = ManyToManyAttribute(Observable, related_name='function_expressions')
+    parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
+    functions = ManyToManyAttribute('Function', related_name='function_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1731,7 +1840,9 @@ class Function(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        expressions (:obj:`Expressions`): expressions
+        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1756,15 +1867,12 @@ class StopConditionExpression(obj_model.Model):
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
-
-    Related attributes:
-        stop_condition (:obj:`StopCondition`): stop condition
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    observables = ManyToManyAttribute(Observable, related_name='stop_conditions')
-    parameters = ManyToManyAttribute('Parameter', related_name='stop_conditions')
-    functions = ManyToManyAttribute('Function', related_name='stop_conditions')
+    observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')
+    parameters = ManyToManyAttribute('Parameter', related_name='stop_condition_expressions')
+    functions = ManyToManyAttribute('Function', related_name='stop_condition_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1857,6 +1965,7 @@ class Reaction(obj_model.Model):
         database_references (:obj:`list` of :obj:`DatabaseReference`): database references
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
             rate law, and rate_laws[0] is the backward rate law
+        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2074,8 +2183,6 @@ class RateLaw(obj_model.Model):
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
         equation (:obj:`RateLawEquation`): equation
-        k_cat (:obj:`float`): v_max (reactions enz^-1 s^-1)
-        k_m (:obj:`float`): k_m (M)
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -2084,15 +2191,12 @@ class RateLaw(obj_model.Model):
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     equation = RateLawEquationAttribute(related_name='rate_laws')
-    k_cat = FloatAttribute(min=0, nan=True)
-    k_m = FloatAttribute(min=0, nan=True)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction',
-                           'equation', 'k_cat', 'k_m',
-                           'comments', 'references')
+                           'equation', 'comments', 'references')
         #unique_together = (('reaction', 'direction'), )
         ordering = ('id',)
 
@@ -2128,24 +2232,6 @@ class RateLaw(obj_model.Model):
                 self.Meta.attributes['id'],
                 ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
 
-        """ Check that rate law evaluates """
-        if self.equation:
-            try:
-                species_ids = set([s.id for s in self.equation.modifiers])
-                parameter_ids = set([p.id for p in self.equation.parameters])
-                transcoded = RateLawUtils.transcode(self.equation, species_ids, parameter_ids)
-                concentrations = {}
-                parameters = {}
-                for s in self.equation.modifiers:
-                    concentrations[s.id] = 1.0
-                for p in self.equation.parameters:
-                    parameters[p.id] = 1.0
-                RateLawUtils.eval_rate_law(self, concentrations, parameters, transcoded_equation=transcoded)
-            except Exception as error:
-                msg = str(error)
-                attr = self.__class__.Meta.attributes['equation']
-                errors.append(InvalidAttribute(attr, [msg]))
-
         """ return errors or `None` to indicate valid object """
         if errors:
             return InvalidObject(self, errors)
@@ -2157,7 +2243,6 @@ class RateLawEquation(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
-        transcoded (:obj:`str`): transcoded expression, suitable for evaluating as a Python expression
         modifiers (:obj:`list` of :obj:`Species`): species whose concentrations are used in the rate law
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
 
@@ -2165,9 +2250,10 @@ class RateLawEquation(obj_model.Model):
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    transcoded = LongStringAttribute()
     modifiers = ManyToManyAttribute(Species, related_name='rate_law_equations')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_equations')
+    observables = ManyToManyAttribute('Observable', related_name='rate_law_equations')
+    functions = ManyToManyAttribute('Function', related_name='rate_law_equations')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -2203,46 +2289,7 @@ class RateLawEquation(obj_model.Model):
             :obj:`tuple` of :obj:`RateLawEquation`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
-        modifiers = []
-        parameters = []
-        errors = []
-        modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                            Compartment.id.pattern[1:-1])
-        parameter_pattern = r'(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
-
-        reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
-
-        try:
-            for match in re.findall(modifier_pattern, value, flags=re.I):
-                species, error = Species.deserialize(match[1], objects)
-                if error:
-                    errors.append(['Invalid species'])
-                else:
-                    modifiers.append(species)
-            for match in re.findall(parameter_pattern, value, flags=re.I):
-                if match[1] not in reserved_names:
-                    parameter, error = Parameter.deserialize(match[1], objects)
-                    if error:
-                        errors += error.messages
-                    else:
-                        parameters.append(parameter)
-        except Exception as e:
-            errors += ["deserialize fails on '{}': {}".format(value, str(e))]
-
-        if errors:
-            attr = cls.Meta.attributes['expression']
-            return (None, InvalidAttribute(attr, errors))
-
-        # return value
-        if cls not in objects:
-            objects[cls] = {}
-        serialized_val = value
-        if serialized_val in objects[cls]:
-            obj = objects[cls][serialized_val]
-        else:
-            obj = cls(expression=value, modifiers=det_dedupe(modifiers), parameters=det_dedupe(parameters))
-            objects[cls][serialized_val] = obj
-        return (obj, None)
+        return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
         """ Determine whether a `RateLawEquation` is valid
@@ -2254,41 +2301,7 @@ class RateLawEquation(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
-        errors = []
-
-        # check modifiers
-        modifier_ids = set((x.serialize() for x in self.modifiers))
-        modifier_pattern = r'(^|[^a-z0-9_])({}\[{}\])([^a-z0-9_]|$)'.format(SpeciesType.id.pattern[1:-1],
-                                                                            Compartment.id.pattern[1:-1])
-        entity_ids = set([x[1] for x in re.findall(modifier_pattern, self.expression, flags=re.I)])
-        if modifier_ids != entity_ids:
-            for id in modifier_ids.difference(entity_ids):
-                errors.append('Extraneous modifier "{}"'.format(id))
-
-            for id in entity_ids.difference(modifier_ids):
-                errors.append('Undefined modifier "{}"'.format(id))
-
-        # check parameters
-        parameter_ids = set((x.serialize() for x in self.parameters))
-        parameter_pattern = r'(^|[^a-z0-9_\[\]])({})([^a-z0-9_\[\]]|$)'.format(Parameter.id.pattern[1:-1])
-        entity_ids = set([x[1] for x in re.findall(parameter_pattern, self.expression, flags=re.I)])
-        reserved_names = set([func.__name__ for func in RateLawEquation.Meta.valid_functions] + ['k_cat', 'k_m'])
-        entity_ids -= reserved_names
-        if parameter_ids != entity_ids:
-            for id in parameter_ids.difference(entity_ids):
-                errors.append('Extraneous parameter "{}"'.format(id))
-
-            for id in entity_ids.difference(parameter_ids):
-                errors.append('Undefined parameter "{}"'.format(id))
-
-            for id in reserved_names:
-                errors.append('Invalid parameter with a reserved_name "{}"'.format(id))
-
-        # return error
-        if errors:
-            attr = self.__class__.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, errors)
-            return InvalidObject(self, [attr_err])
+        return ExpressionMethods.validate(self)
 
 
 class BiomassComponent(obj_model.Model):
@@ -2333,8 +2346,7 @@ class BiomassReaction(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): objective functions that use this
-            biomass reaction
+        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
         biomass_components (:obj:`list` of :obj:`BiomassComponent`): the components of this biomass reaction
     """
     id = SlugAttribute()
@@ -2412,28 +2424,26 @@ class Parameter(obj_model.Model):
         id (:obj:`str`): unique identifier per model/submodel
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        functions (:obj:`list` of :obj:`FunctionExpression`): FunctionExpressions that use a Parameter
+        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
-    id = SlugAttribute(unique=False)
+    id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='parameters')
-    submodels = ManyToManyAttribute(Submodel, related_name='parameters')
     value = FloatAttribute(min=0)
     units = StringAttribute()
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(obj_model.Model.Meta):
-        unique_together = (('id', 'model', 'submodels', ), )
         attribute_order = ('id', 'name',
-                           'model', 'submodels',
                            'value', 'units',
                            'comments', 'references')
 
