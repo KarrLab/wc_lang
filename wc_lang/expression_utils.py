@@ -45,9 +45,9 @@ extra:
     Parameter: make Parameter.id unique; ensure that Parameters are constants
     make test for "AssertionError: No matches or errors found in 'obs_1'" by providing empty objects
     test multiple instances of the same used model in an expression
-    incorporate id into error_suffix in test_eval_expr
+    incorporate id into error_suffix in test_eval
     test with real WC models
-    perhaps make model_class a model, so that test_eval_expr can provide ids
+    perhaps make model_class a model, so that test_eval can provide ids
     rename Function to Macro; need to change model files too -- argh
     expand Jupyter example
     support logical operators (or, and, not) in expressions, esp. StopConditions
@@ -169,7 +169,7 @@ class WcLangExpression(object):
             dict that maps model id to model instance
         errors (:obj:`list` of :obj:`str`): errors found when parsing an `expression` fails
         wc_tokens (:obj:`list` of :obj:`WcLangToken`): tokens obtained when an `expression` is successfully
-            `tokenize`d; if empty, then this `WcLangExpression` cannot use `eval_expr()`
+            `tokenize`d; if empty, then this `WcLangExpression` cannot use `eval()`
     """
 
     # Function.identifier()
@@ -574,7 +574,7 @@ class WcLangExpression(object):
             return (None, self.errors)
         return (self.wc_tokens, self.related_objects)
 
-    def test_eval_expr(self, test_val=1.0):
+    def test_eval(self, test_val=1.0):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
 
         Called to validate this `WcLangExpression`.
@@ -599,9 +599,9 @@ class WcLangExpression(object):
             for model in models.values():
                 model_vals[model_type][model] = test_val
 
-        return self.eval_expr(model_vals)
+        return self.eval(model_vals)
 
-    def eval_expr(self, model_vals):
+    def eval(self, model_vals):
         """ Evaluate the expression
 
         This expression must have been successfully `tokenize`d.

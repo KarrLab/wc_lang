@@ -1622,7 +1622,7 @@ class TestCore(unittest.TestCase):
                     self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
             error = expr_obj.validate()
             self.assertEqual(error, None)
-            self.assertEqual(expr_obj._analyzed_expr.test_eval_expr(), expected_val)
+            self.assertEqual(expr_obj._analyzed_expr.test_eval(), expected_val)
 
     def test_valid_function_expressions(self):
         _, objects, id_map = self.make_objects()

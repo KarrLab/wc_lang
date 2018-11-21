@@ -1613,7 +1613,7 @@ class ExpressionMethods(object):
 
         # check expression is valid
         try:
-            rv = model_obj._analyzed_expr.test_eval_expr()
+            rv = model_obj._analyzed_expr.test_eval()
             if return_type is not None:
                 if not isinstance(rv, return_type):
                     attr = model_cls.Meta.attributes['expression']

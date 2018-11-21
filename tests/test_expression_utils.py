@@ -464,22 +464,22 @@ class TestWcLangExpression(unittest.TestCase):
                                     "model_class 'Foo' is not a subclass of obj_model.Model"):
             WcLangExpression(Foo, 'expr_attr', '', self.objects)
 
-    def do_test_eval_expr(self, expr, obj_type, related_obj_val, expected_val):
+    def do_test_eval(self, expr, obj_type, related_obj_val, expected_val):
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
         wc_lang_expr.tokenize()
-        evaled_val = wc_lang_expr.test_eval_expr(test_val=related_obj_val)
+        evaled_val = wc_lang_expr.test_eval(test_val=related_obj_val)
         self.assertEqual(expected_val, evaled_val)
 
-    def test_test_eval_expr(self):
+    def test_test_eval(self):
         related_obj_val = 3
 
         # test combination of TokCodes
         expected_val = 4 * related_obj_val + pow(2, related_obj_val) + related_obj_val
-        self.do_test_eval_expr('4 * param_id + pow(2, obs_id) + fun_2()', RateLawEquation,
+        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', RateLawEquation,
                                related_obj_val, expected_val)
 
         # test different model classes
-        self.do_test_eval_expr('4 * param_id + pow(2, obs_id) + fun_2()', FunctionExpression,
+        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', FunctionExpression,
                                related_obj_val, expected_val)
 
         # test different exceptions
@@ -490,7 +490,7 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegex(WcLangExpressionError,
                                     "SyntaxError: cannot eval expression .* in {}".format(
                 model_type.__name__)):
-            wc_lang_expr.test_eval_expr()
+            wc_lang_expr.test_eval()
 
         # expression that could not be serialized
         expr = 'foo(6)'
@@ -499,7 +499,7 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegex(WcLangExpressionError,
                                     re.escape("cannot evaluate '{}', as it not been "
                                               "successfully tokenized".format(expr))):
-            wc_lang_expr.test_eval_expr()
+            wc_lang_expr.test_eval()
 
 
 class TestExpressionVerifier(unittest.TestCase):
