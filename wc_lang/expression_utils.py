@@ -99,18 +99,7 @@ LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
-class Error(Exception):
-    """ Base class for exceptions in `WcLangExpression`
-
-    Attributes:
-        message (:obj:`str`): the exception's message
-    """
-
-    def __init__(self, message=None):
-        super().__init__(message)
-
-
-class WcLangExpressionError(Error):
+class WcLangExpressionError(Exception):
     """ Exception raised for errors in `WcLangExpression`
 
     Attributes:
