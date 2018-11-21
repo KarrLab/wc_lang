@@ -121,24 +121,6 @@ class TestUtil(unittest.TestCase):
         summary = util.get_model_summary(model)
         self.assertIsInstance(summary, str)
 
-    def test_get_reaction_string(self):
-        species_types = self.species_types
-        species = self.species
-
-        self.assertIn(util.get_reaction_string(self.rxn_0), [
-            '[{0}]: ({1}) {2} + ({3}) {4} ==> {5}'.format(self.comp_0.id, 2,
-                                                          species_types[0].id, 3, species_types[1].id, species_types[2].id),
-            '[{0}]: ({3}) {4} + ({1}) {2} ==> {5}'.format(self.comp_0.id, 2,
-                                                          species_types[0].id, 3, species_types[1].id, species_types[2].id),
-        ])
-
-        self.assertIn(util.get_reaction_string(self.rxn_1), [
-            '({0}) {1} + ({2}) {3} ==> (2) {4}'.format(2,
-                                                       species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
-            '({2}) {3} + ({0}) {1} ==> (2) {4}'.format(2,
-                                                       species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
-        ])
-
     def test_get_models(self):
         non_inline_models = set([
             Model, Taxon,

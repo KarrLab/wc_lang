@@ -52,16 +52,6 @@ def get_model_summary(model):
         + "\n{:d} rate laws".format(len(model.get_rate_laws()))
 
 
-def get_reaction_string(reaction):
-    """ Generate string representation of reaction stoichometry.
-
-    Returns:
-        :obj:`str`: string representation of reaction stoichometry
-    """
-    attr = reaction.__class__.Meta.attributes['participants']
-    return attr.serialize(reaction.participants)
-
-
 def get_models(inline=True):
     """ Get list of models
     Args:
