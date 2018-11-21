@@ -69,9 +69,11 @@ class TestSimpleModel(unittest.TestCase):
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
             spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.model = mdl
             species.append(spec)
 
             conc = Concentration(id=Concentration.gen_id(spec.id),
+                                 model=mdl,
                                  species=spec, value=3 * i, units=ConcentrationUnit.M)
             concentrations.append(conc)
 
@@ -121,7 +123,8 @@ class TestSimpleModel(unittest.TestCase):
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
-        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
+        self.rxn_0 = rxn_0 = submdl_0.reactions.create(
+            id='rxn_0', name='reaction 0', model=mdl)
 
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
@@ -133,10 +136,12 @@ class TestSimpleModel(unittest.TestCase):
         equation.parameters.create(id='k_m_0', value=1, model=mdl)
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
-        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
+        self.rxn_1 = rxn_1 = submdl_1.reactions.create(
+            id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
@@ -147,10 +152,12 @@ class TestSimpleModel(unittest.TestCase):
         equation.parameters.create(id='k_m_1', value=1, model=mdl)
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
-        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
+        self.rxn_2 = rxn_2 = submdl_2.reactions.create(
+            id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[4], coefficient=1))
@@ -161,6 +168,7 @@ class TestSimpleModel(unittest.TestCase):
         equation.parameters.create(id='k_m_2', value=1, model=mdl)
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
@@ -375,8 +383,8 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
     def test_write_parameter(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         submodel = model.submodels.create(id='submodel')
-        reaction = submodel.reactions.create(id='reaction')
-        rate_law = reaction.rate_laws.create(direction=RateLawDirection.forward)
+        reaction = submodel.reactions.create(id='reaction', model=model)
+        rate_law = reaction.rate_laws.create(model=model, direction=RateLawDirection.forward)
         rate_law_eq = rate_law.equation = RateLawEquation(expression='parameter')
         parameter = rate_law_eq.parameters.create(id='parameter', model=model)
 
@@ -393,6 +401,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         compartment = model.compartments.create(id='compartment')
         species = Species(
             id=Species.gen_id(species_type.id, compartment.id),
+            model=model,
             species_type=species_type,
             compartment=compartment)
         s_id = species.serialize()

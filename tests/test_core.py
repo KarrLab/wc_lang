@@ -70,14 +70,17 @@ class TestCore(unittest.TestCase):
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
             spec.id = spec.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.model = mdl
             species.append(spec)
 
             conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=3 * i)
+            conc.model = mdl
             concentrations.append(conc)
 
         self.biomass_reaction = biomass_reaction = BiomassReaction(
             id='biomass_reaction_1',
             name='biomass reaction',
+            model=mdl,
             comments="Nobody will ever deprive the American people of the right to vote except the "
             "American people themselves")
         BiomassReaction.get_manager().insert_all_new()
@@ -108,7 +111,8 @@ class TestCore(unittest.TestCase):
             param.submodels = submodels[i:i + 1]
             parameters.append(param)
 
-        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
+        self.rxn_0 = rxn_0 = submdl_0.reactions.create(
+            id='rxn_0', name='reaction 0', model=mdl)
         rxn_0.participants.create(species=species[0], coefficient=-2)
         rxn_0.participants.create(species=species[1], coefficient=-3.5)
         rxn_0.participants.create(species=species[2], coefficient=1)
@@ -121,10 +125,12 @@ class TestCore(unittest.TestCase):
                                                      model=mdl))
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
-        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
+        self.rxn_1 = rxn_1 = submdl_1.reactions.create(
+            id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.create(species=species[0], coefficient=-2)
         rxn_1.participants.create(species=species[1], coefficient=-3)
         rxn_1.participants.create(species=species[3], coefficient=2)
@@ -137,10 +143,12 @@ class TestCore(unittest.TestCase):
                                                      model=mdl))
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
-        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
+        self.rxn_2 = rxn_2 = submdl_2.reactions.create(
+            id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.create(species=species[0], coefficient=-2)
         rxn_2.participants.create(species=species[1], coefficient=-3)
         rxn_2.participants.create(species=species[4], coefficient=1)
@@ -150,6 +158,7 @@ class TestCore(unittest.TestCase):
             parameters=parameters[0:2])
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
+            model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
 
@@ -159,6 +168,7 @@ class TestCore(unittest.TestCase):
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
 
         self.dfba_obj = of = DfbaObjective()
+        of.model = mdl
         of.submodel = submdl_2
         of.expression = DfbaObjectiveExpression()
         of.expression.reactions.append(rxn_1)
@@ -170,6 +180,7 @@ class TestCore(unittest.TestCase):
         for i in range(3):
             ref = parameters[i].references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
+                model=mdl,
                 type=ReferenceType.misc)
             references.append(ref)
 
@@ -322,7 +333,7 @@ class TestCore(unittest.TestCase):
             species[0], species[1], species[3], species[6],
         ]))
         self.assertEqual(set(self.submdl_2.get_species()), set([
-            species[0], species[1], species[4], species[7],
+            species[0], species[1], species[3], species[4], species[6], species[7],
         ]))
 
     def test_reaction_get_species(self):
@@ -391,19 +402,16 @@ class TestCore(unittest.TestCase):
         ]))
         self.assertEqual(set(self.dfba_obj.get_products(__type=Reaction)), set())
 
-    def test_get_component(self):
+    def test_get_components(self):
         model = self.model
 
-        self.assertEqual(model.get_component('compartment', 'comp_0'), self.comp_0)
-        self.assertEqual(model.get_component('species_type', 'spec_type_1'), self.species_types[1])
-        self.assertEqual(model.get_component('submodel', 'submodel_1'), self.submdl_1)
-        self.assertEqual(model.get_component('reaction', 'rxn_1'), self.rxn_1)
-        self.assertEqual(model.get_component('parameter', 'param_2'), self.parameters[2])
-        self.assertEqual(model.get_component('reference', 'ref_1'), self.references[1])
-        self.assertEqual(model.get_component('reaction', 'rxn_3'), None)
-
-        with self.assertRaisesRegex(ValueError, ' not one of '):
-            model.get_component('undefined', 'rxn_3')
+        self.assertEqual(model.get_components(__type=Compartment, id='comp_0'), [self.comp_0])
+        self.assertEqual(model.get_components(__type=SpeciesType, id='spec_type_1'), [self.species_types[1]])
+        self.assertEqual(model.get_components(__type=Submodel, id='submodel_1'), [self.submdl_1])
+        self.assertEqual(model.get_components(__type=Reaction, id='rxn_1'), [self.rxn_1])
+        self.assertEqual(model.get_components(__type=Parameter, id='param_2'), [self.parameters[2]])
+        self.assertEqual(model.get_components(__type=Reference, id='ref_1'), [self.references[1]])
+        self.assertEqual(model.get_components(__type=Reaction, id='rxn_3'), [])
 
     def test_species_type_is_carbon_containing(self):
         self.assertFalse(self.species_types[0].is_carbon_containing())
@@ -1454,11 +1462,11 @@ class TestCore(unittest.TestCase):
             BiomassReaction: {
                 biomass_reaction_id: self.biomass_reaction},
         }
-        (of_expr, _) = DfbaObjectiveExpression.deserialize('biomass_reaction_1 + 2*rxn_2', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('biomass_reaction_1 + 2*rxn_2', objs)
         of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
 
         prepare_model = PrepareModel(self.model)
-        (reactions, biomass_reactions) = prepare_model.parse_dfba_submodel_obj_func(self.submdl_2)
+        reactions, biomass_reactions = prepare_model.parse_dfba_submodel_obj_func(self.submdl_2)
         PrepareModel.assign_linear_objective_fn(self.submdl_2, reactions, biomass_reactions)
         self.submdl_2.dfba_obj.expression.linear = True
 
@@ -1517,27 +1525,6 @@ class TestCore(unittest.TestCase):
             ),
         )
         self.assertEqual(obj_func.get_products(), [species_0])
-
-        obj_func = submodel.dfba_obj = DfbaObjective(
-            expression=DfbaObjectiveExpression(
-                reactions=[
-                    Reaction(
-                        reversible=True,
-                        participants=[SpeciesCoefficient(species=species_0)],
-                    ),
-                ],
-                biomass_reactions=[
-                    BiomassReaction(
-                        biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
-                    ),
-                    BiomassReaction(
-                        biomass_components=[BiomassComponent(coefficient=1, species=species_2)],
-                    ),
-                ],
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, 'does not belong to submodel'):
-            obj_func.get_products()
 
     def make_objects(self):
         model = Model()
@@ -1821,11 +1808,16 @@ class TestCoreFromFile(unittest.TestCase):
         self.model = Reader().run(self.MODEL_FILENAME)
         self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
 
-    def test_get_ex_species(self):
-        ex_compartment = self.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
-        ex_species = self.dfba_submodel.get_species(compartment=ex_compartment)
-        self.assertEqual(set(ex_species),
-                         set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
+    def test_get_species(self):
+        species_ids = set([s.id for s in self.dfba_submodel.get_species()])
+        self.assertEqual(species_ids, set([
+            'specie_1[c]',
+            'specie_1[e]',
+            'specie_2[c]',
+            'specie_2[e]',
+            'specie_3[c]',
+            'specie_4[c]',
+        ]))
 
 
 class TestTaxonRank(unittest.TestCase):

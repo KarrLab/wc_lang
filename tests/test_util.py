@@ -46,9 +46,11 @@ class TestUtil(unittest.TestCase):
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
             spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.model = mdl
             species.append(spec)
 
             conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=1)
+            conc.model = mdl
             concentrations.append(conc)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
@@ -56,38 +58,38 @@ class TestUtil(unittest.TestCase):
         self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
-        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0')
+        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', model=mdl)
         rxn_0.participants.create(species=species[0], coefficient=-2)
         rxn_0.participants.create(species=species[1], coefficient=-3)
         rxn_0.participants.create(species=species[2], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].get_primary_attribute()),
             modifiers=species[5:6])
-        equation.parameters.create(id='k_cat_0', value=2)
-        equation.parameters.create(id='k_m_0', value=1)
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation)
+        equation.parameters.create(id='k_cat_0', value=2, model=mdl)
+        equation.parameters.create(id='k_m_0', value=1, model=mdl)
+        rate_law_0 = rxn_0.rate_laws.create(equation=equation, model=mdl)
 
-        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1')
+        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', model=mdl)
         rxn_1.participants.create(species=species[0], coefficient=-2)
         rxn_1.participants.create(species=species[1], coefficient=-3)
         rxn_1.participants.create(species=species[3], coefficient=2)
         equation = RateLawEquation(
             expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].get_primary_attribute()),
             modifiers=species[6:7])
-        equation.parameters.create(id='k_cat_1', value=2)
-        equation.parameters.create(id='k_m_1', value=1)
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation)
+        equation.parameters.create(id='k_cat_1', value=2, model=mdl)
+        equation.parameters.create(id='k_m_1', value=1, model=mdl)
+        rate_law_1 = rxn_1.rate_laws.create(equation=equation, model=mdl)
 
-        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2')
+        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', model=mdl)
         rxn_2.participants.create(species=species[0], coefficient=-2)
         rxn_2.participants.create(species=species[1], coefficient=-3)
         rxn_2.participants.create(species=species[4], coefficient=1)
         equation = RateLawEquation(
             expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].get_primary_attribute()),
             modifiers=species[7:8])
-        equation.parameters.create(id='k_cat_2', value=2)
-        equation.parameters.create(id='k_m_2', value=1)
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation)
+        equation.parameters.create(id='k_cat_2', value=2, model=mdl)
+        equation.parameters.create(id='k_m_2', value=1, model=mdl)
+        rate_law_2 = rxn_2.rate_laws.create(equation=equation, model=mdl)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
@@ -100,6 +102,7 @@ class TestUtil(unittest.TestCase):
             parameters.append(param)
 
             ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType.misc)
+            ref.model = mdl
             references.append(ref)
 
             x_ref = ref.database_references.create(database='Y', id='x')
@@ -113,7 +116,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(8, size['species'])
         self.assertEqual(3, size['reactions'])
         self.assertEqual(2, size['compartments'])
-        self.assertEqual(3, size['parameters'])
+        self.assertEqual(9, size['parameters'])
         self.assertEqual(3, size['references'])
 
     def test_get_model_summary(self):

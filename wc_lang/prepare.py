@@ -223,7 +223,8 @@ class AnalyzeModel(object):
         digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
         obj_fn_species = submodel.dfba_obj.get_products()
         ex_compartment = submodel.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
-        ex_species = submodel.get_species(compartment=ex_compartment)
+        ex_species = filter(lambda species: species.compartment == ex_compartment, 
+                            submodel.get_species())
         all_unbounded_paths = dict()
         for ex_specie in ex_species:
             paths = AnalyzeModel.unbounded_paths(digraph, ex_specie, obj_fn_species)
@@ -463,12 +464,12 @@ class PrepareModel(object):
 
         for coeff, id in linear_expr:
 
-            reaction = get_component_by_id(submodel.model.get_reactions(), id)
+            reaction = submodel.model.get_reactions(id=id)
             if reaction:
                 reactions.append((coeff, id),)
                 continue
 
-            biomass_reaction = get_component_by_id(submodel.model.get_biomass_reactions(), id)
+            biomass_reaction = submodel.model.get_biomass_reactions(id=id)
             if biomass_reaction:
                 biomass_reactions.append((coeff, id),)
                 continue

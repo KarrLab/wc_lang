@@ -33,17 +33,21 @@ class RoundTripTestCase(unittest.TestCase):
         species_type = model.species_types.create(id='species_type_1')
         species = comp.species.create(species_type=species_type)
         species.id = ''
+        species.model = model
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(id=Concentration.gen_id(species.id), value=1, units=ConcentrationUnit.M)
+        species.concentration = Concentration(
+            id=Concentration.gen_id(species.id), 
+            model=model,
+            value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
         observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
 
         coefficient = 1
         rxn_species_coeff = species.species_coefficients.create(coefficient=coefficient)
-        rxn = submdl.reactions.create(id='reaction_1')
+        rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.append(rxn_species_coeff)
 
         errors = obj_model.Validator().run(model, get_related=True)
@@ -66,10 +70,14 @@ class RoundTripTestCase(unittest.TestCase):
         species_type = model.species_types.create(id='species_type_1')
         species = comp.species.create(species_type=species_type)
         species.id = species.gen_id(species_type.id, comp.id)
+        species.model = model
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(id=Concentration.gen_id(species.id), value=1, units=ConcentrationUnit.M)
+        species.concentration = Concentration(
+            id=Concentration.gen_id(species.id), 
+            model=model,
+            value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
         observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
@@ -83,7 +91,7 @@ class RoundTripTestCase(unittest.TestCase):
         coefficient = 1
 
         rxn_species_coeff = species.species_coefficients.get_or_create(coefficient=coefficient)
-        rxn = submdl.reactions.create(id='reaction_1')
+        rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.append(rxn_species_coeff)
 
         errors = obj_model.Validator().run(model, get_related=True)

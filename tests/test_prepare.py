@@ -524,15 +524,6 @@ class TestCheckModel(unittest.TestCase):
         self.assertIn("Error: submodel '{}' uses dFBA but lacks an objective function".format(self.dfba_submodel.name),
                       errors[0])
 
-    def test_check_dfba_submodel_4(self):
-
-        # remove a reaction to test that all species used in biomass reactions are defined
-        del self.dfba_submodel.reactions[-1]
-        errors = self.check_model.check_dfba_submodel(self.dfba_submodel)
-        self.assertEqual(len(errors), 1)
-        six.assertRegex(self, errors[0],
-                        "Error: undefined species '.*' in biomass reaction '.*' used by submodel")
-
     def test_check_dynamic_submodel(self):
         ssa_submodel = Submodel.objects.get_one(id='ssa_submodel')
         self.assertEqual(self.check_model.check_dynamic_submodel(ssa_submodel), [])

@@ -44,6 +44,7 @@ import collections
 import pkg_resources
 import re
 import six
+import stringcase
 import sys
 import token
 
@@ -529,8 +530,14 @@ class Model(obj_model.Model):
         submodels (:obj:`list` of :obj:`Submodel`): submodels
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        functions (:obj:`list` of :obj:`Function`): functions
+        species (:obj:`list` of :obj:`Species`): species
+        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
         observables (:obj:`list` of :obj:`Observable`): observables
+        functions (:obj:`list` of :obj:`Function`): functions
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        reactions (:obj:`list` of :obj:`Reaction`): reactions
+        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): biomass reactions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         references (:obj:`list` of :obj:`Reference`): references
@@ -549,6 +556,22 @@ class Model(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'version', 'url', 'branch', 'revision', 'wc_lang_version', 'comments')
         tabular_orientation = TabularOrientation.column
+
+    def get_submodels(self, __type=None, **kwargs):
+        """ Get all submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Submodel`: submodels
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.submodels.get(__type=__type, **kwargs)
 
     def get_compartments(self, __type=None, **kwargs):
         """ Get all compartments
@@ -582,22 +605,6 @@ class Model(obj_model.Model):
 
         return self.species_types.get(__type=__type, **kwargs)
 
-    def get_submodels(self, __type=None, **kwargs):
-        """ Get all submodels
-
-        Args:
-            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
-
-        Returns:
-            :obj:`list` of :obj:`Submodel`: submodels
-        """
-        if '__type' in kwargs:
-            __type = kwargs.pop('__type')
-
-        return self.submodels.get(__type=__type, **kwargs)
-
     def get_species(self, __type=None, **kwargs):
         """ Get all species from submodels
 
@@ -612,16 +619,7 @@ class Model(obj_model.Model):
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        species = []
-
-        for submodel in self.submodels:
-            species.extend(submodel.get_species(__type=__type, **kwargs))
-
-        for concentation in self.get_concentrations():
-            if concentation.species.has_attr_vals(__type=__type, **kwargs):
-                species.append(concentation.species)
-
-        return det_dedupe(species)
+        return self.species.get(__type=__type, **kwargs)
 
     def get_concentrations(self, __type=None, **kwargs):
         """ Get all concentrations from species types
@@ -637,14 +635,9 @@ class Model(obj_model.Model):
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        concentrations = []
-        for species_type in self.species_types:
-            for species in species_type.species:
-                if species.concentration and species.concentration.has_attr_vals(__type=__type, **kwargs):
-                    concentrations.append(species.concentration)
-        return concentrations
+        return self.concentations.get(__type=__type, **kwargs)
 
-    def get_observables():
+    def get_observables(self, __type=None, **kwargs):
         """ Get all observables
 
         Args:
@@ -660,7 +653,7 @@ class Model(obj_model.Model):
 
         return self.observables.get(__type=__type, **kwargs)
 
-    def get_functions():
+    def get_functions(self, __type=None, **kwargs):
         """ Get all functions
 
         Args:
@@ -676,17 +669,16 @@ class Model(obj_model.Model):
 
         return self.functions.get(__type=__type, **kwargs)
 
-    def get_dfba_objs(self):
+    def get_dfba_objs(self, __type=None, **kwargs):
         """ Get all dFBA objectives
 
         Returns:
             :obj:`list` of :obj:`DfbaObjective`: dFBA objectives
         """
-        dfba_objs = []
-        for submodel in self.submodels:
-            if submodel.dfba_obj:
-                dfba_objs.add(submodel.dfba_obj)
-        return dfba_objs
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.dfba_objs.get(__type=__type, **kwargs)
 
     def get_reactions(self, __type=None, **kwargs):
         """ Get all reactions from submodels
@@ -702,31 +694,7 @@ class Model(obj_model.Model):
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        reactions = []
-        for submodel in self.submodels:
-            reactions.extend(submodel.reactions.get(__type=__type, **kwargs))
-        return reactions
-
-    def get_biomass_reactions(self, __type=None, **kwargs):
-        """ Get all biomass reactions used by submodels
-
-        Args:
-            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
-
-        Returns:
-            :obj:`list` of :obj:`BiomassReaction`: biomass reactions
-        """
-        if '__type' in kwargs:
-            __type = kwargs.pop('__type')
-
-        biomass_reactions = []
-        for submodel in self.submodels:
-            for biomass_reaction in submodel.biomass_reactions:
-                if biomass_reaction.has_attr_vals(__type=__type, **kwargs):
-                    biomass_reactions.append(biomass_reaction)
-        return det_dedupe(biomass_reactions)
+        return self.reactions.get(__type=__type, **kwargs)
 
     def get_rate_laws(self, __type=None, **kwargs):
         """ Get all rate laws from reactions
@@ -742,10 +710,23 @@ class Model(obj_model.Model):
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        rate_laws = []
-        for reaction in self.get_reactions():
-            rate_laws.extend(reaction.rate_laws.get(__type=__type, **kwargs))
-        return det_dedupe(rate_laws)
+        return self.rate_laws.get(__type=__type, **kwargs)
+
+    def get_biomass_reactions(self, __type=None, **kwargs):
+        """ Get all biomass reactions used by submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`BiomassReaction`: biomass reactions
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.biomass_reactions.get(__type=__type, **kwargs)
 
     def get_parameters(self, __type=None, **kwargs):
         """ Get all parameters from model and submodels
@@ -760,9 +741,10 @@ class Model(obj_model.Model):
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
+
         return self.parameters.get(__type=__type, **kwargs)
 
-    def get_stop_conditions():
+    def get_stop_conditions(self, __type=None, **kwargs):
         """ Get all stop conditions
 
         Args:
@@ -792,54 +774,38 @@ class Model(obj_model.Model):
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        refs = []
+        return self.references.get(__type=__type, **kwargs)
 
-        refs.extend(self.references.get(__type=__type, **kwargs))
-
-        if self.taxon:
-            refs.extend(self.taxon.references.get(__type=__type, **kwargs))
-
-        for compartment in self.compartments:
-            refs.extend(compartment.references.get(__type=__type, **kwargs))
-
-        for species_type in self.species_types:
-            refs.extend(species_type.references.get(__type=__type, **kwargs))
-
-        for concentration in self.get_concentrations():
-            refs.extend(concentration.references.get(__type=__type, **kwargs))
-
-        for submodel in self.submodels:
-            refs.extend(submodel.references.get(__type=__type, **kwargs))
-
-        for reaction in self.get_reactions():
-            refs.extend(reaction.references.get(__type=__type, **kwargs))
-
-        for rate_law in self.get_rate_laws():
-            refs.extend(rate_law.references.get(__type=__type, **kwargs))
-
-        for parameter in self.get_parameters():
-            refs.extend(parameter.references.get(__type=__type, **kwargs))
-
-        return det_dedupe(refs)
-
-    def get_component(self, type, id):
+    def get_components(self, __type=None, **kwargs):
         """ Find model component of `type` with `id`
 
         Args:
-            type (:obj:`str`) type of component to find
-            id (:obj:`str`): id of component to find
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
 
         Returns:
             :obj:`obj_model.Model`: component with `id`, or `None` if there is no component with `id`=`id`
         """
-        types = ['compartment', 'species_type', 'observable', 'function', 'submodel',
-                 'reaction', 'biomass_reaction',
-                 'parameter', 'stop_condition', 'reference']
-        if type not in types:
-            raise ValueError("Type '{}' not one of '{}'".format(type, ', '.join(types)))
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
 
-        components = getattr(self, 'get_{}s'.format(type))()
-        return next((c for c in components if c.id == id), None)
+        if __type:
+            type_names = [stringcase.snakecase(__type.__name__)]
+        else:
+            type_names = [
+                'submodel', 'compartment', 'species_type', 'species',
+                'concentration', 'observable', 'function',
+                'dfba_obj', 'reaction', 'rate_law', 'biomass_reaction',
+                'parameter', 'stop_condition', 'reference',
+            ]
+
+        components = []
+        for type_name in type_names:
+            components.extend(getattr(self, type_name + 's').get(
+                __type=__type, **kwargs))
+
+        return components
 
 
 class Taxon(obj_model.Model):
@@ -900,48 +866,141 @@ class Submodel(obj_model.Model):
         attribute_order = ('id', 'name', 'algorithm', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
-    def get_species(self, __type=None, **kwargs):
-        """ Get species in reactions
-
-        Args:
-            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+    def get_compartments(self):
+        """ Get compartments in submodel
 
         Returns:
-            :obj:`list` of :obj:`Species`: species in reactions
+            :obj:`list` of :obj:`Compartment`: compartments in submodel
         """
-        if '__type' in kwargs:
-            __type = kwargs.pop('__type')
+        compartments = []
+        for species in self.get_species():
+            compartments.append(species.compartment)
+        return det_dedupe(compartments)
 
+    def get_specices_types(self):
+        """ Get species types in submodel
+
+        Returns:
+            :obj:`list` of :obj:`SpeciesType`: species types in submodel
+        """
+        species_types = []
+        for species in self.get_species():
+            species_types.append(species.species_type)
+        return det_dedupe(species_types)
+
+    def get_species(self):
+        """ Get species in submodel
+
+        Returns:
+            :obj:`list` of :obj:`Species`: species in submodel
+        """
         species = []
-
-        for rxn in self.reactions:
-            species.extend(rxn.get_species(__type=__type, **kwargs))
-
+        for reaction in self.get_reactions():
+            species.extend(reaction.get_species())
+        for biomass_reaction in self.get_biomass_reactions():
+            for biomass_component in biomass_reaction.biomass_components:
+                species.append(biomass_component.species)
+        for observable in self.get_observables():
+            species.extend(observable.expression.species)
+        for function in self.get_functions():
+            species.extend(function.expression.species)
+        for rate_law in self.get_rate_laws():
+            species.extend(rate_law.equation.modifiers)
         return det_dedupe(species)
 
-    def get_parameters(self, __type=None, **kwargs):
-        """ Get parameters in reactions
-
-        Args:
-            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+    def get_observables(self):
+        """ Get observables in submodel
 
         Returns:
-            :obj:`list` of :obj:`Parameter`: parameters in reactions
+            :obj:`list` of :obj:`Observable`: observables in submodel
         """
-        if '__type' in kwargs:
-            __type = kwargs.pop('__type')
+        obs = []
+        for function in self.get_functions():
+            obs.extend(function.expression.observables)
+        for rate_law in self.get_rate_laws():
+            obs.extend(rate_law.equation.observables)
+        obs = det_dedupe(obs)
+        obs_to_flats = list(obs)
+        while obs_to_flats:
+            obs_to_flat = obs_to_flats.pop()
+            obs.extend(obs_to_flat.expression.observables)
+            obs_to_flats.extend(obs_to_flat.expression.observables)
+        return det_dedupe(obs)
 
+    def get_functions(self):
+        """ Get functions in submodel
+
+        Returns:
+            :obj:`list` of :obj:`Function`: functions in submodel
+        """
+        funcs = []
+        for rate_law in self.get_rate_laws():
+            funcs.extend(rate_law.equation.functions)
+        funcs = det_dedupe(funcs)
+        funcs_to_flats = list(funcs)
+        while funcs_to_flats:
+            funcs_to_flat = funcs_to_flats.pop()
+            funcs.extend(funcs_to_flat.expression.functions)
+            funcs_to_flats.extend(funcs_to_flat.expression.functions)
+        return det_dedupe(funcs)
+
+    def get_dfba_objs(self):
+        """ Get dFBA objectives in submodel
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives in submodel
+        """
+        if self.dfba_obj:
+            return [self.dfba_obj]        
+        return []
+
+    def get_reactions(self):
+        """ Get reactions in submodel
+
+        Returns:
+            :obj:`list` of :obj:`Reaction`: reactions in submodel
+        """
+        reactions = list(self.reactions)
+        for dfba_obj in self.get_dfba_objs():
+            reactions.extend(dfba_obj.expression.reactions)
+        return det_dedupe(reactions)
+
+    def get_rate_laws(self):
+        """ Get rate laws in submodel
+
+        Returns:
+            :obj:`list` of :obj:`RateLaw`: rate laws in submodel
+        """
+        rate_laws = []
+        for reaction in self.get_reactions():
+            rate_laws.extend(reaction.rate_laws)
+        return det_dedupe(rate_laws)
+
+    def get_biomass_reactions(self):
+        """ Get biomass reactions in submodel
+
+        Returns:
+            :obj:`list` of :obj:`BiomassReaction`: biomass
+                reactions in submodel
+        """
+        bm_rxns = list(self.biomass_reactions)
+        for dfba_obj in self.get_dfba_objs():
+            bm_rxns.extend(dfba_obj.expression.biomass_reactions)
+        return det_dedupe(bm_rxns)
+
+    def get_parameters(self):
+        """ Get parameters in submodel
+
+        Returns:
+            :obj:`list` of :obj:`Parameter`: parameters in submodel
+        """
         parameters = []
-
-        for rxn in self.reactions:
-            for rate_law in rxn.rate_laws:
-                if rate_law.equation:
-                    parameters.extend(rate_law.equation.parameters.get(__type=__type, **kwargs))
-
+        for rate_law in self.get_rate_laws():
+            parameters.extend(rate_law.equation.parameters)
+        for observable in self.get_observables():
+            parameters.extend(observable.expression.parameters)
+        for function in self.get_functions():
+            parameters.extend(function.expression.parameters)
         return det_dedupe(parameters)
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1038,6 +1097,7 @@ class DfbaObjective(obj_model.Model):
     Attributes:
         id (:obj:`str`): identifier equal to `dfba-obj-{submodel.id}`
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
         expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
         comments (:obj:`str`): comments
@@ -1045,6 +1105,7 @@ class DfbaObjective(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='dfba_objs')
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1)
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1)
@@ -1165,8 +1226,6 @@ class DfbaObjective(obj_model.Model):
         with self.submodel as submodel:
             tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
             for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
-                if not tmp_specie:
-                    raise ValueError('Species {} does not belong to submodel {}'.format(tmp_specie_id, self.submodel.id))
                 if tmp_specie.has_attr_vals(__type=__type, **kwargs):
                     products.append(tmp_specie)
         return det_dedupe(products)
@@ -1279,6 +1338,7 @@ class Species(obj_model.Model):
     Attributes:
         id (:obj:`str`): identifier equal to `{species_type.id}[{compartment.id}]`
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
         comments (:obj:`str`): comments
@@ -1289,10 +1349,12 @@ class Species(obj_model.Model):
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
         rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='species')
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
     compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
     comments = LongStringAttribute()
@@ -1427,6 +1489,7 @@ class Concentration(obj_model.Model):
     Attributes:
         id (:obj:`str`): identifier equal to `conc-{species.id}`
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         species (:obj:`Species`): species
         value (:obj:`float`): value
         units (:obj:`ConcentrationUnit`): units; default units is `M`
@@ -1435,6 +1498,7 @@ class Concentration(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='concentrations')
     species = OneToOneAttribute(Species, related_name='concentration')
     value = FloatAttribute(min=0)
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
@@ -1442,7 +1506,7 @@ class Concentration(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(obj_model.Model.Meta):
-        #unique_together = (('species', ), )
+        # unique_together = (('species', ), )
         attribute_order = ('id', 'name', 'species', 'value', 'units', 'comments', 'references')
 
         frozen_columns = 1
@@ -1693,14 +1757,16 @@ class ObservableExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for an Observable
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
-        observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`        
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
+        observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
+        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this Observable expression
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
     species = ManyToManyAttribute(Species, related_name='observable_expressions')
+    observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
+    parameters = ManyToManyAttribute('Parameter', related_name='observable_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1711,7 +1777,7 @@ class ObservableExpression(obj_model.Model):
                 `Observable` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_models = ('Species', 'Observable')
+        valid_models = ('Parameter', 'Species', 'Observable')
 
     def serialize(self):
         """ Generate string representation
@@ -1782,6 +1848,7 @@ class FunctionExpression(obj_model.Model):
     Attributes:
         expression (:obj:`str`): mathematical expression for a Function
         _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        species (:obj:`list` of :obj:`Species`): Species used by this function expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
         functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
@@ -1790,6 +1857,7 @@ class FunctionExpression(obj_model.Model):
         function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
+    species = ManyToManyAttribute(Species, related_name='function_expressions')
     observables = ManyToManyAttribute(Observable, related_name='function_expressions')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
     functions = ManyToManyAttribute('Function', related_name='function_expressions')
@@ -1804,7 +1872,7 @@ class FunctionExpression(obj_model.Model):
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Species', 'Observable', 'Function')
 
     def serialize(self):
         """ Generate string representation
@@ -1963,6 +2031,7 @@ class Reaction(obj_model.Model):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of :obj:`SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
@@ -1979,6 +2048,7 @@ class Reaction(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='reactions')
     submodel = ManyToOneAttribute(Submodel, related_name='reactions')
     participants = ReactionParticipantAttribute(related_name='reactions')
     reversible = BooleanAttribute()
@@ -2190,6 +2260,7 @@ class RateLaw(obj_model.Model):
     Attributes:
         id (:obj:`str`): identifier equal to `{reaction.id}-{direction.name}`
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
         equation (:obj:`RateLawEquation`): equation
@@ -2198,6 +2269,7 @@ class RateLaw(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='rate_laws')
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     equation = RateLawEquationAttribute(related_name='rate_laws')
@@ -2207,7 +2279,7 @@ class RateLaw(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction',
                            'equation', 'comments', 'references')
-        #unique_together = (('reaction', 'direction'), )
+        # unique_together = (('reaction', 'direction'), )
         ordering = ('id',)
 
     @staticmethod
@@ -2277,7 +2349,7 @@ class RateLawEquation(obj_model.Model):
         tabular_orientation = TabularOrientation.inline
         ordering = ('rate_law',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Species', 'Parameter', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Species', 'Observable', 'Function')
 
     def serialize(self):
         """ Generate string representation
@@ -2351,6 +2423,7 @@ class BiomassReaction(obj_model.Model):
     Attributes:
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that uses this reaction
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2361,6 +2434,7 @@ class BiomassReaction(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='biomass_reactions')
     submodel = ManyToOneAttribute('Submodel', related_name='biomass_reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
@@ -2440,6 +2514,7 @@ class Parameter(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
+        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
