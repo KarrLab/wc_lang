@@ -133,6 +133,14 @@ class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
     variety = 10
 
 
+class CompartmentType(int, CaseInsensitiveEnum):
+    """ Compartment types """
+    abstract = 1
+    # physical_1d = 2
+    # physical_2d = 2
+    physical_3d = 3
+
+
 class SubmodelAlgorithm(int, CaseInsensitiveEnum):
     """ Submodel algorithms """
     dfba = 1
@@ -1171,6 +1179,7 @@ class Compartment(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
+        type (:obj:`CompartmentType`): type
         initial_volume (:obj:`float`): initial volume (L)
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -1182,13 +1191,14 @@ class Compartment(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
+    type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
     initial_volume = FloatAttribute(min=0)
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'initial_volume',
+                           'type', 'initial_volume',
                            'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
