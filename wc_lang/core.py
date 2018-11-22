@@ -41,6 +41,7 @@ from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
 from six import with_metaclass, string_types
 import collections
+import datetime
 import pkg_resources
 import re
 import six
@@ -50,6 +51,7 @@ import token
 
 from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
+                       DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
                        InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
@@ -223,6 +225,34 @@ class RateLawDirection(int, CaseInsensitiveEnum):
     backward = -1
     forward = 1
 
+class RateLawType(int, CaseInsensitiveEnum):
+    """ SBO rate law types """
+    hill = 192
+    mass_action = 12
+    michaelis_menten = 29
+    modular = 527
+    other = 1
+
+RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
+    ('hill', 192),
+    ('mass-action', 12),
+    ('michaelis-menten', 29),
+    ('modular', 527),
+    ('other', 1),
+])
+
+RateLawUnits = Enum('RateLawUnits', type=int, names=[
+    ('s^-1', 1),
+    ('M s^-1', 2),
+])
+
+class ParameterType(int, Enum):
+    """ SBO parameter types """
+    k_cat = 25
+    v_max = 186
+    K_m = 27
+    K_i = 261
+    other = 2
 
 class ReferenceType(int, CaseInsensitiveEnum):
     """ Reference types """
@@ -523,7 +553,12 @@ class Model(obj_model.Model):
         branch (:obj:`str`): branch of the model Git repository
         revision (:obj:`str`): revision of the model Git repository
         wc_lang_version (:obj:`str`): version of ``wc_lang``
+        author (:obj:`str`): author(s)
+        author_organization (:obj:`str`): author organization(s)
+        author_email (:obj:`str`): author emails(s)        
         comments (:obj:`str`): comments
+        created (:obj:`datetime`): date created
+        updated (:obj:`datetime`): date updated
 
     Related attributes:
         taxon (:obj:`Taxon`): taxon
@@ -551,11 +586,36 @@ class Model(obj_model.Model):
     revision = obj_model.core.StringAttribute()
     wc_lang_version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
                                      default=wc_lang_version, verbose_name='wc_lang version')
+    author = LongStringAttribute()
+    author_organization = LongStringAttribute()
+    author_email = LongStringAttribute()
     comments = LongStringAttribute()
+    created = DateTimeAttribute()
+    updated = DateTimeAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'version', 'url', 'branch', 'revision', 'wc_lang_version', 'comments')
+        attribute_order = ('id', 'name', 'version', 
+            'url', 'branch', 'revision', 
+            'wc_lang_version', 
+            'author', 'author_organization', 'author_email',
+            'comments',
+            'created', 'updated')
         tabular_orientation = TabularOrientation.column
+
+    def __init__(self, **kwargs):
+        """
+        Args:
+            **kwargs (:obj:`dict`, optional): dictionary of keyword arguments with keys equal to the names of the model attributes
+
+        Raises:
+            :obj:`TypeError`: if keyword argument is not a defined attribute
+        """
+        super(Model, self).__init__(**kwargs)
+        
+        if 'created' not in kwargs:
+            self.created = datetime.datetime.now().replace(microsecond=0)
+        if 'updated' not in kwargs:
+            self.updated = datetime.datetime.now().replace(microsecond=0)
 
     def get_submodels(self, __type=None, **kwargs):
         """ Get all submodels
@@ -2306,6 +2366,7 @@ class RateLaw(obj_model.Model):
         model (:obj:`Model`): model
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
+        type (:obj:`RateLawType`): type
         equation (:obj:`RateLawEquation`): equation
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2315,13 +2376,16 @@ class RateLaw(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='rate_laws')
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
+    type = EnumAttribute(RateLawType, default=RateLawType.other)
     equation = RateLawEquationAttribute(related_name='rate_laws')
+    units = EnumAttribute(RateLawUnits, default=RateLawUnits['s^-1'])
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'reaction', 'direction',
-                           'equation', 'comments', 'references')
+        attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
+                           'equation', 'units', 
+                           'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         ordering = ('id',)
 
@@ -2551,6 +2615,7 @@ class Parameter(obj_model.Model):
         id (:obj:`str`): unique identifier per model/submodel
         name (:obj:`str`): name
         model (:obj:`Model`): model
+        type (:obj:`ParameterType`): parameter type
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         comments (:obj:`str`): comments
@@ -2565,13 +2630,14 @@ class Parameter(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='parameters')
+    type = EnumAttribute(ParameterType, default=ParameterType.other)
     value = FloatAttribute(min=0)
     units = StringAttribute()
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name',
+        attribute_order = ('id', 'name', 'type',
                            'value', 'units',
                            'comments', 'references')
 

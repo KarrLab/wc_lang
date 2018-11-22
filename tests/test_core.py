@@ -1363,7 +1363,8 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(of_expr.validate(), None)
 
     def test_validate(self):
-        self.assertEqual(self.model.validate(), None)
+        invalid = self.model.validate()
+        self.assertEqual(invalid, None, str(invalid))
 
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
