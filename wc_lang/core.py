@@ -802,8 +802,8 @@ class Model(obj_model.Model):
 
         components = []
         for type_name in type_names:
-            components.extend(getattr(self, type_name + 's').get(
-                __type=__type, **kwargs))
+            get_func = getattr(self, 'get_' + type_name + 's')
+            components.extend(get_func(__type=__type, **kwargs))
 
         return components
 
@@ -951,7 +951,7 @@ class Submodel(obj_model.Model):
             :obj:`list` of :obj:`DfbaObjective`: dFBA objectives in submodel
         """
         if self.dfba_obj:
-            return [self.dfba_obj]        
+            return [self.dfba_obj]
         return []
 
     def get_reactions(self):
@@ -1002,6 +1002,49 @@ class Submodel(obj_model.Model):
         for function in self.get_functions():
             parameters.extend(function.expression.parameters)
         return det_dedupe(parameters)
+
+    def get_references(self):
+        """ Get references of submodel
+
+        Returns:
+            :obj:`list` of :obj:`Reference`: references in submodel
+        """
+        types = [
+            'compartment',
+            'species_type',
+            'specie',
+            'observable',
+            'function',
+            'dfba_obj',
+            'reaction',
+            'rate_law',
+            'biomass_reaction',
+            'parameter',
+        ]
+        references = []
+        for type in types:
+            get_func = getattr(self, 'get_' + type + 's')
+            for obj in get_func():
+                references.extend(obj.references)
+        return references
+
+    def get_components(self):
+        """ Get components of submodel
+
+        Returns:
+            :obj:`list` of :obj:`obj_model.Model`: components in submodel
+        """
+        return self.get_compartments() + \
+            self.get_species_types() + \
+            self.get_species() + \
+            self.get_observables() + \
+            self.get_functions() + \
+            self.get_dfba_objs() + \
+            self.get_reactions() + \
+            self.get_rate_laws() + \
+            self.get_biomass_reactions() + \
+            self.get_parameters() + \
+            self.get_references()
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
