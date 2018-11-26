@@ -32,12 +32,9 @@ class TestPrepareModel(unittest.TestCase):
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
 
     def setUp(self):
-        Submodel.objects.reset()
-        Reaction.objects.reset()
-        BiomassReaction.objects.reset()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-        self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
+        self.dfba_submodel = self.model.submodels.get_one(id='submodel_1')
         self.prepare_model = PrepareModel(self.model)
         self.id_idx = 0
 
