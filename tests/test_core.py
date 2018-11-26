@@ -38,9 +38,6 @@ from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
 class TestCore(unittest.TestCase):
 
     def setUp(self):
-        Reaction.objects.reset()
-        BiomassReaction.objects.reset()
-
         self.model = mdl = Model(id='model', name='test model', version='0.0.1', wc_lang_version='0.0.1')
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
@@ -1266,19 +1263,47 @@ class TestCore(unittest.TestCase):
 
         value = "2*biomass_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        value = "2*biomass_reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(biomass_reactions=[])
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        value = "2*biomass_reaction_1 - reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
         value = "2*biomass_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=[])
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
-        self.assertEqual(rv, None, str(rv))
+        self.assertNotEqual(rv, None, str(rv))
 
         value = "2*biomass_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression = of_expr.expression[0:-1]
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
@@ -1286,6 +1311,10 @@ class TestCore(unittest.TestCase):
         value = "2*biomass_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression += ')'
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
         self.assertRegex(rv.attributes[0].messages[0], "Python syntax error")
@@ -1293,48 +1322,85 @@ class TestCore(unittest.TestCase):
         value = "2*biomass_reaction_1 -  3*reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.biomass_reactions = []
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
         value = "2*biomass_reaction_1 * reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
 
         value = "2*biomass_reaction_1 ** 2"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         of_expr.expression = "2*biomass_reaction_1 - min( reaction_1, 2)"
         rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        of_expr = DfbaObjectiveExpression(expression="1.")
+        of_expr = DfbaObjectiveExpression(expression="1. + biomass_reaction_1",
+                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
 
-        of_expr = DfbaObjectiveExpression(expression="1")
+        of_expr = DfbaObjectiveExpression(expression="1 + biomass_reaction_1",
+                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
 
-        of_expr = DfbaObjectiveExpression(expression="True")
+        of_expr = DfbaObjectiveExpression(expression="True + biomass_reaction_1",
+                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         rv = of_expr.validate()
-        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("which aren't the id(s) of an object"))
 
-        of_expr = DfbaObjectiveExpression(expression="'str' + 1.")
+        of_expr = DfbaObjectiveExpression(expression="'str' + biomass_reaction_1",
+                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(
+            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], "cannot eval expression")
 
@@ -1357,6 +1423,8 @@ class TestCore(unittest.TestCase):
         of = DfbaObjective(id='dfba-obj-submdl_4',
                            submodel=Submodel(id='submdl_4'),
                            expression=of_expr)
+        of.submodel.biomass_reactions = [objs[BiomassReaction]['biomass_reaction_1']]
+        of.submodel.reactions = objs[Reaction].values()
         errors = of_expr.validate()
         self.assertEqual(errors, None, str(errors))
         of_expr.reactions.append(objs[Reaction]['reaction_0'])
@@ -1804,10 +1872,9 @@ class TestCoreFromFile(unittest.TestCase):
     MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
 
     def setUp(self):
-        Submodel.objects.reset()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-        self.dfba_submodel = Submodel.objects.get_one(id='submodel_1')
+        self.dfba_submodel = self.model.submodels.get_one(id='submodel_1')
 
     def test_get_species(self):
         species_ids = set([s.id for s in self.dfba_submodel.get_species()])
@@ -1833,3 +1900,256 @@ class TestTaxonRank(unittest.TestCase):
         self.assertEqual(TaxonRank['division'], TaxonRank.phylum)
         self.assertEqual(TaxonRank['divisio'], TaxonRank.phylum)
         self.assertEqual(TaxonRank['regnum'], TaxonRank.kingdom)
+
+
+class ValidateModelTestCase(unittest.TestCase):
+
+    MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_validate_model.xlsx')
+
+    def setUp(self):
+        # read a wc model
+        self.model = Reader().run(self.MODEL_FILENAME)
+        self.dfba_submodel = self.model.submodels.get_one(id='dfba_submodel')
+
+    def test_min_max_fluxes(self):
+        species = Species(id=Species.gen_id('s', 'c'), species_type=SpeciesType(id='s'), compartment=Compartment(id='c'))
+        participants = [SpeciesCoefficient(species=species, coefficient=1.)]
+
+        rxn = Reaction(id='rxn', reversible=True, min_flux=-1., max_flux=1.,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
+                       participants=participants)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn', reversible=False, min_flux=0., max_flux=1.,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
+                       participants=participants)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn', reversible=True, min_flux=1., max_flux=-1.,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                           RateLaw(direction=RateLawDirection.forward),
+                           RateLaw(direction=RateLawDirection.backward),
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(len(rv.attributes), 5)
+        self.assertRegex(str(rv), 'Minimum flux should be NaN')
+        self.assertRegex(str(rv), 'Maximum flux should be NaN')
+        self.assertRegex(str(rv), 'Maximum flux must be least the minimum flux')
+        self.assertRegex(str(rv), 'Minimum flux for reversible reaction should be negative')
+        self.assertRegex(str(rv), 'Value must be at least 0.000000')
+
+        rxn = Reaction(id='rxn', reversible=False, min_flux=-1., max_flux=-1.5,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                           RateLaw(direction=RateLawDirection.forward),
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(len(rv.attributes), 5)
+        self.assertRegex(str(rv), 'Minimum flux should be NaN')
+        self.assertRegex(str(rv), 'Maximum flux should be NaN')
+        self.assertRegex(str(rv), 'Maximum flux must be least the minimum flux')
+        self.assertRegex(str(rv), 'Minimum flux for irreversible reaction should be non-negative')
+        self.assertRegex(str(rv), 'Value must be at least 0.000000')
+
+    def test_dfba_submodel_contains_obj_reactions(self):
+        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        objs = {
+            Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
+            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+        }
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
+        rv = submodel.validate()
+        self.assertEqual(rv, None, str(rv))
+        rv = of_expr.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        rv = submodel.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertRegex(str(rv), 'submodel must have an objective')
+
+        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        objs = {
+            Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
+            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+        }
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
+        of_expr.reactions = []
+        of_expr.biomass_reactions = []
+        rv = submodel.validate()
+        self.assertEqual(rv, None, str(rv))
+        rv = of_expr.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 1)
+        self.assertRegex(str(rv), 'must be a function of at least one')
+
+        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        objs = {
+            Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
+            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+        }
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
+        submodel.reactions = []
+        submodel.biomass_reactions = []
+        rv = submodel.validate()
+        self.assertEqual(rv, None, str(rv))
+        rv = of_expr.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 2)
+        self.assertRegex(str(rv), 'must contain the following reactions')
+        self.assertRegex(str(rv), 'must contain the following biomass reactions')
+
+        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        objs = {
+            Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
+            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+        }
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
+        submodel.reactions = []
+        rv = submodel.validate()
+        self.assertEqual(rv, None, str(rv))
+        rv = of_expr.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 1)
+        self.assertRegex(str(rv), 'must contain the following reactions')
+
+    def test_rate_laws(self):
+        species = Species(id=Species.gen_id('s', 'c'), species_type=SpeciesType(id='s'), compartment=Compartment(id='c'))
+        participants = [SpeciesCoefficient(species=species, coefficient=1.)]
+
+        rxn = Reaction(id='rxn', reversible=True,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                           RateLaw(direction=RateLawDirection.forward),
+                           RateLaw(direction=RateLawDirection.backward),
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn', reversible=True,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 2)
+        self.assertRegex(str(rv), 'must have a forward rate law')
+        self.assertRegex(str(rv), 'must have a backward rate law')
+
+        rxn = Reaction(id='rxn', reversible=False,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 1)
+        self.assertRegex(str(rv), 'must have a forward rate law')
+
+        rxn = Reaction(id='rxn', reversible=False,
+                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       participants=participants,
+                       rate_laws=[
+                           RateLaw(direction=RateLawDirection.forward),
+                           RateLaw(direction=RateLawDirection.backward),
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertEqual(len(rv.attributes[0].messages), 1)
+        self.assertRegex(str(rv), 'cannot have a backward rate law')
+
+    def test_species_types(self):
+        st = SpeciesType(id='species_4', molecular_weight=1.)
+        self.assertEqual(st.validate(), None)
+
+        st = SpeciesType(id='species_4', molecular_weight=0.)
+        self.assertNotEqual(st.validate(), None)
+
+        st = SpeciesType(id='species_4', molecular_weight=-1.)
+        self.assertNotEqual(st.validate(), None)
+
+    def test_acyclic_dependencies(self):
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        obs_1 = model.observables.create(id='obs_1',
+                                         expression=ObservableExpression(expression='st_1[c]', species=[s_1]))
+        obs_2 = model.observables.create(id='obs_2',
+                                         expression=ObservableExpression(expression='st_2[c]', species=[s_2]))
+        rv = model.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        obs_1 = model.observables.create(id='obs_1',
+                                         expression=ObservableExpression(expression='st_1[c]', species=[s_1]))
+        obs_2 = model.observables.create(id='obs_2',
+                                         expression=ObservableExpression(expression='st_2[c] + obs_1', species=[s_2]))
+        obs_2.expression.observables = [obs_1]
+        rv = model.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        obs_1 = model.observables.create(id='obs_1',
+                                         expression=ObservableExpression(expression='st_1[c] + obs_2', species=[s_1]))
+        obs_2 = model.observables.create(id='obs_2',
+                                         expression=ObservableExpression(expression='st_2[c] + obs_1', species=[s_2]))
+        obs_1.expression.observables = [obs_2]
+        obs_2.expression.observables = [obs_1]
+        rv = model.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertRegex(str(rv), 'cannot have cyclic depencencies')
+
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        obs_1 = model.observables.create(id='obs_1',
+                                         expression=ObservableExpression(expression='st_1[c] + obs_1', species=[s_1]))
+        obs_2 = model.observables.create(id='obs_2',
+                                         expression=ObservableExpression(expression='st_2[c]', species=[s_2]))
+        obs_1.expression.observables = [obs_1]
+        rv = model.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertRegex(str(rv), 'cannot have cyclic depencencies')
+
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        func_1 = model.functions.create(id='func_1',
+                                        expression=FunctionExpression(expression='st_1[c] + func_2', species=[s_1]))
+        func_2 = model.functions.create(id='func_2',
+                                        expression=FunctionExpression(expression='st_2[c] + func_1', species=[s_2]))
+        func_1.expression.functions = [func_2]
+        func_2.expression.functions = [func_1]
+        rv = model.validate()
+        self.assertEqual(len(rv.attributes), 1)
+        self.assertRegex(str(rv), 'cannot have cyclic depencencies')

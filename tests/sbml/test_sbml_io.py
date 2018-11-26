@@ -26,7 +26,7 @@ from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, DfbaObjective, Compartment,
                      Species, Concentration, Reaction, RateLaw, RateLawEquation,
                      BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
-from wc_lang.prepare import PrepareModel, CheckModel
+from wc_lang.prepare import PrepareModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
@@ -128,7 +128,6 @@ class TestSbml(unittest.TestCase):
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
         PrepareModel(self.model).run()
-        CheckModel(self.model).run()
 
     def tearDown(self):
         shutil.rmtree(self.dirname)

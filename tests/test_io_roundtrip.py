@@ -16,7 +16,8 @@ import tempfile
 import unittest
 
 from wc_lang.core import (Model, SpeciesCoefficient, ExpressionMethods, Species, Observable, Function,
-                          Concentration, ConcentrationUnit, Parameter)
+                          Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawEquation,
+                          Parameter)
 from wc_lang.io import Reader, Writer
 
 
@@ -38,7 +39,7 @@ class RoundTripTestCase(unittest.TestCase):
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
         species.concentration = Concentration(
-            id=Concentration.gen_id(species.id), 
+            id=Concentration.gen_id(species.id),
             model=model,
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
@@ -48,6 +49,9 @@ class RoundTripTestCase(unittest.TestCase):
         coefficient = 1
         rxn_species_coeff = species.species_coefficients.create(coefficient=coefficient)
         rxn = submdl.reactions.create(id='reaction_1', model=model)
+        rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
+                             direction=RateLawDirection.forward, model=model,
+                             equation=RateLawEquation(expression='1.'))
         rxn.participants.append(rxn_species_coeff)
 
         errors = obj_model.Validator().run(model, get_related=True)
@@ -75,7 +79,7 @@ class RoundTripTestCase(unittest.TestCase):
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
         species.concentration = Concentration(
-            id=Concentration.gen_id(species.id), 
+            id=Concentration.gen_id(species.id),
             model=model,
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
@@ -93,6 +97,9 @@ class RoundTripTestCase(unittest.TestCase):
         rxn_species_coeff = species.species_coefficients.get_or_create(coefficient=coefficient)
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.append(rxn_species_coeff)
+        rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
+                             direction=RateLawDirection.forward, model=model,
+                             equation=RateLawEquation(expression='1.'))
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertEqual(errors, None, str(errors))

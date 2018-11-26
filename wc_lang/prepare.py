@@ -1,31 +1,23 @@
 """ Prepare a WC model for further processing, such as export or simulation.
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-10-22
-:Copyright: 2017, Karr Lab
+:Author: Jonathan Karr <jonrkarr@gmail.com>
+:Date: 2018-11-26
+:Copyright: 2017-2018, Karr Lab
 :License: MIT
 """
 
 from math import isnan
-from warnings import warn
-import ast
-import networkx as nx
-
 from obj_model.utils import get_component_by_id
-from wc_lang.core import (SubmodelAlgorithm,
-                          DfbaObjective, DfbaObjectiveExpression,
-                          Concentration, ConcentrationUnit, 
-                          BiomassReaction, Observable, FunctionExpression)
+from warnings import warn
+from wc_lang.core import (SubmodelAlgorithm, Concentration, ConcentrationUnit)
+import ast
 
 # configuration
 import wc_lang.config.core
 config_wc_lang = wc_lang.config.core.get_config()['wc_lang']
 
 EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
-
-# TODO: distinguish between preparing and analyzing a model: analyze includes gap finding
-
-
 
 
 class PrepareModel(object):
@@ -48,26 +40,25 @@ class PrepareModel(object):
     def run(self):
         """ Statically prepare a model by executing all `Prepare` methods.
         """
+        self.init_concentrations()
+
         for submodel in self.model.get_submodels():
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 reactions_created = self.create_dfba_exchange_rxns(submodel,
                                                                    EXTRACELLULAR_COMPARTMENT_ID)
                 warn("{} exchange reactions created for submodel '{}'.".format(reactions_created,
                                                                                submodel.name))
-                self.confirm_dfba_submodel_obj_func(submodel)
                 (min_bounds_set, max_bounds_set) = self.apply_default_dfba_submodel_flux_bounds(submodel)
                 warn("{} minimum and {} maximum default flux bounds set for submodel '{}'.".format(
                     min_bounds_set, max_bounds_set, submodel.name))
                 try:
                     reactions, biomass_reactions = self.parse_dfba_submodel_obj_func(submodel)
-                    PrepareModel.assign_linear_objective_fn(submodel, reactions, biomass_reactions)
+                    self.assign_linear_objective_fn(submodel, reactions, biomass_reactions)
                     submodel.dfba_obj.expression.linear = True
                 except Exception as e:
                     submodel.dfba_obj.expression.linear = False
                     warn("Submodel '{}' has non-linear objective function '{}'.".format(
                         submodel.name, submodel.dfba_obj.expression.expression))
-
-        self.init_concentrations()
 
     def create_dfba_exchange_rxns(self, submodel, extracellular_compartment_id):
         """ Create exchange reactions for a dFBA submodel's reaction network.
@@ -116,34 +107,84 @@ class PrepareModel(object):
 
         return reaction_number-1
 
-    def confirm_dfba_submodel_obj_func(self, submodel):
-        """ Ensure that a dFBA submodel has an objective function
+    def apply_default_dfba_submodel_flux_bounds(self, submodel):
+        """ Apply default flux bounds to a dFBA submodel's reactions
 
-        If the submodel definition does not provide an objective function, then use the
-        biomass reaction.
+        The FBA optimizer needs min and max flux bounds for each dFBA submodel reaction.
+        If some reactions lack bounds and default bounds are provided in a config file,
+        then apply the defaults to the reactions.
+        Specifically, min and max default bounds are applied as follows:
+
+            reversible reactions:
+
+              * min_flux = -default_max_flux_bound
+              * max_flux = default_max_flux_bound
+
+            irreversible reactions:
+
+              * min_flux = default_min_flux_bound
+              * max_flux = default_max_flux_bound
 
         Args:
-            submodel (`Submodel`): a dFBA submodel
+            submodel (:obj:`Submodel`): a dFBA submodel
 
         Raises:
             ValueError: if `submodel` is not a dFBA submodel
-            ValueError: if `submodel` cannot use its biomass reaction '{}' as an objective function
+
+        Returns:
+            :obj:`tuple`:
+
+                * obj:`int`: number of min flux bounds set to the default
+                * obj:`int`: number of max flux bounds set to the default
         """
         if submodel.algorithm != SubmodelAlgorithm.dfba:
             raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
 
-        if submodel.dfba_obj is None:
-            # use the biomass reaction as the objective, because no objective function is specified
-            submodel.dfba_obj = DfbaObjective(
-                expression=DfbaObjectiveExpression(
-                    expression=' + '.join(rxn.id for rxn in submodel.biomass_reactions),
-                    reactions=[],
-                    biomass_reactions=submodel.biomass_reactions,
-                ),
-            )
-        submodel.dfba_obj.expression.reaction_coefficients = []
-        submodel.dfba_obj.expression.biomass_reaction_coefficients = [1.0]
-        return None
+        need_default_flux_bounds = False
+        for rxn in submodel.reactions:
+            need_default_flux_bounds = need_default_flux_bounds or isnan(rxn.min_flux) or isnan(rxn.max_flux)
+        if not need_default_flux_bounds:
+            # all reactions have flux bounds
+            return (0, 0)
+
+        # Are default flux bounds available? They cannot be negative.
+        try:
+            default_min_flux_bound = config_wc_lang['default_min_flux_bound']
+            default_max_flux_bound = config_wc_lang['default_max_flux_bound']
+        except KeyError as e:
+            raise ValueError("cannot obtain default_min_flux_bound and default_max_flux_bound=")
+        if not 0 <= default_min_flux_bound <= default_max_flux_bound:
+            raise ValueError("default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:\n"
+                             "default_min_flux_bound={}; default_max_flux_bound={}".format(default_min_flux_bound,
+                                                                                           default_max_flux_bound))
+
+        # Apply default flux bounds to reactions in submodel
+        num_default_min_flux_bounds = 0
+        num_default_max_flux_bounds = 0
+        for rxn in submodel.reactions:
+            if isnan(rxn.min_flux):
+                num_default_min_flux_bounds += 1
+                if rxn.reversible:
+                    rxn.min_flux = -default_max_flux_bound
+                else:
+                    rxn.min_flux = default_min_flux_bound
+            if isnan(rxn.max_flux):
+                num_default_max_flux_bounds += 1
+                rxn.max_flux = default_max_flux_bound
+        return (num_default_min_flux_bounds, num_default_max_flux_bounds)
+
+    def init_concentrations(self):
+        """ Initialize missing concentration values to 0 """
+        missing_species_ids = []
+        for species in self.model.get_species():
+            if species.concentration is None:
+                missing_species_ids.append(species.id)
+                species.concentrations = Concentration(
+                    id=Concentration.gen_id(species.id),
+                    species=species,
+                    value=0.0, units=ConcentrationUnit.molecules)
+        warn("Assuming missing concentrations for the following metabolites 0:\n  {}".format(
+            '\n  '.join(missing_species_ids)))
 
     def parse_dfba_submodel_obj_func(self, submodel):
         """ Parse a dFBA submodel's objective function into a linear function of reaction fluxes
@@ -308,285 +349,3 @@ class PrepareModel(object):
         of.expression.biomass_reactions = [get_component_by_id(submodel.model.get_biomass_reactions(), id)
                                            for coeff, id in biomass_reactions]
         of.expression.biomass_reaction_coefficients = [coeff for coeff, id in biomass_reactions]
-
-    def apply_default_dfba_submodel_flux_bounds(self, submodel):
-        """ Apply default flux bounds to a dFBA submodel's reactions
-
-        The FBA optimizer needs min and max flux bounds for each dFBA submodel reaction.
-        If some reactions lack bounds and default bounds are provided in a config file,
-        then apply the defaults to the reactions.
-        Specifically, min and max default bounds are applied as follows:
-
-            reversible reactions:
-
-              * min_flux = -default_max_flux_bound
-              * max_flux = default_max_flux_bound
-
-            irreversible reactions:
-
-              * min_flux = default_min_flux_bound
-              * max_flux = default_max_flux_bound
-
-        Args:
-            submodel (:obj:`Submodel`): a dFBA submodel
-
-        Raises:
-            ValueError: if `submodel` is not a dFBA submodel
-
-        Returns:
-            :obj:`tuple`:
-
-                * obj:`int`: number of min flux bounds set to the default
-                * obj:`int`: number of max flux bounds set to the default
-        """
-        if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
-
-        need_default_flux_bounds = False
-        for rxn in submodel.reactions:
-            need_default_flux_bounds = need_default_flux_bounds or isnan(rxn.min_flux) or isnan(rxn.max_flux)
-        if not need_default_flux_bounds:
-            # all reactions have flux bounds
-            return (0, 0)
-
-        # Are default flux bounds available? They cannot be negative.
-        try:
-            default_min_flux_bound = config_wc_lang['default_min_flux_bound']
-            default_max_flux_bound = config_wc_lang['default_max_flux_bound']
-        except KeyError as e:
-            raise ValueError("cannot obtain default_min_flux_bound and default_max_flux_bound=")
-        if not 0 <= default_min_flux_bound <= default_max_flux_bound:
-            raise ValueError("default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:\n"
-                             "default_min_flux_bound={}; default_max_flux_bound={}".format(default_min_flux_bound,
-                                                                                           default_max_flux_bound))
-
-        # Apply default flux bounds to reactions in submodel
-        num_default_min_flux_bounds = 0
-        num_default_max_flux_bounds = 0
-        for rxn in submodel.reactions:
-            if isnan(rxn.min_flux):
-                num_default_min_flux_bounds += 1
-                if rxn.reversible:
-                    rxn.min_flux = -default_max_flux_bound
-                else:
-                    rxn.min_flux = default_min_flux_bound
-            if isnan(rxn.max_flux):
-                num_default_max_flux_bounds += 1
-                rxn.max_flux = default_max_flux_bound
-        return (num_default_min_flux_bounds, num_default_max_flux_bounds)
-
-    def init_concentrations(self):
-        """ Initialize missing concentration values to 0 """
-        missing_species_ids = []
-        for species in self.model.get_species():
-            if species.concentration is None:
-                missing_species_ids.append(species.id)
-                species.concentrations = Concentration(
-                    id=Concentration.gen_id(species.id),
-                    species=species,
-                    value=0.0, units=ConcentrationUnit.molecules)
-        warn("Assuming missing concentrations for the following metabolites 0:\n  {}".format(
-            '\n  '.join(missing_species_ids)))
-
-
-class CheckModel(object):
-    """ Statically check a model
-
-    A `Model` which validates in `wc_lang` may fail to satisfy global properties that must hold for
-    the `Model` to be used. `CheckModel` evaluates these properties.
-
-    Currently checked properties:
-
-        * DFBA submodels contain a biomass reaction and an objective function
-        * All reactants in each submodel's reactions are in the submodel's compartment
-        * All species types have positive molecular weights
-        * The network of `Observable` depencencies is acyclic
-
-    Other properties to be checked:
-
-        * The model does not contain dead-end species which are only consumed or produced
-        * The model uses water consistently - either in all compartments or in none
-        * Reactions are balanced
-        * Reactions in dynamic submodels contain fully specified rate laws
-        * A reaction's rate laws uses only species that are in the reaction's reactants
-        * All Species used in reactions have concentration values
-        * Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
-          for the reactions participate in at least one reaction in the submodel
-        * Ensure that :obj:`Reaction` and :obj:`BiomassReaction` ids don't overlap; can then simplify
-          DfbaObjective.deserialize()
-
-    # TODO: implement these, and expand the list of properties
-    """
-
-    def __init__(self, model):
-        self.model = model
-
-    def run(self):
-        """ Run all tests in `CheckModel`
-
-        Raises:
-            :obj:`ValueError`: if any of the tests return an error
-        """
-        self.errors = []
-        for submodel in self.model.get_submodels():
-            if submodel.algorithm == SubmodelAlgorithm.dfba:
-                self.errors.extend(self.check_dfba_submodel(submodel))
-            if submodel.algorithm in [SubmodelAlgorithm.ssa, SubmodelAlgorithm.ode]:
-                self.errors.extend(self.check_dynamic_submodel(submodel))
-        self.errors.extend(self.verify_species_types())
-        self.errors.extend(self.verify_acyclic_dependencies([Observable]))
-        if self.errors:
-            raise ValueError('\n'.join(self.errors))
-
-    def check_dfba_submodel(self, submodel):
-        """ Check the inputs to a DFBA submodel
-
-        Ensure that:
-
-            * All DFBA reactions have min flux and max flux with appropriate values
-            * The DFBA submodel contains a biomass reaction and an objective function
-            * All species used in biomass reactions are defined
-
-        Args:
-            submodel (`Submodel`): a DFBA submodel
-
-        Returns:
-            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-        for reaction in submodel.reactions:
-            for attr in ['min_flux', 'max_flux']:
-                if not hasattr(reaction, attr) or isnan(getattr(reaction, attr)):
-                    errors.append("Error: no {} for reaction '{}' in submodel '{}'".format(
-                        attr, reaction.name, submodel.name))
-                    continue
-
-            if hasattr(reaction, 'min_flux') and hasattr(reaction, 'max_flux'):
-                if reaction.max_flux < reaction.min_flux:
-                    errors.append("Error: max_flux < min_flux ({} < {}) for reaction '{}' in submodel '{}'".format(
-                        reaction.max_flux, reaction.min_flux, reaction.name, submodel.name))
-                if reaction.reversible and 0 < reaction.min_flux:
-                    errors.append("Error: 0 < min_flux ({}) for reversible reaction '{}' in submodel '{}'".format(
-                        reaction.min_flux, reaction.name, submodel.name))
-
-        if submodel.dfba_obj is None:
-            errors.append("Error: submodel '{}' uses dFBA but lacks an objective function".format(submodel.name))
-
-        has_biomass_components = False
-        for biomass_reaction in submodel.biomass_reactions:
-            if biomass_reaction.biomass_components:
-                has_biomass_components = True
-                break
-        if not has_biomass_components:
-            errors.append("Error: submodel '{}' uses dFBA but lacks a biomass reaction".format(
-                submodel.name))
-
-        else:
-            submodel_species_ids = set([s.id for s in submodel.get_species()])
-            for biomass_reaction in submodel.biomass_reactions:
-                for biomass_component in biomass_reaction.biomass_components:
-                    species_id = biomass_component.species.id
-                    if species_id not in submodel_species_ids:
-                        errors.append("Error: undefined species '{}' in biomass reaction '{}' used by "
-                                      "submodel '{}'.".format(species_id,
-                                                              biomass_reaction.name,
-                                                              submodel.name))
-
-        return errors
-
-    def check_dynamic_submodel(self, submodel):
-        """ Check the inputs to a dynamic submodel
-
-        Ensure that:
-
-            * All reactions have rate laws for the appropriate directions
-
-        Args:
-            submodel (`Submodel`): a dynamic (SSA or ODE) submodel
-
-        Returns:
-            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-        for reaction in submodel.reactions:
-            direction_types = set()
-            for rate_law in reaction.rate_laws:
-                direction_types.add(rate_law.direction.name)
-            if not direction_types:
-                errors.append("Error: reaction '{}' in submodel '{}' has no "
-                              "rate law specified".format(reaction.name, submodel.name))
-            if reaction.reversible:     # reversible is redundant with a reaction's rate laws
-                if direction_types.symmetric_difference(set(('forward', 'backward'))):
-                    errors.append("Error: reaction '{}' in submodel '{}' is reversible but has only "
-                                  "a '{}' rate law specified".format(reaction.name, submodel.name,
-                                                                     direction_types.pop()))
-            else:
-                if direction_types.symmetric_difference(set(('forward',))):
-                    errors.append("Error: reaction '{}' in submodel '{}' is not reversible but has "
-                                  "a 'backward' rate law specified".format(reaction.name, submodel.name))
-
-        return errors
-
-    def verify_species_types(self):
-        """ Verify all species types
-
-        Ensure that:
-
-            * All species types have positive molecular weights
-
-        Returns:
-            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-        for species_type in self.model.get_species_types():
-            if not 0 < species_type.molecular_weight:
-                errors.append("species types must contain positive molecular weights, but the MW for {} "
-                              "is {}".format(species_type.id, species_type.molecular_weight))
-        return errors
-
-    def verify_acyclic_dependencies(self, model_types):
-        """ Verify that the network of depencencies for model types in `model_types` are acyclic
-
-        Ensure that:
-            * The model types in `model_types` do not make recursive calls; tested types
-                include :obj:`Observable` and :obj:`FunctionExpression`
-
-        Args:
-            model_types (:obj:`list` of :obj:`type`): model types (subclasses of :obj:`obj_model.Model`) to test
-
-        Returns:
-            :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
-            error messages
-        """
-        errors = []
-        for model_type in model_types:
-
-            # get all instances of model_type in self.model
-            all_models = None
-            for name, attr in self.model.Meta.related_attributes.items():
-                if hasattr(self.model.Meta.related_attributes[name], 'primary_class') and \
-                        self.model.Meta.related_attributes[name].primary_class == model_type:
-                    all_models = getattr(self.model, name)
-
-            # get self-referential attribute, if any
-            expression_model = model_type.Meta.expression_model
-            name_self_ref_attr = None
-            for name in expression_model.Meta.attributes.keys():
-                if hasattr(expression_model.Meta.attributes[name], 'related_class') and \
-                        expression_model.Meta.attributes[name].related_class == model_type:
-                    name_self_ref_attr = name
-
-            if all_models and name_self_ref_attr:
-                digraph = nx.DiGraph()
-                for model in all_models:
-                    for ref in getattr(model.expression, name_self_ref_attr):
-                        digraph.add_edge(model, ref)
-                cycle_generator = nx.simple_cycles(digraph)
-                for cycle in cycle_generator:
-                    cyc = [o.id for o in cycle]
-                    cyc.append(cyc[0])
-                    errors.append("dependency cycle among {}s: {}".format(model_type.__name__, '->'.join(cyc)))
-        return errors

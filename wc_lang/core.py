@@ -42,6 +42,7 @@ from natsort import natsorted, ns
 from six import with_metaclass, string_types
 import collections
 import datetime
+import networkx
 import pkg_resources
 import re
 import six
@@ -49,7 +50,9 @@ import stringcase
 import sys
 import token
 
-from obj_model import (BooleanAttribute, EnumAttribute, FloatAttribute, IntegerAttribute, PositiveIntegerAttribute,
+from obj_model import (BooleanAttribute, EnumAttribute,
+                       FloatAttribute, PositiveFloatAttribute,
+                       IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                        DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
@@ -225,6 +228,7 @@ class RateLawDirection(int, CaseInsensitiveEnum):
     backward = -1
     forward = 1
 
+
 class RateLawType(int, CaseInsensitiveEnum):
     """ SBO rate law types """
     hill = 192
@@ -232,6 +236,7 @@ class RateLawType(int, CaseInsensitiveEnum):
     michaelis_menten = 29
     modular = 527
     other = 1
+
 
 RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
     ('hill', 192),
@@ -246,6 +251,7 @@ RateLawUnits = Enum('RateLawUnits', type=int, names=[
     ('M s^-1', 2),
 ])
 
+
 class ParameterType(int, Enum):
     """ SBO parameter types """
     k_cat = 25
@@ -253,6 +259,7 @@ class ParameterType(int, Enum):
     K_m = 27
     K_i = 261
     other = 2
+
 
 class ReferenceType(int, CaseInsensitiveEnum):
     """ Reference types """
@@ -555,7 +562,7 @@ class Model(obj_model.Model):
         wc_lang_version (:obj:`str`): version of ``wc_lang``
         author (:obj:`str`): author(s)
         author_organization (:obj:`str`): author organization(s)
-        author_email (:obj:`str`): author emails(s)        
+        author_email (:obj:`str`): author emails(s)
         comments (:obj:`str`): comments
         created (:obj:`datetime`): date created
         updated (:obj:`datetime`): date updated
@@ -594,12 +601,12 @@ class Model(obj_model.Model):
     updated = DateTimeAttribute()
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'version', 
-            'url', 'branch', 'revision', 
-            'wc_lang_version', 
-            'author', 'author_organization', 'author_email',
-            'comments',
-            'created', 'updated')
+        attribute_order = ('id', 'name', 'version',
+                           'url', 'branch', 'revision',
+                           'wc_lang_version',
+                           'author', 'author_organization', 'author_email',
+                           'comments',
+                           'created', 'updated')
         tabular_orientation = TabularOrientation.column
 
     def __init__(self, **kwargs):
@@ -611,11 +618,76 @@ class Model(obj_model.Model):
             :obj:`TypeError`: if keyword argument is not a defined attribute
         """
         super(Model, self).__init__(**kwargs)
-        
+
         if 'created' not in kwargs:
             self.created = datetime.datetime.now().replace(microsecond=0)
         if 'updated' not in kwargs:
             self.updated = datetime.datetime.now().replace(microsecond=0)
+
+    def validate(self):
+        """ Determine if the model is valid
+
+        * Networks of observables and functions are acyclic
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(Model, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        cyclic_deps = self._get_cyclic_deps()
+        for model_type, metadata in cyclic_deps.items():
+            errors.append(InvalidAttribute(metadata['attribute'], [
+                'The following instances of {} cannot have cyclic depencencies:\n  {}'.format(
+                    model_type.__name__, '\n  '.join(metadata['models']))]))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
+
+    def _get_cyclic_deps(self):
+        """ Verify that the networks of depencencies for observables and functions are acyclic
+
+        Returns:
+            :obj:`dict`: dictionary of dictionary of lists of objects with cyclic dependencies,
+                keyed by type
+        """
+        cyclic_deps = {}
+        for model_type in (Observable, Function):
+            # get name of attribute that contains instances of model_type
+            for attr_name, attr in self.__class__.Meta.related_attributes.items():
+                if attr.primary_class == model_type:
+                    break
+
+            # get all instances of type in model
+            models = getattr(self, attr_name)
+
+            # get name of self-referential attribute, if any
+            expression_type = model_type.Meta.expression_model
+            for self_ref_attr_name, self_ref_attr in expression_type.Meta.attributes.items():
+                if isinstance(self_ref_attr, obj_model.RelatedAttribute) and self_ref_attr.related_class == model_type:
+                    break
+
+            # find cyclic dependencies
+            digraph = networkx.DiGraph()
+            for model in models:
+                for other_model in getattr(model.expression, self_ref_attr_name):
+                    digraph.add_edge(model.id, other_model.id)
+            cycles = list(networkx.simple_cycles(digraph))
+            if cycles:
+                cyclic_deps[model_type] = {
+                    'attribute': attr,
+                    'attribute_name': attr_name,
+                    'models': set(),
+                }
+            for cycle in cycles:
+                cyclic_deps[model_type]['models'].update(set(cycle))
+
+        return cyclic_deps
 
     def get_submodels(self, __type=None, **kwargs):
         """ Get all submodels
@@ -926,6 +998,32 @@ class Submodel(obj_model.Model):
         attribute_order = ('id', 'name', 'algorithm', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
+    def validate(self):
+        """ Determine if the submodel is valid
+
+        * dFBA submodel has an objective
+
+        .. todo :: Check that the submodel uses water consistently -- either in all compartments or in none
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(Submodel, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.algorithm == SubmodelAlgorithm.dfba:
+            if not self.dfba_obj:
+                errors.append(InvalidAttribute(self.Meta.related_attributes['dfba_obj'],
+                                               ['dFBA submodel must have an objective']))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
+
     def get_compartments(self):
         """ Get compartments in submodel
 
@@ -1162,6 +1260,49 @@ class DfbaObjectiveExpression(obj_model.Model):
         valid_functions = (pow,)
         valid_models = ('Reaction', 'BiomassReaction')
 
+    def validate(self):
+        """ Determine if the dFBA objective expression is valid
+
+        * Check that the expression is a linear function
+        * Check if expression is a function of at least one reaction or biomass reaction
+        * Check that the reactions and biomass reactions belong to the same submodel
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        invalid_obj = super(DfbaObjectiveExpression, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        expr_errors = []
+        if not self.reactions and not self.biomass_reactions:
+            expr_errors.append('Expression must be a function of at least one reaction or biomass reaction')
+
+        if self.dfba_obj and self.dfba_obj.submodel:
+            missing_rxns = set(self.reactions).difference(set(self.dfba_obj.submodel.reactions))
+            missing_bm_rxns = set(self.biomass_reactions).difference(set(self.dfba_obj.submodel.biomass_reactions))
+
+            if missing_rxns:
+                expr_errors.append(('dFBA submodel {} must contain the following reactions '
+                                    'that are in its objective function:\n  {}').format(
+                    self.dfba_obj.submodel.id,
+                    '\n  '.join(rxn.id for rxn in missing_rxns)))
+            if missing_bm_rxns:
+                expr_errors.append(('dFBA submodel {} must contain the following biomass reactions '
+                                    'that are in its objective function:\n  {}').format(
+                    self.dfba_obj.submodel.id,
+                    '\n  '.join(rxn.id for rxn in missing_bm_rxns)))
+
+        if expr_errors:
+            errors.append(InvalidAttribute(self.Meta.attributes['expression'], expr_errors))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return ExpressionMethods.validate(self)
+
     def serialize(self):
         """ Generate string representation
 
@@ -1183,15 +1324,6 @@ class DfbaObjectiveExpression(obj_model.Model):
                 of cleaned value and cleaning error
         """
         return ExpressionMethods.deserialize(cls, value, objects)
-
-    def validate(self):
-        """ Check that the expression is a valid linear function
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors as an instance of `InvalidObject`
-        """
-        return ExpressionMethods.validate(self)
 
 
 class DfbaObjective(obj_model.Model):
@@ -1233,7 +1365,9 @@ class DfbaObjective(obj_model.Model):
         return 'dfba-obj-{}'.format(submodel_id)
 
     def validate(self):
-        """ Validate that identifier is equal to `dfba-obj-{submodel.id}]`
+        """ Validate that the dFBA objective is valid
+
+        * Check if the identifier is equal to `dfba-obj-{submodel.id}]`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -1412,7 +1546,7 @@ class SpeciesType(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
     empirical_formula = RegexAttribute(pattern=r'^([A-Z][a-z]?\d*)*$')
-    molecular_weight = FloatAttribute(min=0)
+    molecular_weight = PositiveFloatAttribute()
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
     comments = LongStringAttribute()
@@ -1485,7 +1619,9 @@ class Species(obj_model.Model):
         return '{}[{}]'.format(species_type_id, compartment_id)
 
     def validate(self):
-        """ Validate that identifier is equal to `{species_type.id}[{compartment.id}]`
+        """ Check that the species is valid
+
+        * Check if the identifier is equal to `{species_type.id}[{compartment.id}]`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -1628,7 +1764,9 @@ class Concentration(obj_model.Model):
         return 'conc-{}'.format(species_id)
 
     def validate(self):
-        """ Validate that identifier is equal to `conc-{species.id}]`
+        """ Check that the concentration is valid
+
+        * Validate that identifier is equal to `conc-{species.id}]`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -1860,7 +1998,7 @@ class ObservableExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for an Observable
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`        
+        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this Observable expression
@@ -1905,7 +2043,9 @@ class ObservableExpression(obj_model.Model):
         return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ Check that the observable is a valid linear function
+        """ Check that the observable is valid
+
+        * Check that the expression is a linear function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2000,7 +2140,9 @@ class FunctionExpression(obj_model.Model):
         return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ Check that the function is a valid Python function
+        """ Check that the function is valid
+
+        * Check that the expression is a valid Python function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2090,7 +2232,9 @@ class StopConditionExpression(obj_model.Model):
         return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ Check that the expression is a valid Boolean function
+        """ Check that the stop condition is valid
+
+        * Check that the expression is a Boolean function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2163,6 +2307,71 @@ class Reaction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
+
+    def validate(self):
+        """ Check if the reaction is valid
+
+        * If the submodel is ODE or SSA, check that the reaction has a forward rate law
+        * If the submodel is ODE or SSA and the reaction is reversible, check that the reaction has a
+          backward rate law
+        * Check that `min_flux` <= `max_flux`
+
+        .. todo :: Check reaction is mass-balanced
+        .. todo :: Check reaction is charge-balanced
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        invalid_obj = super(Reaction, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        # check that rate laws are defined as needed for ODE, SSA submodels
+        rl_errors = []
+
+        for_rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
+        rev_rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
+        if self.submodel and self.submodel.algorithm in [SubmodelAlgorithm.ode, SubmodelAlgorithm.ssa]:
+            if not for_rl:
+                rl_errors.append('Reaction in {} submodel must have a forward rate law'.format(
+                    self.submodel.algorithm.name))
+            if self.reversible and not rev_rl:
+                rl_errors.append('Reversible reaction in {} submodel must have a backward rate law'.format(
+                    self.submodel.algorithm.name))
+        if not self.reversible and rev_rl:
+            rl_errors.append('Irreversible reaction in {} submodel cannot have a backward rate law'.format(
+                self.submodel.algorithm.name))
+
+        if rl_errors:
+            errors.append(InvalidAttribute(self.Meta.related_attributes['rate_laws'], rl_errors))
+
+        # check min, max fluxes
+        if self.submodel and self.submodel.algorithm is not SubmodelAlgorithm.dfba:
+            if not isnan(self.min_flux):
+                errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+                                               ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
+            if not isnan(self.max_flux):
+                errors.append(InvalidAttribute(self.Meta.attributes['max_flux'],
+                                               ['Maximum flux should be NaN for reactions in non-dFBA submodels']))
+
+        if not isnan(self.min_flux) and not isnan(self.min_flux) and self.min_flux > self.max_flux:
+            errors.append(InvalidAttribute(self.Meta.attributes['max_flux'],
+                                           ['Maximum flux must be least the minimum flux']))
+
+        if self.reversible and not isnan(self.min_flux) and self.min_flux >= 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+                                           ['Minimum flux for reversible reaction should be negative or NaN']))
+        if not self.reversible and not isnan(self.min_flux) and self.min_flux < 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+                                           ['Minimum flux for irreversible reaction should be non-negative']))
+
+        # return errors
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
     def get_species(self, __type=None, **kwargs):
         """ Get species
@@ -2384,7 +2593,7 @@ class RateLaw(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
-                           'equation', 'units', 
+                           'equation', 'units',
                            'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         ordering = ('id',)
@@ -2404,6 +2613,8 @@ class RateLaw(obj_model.Model):
 
     def validate(self):
         """ Determine whether this `RateLaw` is valid
+
+        * Check if identifier equal to `{reaction.id}-{direction.name}`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,

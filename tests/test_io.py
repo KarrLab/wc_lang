@@ -14,7 +14,8 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, S
                      StopCondition, StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawEquation, RateLawDirection,
-                     SubmodelAlgorithm, Concentration, ConcentrationUnit)
+                     SubmodelAlgorithm, Concentration, ConcentrationUnit,
+                     DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
@@ -171,6 +172,9 @@ class TestSimpleModel(unittest.TestCase):
             model=mdl,
             direction=RateLawDirection.forward,
             equation=equation)
+
+        submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
+        submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
