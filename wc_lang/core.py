@@ -62,7 +62,7 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression_utils import (WcLangExpression, WcLangExpressionError,
+from wc_lang.expression_utils import (ParsedExpression, WcLangExpressionError,
                                       LinearExpressionVerifier)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
@@ -1233,7 +1233,7 @@ class DfbaObjectiveExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         reactions (:obj:`list` of :obj:`Reaction`): Reactions used by this expression
         reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for reactions
         biomass_reactions (:obj:`list` of :obj:`Species`): Biomass reactions used by this expression
@@ -1405,7 +1405,7 @@ class DfbaObjective(obj_model.Model):
             :obj:`LibSBMLError`: if calling `libsbml` raises an error
         """
         # issue warning if objective function not linear
-        if not self.expression._analyzed_expr.is_linear:
+        if not self.expression._parsed_expression.is_linear:
             warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
                 self.submodel.id), UserWarning)
             return
@@ -1812,7 +1812,7 @@ class ExpressionMethods(object):
 
         Returns:
             :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
-                otherwise return (object in this class with instantiated `_analyzed_expr`, `None`)
+                otherwise return (object in this class with instantiated `_parsed_expression`, `None`)
         """
         # objects must contain all objects types in valid_models
         value = value or ''
@@ -1823,11 +1823,11 @@ class ExpressionMethods(object):
             used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
-            _analyzed_expr = WcLangExpression(model_cls, expr_field, value, objects)
+            _parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
         except WcLangExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             return (None, InvalidAttribute(attr, [str(e)]))
-        rv = _analyzed_expr.tokenize()
+        rv = _parsed_expression.tokenize()
         if rv[0] is None:
             attr = model_cls.Meta.attributes['expression']
             errors = rv[1]
@@ -1846,11 +1846,11 @@ class ExpressionMethods(object):
                         attr.related_class.__name__ in model_cls.Meta.valid_models:
                     attr_value = list(used_objects.get(attr.related_class, {}).values())
                     setattr(obj, attr_name, attr_value)
-        obj._analyzed_expr = _analyzed_expr
+        obj._parsed_expression = _parsed_expression
 
         # check expression is linear
-        obj._analyzed_expr.is_linear, _ = LinearExpressionVerifier().validate(
-            obj._analyzed_expr.wc_tokens)
+        obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
+            obj._parsed_expression.wc_tokens)
 
         return (obj, None)
 
@@ -1870,7 +1870,7 @@ class ExpressionMethods(object):
         """
         model_cls = model_obj.__class__
 
-        # generate _analyzed_expr
+        # generate _parsed_expression
         objects = {}
         for related_attr_name, related_attr in model_cls.Meta.attributes.items():
             if isinstance(related_attr, obj_model.RelatedAttribute):
@@ -1878,22 +1878,22 @@ class ExpressionMethods(object):
                     m.get_primary_attribute(): m for m in getattr(model_obj, related_attr_name)
                 }
         try:
-            model_obj._analyzed_expr = WcLangExpression(model_obj.__class__, 'expression',
+            model_obj._parsed_expression = ParsedExpression(model_obj.__class__, 'expression',
                                                         model_obj.expression, objects)
         except WcLangExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
 
-        is_valid, errors = model_obj._analyzed_expr.tokenize()
+        is_valid, errors = model_obj._parsed_expression.tokenize()
         if is_valid is None:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
             return InvalidObject(model_obj, [attr_err])
-        model_obj._analyzed_expr.is_linear, _ = LinearExpressionVerifier().validate(
-            model_obj._analyzed_expr.wc_tokens)
+        model_obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
+            model_obj._parsed_expression.wc_tokens)
 
-        # check related objects matches the tokens of the _analyzed_expr
+        # check related objects matches the tokens of the _parsed_expression
         related_objs = {}
         for related_attr_name, related_attr in model_cls.Meta.attributes.items():
             if isinstance(related_attr, obj_model.RelatedAttribute):
@@ -1903,7 +1903,7 @@ class ExpressionMethods(object):
 
         token_objs = {}
         token_obj_ids = {}
-        for token in model_obj._analyzed_expr.wc_tokens:
+        for token in model_obj._parsed_expression.wc_tokens:
             if token.model_type is not None:
                 if token.model_type not in token_objs:
                     token_objs[token.model_type] = set()
@@ -1918,7 +1918,7 @@ class ExpressionMethods(object):
 
         # check expression is valid
         try:
-            rv = model_obj._analyzed_expr.test_eval()
+            rv = model_obj._parsed_expression.test_eval()
             if return_type is not None:
                 if not isinstance(rv, return_type):
                     attr = model_cls.Meta.attributes['expression']
@@ -1933,7 +1933,7 @@ class ExpressionMethods(object):
             return InvalidObject(model_obj, [attr_err])
 
         # check expression is linear
-        if check_linear and not model_obj._analyzed_expr.is_linear:
+        if check_linear and not model_obj._parsed_expression.is_linear:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, ['Expression must be linear'])
             return InvalidObject(model_obj, [attr_err])
@@ -1998,7 +1998,7 @@ class ObservableExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for an Observable
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this Observable expression
@@ -2090,7 +2090,7 @@ class FunctionExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for a Function
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this function expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
@@ -2186,7 +2186,7 @@ class StopConditionExpression(obj_model.Model):
 
     Attributes:
         expression (:obj:`str`): mathematical expression for a StopCondition
-        _analyzed_expr (:obj:`WcLangExpression`): an analyzed `expression`; not an `obj_model.Model`
+        _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression

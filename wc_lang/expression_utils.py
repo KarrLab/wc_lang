@@ -29,7 +29,7 @@ replace MakeModels
 build
 wc_lang:
     right template for wc_sim_test
-    use WcLangExpression to deserialize and validate all wc_lang expressions:
+    use ParsedExpression to deserialize and validate all wc_lang expressions:
         last, convert DfbaObjective, and RateLawExpression (what about k_cat and k_m?)
     fix test_io_roundtrip.py:test_create()
     in DynamicReaction() init submodels must have compartments: enforce this
@@ -100,7 +100,7 @@ LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
 class WcLangExpressionError(Exception):
-    """ Exception raised for errors in `WcLangExpression`
+    """ Exception raised for errors in `ParsedExpression`
 
     Attributes:
         message (:obj:`str`): the exception's message
@@ -110,7 +110,7 @@ class WcLangExpressionError(Exception):
         super().__init__(message)
 
 
-class WcLangExpression(object):
+class ParsedExpression(object):
     """ An expression in a wc_lang Model
 
     Expressions are currently (July, 2018) used in five `wc_lang` `Model`s: `RateLawExpression`, `Function`,
@@ -158,7 +158,7 @@ class WcLangExpression(object):
             dict that maps model id to model instance
         errors (:obj:`list` of :obj:`str`): errors found when parsing an `expression` fails
         wc_tokens (:obj:`list` of :obj:`WcLangToken`): tokens obtained when an `expression` is successfully
-            `tokenize`d; if empty, then this `WcLangExpression` cannot use `eval()`
+            `tokenize`d; if empty, then this `ParsedExpression` cannot use `eval()`
     """
 
     # Function.identifier()
@@ -178,7 +178,7 @@ class WcLangExpression(object):
         illegal_tokens.add(getattr(token, illegal_name))
 
     def __init__(self, model_class, attribute, expression, objects):
-        """ Create an instance of WcLangExpression
+        """ Create an instance of ParsedExpression
 
         Raises:
             (:obj:`WcLangExpressionError`): if `model_class` is not a subclass of `obj_model.Model`,
@@ -420,7 +420,7 @@ class WcLangExpression(object):
 
         Args:
             idx (:obj:`int`): current index into `self.tokens`
-            case_fold_match (:obj:`str`, optional): ignored keyword; makes `WcLangExpression.tokenize()` simpler
+            case_fold_match (:obj:`str`, optional): ignored keyword; makes `ParsedExpression.tokenize()` simpler
 
         Returns:
             :obj:`object`: If tokens do not match, return `None`. If tokens match,
@@ -566,7 +566,7 @@ class WcLangExpression(object):
     def test_eval(self, test_val=1.0):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
 
-        Called to validate this `WcLangExpression`.
+        Called to validate this `ParsedExpression`.
 
         Args:
             test_val (:obj:`float`, optional): the value assumed for used Models

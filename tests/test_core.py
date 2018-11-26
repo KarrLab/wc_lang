@@ -1172,7 +1172,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(of_expr.expression, '')
         self.assertEqual(of_expr.reactions, [])
         self.assertEqual(of_expr.biomass_reactions, [])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+        self.assertEqual(of_expr._parsed_expression.is_linear, True)
         self.assertEqual(invalid_attribute, None)
 
         value = ''
@@ -1180,7 +1180,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(of_expr.expression, '')
         self.assertEqual(of_expr.reactions, [])
         self.assertEqual(of_expr.biomass_reactions, [])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+        self.assertEqual(of_expr._parsed_expression.is_linear, True)
         self.assertEqual(invalid_attribute, None)
 
         value = "2*biomass_reaction_1 - reaction_1"
@@ -1188,21 +1188,21 @@ class TestCore(unittest.TestCase):
         self.assertEqual(invalid_attribute, None)
         self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
         self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, True)
+        self.assertEqual(of_expr._parsed_expression.is_linear, True)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 1)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
         self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
+        self.assertEqual(of_expr._parsed_expression.is_linear, False)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
         self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
+        self.assertEqual(of_expr._parsed_expression.is_linear, False)
 
         objs[Reaction]['biomass_reaction_1'] = Reaction(id='biomass_reaction_1')
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
@@ -1225,7 +1225,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(invalid_attribute, None)
         self.assertEqual(of_expr.reactions, [])
         self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._analyzed_expr.is_linear, False)
+        self.assertEqual(of_expr._parsed_expression.is_linear, False)
 
     def test_dfba_obj_deserialize_invalid_ids(self):
 
@@ -1678,7 +1678,7 @@ class TestCore(unittest.TestCase):
                     self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
             error = expr_obj.validate()
             self.assertEqual(error, None)
-            self.assertEqual(expr_obj._analyzed_expr.test_eval(), expected_val)
+            self.assertEqual(expr_obj._parsed_expression.test_eval(), expected_val)
 
     def test_valid_function_expressions(self):
         _, objects, id_map = self.make_objects()
