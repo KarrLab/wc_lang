@@ -6,19 +6,16 @@
 :License: MIT
 """
 
-from math import ceil, floor, exp, log, log10, isnan
+from math import isnan
 from warnings import warn
 import ast
 import networkx as nx
 
-from obj_model import utils
-from wc_utils.util.list import difference
 from obj_model.utils import get_component_by_id
-from wc_lang.core import (SubmodelAlgorithm, Model,
+from wc_lang.core import (SubmodelAlgorithm,
                           DfbaObjective, DfbaObjectiveExpression,
-                          SpeciesType, SpeciesTypeType,
-                          Species, Concentration, ConcentrationUnit, Compartment, Reaction, SpeciesCoefficient, RateLawEquation,
-                          BiomassReaction, ObservableExpression, Observable, Function, FunctionExpression)
+                          Concentration, ConcentrationUnit, 
+                          BiomassReaction, Observable, FunctionExpression)
 
 # configuration
 import wc_lang.config.core
@@ -29,252 +26,6 @@ EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
 # TODO: distinguish between preparing and analyzing a model: analyze includes gap finding
 
 
-class AnalyzeModel(object):
-    """ Statically analyze a model
-
-    `AnalyzeModel` performs static analysis of WC-lang models which are useful for constructing
-    models.
-
-    Current analyses:
-
-        * Identify dead end species and reaction network gaps in dFBA submodels
-    """
-
-    def __init__(self, model):
-        self.model = model
-
-    def identify_dfba_submodel_rxn_gaps(self, submodel):
-        """ Identify gaps in a dFBA submodel's reaction network
-
-        Species that are not consumed or not produced indicate gaps in the reaction network.
-        These can be found by a static analysis of the model. Reactions that use species that
-        are not produced or produce species that are not consumed must eventually have zero flux.
-        A reaction network can be reduced to a minimal network of reactions that can all
-        have positive fluxes.
-
-        Algorithm::
-
-            all_gap_species = get_gap_species([])
-            delta_gap_species = all_gap_species
-            while delta_gap_species:
-                all_gap_reactions = get_gap_reactions(all_gap_species)
-                tmp_gap_species = all_gap_species
-                all_gap_species = get_gap_species(all_gap_reactions)
-                delta_gap_species = all_gap_species - tmp_gap_species
-            return (all_gap_species, all_gap_reactions)
-
-        Args:
-            submodel (`Submodel`): a DFBA submodel
-
-        Raises:
-            ValueError: if `submodel` is not a dFBA submodel
-
-        Returns:
-            :obj:`tuple`:
-
-                * :obj:`set` of :obj:`Species`: `Species` not in the minimal reaction network
-                * :obj:`set` of :obj:`Reaction`: `Reaction`s not in the minimal reaction network
-        """
-        if submodel.algorithm != SubmodelAlgorithm.dfba:
-            raise ValueError("submodel '{}' not a dFBA submodel".format(submodel.name))
-
-        all_dead_end_species = AnalyzeModel.find_dead_end_species(submodel, set())
-        delta_dead_end_species = all_dead_end_species
-        inactive_reactions = set()
-        while any(delta_dead_end_species):
-            inactive_reactions = AnalyzeModel.get_inactive_reactions(submodel, all_dead_end_species)
-            tmp_not_consumed, tmp_not_produced = all_dead_end_species
-            all_dead_end_species = AnalyzeModel.find_dead_end_species(submodel, inactive_reactions)
-            all_not_consumed, all_not_produced = all_dead_end_species
-            delta_dead_end_species = (all_not_consumed-tmp_not_consumed, all_not_produced-tmp_not_produced)
-        return(all_dead_end_species, inactive_reactions)
-
-    @staticmethod
-    def find_dead_end_species(submodel, inactive_reactions):
-        """ Find the dead end species in a reaction network
-
-        Given a set of inactive reactions in submodel, determine species that are not consumed by
-        any reaction, or are not produced by any reaction. Costs :math:`O(n*p)`, where :math:`n` is
-        the number of reactions in `submodel` and :math:`p` is the maximum number of participants in
-        a reaction.
-
-        Args:
-            submodel (`Submodel`): a DFBA submodel
-            inactive_reactions (`set` of `Reaction`): the inactive reactions in `submodel`
-
-        Returns:
-            :obj:`tuple`:
-
-                * :obj:`set` of :obj:`Species`: the species that are not consumed
-                * :obj:`set` of :obj:`Species`: the species that are not produced
-        """
-        species = submodel.get_species()
-        species_not_consumed = set(species)
-        species_not_produced = set(species)
-        for rxn in submodel.reactions:
-            if rxn in inactive_reactions:
-                continue
-            if rxn.reversible:
-                for part in rxn.participants:
-                    species_not_consumed.discard(part.species)
-                    species_not_produced.discard(part.species)
-            else:
-                for part in rxn.participants:
-                    if part.coefficient < 0:
-                        species_not_consumed.discard(part.species)
-                    elif 0 < part.coefficient:
-                        species_not_produced.discard(part.species)
-        return(species_not_consumed, species_not_produced)
-
-    @staticmethod
-    def get_inactive_reactions(submodel, dead_end_species):
-        """ Find the inactive reactions in a reaction network
-
-        Given the dead end species in a reaction network, find the reactions that must eventually
-        become inactive. Reactions that consume species which are not produced must become inactive.
-        And reactions that produce species which are not consumed must become inactive to prevent
-        the copy numbers of those species from growing without bound.
-        Costs :math:`O(n*p)`, where :math:`n` is the number of reactions in `submodel` and :math:`p`
-        is the maximum number of participants in a reaction.
-
-        Args:
-            submodel (:obj:`Submodel`): a DFBA submodel
-            dead_end_species (:obj:`tuple`):
-
-                * :obj:`set` of :obj:`Species`: the `Species` that are not consumed by any `Reaction` in `submodel`
-                * :obj:`set` of :obj:`Species`: the `Species` that are not produced by any `Reaction` in `submodel`
-
-        Returns:
-            :obj:`set` of :obj:`Reaction`: the inactive reactions in `submodel`'s reaction network
-        """
-        species_not_consumed, species_not_produced = dead_end_species
-        inactive_reactions = []
-        for rxn in submodel.reactions:
-            for part in rxn.participants:
-                if (part.species in species_not_consumed or
-                        part.species in species_not_produced):
-                    inactive_reactions.append(rxn)
-                    break
-        return inactive_reactions
-
-    @staticmethod
-    def digraph_of_rxn_network(submodel):
-        """ Create a NetworkX network representing the reaction network in `submodel`
-
-        To leverage the algorithms in NetworkX, map a reaction network onto a NetworkX
-        directed graph.
-        The digraph is bipartite, with `Reaction` and `Species` nodes. A reaction is represented
-        a Reaction node, with an edge from each reactant Species node to the Reaction node, and
-        an edge from the Reaction node to each product Species node.
-
-        Args:
-            submodel (:obj:`Submodel`): a DFBA submodel
-
-        Returns:
-            :obj:`DiGraph`: a NetworkX directed graph representing `submodel`'s reaction network
-        """
-        digraph = nx.DiGraph()
-
-        # make network of obj_model.Model instances
-        for specie in submodel.get_species():
-            digraph.add_node(specie)
-        for rxn in submodel.reactions:
-            digraph.add_node(rxn)
-            for participant in rxn.participants:
-                part = participant.species
-                if participant.coefficient < 0:
-                    # reactant
-                    digraph.add_edge(part, rxn)
-                elif 0 < participant.coefficient:
-                    # product
-                    digraph.add_edge(rxn, part)
-            if rxn.reversible:
-                for participant in rxn.participants:
-                    part = participant.species
-                    if participant.coefficient < 0:
-                        # product
-                        digraph.add_edge(rxn, part)
-                    elif 0 < participant.coefficient:
-                        # reactant
-                        digraph.add_edge(part, rxn)
-        return digraph
-
-    @staticmethod
-    def path_bounds_analysis(submodel):
-        """ Perform path bounds analysis on `submodel`
-
-        To be adequately constrained, a dFBA metabolic model should have the property that each path
-        from an extracellular species to a component in the objective function contains at least
-        one reaction constrained by a finite flux upper bound.
-
-        Analyze the reaction network in `submodel` and return all paths from extracellular species
-        to objective function components that lack a finite flux upper bound.
-
-        Args:
-            submodel (:obj:`Submodel`): a DFBA submodel
-
-        Returns:
-            :obj:`dict` of `list` of `list` of :obj:: paths from extracellular species to objective
-            function components that lack a finite flux upper bound. Keys in the `dict` are the ids
-            of extracellular species; the corresponding values contain the unbounded paths for the
-            extracellular species, as returned by `unbounded_paths`.
-        """
-        # todo: symmetrically, report reactions not on any path from ex species to obj fun components
-        digraph = AnalyzeModel.digraph_of_rxn_network(submodel)
-        obj_fn_species = submodel.dfba_obj.get_products()
-        ex_compartment = submodel.model.compartments.get_one(id=EXTRACELLULAR_COMPARTMENT_ID)
-        ex_species = filter(lambda species: species.compartment == ex_compartment, 
-                            submodel.get_species())
-        all_unbounded_paths = dict()
-        for ex_specie in ex_species:
-            paths = AnalyzeModel.unbounded_paths(digraph, ex_specie, obj_fn_species)
-            all_unbounded_paths[ex_specie.id] = paths
-        return all_unbounded_paths
-
-    # todo: replace the constant in min_non_finite_ub=1000.0
-    @staticmethod
-    def unbounded_paths(rxn_network, ex_species, obj_fn_species, min_non_finite_ub=1000.0):
-        """ Find the unbounded paths from an extracellular species to some objective function species
-
-        Return all paths in a reaction network that lack a finite flux upper bound
-        and go from `ex_species` to an objective function component.
-
-        Args:
-            rxn_network (:obj:`DiGraph`): a NetworkX directed graph representing a reaction network,
-            created by `digraph_of_rxn_network`
-            ex_species (:obj:`Species`): an extracellular `Species` that is a node in `rxn_network`
-            obj_fn_species (:obj:`list` of :obj:`Species`): objective function `Species` that are
-            also nodes in `rxn_network`
-            finite_upper_bound_limit (:obj:`float`, optional): the maximum value of a finite flux
-            upper bound
-            min_non_finite_ub (:obj:`float`, optional): flux upper bounds less than `min_non_finite_ub`
-            are considered finite
-
-        Returns:
-            :obj:`list` of :obj:`list` of :obj:: a list of the reaction paths from `ex_species`
-            to objective function components that lack a finite flux upper bound.
-            A path is a list of `Species`, `Reaction`, `Species`, ..., `Species`, starting with
-            `ex_species` and ending with an objective function component.
-        """
-        unbounded_paths = list()
-        if not isinstance(ex_species, Species):
-            raise ValueError("'ex_species' should be a Species instance, but it is a {}".format(
-                type(ex_species).__name__))
-        for of_specie in obj_fn_species:
-            if not isinstance(of_specie, Species):
-                raise ValueError("elements of 'obj_fn_species' should be Species instances, but one is a {}".format(
-                    type(of_specie).__name__))
-            for path in nx.all_simple_paths(rxn_network, source=ex_species, target=of_specie):
-                # path is a list of Species, Reaction, ..., Species
-                bounded = False
-                for i in range(1, len(path), 2):
-                    rxn = path[i]
-                    if rxn.max_flux < min_non_finite_ub:
-                        bounded = True
-                        break
-                if not bounded:
-                    unbounded_paths.append(path)
-        return unbounded_paths
 
 
 class PrepareModel(object):
@@ -661,7 +412,7 @@ class CheckModel(object):
         * All Species used in reactions have concentration values
         * Consider the reactions modeled by a submodel -- all modifier species used by the rate laws
           for the reactions participate in at least one reaction in the submodel
-        * Ensure that Reaction and BiomassReaction ids don't overlap; can then simplify
+        * Ensure that :obj:`Reaction` and :obj:`BiomassReaction` ids don't overlap; can then simplify
           DfbaObjective.deserialize()
 
     # TODO: implement these, and expand the list of properties
@@ -801,10 +552,10 @@ class CheckModel(object):
 
         Ensure that:
             * The model types in `model_types` do not make recursive calls; tested types
-                include Observable and FunctionExpression
+                include :obj:`Observable` and :obj:`FunctionExpression`
 
         Args:
-            model_types (:obj:`list` of :obj:`type`): model types (subclasses of `obj_model.Model`) to test
+            model_types (:obj:`list` of :obj:`type`): model types (subclasses of :obj:`obj_model.Model`) to test
 
         Returns:
             :obj:`list` of :obj:`str`: if no errors, returns an empty `list`; otherwise a `list` of
