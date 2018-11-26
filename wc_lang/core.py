@@ -13,7 +13,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Reaction`
 * :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
-* :obj:`RateLawEquation`
+* :obj:`RateLawExpression`
 * :obj:`BiomassComponent`
 * :obj:`BiomassReaction`
 * :obj:`Parameter`
@@ -69,7 +69,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
 
 # wc_lang generates obj_model SchemaWarning warnings because some Models lack primary attributes.
-# These models include :obj:`RateLaw`, :obj:`SpeciesCoefficient`, :obj:`RateLawEquation`, and :obj:`Species`.
+# These models include :obj:`RateLaw`, :obj:`SpeciesCoefficient`, :obj:`RateLawExpression`, and :obj:`Species`.
 # However, these are not needed by the workbook and delimiter-separated representations of
 # models on disk. Therefore, suppress the warnings.
 import warnings
@@ -387,7 +387,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return (parts, None)
 
     def deserialize_side(self, direction, value, objects, global_comp):
-        """ Deserialize the LHS or RHS of a reaction equation
+        """ Deserialize the LHS or RHS of a reaction expression
 
         Args:
             direction (:obj:`float`): -1. indicates LHS, +1. indicates RHS
@@ -479,8 +479,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return None
 
 
-class RateLawEquationAttribute(ManyToOneAttribute):
-    """ Rate law equation """
+class RateLawExpressionAttribute(ManyToOneAttribute):
+    """ Rate law expression """
 
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
         """
@@ -490,21 +490,21 @@ class RateLawEquationAttribute(ManyToOneAttribute):
             verbose_related_name (:obj:`str`, optional): verbose related name
             help (:obj:`str`, optional): help message
         """
-        super(RateLawEquationAttribute, self).__init__('RateLawEquation',
+        super(RateLawExpressionAttribute, self).__init__('RateLawExpression',
                                                        related_name=related_name, min_related=1, min_related_rev=1,
                                                        verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
-    def serialize(self, rate_law_equation, encoded=None):
+    def serialize(self, rate_law_expression, encoded=None):
         """ Serialize related object
 
         Args:
-            rate_law_equation (:obj:`RateLawEquation`): the related `RateLawEquation`
+            rate_law_expression (:obj:`RateLawExpression`): the related `RateLawExpression`
             encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
-            :obj:`str`: simple Python representation of the rate law equation
+            :obj:`str`: simple Python representation of the rate law expression
         """
-        return rate_law_equation.serialize()
+        return rate_law_expression.serialize()
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -517,7 +517,7 @@ class RateLawEquationAttribute(ManyToOneAttribute):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        return RateLawEquation.deserialize(value, objects)
+        return RateLawExpression.deserialize(value, objects)
 
 
 class ExpressionAttribute(OneToOneAttribute):
@@ -1063,7 +1063,7 @@ class Submodel(obj_model.Model):
         for function in self.get_functions():
             species.extend(function.expression.species)
         for rate_law in self.get_rate_laws():
-            species.extend(rate_law.equation.modifiers)
+            species.extend(rate_law.expression.modifiers)
         return det_dedupe(species)
 
     def get_observables(self):
@@ -1076,7 +1076,7 @@ class Submodel(obj_model.Model):
         for function in self.get_functions():
             obs.extend(function.expression.observables)
         for rate_law in self.get_rate_laws():
-            obs.extend(rate_law.equation.observables)
+            obs.extend(rate_law.expression.observables)
         obs = det_dedupe(obs)
         obs_to_flats = list(obs)
         while obs_to_flats:
@@ -1093,7 +1093,7 @@ class Submodel(obj_model.Model):
         """
         funcs = []
         for rate_law in self.get_rate_laws():
-            funcs.extend(rate_law.equation.functions)
+            funcs.extend(rate_law.expression.functions)
         funcs = det_dedupe(funcs)
         funcs_to_flats = list(funcs)
         while funcs_to_flats:
@@ -1154,7 +1154,7 @@ class Submodel(obj_model.Model):
         """
         parameters = []
         for rate_law in self.get_rate_laws():
-            parameters.extend(rate_law.equation.parameters)
+            parameters.extend(rate_law.expression.parameters)
         for observable in self.get_observables():
             parameters.extend(observable.expression.parameters)
         for function in self.get_functions():
@@ -1584,7 +1584,7 @@ class Species(obj_model.Model):
     Related attributes:
         concentration (:obj:`Concentration`): concentration
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
-        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
@@ -2068,7 +2068,7 @@ class Observable(obj_model.Model):
     Related attributes:
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
@@ -2164,7 +2164,7 @@ class Function(obj_model.Model):
 
     Related attributes:
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
@@ -2394,8 +2394,8 @@ class Reaction(obj_model.Model):
                 species.append(part.species)
 
         for rate_law in self.rate_laws:
-            if rate_law.equation:
-                species.extend(rate_law.equation.modifiers.get(__type=__type, **kwargs))
+            if rate_law.expression:
+                species.extend(rate_law.expression.modifiers.get(__type=__type, **kwargs))
 
         return det_dedupe(species)
 
@@ -2576,7 +2576,7 @@ class RateLaw(obj_model.Model):
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
         type (:obj:`RateLawType`): type
-        equation (:obj:`RateLawEquation`): equation
+        expression (:obj:`RateLawExpression`): expression
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -2586,14 +2586,14 @@ class RateLaw(obj_model.Model):
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
-    equation = RateLawEquationAttribute(related_name='rate_laws')
+    expression = RateLawExpressionAttribute(related_name='rate_laws')
     units = EnumAttribute(RateLawUnits, default=RateLawUnits['s^-1'])
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
-                           'equation', 'units',
+                           'expression', 'units',
                            'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         ordering = ('id',)
@@ -2638,8 +2638,8 @@ class RateLaw(obj_model.Model):
         return None
 
 
-class RateLawEquation(obj_model.Model):
-    """ Rate law equation
+class RateLawExpression(obj_model.Model):
+    """ Rate law expression
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
@@ -2647,21 +2647,21 @@ class RateLawEquation(obj_model.Model):
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
 
     Related attributes:
-        rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawEquation`
+        rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    modifiers = ManyToManyAttribute(Species, related_name='rate_law_equations')
-    parameters = ManyToManyAttribute('Parameter', related_name='rate_law_equations')
-    observables = ManyToManyAttribute('Observable', related_name='rate_law_equations')
-    functions = ManyToManyAttribute('Function', related_name='rate_law_equations')
+    modifiers = ManyToManyAttribute(Species, related_name='rate_law_expressions')
+    parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
+    observables = ManyToManyAttribute('Observable', related_name='rate_law_expressions')
+    functions = ManyToManyAttribute('Function', related_name='rate_law_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
         Attributes:
             valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in a `RateLawEquation`s `expression`
+                can be used in a `RateLawExpression`s `expression`
             valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `RateLawEquation` is allowed to reference in its `expression`
+                `RateLawExpression` is allowed to reference in its `expression`
         """
         attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
@@ -2686,13 +2686,13 @@ class RateLawEquation(obj_model.Model):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of :obj:`RateLawEquation`, `InvalidAttribute` or `None`: tuple of cleaned value
+            :obj:`tuple` of :obj:`RateLawExpression`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
         return ExpressionMethods.deserialize(cls, value, objects)
 
     def validate(self):
-        """ Determine whether a `RateLawEquation` is valid
+        """ Determine whether a `RateLawExpression` is valid
 
         * Check that all of the modifiers and parameters contribute to the expression
         * Check that the modifiers and parameters encompass of the named entities in the expression
@@ -2835,7 +2835,7 @@ class Parameter(obj_model.Model):
     Related attributes:
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_equations (:obj:`list` of :obj:`RateLawEquation`): rate law equations
+        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()

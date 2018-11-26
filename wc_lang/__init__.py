@@ -10,7 +10,7 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationU
                    SpeciesType, Species, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
                    Function, FunctionExpression, Concentration,
-                   Reaction, SpeciesCoefficient, RateLaw, RateLawEquation, ExpressionMethods,
+                   Reaction, SpeciesCoefficient, RateLaw, RateLawExpression, ExpressionMethods,
                    BiomassComponent, BiomassReaction, Parameter, StopCondition, StopConditionExpression,
                    Reference, DatabaseReference)
 from . import config

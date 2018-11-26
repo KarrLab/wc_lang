@@ -30,7 +30,7 @@ build
 wc_lang:
     right template for wc_sim_test
     use WcLangExpression to deserialize and validate all wc_lang expressions:
-        last, convert DfbaObjective, and RateLawEquation (what about k_cat and k_m?)
+        last, convert DfbaObjective, and RateLawExpression (what about k_cat and k_m?)
     fix test_io_roundtrip.py:test_create()
     in DynamicReaction() init submodels must have compartments: enforce this
     more rigerously create rate laws, whose kinetics must be MA, MM, or custom
@@ -113,7 +113,7 @@ class WcLangExpressionError(Exception):
 class WcLangExpression(object):
     """ An expression in a wc_lang Model
 
-    Expressions are currently (July, 2018) used in five `wc_lang` `Model`s: `RateLawEquation`, `Function`,
+    Expressions are currently (July, 2018) used in five `wc_lang` `Model`s: `RateLawExpression`, `Function`,
     `StopCondition` (which is just a special case of `Function` that returns a boolean), `DfbaObjective`,
     and `Observable`. These expressions are limited Python expressions with specific semantics:
 

@@ -13,7 +13,7 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, S
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopCondition, StopConditionExpression,
                      Observable, ObservableExpression,
-                     RateLaw, RateLawEquation, RateLawDirection,
+                     RateLaw, RateLawExpression, RateLawDirection,
                      SubmodelAlgorithm, Concentration, ConcentrationUnit,
                      DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
@@ -130,48 +130,48 @@ class TestSimpleModel(unittest.TestCase):
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=1))
-        equation = RateLawEquation(
+        expression = RateLawExpression(
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
-        equation.parameters.create(id='k_cat_0', value=2, model=mdl)
-        equation.parameters.create(id='k_m_0', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_0', value=2, model=mdl)
+        expression.parameters.create(id='k_m_0', value=1, model=mdl)
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            equation=equation)
+            expression=expression)
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(
             id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
-        equation = RateLawEquation(
+        expression = RateLawExpression(
             expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
-        equation.parameters.create(id='k_cat_1', value=2, model=mdl)
-        equation.parameters.create(id='k_m_1', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_1', value=2, model=mdl)
+        expression.parameters.create(id='k_m_1', value=1, model=mdl)
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            equation=equation)
+            expression=expression)
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(
             id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[4], coefficient=1))
-        equation = RateLawEquation(
+        expression = RateLawExpression(
             expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])
-        equation.parameters.create(id='k_cat_2', value=2, model=mdl)
-        equation.parameters.create(id='k_m_2', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_2', value=2, model=mdl)
+        expression.parameters.create(id='k_m_2', value=1, model=mdl)
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            equation=equation)
+            expression=expression)
 
         submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
         submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])
@@ -329,20 +329,20 @@ class TestExampleModel(unittest.TestCase):
         self.assertTrue(model2.is_equal(model))
         self.assertTrue(model.difference(model2) == '')
 
-    def test_rate_law_equations_with_multiple_model_types(self):
+    def test_rate_law_expressions_with_multiple_model_types(self):
         fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
         model = Reader().run(fixture_filename)
         rate_laws = model.get_rate_laws(id='AK_AMP-backward')
         self.assertEqual(len(rate_laws), 1)
         rate_law = rate_laws[0]
-        self.assertEqual(len(rate_law.equation.modifiers), 1)
-        self.assertEqual(rate_law.equation.modifiers[0].id, 'Adk_Protein[c]')
-        self.assertEqual(len(rate_law.equation.parameters), 1)
-        self.assertEqual(rate_law.equation.parameters[0].id, 'k_cat_ak')
-        self.assertEqual(len(rate_law.equation.observables), 1)
-        self.assertEqual(rate_law.equation.observables[0].id, 'AXP_c')
-        self.assertEqual(len(rate_law.equation.functions), 1)
-        self.assertEqual(rate_law.equation.functions[0].id, 'func_1')
+        self.assertEqual(len(rate_law.expression.modifiers), 1)
+        self.assertEqual(rate_law.expression.modifiers[0].id, 'Adk_Protein[c]')
+        self.assertEqual(len(rate_law.expression.parameters), 1)
+        self.assertEqual(rate_law.expression.parameters[0].id, 'k_cat_ak')
+        self.assertEqual(len(rate_law.expression.observables), 1)
+        self.assertEqual(rate_law.expression.observables[0].id, 'AXP_c')
+        self.assertEqual(len(rate_law.expression.functions), 1)
+        self.assertEqual(rate_law.expression.functions[0].id, 'func_1')
 
 
 class TestReaderException(unittest.TestCase):
@@ -389,7 +389,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         submodel = model.submodels.create(id='submodel')
         reaction = submodel.reactions.create(id='reaction', model=model)
         rate_law = reaction.rate_laws.create(model=model, direction=RateLawDirection.forward)
-        rate_law_eq = rate_law.equation = RateLawEquation(expression='parameter')
+        rate_law_eq = rate_law.expression = RateLawExpression(expression='parameter')
         parameter = rate_law_eq.parameters.create(id='parameter', model=model)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')

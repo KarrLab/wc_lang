@@ -37,7 +37,7 @@ class ChangeValueTransform(Transform):
         | Reaction    | Reaction.id                       | ['reversible']                                            |
         | Reaction    | Reaction.id                       | ['min_flux']                                              |
         | Reaction    | Reaction.id                       | ['max_flux']                                              |
-        | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'equation', 'expression'] |
+        | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'expression', 'expression'] |
         +-------------+-----------------------------------+-----------------------------------------------------------+
         | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'value']                                |
         | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                |

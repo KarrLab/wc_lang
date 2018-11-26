@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Compartment, Concentration, Function, FunctionExpression, Parameter,
-                     RateLawDirection, RateLawEquation, Reaction, Species)
+                     RateLawDirection, RateLawExpression, Reaction, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
 
@@ -95,16 +95,16 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         self.assertEqual(r_2_1.max_flux, 3)
         self.assertEqual(r_2_2.max_flux, 0)
 
-    def test_reaction_equation(self):
+    def test_reaction_expression(self):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         r_1_1 = s_1.reactions.create(id='r_1_1')
-        rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='x'))
-        rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='y'))
-        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'forward', 'equation', 'expression'], 'z').run(model)
+        rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='x'))
+        rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='y'))
+        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'forward', 'expression', 'expression'], 'z').run(model)
 
-        self.assertEqual(rl_f.equation.expression, 'z')
-        self.assertEqual(rl_b.equation.expression, 'y')
+        self.assertEqual(rl_f.expression.expression, 'z')
+        self.assertEqual(rl_b.expression.expression, 'y')
 
     def test_reaction_k_cat(self):
         model = Model()
@@ -113,10 +113,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         k_cat_f = Parameter(id='k_cat_f', value=1, model=model)
         k_cat_b = Parameter(id='k_cat_b', value=2, model=model)
         rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward,
-                                      equation=RateLawEquation(
+                                      expression=RateLawExpression(
                                           parameters=[k_cat_f]))
         rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward,
-                                      equation=RateLawEquation(
+                                      expression=RateLawExpression(
                                           parameters=[k_cat_b]))
         ChangeValueTransform(Parameter, 'k_cat_b', ['value'], 0).run(model)
 

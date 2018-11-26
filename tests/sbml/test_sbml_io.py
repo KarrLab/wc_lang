@@ -24,7 +24,7 @@ from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, DfbaObjective, Compartment,
-                     Species, Concentration, Reaction, RateLaw, RateLawEquation,
+                     Species, Concentration, Reaction, RateLaw, RateLawExpression,
                      BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.prepare import PrepareModel
 

@@ -16,7 +16,7 @@ import tempfile
 import unittest
 
 from wc_lang.core import (Model, SpeciesCoefficient, ExpressionMethods, Species, Observable, Function,
-                          Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawEquation,
+                          Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
 
@@ -51,7 +51,7 @@ class RoundTripTestCase(unittest.TestCase):
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                              direction=RateLawDirection.forward, model=model,
-                             equation=RateLawEquation(expression='1.'))
+                             expression=RateLawExpression(expression='1.'))
         rxn.participants.append(rxn_species_coeff)
 
         errors = obj_model.Validator().run(model, get_related=True)
@@ -99,7 +99,7 @@ class RoundTripTestCase(unittest.TestCase):
         rxn.participants.append(rxn_species_coeff)
         rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                              direction=RateLawDirection.forward, model=model,
-                             equation=RateLawEquation(expression='1.'))
+                             expression=RateLawExpression(expression='1.'))
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertEqual(errors, None, str(errors))

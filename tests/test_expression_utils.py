@@ -14,7 +14,7 @@ from io import BytesIO
 
 import obj_model
 from wc_lang.io import Reader
-from wc_lang import (RateLawEquation, RateLaw, Reaction, Submodel, SpeciesType, Species,
+from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType, Species,
                      FunctionExpression, Function,
                      StopCondition, Observable, Parameter,
                      BiomassReaction, Compartment)
@@ -76,21 +76,21 @@ class TestWcLangExpression(unittest.TestCase):
     def esc_re_center(re_list):
         return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
 
-    def make_wc_lang_expr(self, expr, obj_type=RateLawEquation):
+    def make_wc_lang_expr(self, expr, obj_type=RateLawExpression):
         objects = self.objects.copy()
         return WcLangExpression(obj_type, 'expr_attr', expr, objects)
 
     def test_wc_lang_expression(self):
         expr = '3 + 5 * 6'
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' ' + expr + ' ', self.objects)
+        wc_lang_expr = WcLangExpression(RateLawExpression, 'attr', ' ' + expr + ' ', self.objects)
         self.assertEqual(expr, wc_lang_expr.expression)
         n = 5
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' + ' * n, self.objects)
+        wc_lang_expr = WcLangExpression(RateLawExpression, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {})
-        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawEquation.Meta.valid_functions))
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function: {}, Parameter: {}})
-        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawEquation.Meta.valid_functions))
+        wc_lang_expr = WcLangExpression(RateLawExpression, 'attr', '', {})
+        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
+        wc_lang_expr = WcLangExpression(RateLawExpression, 'attr', '', {Function: {}, Parameter: {}})
+        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
                 WcLangExpressionError,
@@ -102,7 +102,7 @@ class TestWcLangExpression(unittest.TestCase):
             WcLangExpression(Species, 'attr', '', {})
 
     def test_get_wc_lang_model_type(self):
-        wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
+        wc_lang_expr = WcLangExpression(RateLawExpression, None, 'expr', self.objects)
         self.assertEqual(None, wc_lang_expr.get_wc_lang_model_type('NoSuchType'))
         self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
         self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
@@ -169,7 +169,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_disambiguated_id_error_test(
             'NoSuchModel.fun_1',
             "contains '{}', but the disambiguation model type 'NoSuchModel' cannot be referenced by "
-            "'RateLawEquation' expressions")
+            "'RateLawExpression' expressions")
         self.do_disambiguated_id_error_test(
             'Parameter.fun_1',
             "contains '{}', but 'fun_1' is not the id of a 'Parameter'")
@@ -228,7 +228,7 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr("3 * 4")
         self.assertEqual(wc_lang_expr.related_object_id(0), None)
 
-    def do_fun_call_error_test(self, expr, expected_error, obj_type=RateLawEquation):
+    def do_fun_call_error_test(self, expr, expected_error, obj_type=RateLawExpression):
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
         result = wc_lang_expr.fun_call_id(0)
         self.assertTrue(isinstance(result, str))
@@ -237,7 +237,7 @@ class TestWcLangExpression(unittest.TestCase):
     def test_fun_call_id_errors(self):
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
                                                "but it isn't in {}.Meta.valid_functions".format(
-                                                   RateLawEquation.__name__)])
+                                                   RateLawExpression.__name__)])
 
         class TestModelExpression(obj_model.Model):
             class Meta(obj_model.Model.Meta):
@@ -261,19 +261,19 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
 
     def test_bad_tokens(self):
-        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).tokenize()
+        rv, errors = WcLangExpression(RateLawExpression, 'test', '+= *= @= : {}', {}).tokenize()
         self.assertEqual(rv, None)
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
             self.assertRegex(errors[0], r'.*contains bad token\(s\):.*' + re.escape(bad_tok) + '.*')
         # test bad tokens that don't have string values
-        rv, errors = WcLangExpression(RateLawEquation, 'test', """
+        rv, errors = WcLangExpression(RateLawExpression, 'test', """
  3
  +1""", {}).tokenize()
         self.assertEqual(rv, None)
         self.assertRegex(errors[0], re.escape("contains bad token(s)"))
 
     def do_tokenize_id_test(self, expr, expected_wc_tokens, expected_related_objs,
-                            model_type=RateLawEquation,
+                            model_type=RateLawExpression,
                             test_objects=None, case_fold_match=False):
         if test_objects is None:
             test_objects = self.objects_hard
@@ -397,7 +397,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs,
                                  test_objects=test_objects)
 
-    def do_tokenize_error_test(self, expr, expected_errors, model_type=RateLawEquation, test_objects=None):
+    def do_tokenize_error_test(self, expr, expected_errors, model_type=RateLawExpression, test_objects=None):
         if test_objects is None:
             test_objects = self.objects_hard
         wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects)
@@ -475,7 +475,7 @@ class TestWcLangExpression(unittest.TestCase):
 
         # test combination of TokCodes
         expected_val = 4 * related_obj_val + pow(2, related_obj_val) + related_obj_val
-        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', RateLawEquation,
+        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', RateLawExpression,
                                related_obj_val, expected_val)
 
         # test different model classes
@@ -484,7 +484,7 @@ class TestWcLangExpression(unittest.TestCase):
 
         # test different exceptions
         # syntax error
-        model_type = RateLawEquation
+        model_type = RateLawExpression
         wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
         wc_lang_expr.tokenize()
         with self.assertRaisesRegex(WcLangExpressionError,

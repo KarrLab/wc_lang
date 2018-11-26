@@ -8,7 +8,7 @@
 
 from itertools import chain
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
-                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
+                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression, SubmodelAlgorithm)
 from wc_lang.transform import SplitReversibleReactionsTransform
 from obj_model import RelatedAttribute
 import unittest
@@ -33,16 +33,16 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r0 = submodel.reactions.create(id='r0', reversible=True)
         r0.participants.create(species=s0, coefficient=-2)
         r0.participants.create(species=s1, coefficient=3)
-        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='a'))
-        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='b'))
+        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='a'))
+        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='b'))
         r0.references.create(id='ref_0')
         r0.database_references.create(database='x', id='y')
 
         r1 = submodel.reactions.create(id='r1', reversible=False)
         r1.participants.create(species=s1, coefficient=-3)
         r1.participants.create(species=s2, coefficient=4)
-        r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, equation=RateLawEquation(expression='c'))
-        r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, equation=RateLawEquation(expression='d'))
+        r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='c'))
+        r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='d'))
         r1.references.create(id='ref_1')
         r1.database_references.create(database='xx', id='yy')
 
@@ -65,10 +65,10 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(len(r0_b.rate_laws), 1)
         self.assertEqual(r0_f.rate_laws[0].direction, RateLawDirection.forward)
         self.assertEqual(r0_b.rate_laws[0].direction, RateLawDirection.forward)
-        self.assertEqual(r0_f.rate_laws[0].equation.expression, 'a')
-        self.assertEqual(r0_b.rate_laws[0].equation.expression, 'b')
-        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.forward).equation.expression, 'c')
-        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.backward).equation.expression, 'd')
+        self.assertEqual(r0_f.rate_laws[0].expression.expression, 'a')
+        self.assertEqual(r0_b.rate_laws[0].expression.expression, 'b')
+        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.forward).expression.expression, 'c')
+        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.backward).expression.expression, 'd')
 
         self.assertEqual(set([x.id for x in r0_f.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))

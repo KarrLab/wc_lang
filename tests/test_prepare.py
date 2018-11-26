@@ -14,7 +14,7 @@ import six
 import unittest
 
 from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
-                     Compartment, RateLaw, RateLawEquation, RateLawDirection, SubmodelAlgorithm,
+                     Compartment, RateLaw, RateLawExpression, RateLawDirection, SubmodelAlgorithm,
                      BiomassComponent, BiomassReaction, SpeciesTypeType, Parameter,
                      Observable, ObservableExpression, Function, FunctionExpression,
                      ExpressionMethods)

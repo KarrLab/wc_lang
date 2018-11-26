@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
-                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
+                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression, SubmodelAlgorithm)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
 import unittest
 

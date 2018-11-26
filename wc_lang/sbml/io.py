@@ -38,7 +38,7 @@ Concentration           Concentrations are incorporated in Species          NA
 Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
 SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
 RateLaw                 KineticLaw                                          Ignored
-RateLawEquation
+RateLawExpression
 BiomassComponent
 BiomassReaction                                                             TBD
 Parameter               Parameter                                           Implemented
