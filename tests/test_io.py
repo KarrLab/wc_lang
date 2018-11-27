@@ -9,7 +9,7 @@
 
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
-                     BiomassComponent, BiomassReaction,
+                     DfbaNetComponent, DfbaNetReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopCondition, StopConditionExpression,
                      Observable, ObservableExpression,

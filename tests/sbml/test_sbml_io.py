@@ -25,7 +25,7 @@ from libsbml import Objective as libsbmlObjective
 from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, DfbaObjective, Compartment,
                      Species, Concentration, Reaction, RateLaw, RateLawExpression,
-                     BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
+                     DfbaNetComponent, DfbaNetReaction, Parameter, Reference, DatabaseReference)
 from wc_lang.prepare import PrepareModel
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
@@ -52,7 +52,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
     all_wc_lang_species = wc_lang_model.get_species()
     all_wc_lang_parameters = wc_lang_model.get_parameters()
     all_wc_lang_reactions = wc_lang_model.get_reactions()
-    all_wc_lang_biomass_reactions = wc_lang_model.get_biomass_reactions()
+    all_wc_lang_dfba_net_reactions = wc_lang_model.get_dfba_net_reactions()
     all_wc_lang_submodels = wc_lang_model.get_submodels()
 
     for element in sbml_document.getListOfAllElements():
@@ -94,11 +94,11 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 test_case.assertEqual(element.getFast(), False)
                 # not checking: participants and flux bounds
 
-            wc_lang_biomass_reaction = get_component_by_id(all_wc_lang_biomass_reactions,
+            wc_lang_dfba_net_reaction = get_component_by_id(all_wc_lang_dfba_net_reactions,
                                                            element.getIdAttribute())
-            # test BiomassReaction
-            if wc_lang_biomass_reaction:
-                test_case.assertEqual(element.getName(), wc_lang_biomass_reaction.name)
+            # test DfbaNetReaction
+            if wc_lang_dfba_net_reaction:
+                test_case.assertEqual(element.getName(), wc_lang_dfba_net_reaction.name)
                 test_case.assertEqual(element.getReversible(), False)
                 test_case.assertEqual(element.getFast(), False)
                 # not checking: components, flux bounds, and comments
@@ -114,7 +114,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             # test an DfbaObjective
             test_case.assertEqual(element.getType(), 'maximize')
             test_case.assertEqual(element.getIdAttribute(), DfbaObjective.ACTIVE_OBJECTIVE)
-            # not checking: reactions, or biomass_reactions
+            # not checking: reactions, or dfba_net_reactions
 
             # TODO: check remaining elements
 

@@ -24,7 +24,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
-                          SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction,
+                          SubmodelAlgorithm, Concentration, DfbaNetComponent, DfbaNetReaction,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
@@ -74,22 +74,22 @@ class TestCore(unittest.TestCase):
             conc.model = mdl
             concentrations.append(conc)
 
-        self.biomass_reaction = biomass_reaction = BiomassReaction(
-            id='biomass_reaction_1',
-            name='biomass reaction',
+        self.dfba_net_reaction = dfba_net_reaction = DfbaNetReaction(
+            id='dfba_net_reaction_1',
+            name='dFBA net reaction',
             model=mdl,
             comments="Nobody will ever deprive the American people of the right to vote except the "
             "American people themselves")
-        BiomassReaction.get_manager().insert_all_new()
+        DfbaNetReaction.get_manager().insert_all_new()
 
-        biomass_components = []
+        dfba_net_components = []
         for i in range(2):
-            biomass_components.append(
-                biomass_reaction.biomass_components.create(
-                    id='biomass_comp_{}'.format(i + 1),
+            dfba_net_components.append(
+                dfba_net_reaction.dfba_net_components.create(
+                    id=DfbaNetComponent.gen_id(dfba_net_reaction.id, species[i].id),
                     coefficient=2 * (float(i) - 0.5),  # create a reactant and a product
                     species=species[i]))
-        self.biomass_components = biomass_components
+        self.dfba_net_components = dfba_net_components
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
@@ -97,7 +97,7 @@ class TestCore(unittest.TestCase):
             id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba,
-            biomass_reactions=[biomass_reaction])
+            dfba_net_reactions=[dfba_net_reaction])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.parameters = parameters = []
@@ -170,7 +170,7 @@ class TestCore(unittest.TestCase):
         of.expression = DfbaObjectiveExpression()
         of.expression.reactions.append(rxn_1)
         of.expression.reactions.append(rxn_2)
-        biomass_reaction.dfba_obj_expression = of.expression
+        dfba_net_reaction.dfba_obj_expression = of.expression
 
         self.references = references = []
         self.database_references = database_references = []
@@ -275,14 +275,14 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
-        # biomass components
-        for i in range(len(self.biomass_components)):
+        # dFBA net components
+        for i in range(len(self.dfba_net_components)):
             # submodels
-            self.assertEqual(self.biomass_components[i].biomass_reaction, self.biomass_reaction)
-            # self.assertEqual(self.biomass_reaction.submodels[0], self.submodels[2])
+            self.assertEqual(self.dfba_net_components[i].dfba_net_reaction, self.dfba_net_reaction)
+            # self.assertEqual(self.dfba_net_reaction.submodels[0], self.submodels[2])
             # species types
-            self.assertEqual(self.biomass_components[i].species, self.species[i])
-            self.assertEqual(self.biomass_components[i], self.species[i].biomass_components[0])
+            self.assertEqual(self.dfba_net_components[i].species, self.species[i])
+            self.assertEqual(self.dfba_net_components[i], self.species[i].dfba_net_components[0])
 
         # parameters
         for reference, parameter in zip(self.references, self.parameters):
@@ -384,8 +384,8 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(mdl.get_references(__type=Reference)), set(self.references))
         self.assertEqual(set(mdl.get_references(__type=Submodel)), set())
 
-        self.assertNotEqual(set(mdl.get_biomass_reactions(__type=BiomassReaction)), set())
-        self.assertEqual(set(mdl.get_biomass_reactions(__type=Reaction)), set())
+        self.assertNotEqual(set(mdl.get_dfba_net_reactions(__type=DfbaNetReaction)), set())
+        self.assertEqual(set(mdl.get_dfba_net_reactions(__type=Reaction)), set())
 
         self.assertEqual(set(self.dfba_obj.get_products()), set([
             self.species[3],
@@ -1160,9 +1160,9 @@ class TestCore(unittest.TestCase):
                 'reaction_1': Reaction(id='reaction_1'),
                 'reaction_2': Reaction(id='reaction_2'),
             },
-            BiomassReaction: {
-                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
-                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
+            DfbaNetReaction: {
+                'dfba_net_reaction_0': DfbaNetReaction(id='dfba_net_reaction_0'),
+                'dfba_net_reaction_1': DfbaNetReaction(id='dfba_net_reaction_1'),
             },
         }
 
@@ -1170,7 +1170,7 @@ class TestCore(unittest.TestCase):
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(of_expr.expression, '')
         self.assertEqual(of_expr.reactions, [])
-        self.assertEqual(of_expr.biomass_reactions, [])
+        self.assertEqual(of_expr.dfba_net_reactions, [])
         self.assertEqual(of_expr._parsed_expression.is_linear, True)
         self.assertEqual(invalid_attribute, None)
 
@@ -1178,52 +1178,52 @@ class TestCore(unittest.TestCase):
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(of_expr.expression, '')
         self.assertEqual(of_expr.reactions, [])
-        self.assertEqual(of_expr.biomass_reactions, [])
+        self.assertEqual(of_expr.dfba_net_reactions, [])
         self.assertEqual(of_expr._parsed_expression.is_linear, True)
         self.assertEqual(invalid_attribute, None)
 
-        value = "2*biomass_reaction_1 - reaction_1"
+        value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
-        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
+        self.assertEqual(of_expr.dfba_net_reactions, [objs[DfbaNetReaction]['dfba_net_reaction_1']])
         self.assertEqual(of_expr._parsed_expression.is_linear, True)
 
-        value = "2*biomass_reaction_1 - pow( reaction_1, 1)"
+        value = "2*dfba_net_reaction_1 - pow( reaction_1, 1)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertNotEqual(invalid_attribute, None)
 
-        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        value = "2*dfba_net_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertNotEqual(invalid_attribute, None)
 
-        objs[Reaction]['biomass_reaction_1'] = Reaction(id='biomass_reaction_1')
-        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        objs[Reaction]['dfba_net_reaction_1'] = Reaction(id='dfba_net_reaction_1')
+        value = "2*dfba_net_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertTrue(of_expr is None)
         self.assertIn(("contains multiple model object id matches: "
-                       "'biomass_reaction_1' as a BiomassReaction id, "
-                       "'biomass_reaction_1' as a Reaction id"),
+                       "'dfba_net_reaction_1' as a DfbaNetReaction id, "
+                       "'dfba_net_reaction_1' as a Reaction id"),
                       invalid_attribute.messages[0])
 
-        del objs[Reaction]['biomass_reaction_1']
-        value = "2*biomass_reaction_1 - reaction_x"
+        del objs[Reaction]['dfba_net_reaction_1']
+        value = "2*dfba_net_reaction_1 - reaction_x"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertTrue(of_expr is None)
         self.assertIn("contains the identifier(s) 'reaction_x', which aren't the id(s) of an object",
                       invalid_attribute.messages[0])
 
-        value = "2*biomass_reaction_1 - pow( biomass_reaction_1, 2)"
+        value = "2*dfba_net_reaction_1 - pow( dfba_net_reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertNotEqual(invalid_attribute, None)
 
-        value = 'biomass_reaction_1 + reaction_1 + 2.0 * reaction_2'
+        value = 'dfba_net_reaction_1 + reaction_1 + 2.0 * reaction_2'
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertTrue(of_expr._parsed_expression.is_linear)
         self.assertEqual(of_expr._parsed_expression.lin_coeffs, {
-            BiomassReaction: {
-                objs[BiomassReaction]['biomass_reaction_1']: 1.0,
+            DfbaNetReaction: {
+                objs[DfbaNetReaction]['dfba_net_reaction_1']: 1.0,
             },
             Reaction: {
                 objs[Reaction]['reaction_1']: 1.0,
@@ -1231,13 +1231,13 @@ class TestCore(unittest.TestCase):
             },
         })
 
-        value = 'biomass_reaction_1 + reaction_1 + 2.0 * reaction_2 + reaction_2 - 0.5 * reaction_2'
+        value = 'dfba_net_reaction_1 + reaction_1 + 2.0 * reaction_2 + reaction_2 - 0.5 * reaction_2'
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertTrue(of_expr._parsed_expression.is_linear)
         self.assertEqual(of_expr._parsed_expression.lin_coeffs, {
-            BiomassReaction: {
-                objs[BiomassReaction]['biomass_reaction_1']: 1.0,
+            DfbaNetReaction: {
+                objs[DfbaNetReaction]['dfba_net_reaction_1']: 1.0,
             },
             Reaction: {
                 objs[Reaction]['reaction_1']: 1.0,
@@ -1245,12 +1245,12 @@ class TestCore(unittest.TestCase):
             },
         })
 
-        value = 'biomass_reaction_1 + reaction_1 + reaction_2 * 2.0'
+        value = 'dfba_net_reaction_1 + reaction_1 + reaction_2 * 2.0'
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = 'biomass_reaction_1 * reaction_1'
+        value = 'dfba_net_reaction_1 * reaction_1'
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
@@ -1266,8 +1266,8 @@ class TestCore(unittest.TestCase):
             Reaction: {
                 'rxn': Reaction(id='rxn'),
             },
-            BiomassReaction: {
-                'rxn': BiomassReaction(id='rxn'),
+            DfbaNetReaction: {
+                'rxn': DfbaNetReaction(id='rxn'),
             },
         }
 
@@ -1279,9 +1279,9 @@ class TestCore(unittest.TestCase):
 
     def test_dfba_obj_validate(self):
         objs = {
-            BiomassReaction: {
-                'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
-                'biomass_reaction_1': BiomassReaction(id='biomass_reaction_1'),
+            DfbaNetReaction: {
+                'dfba_net_reaction_0': DfbaNetReaction(id='dfba_net_reaction_0'),
+                'dfba_net_reaction_1': DfbaNetReaction(id='dfba_net_reaction_1'),
             },
             Reaction: {
                 'reaction_0': Reaction(id='reaction_0'),
@@ -1290,131 +1290,131 @@ class TestCore(unittest.TestCase):
             },
         }
 
-        value = "2*biomass_reaction_1"
+        value = "2*dfba_net_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
-        of_expr.dfba_obj.submodel = Submodel(biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr.dfba_obj.submodel = Submodel(dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        value = "2*biomass_reaction_1"
+        value = "2*dfba_net_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
-        of_expr.dfba_obj.submodel = Submodel(biomass_reactions=[])
+        of_expr.dfba_obj.submodel = Submodel(dfba_net_reactions=[])
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-        value = "2*biomass_reaction_1 - reaction_1"
+        value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        value = "2*biomass_reaction_1 - reaction_1"
+        value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=[])
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-        value = "2*biomass_reaction_1 - reaction_1"
+        value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression = of_expr.expression[0:-1]
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        value = "2*biomass_reaction_1 - reaction_1"
+        value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression += ')'
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertTrue(isinstance(rv, InvalidObject))
         self.assertRegex(rv.attributes[0].messages[0], "Python syntax error")
 
-        value = "2*biomass_reaction_1 -  3*reaction_1"
+        value = "2*dfba_net_reaction_1 -  3*reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        of_expr.biomass_reactions = []
+        of_expr.dfba_net_reactions = []
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        value = "2*biomass_reaction_1 * reaction_1"
+        value = "2*dfba_net_reaction_1 * reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "2*biomass_reaction_1 ** 2"
+        value = "2*dfba_net_reaction_1 ** 2"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        value = "2*dfba_net_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertNotEqual(invalid_attribute, None)
 
-        value = "1. + biomass_reaction_1"
+        value = "1. + dfba_net_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "1 + biomass_reaction_1"
+        value = "1 + dfba_net_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        of_expr = DfbaObjectiveExpression(expression="True + biomass_reaction_1",
-                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr = DfbaObjectiveExpression(expression="True + dfba_net_reaction_1",
+                                          dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], re.escape("which aren't the id(s) of an object"))
 
-        of_expr = DfbaObjectiveExpression(expression="'str' + biomass_reaction_1",
-                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        of_expr = DfbaObjectiveExpression(expression="'str' + dfba_net_reaction_1",
+                                          dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']])
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
+            dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], "cannot eval expression")
@@ -1433,12 +1433,12 @@ class TestCore(unittest.TestCase):
                            expression=DfbaObjectiveExpression(expression='1.'))
         self.assertNotEqual(of.validate(), None)
 
-        value = "3*biomass_reaction_1 - reaction_1"
+        value = "3*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of = DfbaObjective(id='dfba-obj-submdl_4',
                            submodel=Submodel(id='submdl_4'),
                            expression=of_expr)
-        of.submodel.biomass_reactions = [objs[BiomassReaction]['biomass_reaction_1']]
+        of.submodel.dfba_net_reactions = [objs[DfbaNetReaction]['dfba_net_reaction_1']]
         of.submodel.reactions = objs[Reaction].values()
         errors = of_expr.validate()
         self.assertEqual(errors, None, str(errors))
@@ -1506,20 +1506,20 @@ class TestCore(unittest.TestCase):
                 if product.getSpecies() == participant.species.gen_sbml_id():
                     self.assertEqual(product.getStoichiometry(), participant.coefficient)
 
-        # Write the biomass reaction to the SBML document
-        sbml_biomass_reaction = self.biomass_reaction.add_to_sbml_doc(document)
-        self.assertTrue(sbml_biomass_reaction.hasRequiredAttributes())
-        self.assertEqual(sbml_biomass_reaction.getIdAttribute(), self.biomass_reaction.id)
-        self.assertEqual(sbml_biomass_reaction.getName(), self.biomass_reaction.name)
-        self.assertIn(self.biomass_reaction.comments, sbml_biomass_reaction.getNotesString())
-        fbc_plugin = sbml_biomass_reaction.getPlugin('fbc')
+        # Write the dFBA net reaction to the SBML document
+        sbml_dfba_net_reaction = self.dfba_net_reaction.add_to_sbml_doc(document)
+        self.assertTrue(sbml_dfba_net_reaction.hasRequiredAttributes())
+        self.assertEqual(sbml_dfba_net_reaction.getIdAttribute(), self.dfba_net_reaction.id)
+        self.assertEqual(sbml_dfba_net_reaction.getName(), self.dfba_net_reaction.name)
+        self.assertIn(self.dfba_net_reaction.comments, sbml_dfba_net_reaction.getNotesString())
+        fbc_plugin = sbml_dfba_net_reaction.getPlugin('fbc')
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(), 0)
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
                          float('inf'))
-        self.assertEqual(len(sbml_biomass_reaction.getListOfReactants()) +
-                         len(sbml_biomass_reaction.getListOfProducts()),
-                         len(self.biomass_reaction.biomass_components))
+        self.assertEqual(len(sbml_dfba_net_reaction.getListOfReactants()) +
+                         len(sbml_dfba_net_reaction.getListOfProducts()),
+                         len(self.dfba_net_reaction.dfba_net_components))
 
         # Write parameters to the SBML document
         param = self.model.parameters.create(
@@ -1538,15 +1538,15 @@ class TestCore(unittest.TestCase):
         # Write an objective function to the model
         #   create DfbaObjective
         rxn_id = 'rxn_2'
-        biomass_reaction_id = 'biomass_reaction_1'
+        dfba_net_reaction_id = 'dfba_net_reaction_1'
         objs = {
             Reaction: {
                 rxn_id: self.rxn_2,
             },
-            BiomassReaction: {
-                biomass_reaction_id: self.biomass_reaction},
+            DfbaNetReaction: {
+                dfba_net_reaction_id: self.dfba_net_reaction},
         }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('biomass_reaction_1 + 2*rxn_2', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('dfba_net_reaction_1 + 2*rxn_2', objs)
         of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
 
         #   write DfbaObjective to the model, and test
@@ -1556,7 +1556,7 @@ class TestCore(unittest.TestCase):
         for flux_objective in wrap_libsbml(sbml_objective.getListOfFluxObjectives):
             if wrap_libsbml(flux_objective.getReaction) == rxn_id:
                 self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 2.0)
-            elif wrap_libsbml(flux_objective.getReaction) == biomass_reaction_id:
+            elif wrap_libsbml(flux_objective.getReaction) == dfba_net_reaction_id:
                 self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 1.0)
             else:
                 self.fail("reaction {} unexpected".format(wrap_libsbml(flux_objective.getReaction)))
@@ -1597,9 +1597,12 @@ class TestCore(unittest.TestCase):
                         participants=[SpeciesCoefficient(species=species_0)],
                     ),
                 ],
-                biomass_reactions=[
-                    BiomassReaction(
-                        biomass_components=[BiomassComponent(coefficient=-1, species=species_1)],
+                dfba_net_reactions=[
+                    DfbaNetReaction(
+                        id='dfba_net_rxn',
+                        dfba_net_components=[DfbaNetComponent(
+                            id=DfbaNetComponent.gen_id('dfba_net_rxn', 'spec_1[c_1]'),
+                            coefficient=-1, species=species_1)],
                     ),
                 ],
             ),
@@ -2018,9 +2021,9 @@ class ValidateModelTestCase(unittest.TestCase):
         submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
-            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+            DfbaNetReaction: {'dfba_net_rxn_1': DfbaNetReaction(id='dfba_net_rxn_1', submodel=submodel)}
         }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_net_rxn_1', objs)
         submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
         rv = submodel.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2035,12 +2038,12 @@ class ValidateModelTestCase(unittest.TestCase):
         submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
-            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+            DfbaNetReaction: {'dfba_net_rxn_1': DfbaNetReaction(id='dfba_net_rxn_1', submodel=submodel)}
         }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_net_rxn_1', objs)
         submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
         of_expr.reactions = []
-        of_expr.biomass_reactions = []
+        of_expr.dfba_net_reactions = []
         rv = submodel.validate()
         self.assertEqual(rv, None, str(rv))
         rv = of_expr.validate()
@@ -2051,26 +2054,26 @@ class ValidateModelTestCase(unittest.TestCase):
         submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
-            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+            DfbaNetReaction: {'dfba_net_rxn_1': DfbaNetReaction(id='dfba_net_rxn_1', submodel=submodel)}
         }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_net_rxn_1', objs)
         submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
         submodel.reactions = []
-        submodel.biomass_reactions = []
+        submodel.dfba_net_reactions = []
         rv = submodel.validate()
         self.assertEqual(rv, None, str(rv))
         rv = of_expr.validate()
         self.assertEqual(len(rv.attributes), 1)
         self.assertEqual(len(rv.attributes[0].messages), 2)
         self.assertRegex(str(rv), 'must contain the following reactions')
-        self.assertRegex(str(rv), 'must contain the following biomass reactions')
+        self.assertRegex(str(rv), 'must contain the following dFBA net reactions')
 
         submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
-            BiomassReaction: {'bm_rxn_1': BiomassReaction(id='bm_rxn_1', submodel=submodel)}
+            DfbaNetReaction: {'dfba_net_rxn_1': DfbaNetReaction(id='dfba_net_rxn_1', submodel=submodel)}
         }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + bm_rxn_1', objs)
+        of_expr, _ = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_net_rxn_1', objs)
         submodel.dfba_obj = of_expr.dfba_obj = DfbaObjective(id='submodel-dfba-obj')
         submodel.reactions = []
         rv = submodel.validate()

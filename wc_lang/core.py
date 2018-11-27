@@ -14,8 +14,8 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
 * :obj:`RateLawExpression`
-* :obj:`BiomassComponent`
-* :obj:`BiomassReaction`
+* :obj:`DfbaNetComponent`
+* :obj:`DfbaNetReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
 * :obj:`DatabaseReference`
@@ -579,7 +579,7 @@ class Model(obj_model.Model):
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): biomass reactions
+        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         references (:obj:`list` of :obj:`Reference`): references
@@ -844,8 +844,8 @@ class Model(obj_model.Model):
 
         return self.rate_laws.get(__type=__type, **kwargs)
 
-    def get_biomass_reactions(self, __type=None, **kwargs):
-        """ Get all biomass reactions used by submodels
+    def get_dfba_net_reactions(self, __type=None, **kwargs):
+        """ Get all dFBA net reactions used by submodels
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
@@ -853,12 +853,12 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of :obj:`BiomassReaction`: biomass reactions
+            :obj:`list` of :obj:`DfbaNetReaction`: dFBA net reactions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        return self.biomass_reactions.get(__type=__type, **kwargs)
+        return self.dfba_net_reactions.get(__type=__type, **kwargs)
 
     def get_parameters(self, __type=None, **kwargs):
         """ Get all parameters from model and submodels
@@ -928,7 +928,7 @@ class Model(obj_model.Model):
             type_names = [
                 'submodel', 'compartment', 'species_type', 'species',
                 'concentration', 'observable', 'function',
-                'dfba_obj', 'reaction', 'rate_law', 'biomass_reaction',
+                'dfba_obj', 'reaction', 'rate_law', 'dfba_net_reaction',
                 'parameter', 'stop_condition', 'reference',
             ]
 
@@ -981,9 +981,9 @@ class Submodel(obj_model.Model):
 
     Related attributes:
         dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
-            if not initialized, then `biomass_reaction` is used as the objective function
+            if not initialized, then `dfba_net_reaction` is used as the objective function
         reactions (:obj:`list` of :obj:`Reaction`): reactions
-        biomass_reactions (:obj:`list` of :obj:`BiomassReaction`): the growth reaction for a dFBA submodel
+        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): the growth reaction for a dFBA submodel
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         database_references (:obj:`list` of :obj:`DatabaseReference`): database references
     """
@@ -1055,9 +1055,9 @@ class Submodel(obj_model.Model):
         species = []
         for reaction in self.get_reactions():
             species.extend(reaction.get_species())
-        for biomass_reaction in self.get_biomass_reactions():
-            for biomass_component in biomass_reaction.biomass_components:
-                species.append(biomass_component.species)
+        for dfba_net_reaction in self.get_dfba_net_reactions():
+            for dfba_net_comp in dfba_net_reaction.dfba_net_components:
+                species.append(dfba_net_comp.species)
         for observable in self.get_observables():
             species.extend(observable.expression.species)
         for function in self.get_functions():
@@ -1134,17 +1134,16 @@ class Submodel(obj_model.Model):
             rate_laws.extend(reaction.rate_laws)
         return det_dedupe(rate_laws)
 
-    def get_biomass_reactions(self):
-        """ Get biomass reactions in submodel
+    def get_dfba_net_reactions(self):
+        """ Get dFBA net reactions in submodel
 
         Returns:
-            :obj:`list` of :obj:`BiomassReaction`: biomass
-                reactions in submodel
+            :obj:`list` of :obj:`DfbaNetReaction`: dFBA net reactions in submodel
         """
-        bm_rxns = list(self.biomass_reactions)
+        rxns = list(self.dfba_net_reactions)
         for dfba_obj in self.get_dfba_objs():
-            bm_rxns.extend(dfba_obj.expression.biomass_reactions)
-        return det_dedupe(bm_rxns)
+            rxns.extend(dfba_obj.expression.dfba_net_reactions)
+        return det_dedupe(rxns)
 
     def get_parameters(self):
         """ Get parameters in submodel
@@ -1174,7 +1173,7 @@ class Submodel(obj_model.Model):
             'dfba_obj',
             'reaction',
             'rate_law',
-            'biomass_reaction',
+            'dfba_net_reaction',
             'parameter',
         ]
         references = []
@@ -1198,7 +1197,7 @@ class Submodel(obj_model.Model):
             self.get_dfba_objs() + \
             self.get_reactions() + \
             self.get_rate_laws() + \
-            self.get_biomass_reactions() + \
+            self.get_dfba_net_reactions() + \
             self.get_parameters() + \
             self.get_references()
 
@@ -1225,23 +1224,25 @@ class Submodel(obj_model.Model):
 
 
 class DfbaObjectiveExpression(obj_model.Model, Expression):
-    """ A mathematical expression of Reactions and BiomassReactions
+    """ A mathematical expression of Reactions and DfbaNetReactions
 
     The expression used by a :obj:`DfbaObjective`.
 
     Attributes:
         expression (:obj:`str`): mathematical expression
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
-        reactions (:obj:`list` of :obj:`Reaction`): Reactions used by this expression
-        biomass_reactions (:obj:`list` of :obj:`Species`): Biomass reactions used by this expression
+        reactions (:obj:`list` of :obj:`Reaction`): reactions used by this expression
+        dfba_net_reactions (:obj:`list` of :obj:`Species`): dFBA net reactions used by this expression
 
     Related attributes:
         dfba_obj (:obj:`DfbaObjective`): dFBA objective
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    reactions = OneToManyAttribute('Reaction', related_name='dfba_obj_expression')
-    biomass_reactions = OneToManyAttribute('BiomassReaction', related_name='dfba_obj_expression')
+    reactions = OneToManyAttribute('Reaction', related_name='dfba_obj_expression',
+                                   verbose_related_name='dFBA objective expression')
+    dfba_net_reactions = OneToManyAttribute('DfbaNetReaction', related_name='dfba_obj_expression',
+                                            verbose_name='dFBA net reactions', verbose_related_name='dFBA objective expression')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -1253,14 +1254,15 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = ()
-        valid_models = ('Reaction', 'BiomassReaction')
+        valid_models = ('Reaction', 'DfbaNetReaction')
+        verbose_name = 'dFBA objective expression'
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
 
         * Check that the expression is a linear function
-        * Check if expression is a function of at least one reaction or biomass reaction
-        * Check that the reactions and biomass reactions belong to the same submodel
+        * Check if expression is a function of at least one reaction or dFBA net reaction
+        * Check that the reactions and dFBA net reactions belong to the same submodel
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -1273,23 +1275,23 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
             errors = []
 
         expr_errors = []
-        if not self.reactions and not self.biomass_reactions:
-            expr_errors.append('Expression must be a function of at least one reaction or biomass reaction')
+        if not self.reactions and not self.dfba_net_reactions:
+            expr_errors.append('Expression must be a function of at least one reaction or dFBA net reaction')
 
         if self.dfba_obj and self.dfba_obj.submodel:
             missing_rxns = set(self.reactions).difference(set(self.dfba_obj.submodel.reactions))
-            missing_bm_rxns = set(self.biomass_reactions).difference(set(self.dfba_obj.submodel.biomass_reactions))
+            missing_dfba_net_rxns = set(self.dfba_net_reactions).difference(set(self.dfba_obj.submodel.dfba_net_reactions))
 
             if missing_rxns:
                 expr_errors.append(('dFBA submodel {} must contain the following reactions '
                                     'that are in its objective function:\n  {}').format(
                     self.dfba_obj.submodel.id,
                     '\n  '.join(rxn.id for rxn in missing_rxns)))
-            if missing_bm_rxns:
-                expr_errors.append(('dFBA submodel {} must contain the following biomass reactions '
+            if missing_dfba_net_rxns:
+                expr_errors.append(('dFBA submodel {} must contain the following dFBA net reactions '
                                     'that are in its objective function:\n  {}').format(
                     self.dfba_obj.submodel.id,
-                    '\n  '.join(rxn.id for rxn in missing_bm_rxns)))
+                    '\n  '.join(rxn.id for rxn in missing_dfba_net_rxns)))
 
         if expr_errors:
             errors.append(InvalidAttribute(self.Meta.attributes['expression'], expr_errors))
@@ -1335,12 +1337,12 @@ class DfbaObjective(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='dfba_objs')
-    submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1)
+    model = ManyToOneAttribute(Model, related_name='dfba_objs', verbose_related_name='dFBA objectives')
+    submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
-                                     min_related=1, min_related_rev=1)
+                                     min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='dfba_objs')
+    references = ManyToManyAttribute('Reference', related_name='dfba_objs', verbose_related_name='dFBA objectives')
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'dFBA objective'
@@ -1418,11 +1420,11 @@ class DfbaObjective(obj_model.Model):
             wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
             wrap_libsbml(sbml_flux_objective.setCoefficient,
                          self.expression._parsed_expression.lin_coeffs[Reaction][reaction])
-        for idx, biomass_reaction in enumerate(self.expression.biomass_reactions):
+        for idx, dfba_net_reaction in enumerate(self.expression.dfba_net_reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
-            wrap_libsbml(sbml_flux_objective.setReaction, biomass_reaction.id)
+            wrap_libsbml(sbml_flux_objective.setReaction, dfba_net_reaction.id)
             wrap_libsbml(sbml_flux_objective.setCoefficient,
-                         self.expression._parsed_expression.lin_coeffs[BiomassReaction][biomass_reaction])
+                         self.expression._parsed_expression.lin_coeffs[DfbaNetReaction][dfba_net_reaction])
 
         return sbml_objective
 
@@ -1453,10 +1455,10 @@ class DfbaObjective(obj_model.Model):
                             products.append(part.species)
 
         tmp_species_ids = []
-        for biomass_reaction in self.expression.biomass_reactions:
-            for biomass_component in biomass_reaction.biomass_components:
-                if 0 < biomass_component.coefficient:
-                    tmp_species_ids.append(biomass_component.species.id)
+        for dfba_net_reaction in self.expression.dfba_net_reactions:
+            for dfba_net_comp in dfba_net_reaction.dfba_net_components:
+                if 0 < dfba_net_comp.coefficient:
+                    tmp_species_ids.append(dfba_net_comp.species.id)
         with self.submodel as submodel:
             tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
             for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
@@ -1584,7 +1586,7 @@ class Species(obj_model.Model):
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
+        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
@@ -2495,37 +2497,81 @@ class RateLawExpression(obj_model.Model, Expression):
         return Expression.validate(self)
 
 
-class BiomassComponent(obj_model.Model):
-    """ BiomassComponent
+class DfbaNetComponent(obj_model.Model):
+    """ DfbaNetComponent
 
-    A biomass reaction contains a list of BiomassComponent instances. Distinct BiomassComponents
+    A dFBA net reaction contains a list of DfbaNetComponent instances. Distinct DfbaNetComponents
     enable separate comments and references for each one.
 
     Attributes:
-        id (:obj:`str`): unique identifier per BiomassComponent
+        id (:obj:`str`): unique identifier per DfbaNetComponent equal to
+            `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
         name (:obj:`str`): name
-        biomass_reaction (:obj:`BiomassReaction`): the biomass reaction that uses the biomass component
+        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component
         coefficient (:obj:`float`): the specie's reaction coefficient
         species (:obj:`Species`): species
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
-    id = SlugAttribute()
+    id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    biomass_reaction = ManyToOneAttribute('BiomassReaction', related_name='biomass_components')
+    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', related_name='dfba_net_components',
+                                           verbose_name='dFBA net reaction',
+                                           verbose_related_name='dFBA net components')
     coefficient = FloatAttribute()
-    species = ManyToOneAttribute(Species, related_name='biomass_components')
+    species = ManyToOneAttribute(Species, related_name='dfba_net_components',
+                                 verbose_related_name='dFBA net components')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='biomass_components')
+    references = ManyToManyAttribute('Reference', related_name='dfba_net_components',
+                                     verbose_related_name='dFBA net components')
 
     class Meta(obj_model.Model.Meta):
-        unique_together = (('biomass_reaction', 'species'), )
-        attribute_order = ('id', 'name', 'biomass_reaction',
+        # unique_together = (('dfba_net_reaction', 'species'), )
+        attribute_order = ('id', 'name', 'dfba_net_reaction',
                            'coefficient', 'species',
                            'comments', 'references')
+        verbose_name = 'dFBA net component'
+
+    @staticmethod
+    def gen_id(dfba_net_rxn_id, species_id):
+        """ Generate identifier equal to
+        `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+
+        Args:
+            dfba_net_rxn_id (:obj:`str`): dFBA net reaction id
+            species_id (:obj:`str`): species id
+
+        Returns:
+            :obj:`str`: identifier
+        """
+        return 'dfba-net-comp-{}-{}'.format(dfba_net_rxn_id, species_id)
+
+    def validate(self):
+        """ Validate that the dFBA objective is valid
+
+        * Check if the identifier is equal to
+          `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(DfbaNetComponent, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.id != self.gen_id(self.dfba_net_reaction.id, self.species.id):
+            errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
+                self.gen_id(self.dfba_net_reaction.id, self.species.id))]))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
 
-class BiomassReaction(obj_model.Model):
+class DfbaNetReaction(obj_model.Model):
     """ A pseudo-reaction used to represent the interface between metabolism and other
     cell processes.
 
@@ -2539,27 +2585,28 @@ class BiomassReaction(obj_model.Model):
 
     Related attributes:
         dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
-        biomass_components (:obj:`list` of :obj:`BiomassComponent`): the components of this biomass reaction
+        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): the components of this dFBA net reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='biomass_reactions')
-    submodel = ManyToOneAttribute('Submodel', related_name='biomass_reactions')
+    model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
+    submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='biomass_reactions')
+    references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
+        verbose_name = 'dFBA net reaction'
 
     def add_to_sbml_doc(self, sbml_document):
-        """ Add a BiomassReaction to a libsbml SBML document.
+        """ Add a DfbaNetReaction to a libsbml SBML document.
 
-        BiomassReactions are added to the SBML document because they can be used in a dFBA submodel's
-        objective function. In fact the default objective function is the submodel's biomass reaction.
-        Since SBML does not define BiomassReaction as a separate class, BiomassReactions are added
+        DfbaNetReactions are added to the SBML document because they can be used in a dFBA submodel's
+        objective function. In fact the default objective function is the submodel's dFBA net reaction.
+        Since SBML does not define DfbaNetReaction as a separate class, DfbaNetReactions are added
         to the SBML model as SBML reactions.
-        CheckModel ensures that wc_lang BiomassReactions and Reactions have distinct ids.
+        CheckModel ensures that wc_lang DfbaNetReactions and Reactions have distinct ids.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
@@ -2581,24 +2628,24 @@ class BiomassReaction(obj_model.Model):
         if self.comments:
             wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 
-        # write biomass reaction participants to SBML document
-        for biomass_component in self.biomass_components:
-            if biomass_component.coefficient < 0:
+        # write dFBA net reaction participants to SBML document
+        for dfba_net_comp in self.dfba_net_components:
+            if dfba_net_comp.coefficient < 0:
                 species_reference = wrap_libsbml(sbml_reaction.createReactant)
-                wrap_libsbml(species_reference.setStoichiometry, -biomass_component.coefficient)
-            elif 0 < biomass_component.coefficient:
+                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_comp.coefficient)
+            elif 0 < dfba_net_comp.coefficient:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
-                wrap_libsbml(species_reference.setStoichiometry, biomass_component.coefficient)
-            id = biomass_component.species.gen_sbml_id()
+                wrap_libsbml(species_reference.setStoichiometry, dfba_net_comp.coefficient)
+            id = dfba_net_comp.species.gen_sbml_id()
             wrap_libsbml(species_reference.setSpecies, id)
             wrap_libsbml(species_reference.setConstant, True)
 
-        # the biomass reaction does not constrain the optimization, so set its bounds to 0 and INF
+        # the dFBA net reaction does not constrain the optimization, so set its bounds to 0 and INF
         fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
         for bound in ['lower', 'upper']:
             # make a unique ID for each flux bound parameter
             # ids for wc_lang Parameters all start with 'parameter'
-            param_id = "_biomass_reaction_{}_{}_bound".format(self.id, bound)
+            param_id = "_dfba_net_reaction_{}_{}_bound".format(self.id, bound)
             param = create_sbml_parameter(sbml_model, id=param_id, value=0,
                                           units='mmol_per_gDW_per_hr')
             if bound == 'lower':
@@ -2711,7 +2758,7 @@ class Reference(obj_model.Model):
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        biomass_components (:obj:`list` of :obj:`BiomassComponent`): biomass components
+        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
     """
@@ -2757,7 +2804,7 @@ class DatabaseReference(obj_model.Model):
     """
 
     database = StringAttribute(min_length=1)
-    id = StringAttribute(verbose_name='ID', min_length=1)
+    id = StringAttribute(min_length=1)
     url = UrlAttribute(verbose_name='URL')
     model = ManyToOneAttribute(Model, related_name='database_references')
     taxon = ManyToOneAttribute(Taxon, related_name='database_references')

@@ -39,8 +39,8 @@ Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Impl
 SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
 RateLaw                 KineticLaw                                          Ignored
 RateLawExpression
-BiomassComponent
-BiomassReaction                                                             TBD
+DfbaNetComponent
+DfbaNetReaction                                                             TBD
 Parameter               Parameter                                           Implemented
 Reference
 DatabaseReference
@@ -109,7 +109,7 @@ class Writer(object):
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:
                 objects = [submodel] + \
-                    submodel.biomass_reactions + \
+                    submodel.dfba_net_reactions + \
                     model.get_compartments() + \
                     submodel.get_species() + \
                     submodel.get_parameters() + \
@@ -188,9 +188,9 @@ class SBMLExchange(object):
         #     Compartment must precede Species
         #     Compartment must precede Reaction
         #     Species must precede Reaction
-        #     Species must precede BiomassReaction
+        #     Species must precede DfbaNetReaction
         #     Reaction must precede DfbaObjective
-        #     BiomassReaction must precede DfbaObjective
+        #     DfbaNetReaction must precede DfbaObjective
         # This partial order is satisfied by this sequence:
         model_order = [
             wc_lang.Submodel,
@@ -198,7 +198,7 @@ class SBMLExchange(object):
             wc_lang.Parameter,
             wc_lang.Species,
             wc_lang.Reaction,
-            wc_lang.BiomassReaction,
+            wc_lang.DfbaNetReaction,
             wc_lang.DfbaObjective,
         ]
 
@@ -230,7 +230,7 @@ class SBMLExchange(object):
             submodel.model.get_compartments() + \
             submodel.get_species() + \
             submodel.reactions + \
-            submodel.biomass_reactions + \
+            submodel.dfba_net_reactions + \
             submodel.model.get_parameters()
         if submodel.dfba_obj:
             objects.append(submodel.dfba_obj)

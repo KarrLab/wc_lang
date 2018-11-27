@@ -15,7 +15,7 @@ import unittest
 
 from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
                      Compartment, RateLaw, RateLawExpression, RateLawDirection, SubmodelAlgorithm,
-                     BiomassComponent, BiomassReaction, SpeciesTypeType, Parameter,
+                     DfbaNetComponent, DfbaNetReaction, SpeciesTypeType, Parameter,
                      Observable, ObservableExpression, Function, FunctionExpression,
                      Expression, DfbaObjectiveExpression)
 from wc_lang.io import Reader

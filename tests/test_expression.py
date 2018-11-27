@@ -17,7 +17,7 @@ from wc_lang.io import Reader
 from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType, Species,
                      FunctionExpression, Function,
                      StopCondition, Observable, Parameter,
-                     BiomassReaction, Compartment)
+                     DfbaNetReaction, Compartment)
 from wc_lang.expression import (WcTokenCodes, WcToken, LexMatch,
                                 ParsedExpression, ParsedExpressionError,
                                 ParsedExpressionVerifier, LinearParsedExpressionVerifier)

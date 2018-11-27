@@ -28,7 +28,7 @@ class Writer(object):
         core.Concentration, core.Observable, core.Function,
         core.DfbaObjective,
         core.Reaction, core.RateLaw,
-        core.BiomassReaction, core.BiomassComponent,
+        core.DfbaNetReaction, core.DfbaNetComponent,
         core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
     ]
 

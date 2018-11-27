@@ -10,7 +10,7 @@ from wc_lang.core import (Model, Taxon, Submodel, SubmodelAlgorithm,
                           Compartment,
                           SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, Concentration,
                           Reaction, RateLaw, RateLawExpression, Parameter,
-                          BiomassComponent, BiomassReaction,
+                          DfbaNetComponent, DfbaNetReaction,
                           DfbaObjective, DfbaObjectiveExpression,
                           Observable, ObservableExpression,
                           Function, FunctionExpression,
@@ -129,7 +129,7 @@ class TestUtil(unittest.TestCase):
             Model, Taxon,
             Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
             DfbaObjective,
-            Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter, Function,
+            Reaction, RateLaw, DfbaNetComponent, DfbaNetReaction, Parameter, Function,
             StopCondition, Reference, DatabaseReference,
         ])
         inline_models = set([

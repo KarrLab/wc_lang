@@ -11,7 +11,7 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationU
                    Observable, ObservableExpression,
                    Function, FunctionExpression, Concentration,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression, Expression,
-                   BiomassComponent, BiomassReaction, Parameter, StopCondition, StopConditionExpression,
+                   DfbaNetComponent, DfbaNetReaction, Parameter, StopCondition, StopConditionExpression,
                    Reference, DatabaseReference)
 from . import config
 from . import io
