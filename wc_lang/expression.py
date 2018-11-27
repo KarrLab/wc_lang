@@ -11,6 +11,8 @@ import obj_model
 import wc_lang.core
 from collections import namedtuple
 from io import BytesIO
+from wc_lang.core import InvalidObject, InvalidAttribute
+from wc_lang.util import get_models
 from wc_utils.util.enumerate import CaseInsensitiveEnum
 from wc_utils.util.misc import DFSMAcceptor
 
@@ -91,6 +93,7 @@ LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang 
 LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
+
 class Expression(object):
     """ Generic methods for mathematical expressions
     """
@@ -120,9 +123,11 @@ class Expression(object):
         # objects must contain all objects types in valid_models
         value = value or ''
 
+        all_models = {model.__name__: model for model in get_models()}
+
         used_model_types = []
         for used_model in model_cls.Meta.valid_models:
-            used_model_type = globals()[used_model]
+            used_model_type = all_models[used_model]
             used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
@@ -338,7 +343,6 @@ class Expression(object):
         related_in_model = getattr(model, related_name)
         new_obj = related_in_model.create(id=id, expression=expr_model_obj)
         return new_obj
-
 
 
 class ParsedExpressionError(Exception):

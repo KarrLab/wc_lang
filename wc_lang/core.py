@@ -1224,7 +1224,7 @@ class Submodel(obj_model.Model):
         return sbml_model
 
 
-class DfbaObjectiveExpression(obj_model.Model):
+class DfbaObjectiveExpression(obj_model.Model, Expression):
     """ A mathematical expression of Reactions and BiomassReactions
 
     The expression used by a :obj:`DfbaObjective`.
@@ -1784,257 +1784,7 @@ class Concentration(obj_model.Model):
         return None
 
 
-class Expression(object):
-    """ Generic methods for mathematical expressions
-    """
-
-    @staticmethod
-    def serialize(model_obj):
-        """ Generate string representation
-
-        Returns:
-            :obj:`str`: value of primary attribute
-        """
-        return model_obj.expression
-
-    @classmethod
-    def deserialize(cls, model_cls, value, objects):
-        """ Deserialize expression
-
-        Args:
-            model_cls (:obj:`type`): expression class
-            value (:obj:`str`): string representation of the mathematical expression, in a
-                Python expression
-            objects (:obj:`dict`): dictionary of objects which can be used in `expression`, grouped by model
-
-        Returns:
-            :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
-                otherwise return (object in this class with instantiated `_parsed_expression`, `None`)
-        """
-        # objects must contain all objects types in valid_models
-        value = value or ''
-
-        used_model_types = []
-        for used_model in model_cls.Meta.valid_models:
-            used_model_type = globals()[used_model]
-            used_model_types.append(used_model_type)
-        expr_field = 'expression'
-        try:
-            _parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
-        except ParsedExpressionError as e:
-            attr = model_cls.Meta.attributes['expression']
-            return (None, InvalidAttribute(attr, [str(e)]))
-        rv = _parsed_expression.tokenize()
-        if rv[0] is None:
-            attr = model_cls.Meta.attributes['expression']
-            errors = rv[1]
-            return (None, InvalidAttribute(attr, errors))
-        _, used_objects = rv
-        if model_cls not in objects:
-            objects[model_cls] = {}
-        if value in objects[model_cls]:
-            obj = objects[model_cls][value]
-        else:
-            obj = model_cls(expression=value)
-            objects[model_cls][value] = obj
-
-            for attr_name, attr in model_cls.Meta.attributes.items():
-                if isinstance(attr, obj_model.RelatedAttribute) and \
-                        attr.related_class.__name__ in model_cls.Meta.valid_models:
-                    attr_value = list(used_objects.get(attr.related_class, {}).values())
-                    setattr(obj, attr_name, attr_value)
-        obj._parsed_expression = _parsed_expression
-
-        # check expression is linear
-        obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
-            obj._parsed_expression.wc_tokens)
-        cls.set_lin_coeffs(obj)
-
-        return (obj, None)
-
-    @classmethod
-    def set_lin_coeffs(cls, obj):
-        """ Set the linear coefficients for the related objects
-
-        Args:
-            obj (:obj:`obj_model.Model`): expression object
-        """
-        model_cls = obj.__class__
-        parsed_expr = obj._parsed_expression
-        tokens = parsed_expr.wc_tokens
-        is_linear = parsed_expr.is_linear
-
-        if is_linear:
-            default_val = 0.
-        else:
-            default_val = float('nan')
-
-        parsed_expr.lin_coeffs = lin_coeffs = {}
-        for attr_name, attr in model_cls.Meta.attributes.items():
-            if isinstance(attr, obj_model.RelatedAttribute) and \
-                    attr.related_class.__name__ in model_cls.Meta.valid_models:
-                lin_coeffs[attr.related_class] = {}
-
-        for related_class, related_objs in parsed_expr.related_objects.items():
-            for related_obj in related_objs.values():
-                lin_coeffs[related_class][related_obj] = default_val
-
-        if not is_linear:
-            return
-
-        sense = 1.
-        cur_coeff = 1.
-        for token in tokens:
-            if token.tok_code == TokCodes.op and token.token_string == '+':
-                sense = 1.
-                cur_coeff = 1.
-            elif token.tok_code == TokCodes.op and token.token_string == '-':
-                sense = -1.
-                cur_coeff = 1.
-            elif token.tok_code == TokCodes.number:
-                cur_coeff = float(token.token_string)
-            elif token.tok_code == TokCodes.wc_lang_obj_id:
-                lin_coeffs[token.model_type][token.model] += sense * cur_coeff
-
-    @classmethod
-    def validate(cls, model_obj, return_type=None, check_linear=False):
-        """ Determine whether an expression model is valid by eval'ing its deserialized expression
-
-        Args:
-            model_obj (`Expression`): expression object
-            return_type (:obj:`type`, optional): if provided, an expression's required return type
-            check_linear (:obj:`bool`, optional): if :obj:`True`, validate that the expression is a
-                linear function
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
-        """
-        model_cls = model_obj.__class__
-
-        # generate _parsed_expression
-        objects = {}
-        for related_attr_name, related_attr in model_cls.Meta.attributes.items():
-            if isinstance(related_attr, obj_model.RelatedAttribute):
-                objects[related_attr.related_class] = {
-                    m.get_primary_attribute(): m for m in getattr(model_obj, related_attr_name)
-                }
-        try:
-            model_obj._parsed_expression = ParsedExpression(model_obj.__class__, 'expression',
-                                                            model_obj.expression, objects)
-        except ParsedExpressionError as e:
-            attr = model_cls.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, [str(e)])
-            return InvalidObject(model_obj, [attr_err])
-
-        is_valid, errors = model_obj._parsed_expression.tokenize()
-        if is_valid is None:
-            attr = model_cls.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, errors)
-            return InvalidObject(model_obj, [attr_err])
-        model_obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
-            model_obj._parsed_expression.wc_tokens)
-        cls.set_lin_coeffs(model_obj)
-
-        # check related objects matches the tokens of the _parsed_expression
-        related_objs = {}
-        for related_attr_name, related_attr in model_cls.Meta.attributes.items():
-            if isinstance(related_attr, obj_model.RelatedAttribute):
-                related_model_objs = getattr(model_obj, related_attr_name)
-                if related_model_objs:
-                    related_objs[related_attr.related_class] = set(related_model_objs)
-
-        token_objs = {}
-        token_obj_ids = {}
-        for token in model_obj._parsed_expression.wc_tokens:
-            if token.model_type is not None:
-                if token.model_type not in token_objs:
-                    token_objs[token.model_type] = set()
-                    token_obj_ids[token.model_type] = set()
-                token_objs[token.model_type].add(token.model)
-                token_obj_ids[token.model_type].add(token.token_string)
-
-        if related_objs != token_objs:
-            attr = model_cls.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, ['Related objects must match the tokens of the analyzed expression'])
-            return InvalidObject(model_obj, [attr_err])
-
-        # check expression is valid
-        try:
-            rv = model_obj._parsed_expression.test_eval()
-            if return_type is not None:
-                if not isinstance(rv, return_type):
-                    attr = model_cls.Meta.attributes['expression']
-                    attr_err = InvalidAttribute(attr,
-                                                ["Evaluating '{}', a {} expression, should return a {} but it returns a {}".format(
-                                                    model_obj.expression, model_obj.__class__.__name__,
-                                                    return_type.__name__, type(rv).__name__)])
-                    return InvalidObject(model_obj, [attr_err])
-        except ParsedExpressionError as e:
-            attr = model_cls.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, [str(e)])
-            return InvalidObject(model_obj, [attr_err])
-
-        # check expression is linear
-        if check_linear and not model_obj._parsed_expression.is_linear:
-            attr = model_cls.Meta.attributes['expression']
-            attr_err = InvalidAttribute(attr, ['Expression must be linear'])
-            return InvalidObject(model_obj, [attr_err])
-
-        # return `None` to indicate valid object
-        return None
-
-    @staticmethod
-    def make_expression_obj(model_type, expression, objects):
-        """ Make an expression object
-
-        Args:
-            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
-                `Function` and `Observable`
-            expression (:obj:`str`): the expression used by the `model_type` being created
-            objects (:obj:`dict` of `dict`): all objects that are referenced in `expression`
-
-        Returns:
-            :obj:`tuple`: if successful, (`obj_model.Model`, `None`) containing a new instance of
-                `model_type`'s expression helper class; otherwise, (`None`, `InvalidAttribute`)
-                reporting the error
-        """
-        expr_model_type = model_type.Meta.expression_model
-        return expr_model_type.deserialize(expression, objects)
-
-    @classmethod
-    def make_obj(cls, model, model_type, id, expression, objects, allow_invalid_objects=False):
-        """ Make a model that contains an expression by using its expression helper class
-
-        For example, this uses `FunctionExpression` to make a `Function`.
-
-        Args:
-            model (:obj:`obj_model.Model`): a `wc_lang.core.Model` which is the root model
-            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
-                `Function` and `Observable`
-            id (:obj:`str`): the id of the `model_type` being created
-            expression (:obj:`str`): the expression used by the `model_type` being created
-            objects (:obj:`dict` of `dict`): all objects that are referenced in `expression`
-            allow_invalid_objects (:obj:`bool`, optional): if set, return object - not error - if
-                the expression object does not validate
-
-        Returns:
-            :obj:`obj_model.Model` or `InvalidAttribute`: a new instance of `model_type`, or,
-                if an error occurs, an `InvalidAttribute` reporting the error
-        """
-        expr_model_obj, error = cls.make_expression_obj(model_type, expression, objects)
-        if error:
-            return error
-        error_or_none = expr_model_obj.validate()
-        if error_or_none is not None and not allow_invalid_objects:
-            return error_or_none
-        related_name = model_type.Meta.attributes['model'].related_name
-        related_in_model = getattr(model, related_name)
-        new_obj = related_in_model.create(id=id, expression=expr_model_obj)
-        return new_obj
-
-
-class ObservableExpression(obj_model.Model):
+class ObservableExpression(obj_model.Model, Expression):
     """ A mathematical expression of Observables and Species
 
     The expression used by a `Observable`.
@@ -2124,7 +1874,7 @@ class Observable(obj_model.Model):
         expression_model = ObservableExpression
 
 
-class FunctionExpression(obj_model.Model):
+class FunctionExpression(obj_model.Model, Expression):
     """ A mathematical expression of Functions, Observbles, Parameters and Python functions
 
     The expression used by a :obj:`Function`.
@@ -2220,7 +1970,7 @@ class Function(obj_model.Model):
         expression_model = FunctionExpression
 
 
-class StopConditionExpression(obj_model.Model):
+class StopConditionExpression(obj_model.Model, Expression):
     """ A mathematical expression of Functions, Observables, Parameters and Python functions
 
     The expression used by a :obj:`StopCondition`.
@@ -2679,7 +2429,7 @@ class RateLaw(obj_model.Model):
         return None
 
 
-class RateLawExpression(obj_model.Model):
+class RateLawExpression(obj_model.Model, Expression):
     """ Rate law expression
 
     Attributes:
