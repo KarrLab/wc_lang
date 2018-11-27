@@ -10,10 +10,10 @@ import tokenize
 import obj_model
 import wc_lang.core
 from collections import namedtuple
+from enum import Enum
 from io import BytesIO
 from wc_lang.core import InvalidObject, InvalidAttribute
 from wc_lang.util import get_models
-from wc_utils.util.enumerate import CaseInsensitiveEnum
 from wc_utils.util.misc import DFSMAcceptor
 
 # TODOS
@@ -58,7 +58,7 @@ cleanup:
 '''
 
 
-class TokCodes(int, CaseInsensitiveEnum):
+class TokCodes(int, Enum):
     """ Token codes used in parsed expressions """
     wc_lang_obj_id = 1
     math_fun_id = 2
