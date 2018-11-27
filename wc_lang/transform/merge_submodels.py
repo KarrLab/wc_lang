@@ -48,11 +48,19 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             for submodel in submodels:
                 model.submodels.remove(submodel)
 
+                if submodel.dfba_obj:
+                    dfba_obj = copy.copy(submodel.dfba_obj)
+                    dfba_obj.submodel = merged_submodel
+
+                for dfba_net_rxn in copy.copy(submodel.dfba_net_reactions):
+                    dfba_net_rxn.submodel = merged_submodel
+
                 for rxn in copy.copy(submodel.reactions):
                     rxn.submodel = merged_submodel
 
-                for x_ref in copy.copy(submodel.database_references):
-                    x_ref.submodel = merged_submodel
+                for db_ref in copy.copy(submodel.db_refs):
+                    db_ref.submodels.remove(submodel)
+                    db_ref.submodels.append(merged_submodel)
 
                 for ref in copy.copy(submodel.references):
                     ref.submodels.remove(submodel)

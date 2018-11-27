@@ -70,17 +70,15 @@ class SplitReversibleReactionsTransform(Transform):
                         law_bck.direction = RateLawDirection.forward
 
                     # database references
-                    for x_ref in rxn.database_references:
-                        rxn_for.database_references.create(
+                    for x_ref in rxn.db_refs:
+                        rxn_for.db_refs.create(
                             database=x_ref.database,
-                            id=x_ref.id,
-                            url=x_ref.url)
+                            id=x_ref.id)
 
-                        rxn_bck.database_references.create(
+                        rxn_bck.db_refs.create(
                             database=x_ref.database,
-                            id=x_ref.id,
-                            url=x_ref.url)
+                            id=x_ref.id)
 
-                        rxn.database_references.remove(x_ref)
+                        rxn.db_refs.remove(x_ref)
 
         return model

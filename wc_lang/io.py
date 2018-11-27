@@ -29,7 +29,7 @@ class Writer(object):
         core.DfbaObjective,
         core.Reaction, core.RateLaw,
         core.DfbaNetReaction, core.DfbaNetComponent,
-        core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
+        core.Parameter, core.StopCondition, core.Reference,
     ]
 
     def run(self, model, path, set_repo_metadata_from_path=True):
@@ -49,12 +49,8 @@ class Writer(object):
             for attr in obj.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
                         attr.related_class == core.Model:
-                    if attr.primary_class in (core.DatabaseReference,):
-                        if getattr(obj, attr.name) not in [None, model]:
-                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
-                    else:
-                        if getattr(obj, attr.name) != model:
-                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
+                    if getattr(obj, attr.name) != model:
+                        raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
 
         # set Git repository metadata from the parent directories of :obj:`core_path`
         if set_repo_metadata_from_path:
@@ -82,12 +78,12 @@ class Writer(object):
         workbooks because they can be inferred by :obj:`Reader.run`
         """
         for attr in core.Model.Meta.attributes.values():
-            if isinstance(attr, obj_model.RelatedAttribute):
+            if isinstance(attr, obj_model.RelatedAttribute) and \
+                attr.related_class != core.DatabaseReference:
                 raise Exception('Relationships from `Model` not supported')
 
         for attr in core.Model.Meta.related_attributes.values():
-            if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)) and \
-                    attr.primary_class not in (core.DatabaseReference,):
+            if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)):
                 raise Exception('Only one-to-one and many-to-one relationships are supported to `Model`')
 
 
@@ -151,8 +147,7 @@ class Reader(object):
         for cls, cls_objects in objects.items():
             for attr in cls.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
-                        attr.related_class == core.Model and \
-                        attr.primary_class not in (core.DatabaseReference,):
+                        attr.related_class == core.Model:
                     for cls_obj in cls_objects:
                         setattr(cls_obj, attr.name, model)
 

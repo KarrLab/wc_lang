@@ -173,7 +173,7 @@ class TestCore(unittest.TestCase):
         dfba_net_reaction.dfba_obj_expression = of.expression
 
         self.references = references = []
-        self.database_references = database_references = []
+        self.db_refs = db_refs = []
         for i in range(3):
             ref = parameters[i].references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
@@ -181,9 +181,8 @@ class TestCore(unittest.TestCase):
                 type=ReferenceType.misc)
             references.append(ref)
 
-            x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
-                                                   url='http://x.com/{}'.format('y' * (i + 1)))
-            database_references.append(x_ref)
+            x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
+            db_refs.append(x_ref)
 
     def test_default_wc_lang_version(self):
         model = Model()
@@ -208,7 +207,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(submodel.reactions, [reaction])
 
         for submodel in self.submodels:
-            self.assertEqual(submodel.database_references, [])
+            self.assertEqual(submodel.db_refs, [])
             self.assertEqual(submodel.references, [])
 
         # compartment
@@ -216,7 +215,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.compartments[1].species, self.species[3:4])
 
         for compartment in self.compartments:
-            self.assertEqual(compartment.database_references, [])
+            self.assertEqual(compartment.db_refs, [])
             self.assertEqual(compartment.references, [])
 
         # species type
@@ -224,7 +223,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(species_type.species, [species])
 
         for species_type in self.species_types:
-            self.assertEqual(species_type.database_references, [])
+            self.assertEqual(species_type.db_refs, [])
             self.assertEqual(species_type.references, [])
 
         # specie
@@ -271,7 +270,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.reactions[2].rate_laws[0].expression.modifiers, self.species[7:8])
 
         for reaction in self.reactions:
-            self.assertEqual(reaction.database_references, [])
+            self.assertEqual(reaction.db_refs, [])
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
@@ -296,9 +295,9 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reference.parameters, [parameter])
             self.assertEqual(parameter.references, [reference])
 
-        for reference, database_reference in zip(self.references, self.database_references):
-            self.assertEqual(reference.database_references, [database_reference])
-            self.assertEqual(database_reference.reference, reference)
+        for reference, database_reference in zip(self.references, self.db_refs):
+            self.assertEqual(reference.db_refs, [database_reference])
+            self.assertEqual(database_reference.references, [reference])
 
         # reaction participant
         for species in self.species[0:5]:
@@ -310,9 +309,9 @@ class TestCore(unittest.TestCase):
             self.assertEqual(set(x.reaction for x in reaction.rate_laws), set([reaction]))
 
         # database references
-        for reference, database_reference in zip(self.references, self.database_references):
-            self.assertEqual(reference.database_references, [database_reference])
-            self.assertEqual(database_reference.reference, reference)
+        for reference, database_reference in zip(self.references, self.db_refs):
+            self.assertEqual(reference.db_refs, [database_reference])
+            self.assertEqual(database_reference.references, [reference])
 
     def test_taxon_rank_class(self):
         self.assertEqual(TaxonRank['class'], TaxonRank['classis'])
@@ -911,9 +910,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Parameter.validate_unique(params), None)
 
     def test_database_reference_serialize(self):
-        self.assertEqual(self.database_references[0].serialize(), '{}: {}'.format('x', 'y'))
-        self.assertEqual(self.database_references[1].serialize(), '{}: {}'.format('x', 'yy'))
-        self.assertEqual(self.database_references[2].serialize(), '{}: {}'.format('x', 'yyy'))
+        self.assertEqual(self.db_refs[0].serialize(), '{}: {}'.format('x', 'y'))
+        self.assertEqual(self.db_refs[1].serialize(), '{}: {}'.format('x', 'yy'))
+        self.assertEqual(self.db_refs[2].serialize(), '{}: {}'.format('x', 'yyy'))
 
     def test_ReactionParticipantAttribute_serialize(self):
         attr = ReactionParticipantAttribute()

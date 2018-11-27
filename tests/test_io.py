@@ -181,7 +181,7 @@ class TestSimpleModel(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.database_references = database_references = []
+        self.db_refs = db_refs = []
         for i in range(3):
             param = mdl.parameters.create(
                 id='param_{}'.format(i), name='parameter {}'.format(i),
@@ -195,9 +195,8 @@ class TestSimpleModel(unittest.TestCase):
             ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
-                                                   url='http://x.com/{}'.format('y' * (i + 1)))
-            database_references.append(x_ref)
+            x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
+            db_refs.append(x_ref)
 
         self.stop_conditions = stop_conditions = []
         for i in range(3):

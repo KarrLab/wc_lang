@@ -36,7 +36,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='a'))
         r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='b'))
         r0.references.create(id='ref_0')
-        r0.database_references.create(database='x', id='y')
+        r0.db_refs.create(database='x', id='y')
 
         r1 = submodel.reactions.create(id='r1', reversible=False)
         r1.participants.create(species=s1, coefficient=-3)
@@ -44,7 +44,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='c'))
         r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='d'))
         r1.references.create(id='ref_1')
-        r1.database_references.create(database='xx', id='yy')
+        r1.db_refs.create(database='xx', id='yy')
 
         model2 = model.copy()
         submodel2 = model2.submodels.get_one(id='submodel')
@@ -74,15 +74,15 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r1_2.references]), set(['ref_1']))
 
-        self.assertEqual(set([x.id for x in r0_f.database_references]), set(['y']))
-        self.assertEqual(set([x.id for x in r0_b.database_references]), set(['y']))
-        self.assertEqual(set([x.id for x in r1_2.database_references]), set(['yy']))
+        self.assertEqual(set([x.id for x in r0_f.db_refs]), set(['y']))
+        self.assertEqual(set([x.id for x in r0_b.db_refs]), set(['y']))
+        self.assertEqual(set([x.id for x in r1_2.db_refs]), set(['yy']))
 
         self.assertEqual(r0.submodel, None)
         self.assertEqual(r0.participants, [])
         self.assertEqual(r0.rate_laws, [])
         self.assertEqual(r0.references, [])
-        self.assertEqual(r0.database_references, [])
+        self.assertEqual(r0.db_refs, [])
 
         for attr_name, attr in chain(Reaction.Meta.attributes.items(), Reaction.Meta.related_attributes.items()):
             if isinstance(attr, RelatedAttribute):

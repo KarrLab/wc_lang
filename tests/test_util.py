@@ -96,7 +96,7 @@ class TestUtil(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.database_references = database_references = []
+        self.db_refs = db_refs = []
         for i in range(3):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
@@ -105,8 +105,8 @@ class TestUtil(unittest.TestCase):
             ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.database_references.create(database='Y', id='x')
-            database_references.append(x_ref)
+            x_ref = ref.db_refs.create(database='Y', id='x')
+            db_refs.append(x_ref)
 
     def test_get_model_size(self):
         model = self.model
@@ -130,11 +130,12 @@ class TestUtil(unittest.TestCase):
             Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
             DfbaObjective,
             Reaction, RateLaw, DfbaNetComponent, DfbaNetReaction, Parameter, Function,
-            StopCondition, Reference, DatabaseReference,
+            StopCondition, Reference,
         ])
         inline_models = set([
             SpeciesCoefficient, RateLawExpression,
-            DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression
+            DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
+            DatabaseReference,
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)
