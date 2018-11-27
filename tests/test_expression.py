@@ -18,7 +18,7 @@ from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType
                      FunctionExpression, Function,
                      StopCondition, Observable, Parameter,
                      BiomassReaction, Compartment)
-from wc_lang.expression_utils import (TokCodes, WcLangToken, LexMatch,
+from wc_lang.expression import (TokCodes, WcLangToken, LexMatch,
                                       ParsedExpression, ParsedExpressionError,
                                       ExpressionVerifier, LinearExpressionVerifier)
 

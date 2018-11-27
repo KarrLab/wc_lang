@@ -20,7 +20,7 @@ from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
                      ExpressionMethods, DfbaObjectiveExpression)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel
-from wc_lang.expression_utils import ParsedExpression
+from wc_lang.expression import ParsedExpression
 
 # configuration
 import wc_lang.config.core

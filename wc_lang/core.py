@@ -62,7 +62,7 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression_utils import (ParsedExpression, ParsedExpressionError,
+from wc_lang.expression import (ParsedExpression, ParsedExpressionError,
                                       LinearExpressionVerifier, WcLangToken, TokCodes)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
