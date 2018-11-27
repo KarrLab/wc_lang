@@ -1660,7 +1660,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(isinstance(error, InvalidAttribute))
 
         fun_obj = Expression.make_obj(model, Function, 'fun_id', '', objects,
-                                             allow_invalid_objects=True)
+                                      allow_invalid_objects=True)
         self.assertTrue(isinstance(fun_obj, Function))
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
@@ -1816,9 +1816,9 @@ class TestCore(unittest.TestCase):
         value = "pow( st_1[c], 2 )"
         of_expr, invalid_attribute = FunctionExpression.deserialize(value, objs)
         self.assertEqual(of_expr, None, str())
-        self.assertIn("Token `pow` is ambiguous",
+        self.assertIn("WcToken `pow` is ambiguous",
                       invalid_attribute.messages[0])
-        self.assertIn("Token matches a Parameter and a function",
+        self.assertIn("WcToken matches a Parameter and a function",
                       invalid_attribute.messages[0])
 
     def test_valid_stop_conditions(self):

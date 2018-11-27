@@ -63,7 +63,7 @@ from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
 from wc_lang.expression import (Expression, ParsedExpression, ParsedExpressionError,
-                                LinearParsedExpressionVerifier, WcLangToken, TokCodes)
+                                LinearParsedExpressionVerifier, WcToken, WcTokenCodes)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
