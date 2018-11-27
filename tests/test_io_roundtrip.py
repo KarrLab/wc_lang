@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import unittest
 
-from wc_lang.core import (Model, SpeciesCoefficient, ExpressionMethods, Species, Observable, Function,
+from wc_lang.core import (Model, SpeciesCoefficient, Expression, Species, Observable, Function,
                           Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
@@ -44,7 +44,7 @@ class RoundTripTestCase(unittest.TestCase):
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
-        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
+        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species.id, objects)
 
         coefficient = 1
         rxn_species_coeff = species.species_coefficients.create(coefficient=coefficient)
@@ -84,13 +84,13 @@ class RoundTripTestCase(unittest.TestCase):
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species.id] = species
-        observable_1 = ExpressionMethods.make_obj(model, Observable, 'observable_1', species.id, objects)
+        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species.id, objects)
         objects = {Observable: {'observable_1': observable_1}}
-        ExpressionMethods.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
+        Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
         param = model.parameters.create(id='param_1')
         objects = {Parameter: {'param_1': param}}
-        ExpressionMethods.make_obj(model, Function, 'fun_1', 'param_1', objects)
+        Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
 
         coefficient = 1
 

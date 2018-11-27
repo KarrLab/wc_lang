@@ -20,7 +20,7 @@ from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType
                      BiomassReaction, Compartment)
 from wc_lang.expression import (TokCodes, WcLangToken, LexMatch,
                                       ParsedExpression, ParsedExpressionError,
-                                      ExpressionVerifier, LinearExpressionVerifier)
+                                      ParsedExpressionVerifier, LinearParsedExpressionVerifier)
 
 
 class TestWcLangExpression(unittest.TestCase):
@@ -502,14 +502,14 @@ class TestWcLangExpression(unittest.TestCase):
             wc_lang_expr.test_eval()
 
 
-class TestExpressionVerifier(unittest.TestCase):
+class TestParsedExpressionVerifier(unittest.TestCase):
 
     def test_expression_verifier(self):
 
         number_is_good_transitions = [   # (current state, message, next state)
             ('start', (TokCodes.number, None), 'accept'),
         ]
-        expression_verifier = ExpressionVerifier('start', 'accept', number_is_good_transitions)
+        expression_verifier = ParsedExpressionVerifier('start', 'accept', number_is_good_transitions)
         number_is_good = [
             WcLangToken(TokCodes.number, '3'),
         ]
@@ -538,7 +538,7 @@ class TestExpressionVerifier(unittest.TestCase):
             WcLangToken(TokCodes.wc_lang_obj_id, 'id3'),
         ]
 
-        linear_expression_verifier = LinearExpressionVerifier()
+        linear_expression_verifier = LinearParsedExpressionVerifier()
         valid, error = linear_expression_verifier.validate(valid_linear_expr)
         self.assertTrue(valid)
         self.assertTrue(error is None)

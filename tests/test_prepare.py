@@ -17,7 +17,7 @@ from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
                      Compartment, RateLaw, RateLawExpression, RateLawDirection, SubmodelAlgorithm,
                      BiomassComponent, BiomassReaction, SpeciesTypeType, Parameter,
                      Observable, ObservableExpression, Function, FunctionExpression,
-                     ExpressionMethods, DfbaObjectiveExpression)
+                     Expression, DfbaObjectiveExpression)
 from wc_lang.io import Reader
 from wc_lang.prepare import PrepareModel
 from wc_lang.expression import ParsedExpression

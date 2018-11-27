@@ -25,7 +25,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
                           SubmodelAlgorithm, Concentration, BiomassComponent, BiomassReaction,
-                          ReactionParticipantAttribute, ExpressionMethods,
+                          ReactionParticipantAttribute, Expression,
                           InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
 from wc_lang.prepare import PrepareModel
 from wc_lang.io import Reader
@@ -1641,7 +1641,7 @@ class TestCore(unittest.TestCase):
     def test_make_obj(self):
         model, objects, id_map = self.make_objects()
         expr = 'ccc + 2 * ddd'
-        fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', expr, objects)
+        fun_obj = Expression.make_obj(model, Function, 'fun_id', expr, objects)
         self.assertTrue(isinstance(fun_obj, Function))
         self.assertEqual(fun_obj.id, 'fun_id')
         self.assertEqual(fun_obj.model, model)
@@ -1655,11 +1655,11 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(fun_expr.functions), set([]))
 
         expr = 'ccc + 2 * x'
-        expr_model_obj, error = ExpressionMethods.make_expression_obj(Function, expr, objects)
+        expr_model_obj, error = Expression.make_expression_obj(Function, expr, objects)
         self.assertTrue(expr_model_obj is None)
         self.assertTrue(isinstance(error, InvalidAttribute))
 
-        fun_obj = ExpressionMethods.make_obj(model, Function, 'fun_id', '', objects,
+        fun_obj = Expression.make_obj(model, Function, 'fun_id', '', objects,
                                              allow_invalid_objects=True)
         self.assertTrue(isinstance(fun_obj, Function))
 

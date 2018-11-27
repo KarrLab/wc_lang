@@ -62,8 +62,8 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression import (ParsedExpression, ParsedExpressionError,
-                                      LinearExpressionVerifier, WcLangToken, TokCodes)
+from wc_lang.expression import (Expression, ParsedExpression, ParsedExpressionError,
+                                LinearParsedExpressionVerifier, WcLangToken, TokCodes)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -1296,7 +1296,7 @@ class DfbaObjectiveExpression(obj_model.Model):
 
         if errors:
             return InvalidObject(self, errors)
-        return ExpressionMethods.validate(self)
+        return Expression.validate(self)
 
     def serialize(self):
         """ Generate string representation
@@ -1304,7 +1304,7 @@ class DfbaObjectiveExpression(obj_model.Model):
         Returns:
             :obj:`str`: string representation
         """
-        return ExpressionMethods.serialize(self)
+        return Expression.serialize(self)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -1318,7 +1318,7 @@ class DfbaObjectiveExpression(obj_model.Model):
             :obj:`tuple` of :obj:`DfbaObjectiveExpression`, `InvalidAttribute` or `None`: tuple
                 of cleaned value and cleaning error
         """
-        return ExpressionMethods.deserialize(cls, value, objects)
+        return Expression.deserialize(cls, value, objects)
 
 
 class DfbaObjective(obj_model.Model):
@@ -1784,7 +1784,7 @@ class Concentration(obj_model.Model):
         return None
 
 
-class ExpressionMethods(object):
+class Expression(object):
     """ Generic methods for mathematical expressions
     """
 
@@ -1846,7 +1846,7 @@ class ExpressionMethods(object):
         obj._parsed_expression = _parsed_expression
 
         # check expression is linear
-        obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
+        obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
             obj._parsed_expression.wc_tokens)
         cls.set_lin_coeffs(obj)
 
@@ -1932,7 +1932,7 @@ class ExpressionMethods(object):
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
             return InvalidObject(model_obj, [attr_err])
-        model_obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
+        model_obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
             model_obj._parsed_expression.wc_tokens)
         cls.set_lin_coeffs(model_obj)
 
@@ -2067,7 +2067,7 @@ class ObservableExpression(obj_model.Model):
         Returns:
             :obj:`str`: string representation
         """
-        return ExpressionMethods.serialize(self)
+        return Expression.serialize(self)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -2081,7 +2081,7 @@ class ObservableExpression(obj_model.Model):
             :obj:`tuple` of :obj:`ObservableExpression`, `InvalidAttribute` or `None`:
                 tuple of cleaned value and cleaning error
         """
-        return ExpressionMethods.deserialize(cls, value, objects)
+        return Expression.deserialize(cls, value, objects)
 
     def validate(self):
         """ Check that the observable is valid
@@ -2092,7 +2092,7 @@ class ObservableExpression(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return ExpressionMethods.validate(self, check_linear=True)
+        return Expression.validate(self, check_linear=True)
 
 
 class Observable(obj_model.Model):
@@ -2164,7 +2164,7 @@ class FunctionExpression(obj_model.Model):
         Returns:
             :obj:`str`: string representation
         """
-        return ExpressionMethods.serialize(self)
+        return Expression.serialize(self)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -2178,7 +2178,7 @@ class FunctionExpression(obj_model.Model):
             :obj:`tuple` of :obj:`FunctionExpression`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
-        return ExpressionMethods.deserialize(cls, value, objects)
+        return Expression.deserialize(cls, value, objects)
 
     def validate(self):
         """ Check that the function is valid
@@ -2189,7 +2189,7 @@ class FunctionExpression(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return ExpressionMethods.validate(self)
+        return Expression.validate(self)
 
 
 class Function(obj_model.Model):
@@ -2256,7 +2256,7 @@ class StopConditionExpression(obj_model.Model):
         Returns:
             :obj:`str`: string representation
         """
-        return ExpressionMethods.serialize(self)
+        return Expression.serialize(self)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -2270,7 +2270,7 @@ class StopConditionExpression(obj_model.Model):
             :obj:`tuple` of :obj:`StopConditionExpression`, `InvalidAttribute` or `None`: tuple of
                 cleaned value and cleaning error
         """
-        return ExpressionMethods.deserialize(cls, value, objects)
+        return Expression.deserialize(cls, value, objects)
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -2281,7 +2281,7 @@ class StopConditionExpression(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return ExpressionMethods.validate(self, return_type=bool)
+        return Expression.validate(self, return_type=bool)
 
 
 class StopCondition(obj_model.Model):
@@ -2716,7 +2716,7 @@ class RateLawExpression(obj_model.Model):
         Returns:
             :obj:`str`: value of primary attribute
         """
-        return ExpressionMethods.serialize(self)
+        return Expression.serialize(self)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -2730,7 +2730,7 @@ class RateLawExpression(obj_model.Model):
             :obj:`tuple` of :obj:`RateLawExpression`, `InvalidAttribute` or `None`: tuple of cleaned value
                 and cleaning error
         """
-        return ExpressionMethods.deserialize(cls, value, objects)
+        return Expression.deserialize(cls, value, objects)
 
     def validate(self):
         """ Determine whether a `RateLawExpression` is valid
@@ -2742,7 +2742,7 @@ class RateLawExpression(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
-        return ExpressionMethods.validate(self)
+        return Expression.validate(self)
 
 
 class BiomassComponent(obj_model.Model):
