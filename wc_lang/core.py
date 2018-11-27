@@ -62,8 +62,8 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression_utils import (ParsedExpression, WcLangExpressionError,
-                                      LinearExpressionVerifier)
+from wc_lang.expression_utils import (ParsedExpression, ParsedExpressionError,
+                                      LinearExpressionVerifier, WcLangToken, TokCodes)
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -491,8 +491,8 @@ class RateLawExpressionAttribute(ManyToOneAttribute):
             help (:obj:`str`, optional): help message
         """
         super(RateLawExpressionAttribute, self).__init__('RateLawExpression',
-                                                       related_name=related_name, min_related=1, min_related_rev=1,
-                                                       verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
+                                                         related_name=related_name, min_related=1, min_related_rev=1,
+                                                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
 
     def serialize(self, rate_law_expression, encoded=None):
         """ Serialize related object
@@ -1155,8 +1155,6 @@ class Submodel(obj_model.Model):
         parameters = []
         for rate_law in self.get_rate_laws():
             parameters.extend(rate_law.expression.parameters)
-        for observable in self.get_observables():
-            parameters.extend(observable.expression.parameters)
         for function in self.get_functions():
             parameters.extend(function.expression.parameters)
         return det_dedupe(parameters)
@@ -1235,10 +1233,7 @@ class DfbaObjectiveExpression(obj_model.Model):
         expression (:obj:`str`): mathematical expression
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         reactions (:obj:`list` of :obj:`Reaction`): Reactions used by this expression
-        reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for reactions
         biomass_reactions (:obj:`list` of :obj:`Species`): Biomass reactions used by this expression
-        biomass_reaction_coefficients (:obj:`list` of :obj:`float`): parallel list of coefficients for
-            reactions in biomass_reactions
 
     Related attributes:
         dfba_obj (:obj:`DfbaObjective`): dFBA objective
@@ -1257,7 +1252,7 @@ class DfbaObjectiveExpression(obj_model.Model):
                 `DfbaObjective` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (pow,)
+        valid_functions = ()
         valid_models = ('Reaction', 'BiomassReaction')
 
     def validate(self):
@@ -1421,11 +1416,13 @@ class DfbaObjective(obj_model.Model):
         for idx, reaction in enumerate(self.expression.reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
             wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
-            wrap_libsbml(sbml_flux_objective.setCoefficient, self.expression.reaction_coefficients[idx])
+            wrap_libsbml(sbml_flux_objective.setCoefficient,
+                         self.expression._parsed_expression.lin_coeffs[Reaction][reaction])
         for idx, biomass_reaction in enumerate(self.expression.biomass_reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
             wrap_libsbml(sbml_flux_objective.setReaction, biomass_reaction.id)
-            wrap_libsbml(sbml_flux_objective.setCoefficient, self.expression.biomass_reaction_coefficients[idx])
+            wrap_libsbml(sbml_flux_objective.setCoefficient,
+                         self.expression._parsed_expression.lin_coeffs[BiomassReaction][biomass_reaction])
 
         return sbml_objective
 
@@ -1800,8 +1797,8 @@ class ExpressionMethods(object):
         """
         return model_obj.expression
 
-    @staticmethod
-    def deserialize(model_cls, value, objects):
+    @classmethod
+    def deserialize(cls, model_cls, value, objects):
         """ Deserialize expression
 
         Args:
@@ -1824,7 +1821,7 @@ class ExpressionMethods(object):
         expr_field = 'expression'
         try:
             _parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
-        except WcLangExpressionError as e:
+        except ParsedExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             return (None, InvalidAttribute(attr, [str(e)]))
         rv = _parsed_expression.tokenize()
@@ -1851,8 +1848,53 @@ class ExpressionMethods(object):
         # check expression is linear
         obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
             obj._parsed_expression.wc_tokens)
+        cls.set_lin_coeffs(obj)
 
         return (obj, None)
+
+    @classmethod
+    def set_lin_coeffs(cls, obj):
+        """ Set the linear coefficients for the related objects
+
+        Args:
+            obj (:obj:`obj_model.Model`): expression object
+        """
+        model_cls = obj.__class__
+        parsed_expr = obj._parsed_expression
+        tokens = parsed_expr.wc_tokens
+        is_linear = parsed_expr.is_linear
+
+        if is_linear:
+            default_val = 0.
+        else:
+            default_val = float('nan')
+
+        parsed_expr.lin_coeffs = lin_coeffs = {}
+        for attr_name, attr in model_cls.Meta.attributes.items():
+            if isinstance(attr, obj_model.RelatedAttribute) and \
+                    attr.related_class.__name__ in model_cls.Meta.valid_models:
+                lin_coeffs[attr.related_class] = {}
+
+        for related_class, related_objs in parsed_expr.related_objects.items():
+            for related_obj in related_objs.values():
+                lin_coeffs[related_class][related_obj] = default_val
+
+        if not is_linear:
+            return
+
+        sense = 1.
+        cur_coeff = 1.
+        for token in tokens:
+            if token.tok_code == TokCodes.op and token.token_string == '+':
+                sense = 1.
+                cur_coeff = 1.
+            elif token.tok_code == TokCodes.op and token.token_string == '-':
+                sense = -1.
+                cur_coeff = 1.
+            elif token.tok_code == TokCodes.number:
+                cur_coeff = float(token.token_string)
+            elif token.tok_code == TokCodes.wc_lang_obj_id:
+                lin_coeffs[token.model_type][token.model] += sense * cur_coeff
 
     @classmethod
     def validate(cls, model_obj, return_type=None, check_linear=False):
@@ -1879,8 +1921,8 @@ class ExpressionMethods(object):
                 }
         try:
             model_obj._parsed_expression = ParsedExpression(model_obj.__class__, 'expression',
-                                                        model_obj.expression, objects)
-        except WcLangExpressionError as e:
+                                                            model_obj.expression, objects)
+        except ParsedExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
@@ -1892,6 +1934,7 @@ class ExpressionMethods(object):
             return InvalidObject(model_obj, [attr_err])
         model_obj._parsed_expression.is_linear, _ = LinearExpressionVerifier().validate(
             model_obj._parsed_expression.wc_tokens)
+        cls.set_lin_coeffs(model_obj)
 
         # check related objects matches the tokens of the _parsed_expression
         related_objs = {}
@@ -1927,7 +1970,7 @@ class ExpressionMethods(object):
                                                     model_obj.expression, model_obj.__class__.__name__,
                                                     return_type.__name__, type(rv).__name__)])
                     return InvalidObject(model_obj, [attr_err])
-        except WcLangExpressionError as e:
+        except ParsedExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
@@ -1959,8 +2002,8 @@ class ExpressionMethods(object):
         expr_model_type = model_type.Meta.expression_model
         return expr_model_type.deserialize(expression, objects)
 
-    @staticmethod
-    def make_obj(model, model_type, id, expression, objects, allow_invalid_objects=False):
+    @classmethod
+    def make_obj(cls, model, model_type, id, expression, objects, allow_invalid_objects=False):
         """ Make a model that contains an expression by using its expression helper class
 
         For example, this uses `FunctionExpression` to make a `Function`.
@@ -1979,7 +2022,7 @@ class ExpressionMethods(object):
             :obj:`obj_model.Model` or `InvalidAttribute`: a new instance of `model_type`, or,
                 if an error occurs, an `InvalidAttribute` reporting the error
         """
-        expr_model_obj, error = ExpressionMethods.make_expression_obj(model_type, expression, objects)
+        expr_model_obj, error = cls.make_expression_obj(model_type, expression, objects)
         if error:
             return error
         error_or_none = expr_model_obj.validate()
@@ -2001,13 +2044,11 @@ class ObservableExpression(obj_model.Model):
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
-        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this Observable expression
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
     species = ManyToManyAttribute(Species, related_name='observable_expressions')
     observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
-    parameters = ManyToManyAttribute('Parameter', related_name='observable_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -2018,7 +2059,7 @@ class ObservableExpression(obj_model.Model):
                 `Observable` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_models = ('Parameter', 'Species', 'Observable')
+        valid_models = ('Species', 'Observable')
 
     def serialize(self):
         """ Generate string representation

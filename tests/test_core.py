@@ -117,9 +117,9 @@ class TestCore(unittest.TestCase):
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
         parameters.append(expression.parameters.create(id='k_cat_0', value=2,
-                                                     model=mdl))
+                                                       model=mdl))
         parameters.append(expression.parameters.create(id='k_m_0', value=1,
-                                                     model=mdl))
+                                                       model=mdl))
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
@@ -135,9 +135,9 @@ class TestCore(unittest.TestCase):
             expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
         parameters.append(expression.parameters.create(id='k_cat_1', value=2,
-                                                     model=mdl))
+                                                       model=mdl))
         parameters.append(expression.parameters.create(id='k_m_1', value=1,
-                                                     model=mdl))
+                                                       model=mdl))
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
@@ -1154,7 +1154,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(list(objs[RateLawExpression].values()), [expression1])
 
     def test_dfba_obj_deserialize(self):
-
         objs = {
             Reaction: {
                 'reaction_0': Reaction(id='reaction_0'),
@@ -1192,17 +1191,11 @@ class TestCore(unittest.TestCase):
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 1)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        self.assertEqual(invalid_attribute, None)
-        self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
-        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._parsed_expression.is_linear, False)
+        self.assertNotEqual(invalid_attribute, None)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        self.assertEqual(invalid_attribute, None)
-        self.assertEqual(of_expr.reactions, [objs[Reaction]['reaction_1']])
-        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._parsed_expression.is_linear, False)
+        self.assertNotEqual(invalid_attribute, None)
 
         objs[Reaction]['biomass_reaction_1'] = Reaction(id='biomass_reaction_1')
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
@@ -1214,7 +1207,7 @@ class TestCore(unittest.TestCase):
                       invalid_attribute.messages[0])
 
         del objs[Reaction]['biomass_reaction_1']
-        value = "2*biomass_reaction_1 - pow( reaction_x, 2)"
+        value = "2*biomass_reaction_1 - reaction_x"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertTrue(of_expr is None)
         self.assertIn("contains the identifier(s) 'reaction_x', which aren't the id(s) of an object",
@@ -1222,33 +1215,69 @@ class TestCore(unittest.TestCase):
 
         value = "2*biomass_reaction_1 - pow( biomass_reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertNotEqual(invalid_attribute, None)
+
+        value = 'biomass_reaction_1 + reaction_1 + 2.0 * reaction_2'
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(invalid_attribute, None)
-        self.assertEqual(of_expr.reactions, [])
-        self.assertEqual(of_expr.biomass_reactions, [objs[BiomassReaction]['biomass_reaction_1']])
-        self.assertEqual(of_expr._parsed_expression.is_linear, False)
+        self.assertTrue(of_expr._parsed_expression.is_linear)
+        self.assertEqual(of_expr._parsed_expression.lin_coeffs, {
+            BiomassReaction: {
+                objs[BiomassReaction]['biomass_reaction_1']: 1.0,
+            },
+            Reaction: {
+                objs[Reaction]['reaction_1']: 1.0,
+                objs[Reaction]['reaction_2']: 2.0,
+            },
+        })
+
+        value = 'biomass_reaction_1 + reaction_1 + 2.0 * reaction_2 + reaction_2 - 0.5 * reaction_2'
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertTrue(of_expr._parsed_expression.is_linear)
+        self.assertEqual(of_expr._parsed_expression.lin_coeffs, {
+            BiomassReaction: {
+                objs[BiomassReaction]['biomass_reaction_1']: 1.0,
+            },
+            Reaction: {
+                objs[Reaction]['reaction_1']: 1.0,
+                objs[Reaction]['reaction_2']: 2.5,
+            },
+        })
+
+        value = 'biomass_reaction_1 + reaction_1 + reaction_2 * 2.0'
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
+
+        value = 'biomass_reaction_1 * reaction_1'
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
+
+        value = 'reaction_1 * reaction_1'
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
+        self.assertEqual(invalid_attribute, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
 
     def test_dfba_obj_deserialize_invalid_ids(self):
 
         objs = {
             Reaction: {
-                'pow': Reaction(id='pow'),
-                'reaction_x': Reaction(id='reaction_x'),
+                'rxn': Reaction(id='rxn'),
             },
             BiomassReaction: {
-                'exp': BiomassReaction(id='exp'),
+                'rxn': BiomassReaction(id='rxn'),
             },
         }
 
-        value = "2*exp - pow( reaction_x, 2)"
+        value = "2*rxn"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertEqual(of_expr, None)
-        self.assertIn("Token `pow` is ambiguous",
-                      invalid_attribute.messages[0])
-        self.assertIn("Token matches a Reaction and a function",
+        self.assertIn("multiple model object id matches",
                       invalid_attribute.messages[0])
 
     def test_dfba_obj_validate(self):
-
         objs = {
             BiomassReaction: {
                 'biomass_reaction_0': BiomassReaction(id='biomass_reaction_0'),
@@ -1338,6 +1367,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
 
         value = "2*biomass_reaction_1 ** 2"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
@@ -1348,44 +1378,29 @@ class TestCore(unittest.TestCase):
         self.assertEqual(invalid_attribute, None)
         rv = of_expr.validate()
         self.assertEqual(rv, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
 
         value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        of_expr.dfba_obj = DfbaObjective()
-        of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
-            reactions=objs[Reaction].values())
-        self.assertEqual(invalid_attribute, None)
-        rv = of_expr.validate()
-        self.assertEqual(rv, None)
+        self.assertNotEqual(invalid_attribute, None)
 
-        value = "2*biomass_reaction_1 - pow( reaction_1, 2)"
+        value = "1. + biomass_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        of_expr.dfba_obj = DfbaObjective()
-        of_expr.dfba_obj.submodel = Submodel(
-            biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']],
-            reactions=objs[Reaction].values())
-        self.assertEqual(invalid_attribute, None)
-        of_expr.expression = "2*biomass_reaction_1 - min( reaction_1, 2)"
-        rv = of_expr.validate()
-        self.assertTrue(isinstance(rv, InvalidObject))
-        self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
-
-        of_expr = DfbaObjectiveExpression(expression="1. + biomass_reaction_1",
-                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
             biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        of_expr = DfbaObjectiveExpression(expression="1 + biomass_reaction_1",
-                                          biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
+        value = "1 + biomass_reaction_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
             biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
         rv = of_expr.validate()
         self.assertEqual(rv, None)
+        self.assertFalse(of_expr._parsed_expression.is_linear)
 
         of_expr = DfbaObjectiveExpression(expression="True + biomass_reaction_1",
                                           biomass_reactions=[objs[BiomassReaction]['biomass_reaction_1']])
@@ -1534,11 +1549,6 @@ class TestCore(unittest.TestCase):
         of_expr, _ = DfbaObjectiveExpression.deserialize('biomass_reaction_1 + 2*rxn_2', objs)
         of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
 
-        prepare_model = PrepareModel(self.model)
-        reactions, biomass_reactions = prepare_model.parse_dfba_submodel_obj_func(self.submdl_2)
-        PrepareModel.assign_linear_objective_fn(self.submdl_2, reactions, biomass_reactions)
-        self.submdl_2.dfba_obj.expression.linear = True
-
         #   write DfbaObjective to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
         self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
@@ -1559,9 +1569,10 @@ class TestCore(unittest.TestCase):
         self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
 
         # exceptions -- dFBA objective isn't linear
-        expression, invalid_attribute = DfbaObjectiveExpression.deserialize('pow(1, 2)', {})
+        expression, invalid_attribute = DfbaObjectiveExpression.deserialize('rxn_2', objs)
         self.assertEqual(invalid_attribute, None)
         obj_func = DfbaObjective(expression=expression, submodel=Submodel(id='Metabolism'))
+        expression._parsed_expression.is_linear = False
         with pytest.warns(UserWarning):
             obj_func.add_to_sbml_doc(document)
 
@@ -1784,6 +1795,32 @@ class TestCore(unittest.TestCase):
         func_expr, _ = FunctionExpression.deserialize(expr, objects)
         func.expression = func_expr
 
+    def test_function_deserialize_invalid_ids(self):
+
+        objs = {
+            SpeciesType: {
+                'st_1': SpeciesType(id='st_1'),
+            },
+            Compartment: {
+                'c': Compartment(id='c'),
+            },
+            Species: {},
+            Parameter: {
+                'pow': Parameter(id='pow'),
+            }
+        }
+        objs[Species]['st_1[c]'] = Species(id='st_1[c]',
+                                           species_type=objs[SpeciesType]['st_1'],
+                                           compartment=objs[Compartment]['c'])
+
+        value = "pow( st_1[c], 2 )"
+        of_expr, invalid_attribute = FunctionExpression.deserialize(value, objs)
+        self.assertEqual(of_expr, None, str())
+        self.assertIn("Token `pow` is ambiguous",
+                      invalid_attribute.messages[0])
+        self.assertIn("Token matches a Parameter and a function",
+                      invalid_attribute.messages[0])
+
     def test_valid_stop_conditions(self):
         _, objects, id_map = self.make_objects()
 
@@ -1855,9 +1892,30 @@ class TestCore(unittest.TestCase):
         self.assertEqual(obs.model, model)
         self.assertEqual(model.observables[-1], obs)
         self.assertEqual(obs.comments, kwargs['comments'])
+
         expr = 'ccc + ddd - 2 * spec_type_0[comp_0]'
-        func_expr, _ = ObservableExpression.deserialize(expr, objects)
-        obs.expression = func_expr
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertEqual(obs_expr.validate(), None)
+
+        expr = 'ccc + ddd + 2 - 2 * spec_type_0[comp_0]'
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertNotEqual(obs_expr.validate(), None)
+
+        expr = 'ccc + ddd - spec_type_0[comp_0] * 2'
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertNotEqual(obs_expr.validate(), None)
+
+        expr = 'ccc'
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertEqual(obs_expr.validate(), None)
+
+        expr = 'ccc * ccc'
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertNotEqual(obs_expr.validate(), None)
+
+        expr = '2'
+        obs_expr, _ = ObservableExpression.deserialize(expr, objects)
+        self.assertNotEqual(obs_expr.validate(), None)
 
     def test_valid_model_types(self):
         for model_type in [RateLawExpression, FunctionExpression, StopConditionExpression,

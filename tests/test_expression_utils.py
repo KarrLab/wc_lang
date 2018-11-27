@@ -19,7 +19,7 @@ from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType
                      StopCondition, Observable, Parameter,
                      BiomassReaction, Compartment)
 from wc_lang.expression_utils import (TokCodes, WcLangToken, LexMatch,
-                                      ParsedExpression, WcLangExpressionError,
+                                      ParsedExpression, ParsedExpressionError,
                                       ExpressionVerifier, LinearExpressionVerifier)
 
 
@@ -93,11 +93,11 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
-                WcLangExpressionError,
+                ParsedExpressionError,
                 "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
             self.make_wc_lang_expr(expr)
         with self.assertRaisesRegex(
-                WcLangExpressionError,
+                ParsedExpressionError,
                 "model_class 'Species' doesn't have a 'Meta.valid_models' attribute"):
             ParsedExpression(Species, 'attr', '', {})
 
@@ -460,7 +460,7 @@ class TestWcLangExpression(unittest.TestCase):
         objects = {
             Foo: {'foo_1': Foo(), 'foo_2': Foo()}
         }
-        with self.assertRaisesRegex(WcLangExpressionError,
+        with self.assertRaisesRegex(ParsedExpressionError,
                                     "model_class 'Foo' is not a subclass of obj_model.Model"):
             ParsedExpression(Foo, 'expr_attr', '', self.objects)
 
@@ -487,7 +487,7 @@ class TestWcLangExpression(unittest.TestCase):
         model_type = RateLawExpression
         wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
         wc_lang_expr.tokenize()
-        with self.assertRaisesRegex(WcLangExpressionError,
+        with self.assertRaisesRegex(ParsedExpressionError,
                                     "SyntaxError: cannot eval expression .* in {}".format(
                 model_type.__name__)):
             wc_lang_expr.test_eval()
@@ -496,7 +496,7 @@ class TestWcLangExpression(unittest.TestCase):
         expr = 'foo(6)'
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=model_type)
         wc_lang_expr.tokenize()
-        with self.assertRaisesRegex(WcLangExpressionError,
+        with self.assertRaisesRegex(ParsedExpressionError,
                                     re.escape("cannot evaluate '{}', as it not been "
                                               "successfully tokenized".format(expr))):
             wc_lang_expr.test_eval()

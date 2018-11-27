@@ -5,21 +5,14 @@
 :Copyright: 2016-2018, Karr Lab
 :License: MIT
 """
-import tokenize
 import token
-from six.moves import cStringIO
-from io import BytesIO
-from math import isnan, ceil, floor, exp, pow, log, log10
+import tokenize
+import obj_model
+import wc_lang.core
 from collections import namedtuple
-
-from wc_utils.util.list import det_dedupe
+from io import BytesIO
 from wc_utils.util.enumerate import CaseInsensitiveEnum
 from wc_utils.util.misc import DFSMAcceptor
-import obj_model
-import wc_lang
-
-CONCENTRATIONS_DICT = 'concentrations'
-PARAMETERS_DICT = 'parameters'
 
 # TODOS
 '''
@@ -99,7 +92,7 @@ LexMatch.wc_lang_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
-class WcLangExpressionError(Exception):
+class ParsedExpressionError(Exception):
     """ Exception raised for errors in `ParsedExpression`
 
     Attributes:
@@ -156,6 +149,8 @@ class ParsedExpression(object):
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `_objects`
         related_objects (:obj:`dict`): models that are referenced in `expression`; maps model type to
             dict that maps model id to model instance
+        lin_coeffs (:obj:`dict`): linear coefficients of models that are referenced in `expression`; 
+            maps model type to dict that maps models to coefficients
         errors (:obj:`list` of :obj:`str`): errors found when parsing an `expression` fails
         wc_tokens (:obj:`list` of :obj:`WcLangToken`): tokens obtained when an `expression` is successfully
             `tokenize`d; if empty, then this `ParsedExpression` cannot use `eval()`
@@ -181,15 +176,15 @@ class ParsedExpression(object):
         """ Create an instance of ParsedExpression
 
         Raises:
-            (:obj:`WcLangExpressionError`): if `model_class` is not a subclass of `obj_model.Model`,
+            (:obj:`ParsedExpressionError`): if `model_class` is not a subclass of `obj_model.Model`,
                 or lexical analysis of `expression` raises an exception,
                 or `objects` includes model types that `model_class` should not reference
         """
         if not issubclass(model_class, obj_model.Model):
-            raise WcLangExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
+            raise ParsedExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
                 model_class.__name__))
         if not hasattr(model_class.Meta, 'valid_models'):
-            raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_models' attribute".format(
+            raise ParsedExpressionError("model_class '{}' doesn't have a 'Meta.valid_models' attribute".format(
                 model_class.__name__))
         self.valid_models = set()
         for valid_model_type_name in model_class.Meta.valid_models:
@@ -198,7 +193,7 @@ class ParsedExpression(object):
                 self.valid_models.add(valid_model_type)
         for obj_type in self.valid_models:
             if not issubclass(obj_type, obj_model.Model):   # pragma    no cover
-                raise WcLangExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
+                raise ParsedExpressionError("objects entry '{}' is not a subclass of obj_model.Model".format(
                     obj_type.__name__))
         self.valid_functions = set()
         if hasattr(model_class.Meta, 'valid_functions'):
@@ -215,7 +210,7 @@ class ParsedExpression(object):
             # strip the leading ENCODING and trailing ENDMARKER tokens
             self.tokens = list(g)[1:-1]
         except tokenize.TokenError as e:
-            raise WcLangExpressionError("parsing '{}', a {}.{}, creates a Python syntax error: '{}'".format(
+            raise ParsedExpressionError("parsing '{}', a {}.{}, creates a Python syntax error: '{}'".format(
                 self.expression, self.model_class.__name__, self.attribute, str(e)))
 
         self.__reset_tokenization()
@@ -224,8 +219,10 @@ class ParsedExpression(object):
         """ Reset tokenization
         """
         self.related_objects = {}
+        self.lin_coeffs = {}
         for model_type in self.valid_models:
             self.related_objects[model_type] = {}
+            self.lin_coeffs[model_type] = {}
 
         self.errors = []
         self.wc_tokens = []
@@ -468,7 +465,7 @@ class ParsedExpression(object):
                 instances used by this list, grouped by Model type
 
         Raises:
-            (:obj:`WcLangExpressionError`): if `model_class` does not have a `Meta` attribute
+            (:obj:`ParsedExpressionError`): if `model_class` does not have a `Meta` attribute
         """
         self.__reset_tokenization()
 
@@ -575,11 +572,11 @@ class ParsedExpression(object):
             :obj:`object`: the value of the expression
 
         Raises:
-            :obj:`WcLangExpressionError`: if the expression evaluation fails
+            :obj:`ParsedExpressionError`: if the expression evaluation fails
         """
         # do not eval an expression that could not be tokenized
         if not self.wc_tokens:
-            raise WcLangExpressionError("cannot evaluate '{}', as it not been successfully tokenized".format(
+            raise ParsedExpressionError("cannot evaluate '{}', as it not been successfully tokenized".format(
                 self.expression))
 
         model_vals = {}
@@ -608,11 +605,11 @@ class ParsedExpression(object):
             :obj:`object`: the value of the expression
 
         Raises:
-            :obj:`WcLangExpressionError`: if the expression evaluation fails
+            :obj:`ParsedExpressionError`: if the expression evaluation fails
         """
         # do not eval an expression that could not be tokenized
         if not self.wc_tokens:
-            raise WcLangExpressionError("cannot evaluate '{}', as it not been successfully tokenized".format(
+            raise ParsedExpressionError("cannot evaluate '{}', as it not been successfully tokenized".format(
                 self.expression))
 
         evaled_tokens = []
@@ -637,11 +634,11 @@ class ParsedExpression(object):
         try:
             return eval(expression, {}, local_ns)
         except SyntaxError as error:
-            raise WcLangExpressionError("SyntaxError:" + error_suffix + str(error))
+            raise ParsedExpressionError("SyntaxError:" + error_suffix + str(error))
         except NameError as error:  # pragma: no cover
-            raise WcLangExpressionError("NameError:" + error_suffix + str(error))
+            raise ParsedExpressionError("NameError:" + error_suffix + str(error))
         except Exception as error:  # pragma: no cover
-            raise WcLangExpressionError("Exception:" + error_suffix + str(error))
+            raise ParsedExpressionError("Exception:" + error_suffix + str(error))
 
     def __str__(self):
         rv = []
@@ -722,19 +719,19 @@ class LinearExpressionVerifier(ExpressionVerifier):
     """
 
     # Transitions in valid linear expression
-    linear_expr_transitions = [   # (current state, message, next state)
-        ('need number or id', (TokCodes.number, None), 'need *'),
-        ('need *', (TokCodes.op, '*'), 'need id'),
+    TRANSITIONS = [   # (current state, message, next state)
+        ('need number or id', (TokCodes.number, None), 'need * id'),
+        ('need * id', (TokCodes.op, '*'), 'need id'),
         ('need id', (TokCodes.wc_lang_obj_id, None), 'need + | - | end'),
         ('need number or id', (TokCodes.wc_lang_obj_id, None), 'need + | - | end'),
         ('need + | - | end', (TokCodes.op, '+'), 'need number or id'),
         ('need + | - | end', (TokCodes.op, '-'), 'need number or id'),
-        ('need + | - | end', (None, None), 'end')
+        ('need + | - | end', (None, None), 'end'),
     ]
 
     def __init__(self):
         super().__init__(start_state='need number or id', accepting_state='end',
-                         transitions=self.linear_expr_transitions, empty_is_valid=True)
+                         transitions=self.TRANSITIONS, empty_is_valid=True)
 
     def valid_wc_lang_tokens(self, wc_lang_tokens):
         """ Check whether the content of a sequence of `WcLangToken`s is valid
@@ -757,10 +754,12 @@ class LinearExpressionVerifier(ExpressionVerifier):
                     float(wc_lang_tok.token_string)
                 except ValueError as e:
                     return (False, str(e))
+
         return (True, True)
 
     def make_dfsa_messages(self, wc_lang_tokens):
-        """ Convert a sequence of `WcLangToken`s into a list of messages for transitions in `linear_expr_transitions`
+        """ Convert a sequence of `WcLangToken`s into a list of messages for transitions in 
+        `LinearExpressionVerifier.TRANSITIONS`
 
         Args:
             wc_lang_tokens (:obj:`iterator` of `WcLangToken`): sequence of `WcLangToken`s
