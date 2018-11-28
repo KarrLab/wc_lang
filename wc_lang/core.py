@@ -260,6 +260,15 @@ class ParameterType(int, Enum):
     other = 2
 
 
+class EvidenceType(int, CaseInsensitiveEnum):
+    """ Evidence types """
+    experiment = 1
+    computation = 2
+    theory = 3
+    intuition = 4
+    other = 5
+
+
 class ReferenceType(int, CaseInsensitiveEnum):
     """ Reference types """
     article = 1
@@ -589,7 +598,8 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         Returns:
             :obj:`str`: string representation
         """
-        return ', '.join(db_ref.serialize() for db_ref in db_refs)
+        sorted_db_refs = sorted(db_refs, key=lambda db_ref: (db_ref.database, db_ref.id))
+        return ', '.join(db_ref.serialize() for db_ref in sorted_db_refs)
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -647,7 +657,8 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
         Returns:
             :obj:`str`: string representation
         """
-        return ', '.join(db_ref.serialize() for db_ref in db_refs)
+        sorted_db_refs = sorted(db_refs, key=lambda db_ref: (db_ref.database, db_ref.id))
+        return ', '.join(db_ref.serialize() for db_ref in sorted_db_refs)
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -1109,6 +1120,7 @@ class Submodel(obj_model.Model):
         model (:obj:`Model`): model
         algorithm (:obj:`SubmodelAlgorithm`): algorithm
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -1124,11 +1136,13 @@ class Submodel(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='submodels')
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
+    evidence = ManyToManyAttribute('Evidence', related_name='submodels')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'algorithm', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'algorithm',
+                           'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def validate(self):
@@ -1466,6 +1480,7 @@ class DfbaObjective(obj_model.Model):
         submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
         expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -1476,12 +1491,14 @@ class DfbaObjective(obj_model.Model):
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_objs', verbose_related_name='dFBA objectives')
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', 'expression', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'submodel', 'expression',
+                           'db_refs', 'evidence', 'comments', 'references')
         expression_model = DfbaObjectiveExpression
 
     @staticmethod
@@ -1612,6 +1629,7 @@ class Compartment(obj_model.Model):
         type (:obj:`CompartmentType`): type
         initial_volume (:obj:`float`): initial volume (L)
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -1624,13 +1642,14 @@ class Compartment(obj_model.Model):
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
     initial_volume = FloatAttribute(min=0)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
+    evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'type', 'initial_volume',
-                           'db_refs', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Compartment to a libsbml SBML document.
@@ -1669,6 +1688,7 @@ class SpeciesType(obj_model.Model):
         charge (:obj:`int`): charge
         type (:obj:`SpeciesTypeType`): type
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -1685,6 +1705,7 @@ class SpeciesType(obj_model.Model):
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
+    evidence = ManyToManyAttribute('Evidence', related_name='species_types')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
@@ -1692,7 +1713,7 @@ class SpeciesType(obj_model.Model):
         verbose_name = 'Species type'
         attribute_order = ('id', 'name', 'structure', 'empirical_formula',
                            'molecular_weight', 'charge', 'type',
-                           'db_refs', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references')
 
         indexed_attrs_tuples = (('id',), )
 
@@ -1716,6 +1737,7 @@ class Species(obj_model.Model):
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -1733,14 +1755,15 @@ class Species(obj_model.Model):
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
     compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species')
+    evidence = ManyToManyAttribute('Evidence', related_name='species')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'species_type', 'compartment', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'species_type', 'compartment',
+                           'db_refs', 'evidence', 'comments', 'references')
         frozen_columns = 1
         # unique_together = (('species_type', 'compartment', ), )
-        ordering = ('id',)
         indexed_attrs_tuples = (('species_type', 'compartment'), )
         token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
 
@@ -1872,6 +1895,7 @@ class Concentration(obj_model.Model):
         value (:obj:`float`): value
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -1882,15 +1906,16 @@ class Concentration(obj_model.Model):
     value = FloatAttribute(min=0)
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='concentations')
+    evidence = ManyToManyAttribute('Evidence', related_name='concentations')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(obj_model.Model.Meta):
         # unique_together = (('species', ), )
-        attribute_order = ('id', 'name', 'species', 'value', 'units', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'species', 'value', 'units',
+                           'db_refs', 'evidence', 'comments', 'references')
 
         frozen_columns = 1
-        ordering = ('id',)
 
     @staticmethod
     def gen_id(species_id):
@@ -1998,6 +2023,7 @@ class Observable(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2012,11 +2038,13 @@ class Observable(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='observables')
     expression = ExpressionAttribute('ObservableExpression', related_name='observable')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
+    evidence = ManyToManyAttribute('Evidence', related_name='observables')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='observables')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'expression',
+                           'db_refs', 'evidence', 'comments', 'references')
         expression_model = ObservableExpression
 
 
@@ -2097,6 +2125,7 @@ class Function(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2110,11 +2139,13 @@ class Function(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='functions')
     expression = ExpressionAttribute('FunctionExpression', related_name='function')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
+    evidence = ManyToManyAttribute('Evidence', related_name='functions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'expression',
+                           'db_refs', 'evidence', 'comments', 'references')
         expression_model = FunctionExpression
 
 
@@ -2194,6 +2225,7 @@ class StopCondition(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2205,11 +2237,13 @@ class StopCondition(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
     expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
+    evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'expression',
+                           'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
 
 
@@ -2226,6 +2260,7 @@ class Reaction(obj_model.Model):
         min_flux (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         max_flux (:obj:`float`): maximum flux bound for solving an FBA model
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2243,12 +2278,14 @@ class Reaction(obj_model.Model):
     min_flux = FloatAttribute(nan=True)
     max_flux = FloatAttribute(min=0, nan=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
+    evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'submodel', 'participants', 'reversible', 'min_flux', 'max_flux',
-                           'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'submodel',
+                           'participants', 'reversible', 'min_flux', 'max_flux',
+                           'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
     def validate(self):
@@ -2412,7 +2449,7 @@ class SpeciesCoefficient(obj_model.Model):
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
-        ordering = ('species',)
+        ordering = ('species', 'coefficient')
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
@@ -2519,6 +2556,7 @@ class RateLaw(obj_model.Model):
         type (:obj:`RateLawType`): type
         expression (:obj:`RateLawExpression`): expression
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -2531,15 +2569,15 @@ class RateLaw(obj_model.Model):
     expression = RateLawExpressionAttribute(related_name='rate_laws')
     units = EnumAttribute(RateLawUnits, default=RateLawUnits['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
+    evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
                            'expression', 'units',
-                           'db_refs', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
-        ordering = ('id',)
 
     @staticmethod
     def gen_id(reaction_id, direction_name):
@@ -2608,7 +2646,7 @@ class RateLawExpression(obj_model.Model, Expression):
         """
         attribute_order = ('expression', 'modifiers', 'parameters')
         tabular_orientation = TabularOrientation.inline
-        ordering = ('rate_law',)
+        ordering = ('expression',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
         valid_models = ('Parameter', 'Species', 'Observable', 'Function')
 
@@ -2661,6 +2699,7 @@ class DfbaNetComponent(obj_model.Model):
         coefficient (:obj:`float`): the specie's reaction coefficient
         species (:obj:`Species`): species
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -2674,6 +2713,8 @@ class DfbaNetComponent(obj_model.Model):
                                  verbose_related_name='dFBA net components')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
                                                    verbose_related_name='dFBA net components')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
+                                   verbose_related_name='dFBA net components')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_net_components',
                                      verbose_related_name='dFBA net components')
@@ -2682,7 +2723,7 @@ class DfbaNetComponent(obj_model.Model):
         # unique_together = (('dfba_net_reaction', 'species'), )
         attribute_order = ('id', 'name', 'dfba_net_reaction',
                            'coefficient', 'species',
-                           'db_refs', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references')
         verbose_name = 'dFBA net component'
 
     @staticmethod
@@ -2734,6 +2775,7 @@ class DfbaNetReaction(obj_model.Model):
         model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that uses this reaction
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2747,11 +2789,14 @@ class DfbaNetReaction(obj_model.Model):
     submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
                                                    verbose_related_name='dFBA net reactions')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_reactions',
+                                   verbose_related_name='dFBA net reactions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'submodel', 'db_refs', 'comments', 'references')
+        attribute_order = ('id', 'name', 'submodel',
+                           'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA net reaction'
 
@@ -2824,6 +2869,7 @@ class Parameter(obj_model.Model):
         value (:obj:`float`): value
         units (:obj:`str`): units of value
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2840,13 +2886,14 @@ class Parameter(obj_model.Model):
     value = FloatAttribute(min=0)
     units = StringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='parameters')
+    evidence = ManyToManyAttribute('Evidence', related_name='parameters')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'type',
                            'value', 'units',
-                           'db_refs', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Parameter to a libsbml SBML document.
@@ -2878,6 +2925,69 @@ class Parameter(obj_model.Model):
                                                    name=self.name)
 
         return sbml_parameter
+
+
+class Evidence(obj_model.Model):
+    """ Evidence
+
+    Attributes:
+        id (:obj:`str`): unique identifier
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        value (:obj:`str`): value
+        units (:obj:`str`): units
+        type (:obj:`EvidenceType`): type
+        taxon (:obj:`str`): taxon in which the evidence was observed
+        genetic_variant (:obj:`str`): genetic variant in which the evidence was observed
+        temperature (:obj:`float`): temperature at which the evidence was observed
+        ph (:obj:`float`): pH at which the evidence was observed
+        growth_media (:obj:`str`): growth media at which the evidence was observed
+        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
+            (e.g. individual observations underlying an average)
+        comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
+
+    Related attributes:
+        submodels (:obj:`list` of :obj:`Submodel`): submodels
+        compartments (:obj:`list` of :obj:`Compartment`): compartments
+        species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        species (:obj:`list` of :obj:`Species`): species
+        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        observables (:obj:`list` of :obj:`Observable`): observables
+        functions (:obj:`list` of :obj:`Function`): functions
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        reactions (:obj:`list` of :obj:`Reaction`): reactions
+        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
+        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dFBA net components
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
+        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
+            supports (e.g. averages supported by this and other evidence)
+    """
+    id = SlugAttribute()
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='evidences')
+    value = StringAttribute()
+    units = StringAttribute()
+    type = EnumAttribute(EvidenceType, default=EvidenceType.other)
+    taxon = StringAttribute()
+    genetic_variant = StringAttribute()
+    temperature = FloatAttribute(nan=True, verbose_name='Temperature (C)')
+    ph = FloatAttribute(nan=True, verbose_name='pH')
+    growth_media = LongStringAttribute()
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='evidences')
+    evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='evidences')
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name',
+                           'value', 'units',
+                           'type', 'taxon', 'genetic_variant', 'temperature', 'ph', 'growth_media',
+                           'db_refs', 'evidence', 'comments', 'references')
+        verbose_name_plural = 'Evidence'
 
 
 class Reference(obj_model.Model):

@@ -24,12 +24,14 @@ class Writer(object):
     """ Write model to file(s) """
 
     model_order = [
-        core.Model, core.Taxon, core.Submodel, core.Compartment, core.SpeciesType, core.Species,
+        core.Model, core.Taxon,
+        core.Submodel, core.Compartment, core.SpeciesType, core.Species,
         core.Concentration, core.Observable, core.Function,
         core.DfbaObjective,
         core.Reaction, core.RateLaw,
         core.DfbaNetReaction, core.DfbaNetComponent,
-        core.Parameter, core.StopCondition, core.Reference,
+        core.Parameter, core.StopCondition,
+        core.Evidence, core.Reference,
     ]
 
     def run(self, model, path, set_repo_metadata_from_path=True):
@@ -79,7 +81,7 @@ class Writer(object):
         """
         for attr in core.Model.Meta.attributes.values():
             if isinstance(attr, obj_model.RelatedAttribute) and \
-                attr.related_class != core.DatabaseReference:
+                    attr.related_class != core.DatabaseReference:
                 raise Exception('Relationships from `Model` not supported')
 
         for attr in core.Model.Meta.related_attributes.values():
