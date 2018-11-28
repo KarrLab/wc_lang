@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 
 import libsbml
 from libsbml import Compartment as libsbmlCompartment
@@ -31,10 +32,6 @@ from wc_lang.prepare import PrepareModel
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
 import wc_lang.sbml.io as sbml_io
-
-# ignore 'setting concentration' warnings
-import warnings
-warnings.filterwarnings('ignore', '.*setting concentration.*', )
 
 
 def check_document_against_model(sbml_document, wc_lang_model, test_case):
@@ -63,7 +60,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                                                       element.getIdAttribute())
             test_case.assertEqual(element.getName(), wc_lang_compartment.name)
             test_case.assertEqual(element.getSpatialDimensions(), 3)
-            test_case.assertEqual(element.getSize(), wc_lang_compartment.mean_volume)
+            test_case.assertEqual(element.getSize(), wc_lang_compartment.volume_mean)
             # not checking: comments
 
         # parameters
@@ -82,7 +79,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             wc_lang_species = get_component_by_id(all_wc_lang_species, wc_lang_id)
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
-            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.value)
+            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.mean)
             # not checking: comments
 
         if isinstance(element, libsbmlReaction):
@@ -95,7 +92,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 # not checking: participants and flux bounds
 
             wc_lang_dfba_net_reaction = get_component_by_id(all_wc_lang_dfba_net_reactions,
-                                                           element.getIdAttribute())
+                                                            element.getIdAttribute())
             # test DfbaNetReaction
             if wc_lang_dfba_net_reaction:
                 test_case.assertEqual(element.getName(), wc_lang_dfba_net_reaction.name)

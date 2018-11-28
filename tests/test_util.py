@@ -50,7 +50,7 @@ class TestUtil(unittest.TestCase):
             spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=1)
+            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, mean=1)
             conc.model = mdl
             concentrations.append(conc)
 

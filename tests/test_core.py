@@ -44,9 +44,9 @@ class TestCore(unittest.TestCase):
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
         self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0',
-                                                       mean_volume=1.25)
+                                                       volume_mean=1.25)
         self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1',
-                                                       mean_volume=2.5)
+                                                       volume_mean=2.5)
         self.compartments = compartments = [comp_0, comp_1]
 
         self.species_types = species_types = []
@@ -71,7 +71,7 @@ class TestCore(unittest.TestCase):
             spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, value=3 * i)
+            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, mean=3 * i)
             conc.model = mdl
             concentrations.append(conc)
 
@@ -1524,7 +1524,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(sbml_compartment.hasRequiredAttributes())
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
-        self.assertEqual(sbml_compartment.getSize(), self.comp_0.mean_volume)
+        self.assertEqual(sbml_compartment.getSize(), self.comp_0.volume_mean)
         self.assertIn(self.comp_0.comments, sbml_compartment.getNotesString())
 
         # Write species used by the submodel to the SBML document
@@ -1534,7 +1534,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
             self.assertEqual(sbml_species.getName(), species.species_type.name)
             self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
-            self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.value)
+            self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.mean)
 
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.min_flux = 100

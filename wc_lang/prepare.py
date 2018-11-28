@@ -20,7 +20,7 @@ class PrepareModel(object):
     """ Prepare a model for simulation by adding implicit information that is not explicitly
     specified in model definitions.
 
-    * Insert 0 concentrations for species that don't have concentrations
+    * Insert 0 mean concentrations for species that don't have mean concentrations
     * Create implicit exchange reactions for dFBA submodels
     * Apply default flux bounds to the reactions in dFBA submodels
     """
@@ -37,7 +37,7 @@ class PrepareModel(object):
         self.set_finite_dfba_flux_bounds()
 
     def create_implicit_zero_concentrations(self):
-        """ Define implicit zero concentrations """
+        """ Define implicit zero mean concentrations """
         model = self.model
         for species in model.get_species():
             if species.concentration is None:
@@ -45,7 +45,7 @@ class PrepareModel(object):
                     id=Concentration.gen_id(species.id),
                     model=model,
                     species=species,
-                    value=0.0, units=ConcentrationUnit.molecules)
+                    mean=0.0, std=0.0, units=ConcentrationUnit.molecules)
 
     def create_implicit_dfba_exchange_reactions(self):
         """ Create implicit exchange reactions for dFBA submodels.

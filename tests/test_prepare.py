@@ -24,17 +24,21 @@ class TestPrepareModel(unittest.TestCase):
         st_1_c_2 = model.species.create(id=Species.gen_id('st_1', 'c_2'), species_type=st_1, compartment=c_2)
         st_2_c_1 = model.species.create(id=Species.gen_id('st_2', 'c_1'), species_type=st_2, compartment=c_1)
         st_2_c_2 = model.species.create(id=Species.gen_id('st_2', 'c_2'), species_type=st_2, compartment=c_2)
-        model.concentrations.create(species=st_1_c_1, value=1.)
-        model.concentrations.create(species=st_2_c_2, value=1.)
+        model.concentrations.create(species=st_1_c_1, mean=1., std=2.)
+        model.concentrations.create(species=st_2_c_2, mean=1., std=2.)
 
         prep_model = PrepareModel(model)
         prep_model.create_implicit_zero_concentrations()
 
         self.assertEqual(len(model.concentrations), 4)
-        self.assertEqual(st_1_c_1.concentration.value, 1.)
-        self.assertEqual(st_1_c_2.concentration.value, 0.)
-        self.assertEqual(st_2_c_1.concentration.value, 0.)
-        self.assertEqual(st_2_c_2.concentration.value, 1.)
+        self.assertEqual(st_1_c_1.concentration.mean, 1.)
+        self.assertEqual(st_1_c_2.concentration.mean, 0.)
+        self.assertEqual(st_2_c_1.concentration.mean, 0.)
+        self.assertEqual(st_2_c_2.concentration.mean, 1.)
+        self.assertEqual(st_1_c_1.concentration.std, 2.)
+        self.assertEqual(st_1_c_2.concentration.std, 0.)
+        self.assertEqual(st_2_c_1.concentration.std, 0.)
+        self.assertEqual(st_2_c_2.concentration.std, 2.)
 
     def test_create_implicit_dfba_exchange_reactions(self):
         model = Model()

@@ -30,11 +30,11 @@ WC                      SBML                                                Stat
 Model                   Model                                               Ignored
 Taxon                   None, perhaps make SBML annotations                 Ignored
 Submodel                Model                                               Implemented
-DfbaObjective   Objective                                           Mostly Implemented
+DfbaObjective           Objective                                           Mostly Implemented
 Compartment             Compartment                                         Implemented
 SpeciesType             SpeciesType aren't defined                          NA
 Species                 Species                                             Implemented
-Concentration           Concentrations are incorporated in Species          NA
+Concentration       Mean concentrations are incorporated in Species     NA
 Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
 SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
 RateLaw                 KineticLaw                                          Ignored

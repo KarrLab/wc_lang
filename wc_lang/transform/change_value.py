@@ -27,7 +27,7 @@ class ChangeValueTransform(Transform):
         +-------------+-----------------------------------+-----------------------------------------------------------+
         | target_type | target_id                         | target_attr                                               |
         +=============+===================================+===========================================================+
-        | Compartment | Compartment.id                    | ['mean_volume']                                        |
+        | Compartment | Compartment.id                    | ['volume_mean']                                        |
         +-------------+-----------------------------------+-----------------------------------------------------------+
         | Function    | Function.id                       | ['expression', 'expression']                              |
         +-------------+-----------------------------------+-----------------------------------------------------------+
@@ -39,7 +39,8 @@ class ChangeValueTransform(Transform):
         | Reaction    | Reaction.id                       | ['max_flux']                                              |
         | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'expression', 'expression'] |
         +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'value']                                |
+        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'mean']                                 |
+        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'std']                                  |
         | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                |
         +-------------+-----------------------------------+-----------------------------------------------------------+
     """

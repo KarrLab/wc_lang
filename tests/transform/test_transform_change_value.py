@@ -14,14 +14,14 @@ import unittest
 
 class ChangeValueTransformTestCase(unittest.TestCase):
 
-    def test_compartment_mean_volume(self):
+    def test_compartment_volume_mean(self):
         model = Model()
-        c = model.compartments.create(id='c', mean_volume=1.)
-        e = model.compartments.create(id='e', mean_volume=1.)
-        ChangeValueTransform(Compartment, 'c', ['mean_volume'], 2.).run(model)
+        c = model.compartments.create(id='c', volume_mean=1.)
+        e = model.compartments.create(id='e', volume_mean=1.)
+        ChangeValueTransform(Compartment, 'c', ['volume_mean'], 2.).run(model)
 
-        self.assertEqual(c.mean_volume, 2.)
-        self.assertEqual(e.mean_volume, 1.)
+        self.assertEqual(c.volume_mean, 2.)
+        self.assertEqual(e.volume_mean, 1.)
 
     def test_function_expression(self):
         model = Model()
@@ -156,13 +156,19 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_1 = st_2.species.create(compartment=c_1)
         st_2_c_2 = st_2.species.create(compartment=c_2)
 
-        st_1_c_1.concentration = Concentration(id=Concentration.gen_id(st_1_c_1.id), value=1)
-        st_1_c_2.concentration = Concentration(id=Concentration.gen_id(st_1_c_2.id), value=2)
-        st_2_c_1.concentration = Concentration(id=Concentration.gen_id(st_2_c_1.id), value=3)
-        st_2_c_2.concentration = Concentration(id=Concentration.gen_id(st_2_c_2.id), value=4)
+        st_1_c_1.concentration = Concentration(id=Concentration.gen_id(st_1_c_1.id), mean=1, std=2)
+        st_1_c_2.concentration = Concentration(id=Concentration.gen_id(st_1_c_2.id), mean=2, std=2)
+        st_2_c_1.concentration = Concentration(id=Concentration.gen_id(st_2_c_1.id), mean=3, std=2)
+        st_2_c_2.concentration = Concentration(id=Concentration.gen_id(st_2_c_2.id), mean=4, std=2)
 
-        ChangeValueTransform(Species, 'st_2[c_1]', ['concentration', 'value'], 0).run(model)
-        self.assertEqual(st_1_c_1.concentration.value, 1)
-        self.assertEqual(st_1_c_2.concentration.value, 2)
-        self.assertEqual(st_2_c_1.concentration.value, 0)
-        self.assertEqual(st_2_c_2.concentration.value, 4)
+        ChangeValueTransform(Species, 'st_2[c_1]', ['concentration', 'mean'], 0).run(model)
+        self.assertEqual(st_1_c_1.concentration.mean, 1)
+        self.assertEqual(st_1_c_2.concentration.mean, 2)
+        self.assertEqual(st_2_c_1.concentration.mean, 0)
+        self.assertEqual(st_2_c_2.concentration.mean, 4)
+
+        ChangeValueTransform(Species, 'st_2[c_1]', ['concentration', 'std'], 0).run(model)
+        self.assertEqual(st_1_c_1.concentration.std, 2)
+        self.assertEqual(st_1_c_2.concentration.std, 2)
+        self.assertEqual(st_2_c_1.concentration.std, 0)
+        self.assertEqual(st_2_c_2.concentration.std, 2)

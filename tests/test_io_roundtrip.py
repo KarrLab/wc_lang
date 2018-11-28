@@ -49,7 +49,7 @@ class RoundTripTestCase(unittest.TestCase):
         species_1.concentration = Concentration(
             id=Concentration.gen_id(species_1.id),
             model=model,
-            value=1, units=ConcentrationUnit.M)
+            mean=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
         observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
@@ -101,7 +101,7 @@ class RoundTripTestCase(unittest.TestCase):
         species_1.concentration = Concentration(
             id=Concentration.gen_id(species_1.id),
             model=model,
-            value=1, units=ConcentrationUnit.M)
+            mean=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
         observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)

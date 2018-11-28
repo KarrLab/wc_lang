@@ -723,7 +723,7 @@ class Model(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -904,7 +904,7 @@ class Model(obj_model.Model):
         return self.species.get(__type=__type, **kwargs)
 
     def get_concentrations(self, __type=None, **kwargs):
-        """ Get all concentrations from species types
+        """ Get all mean concentrations from species types
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
@@ -912,12 +912,12 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of :obj:`Concentration`: concentations
+            :obj:`list` of :obj:`Concentration`: mean concentrations
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        return self.concentations.get(__type=__type, **kwargs)
+        return self.concentrations.get(__type=__type, **kwargs)
 
     def get_observables(self, __type=None, **kwargs):
         """ Get all observables
@@ -1633,8 +1633,9 @@ class Compartment(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         type (:obj:`CompartmentType`): type
-        mean_volume (:obj:`float`): mean volume
-        mean_volume_units (:obj:`VolumeUnit`): mean volume units
+        volume_mean (:obj:`float`): mean volume
+        volume_std (:obj:`float`): standard deviation of the mean volume across single cells
+        volume_units (:obj:`VolumeUnit`): mean volume units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1647,8 +1648,9 @@ class Compartment(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
-    mean_volume = FloatAttribute(min=0)
-    mean_volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.L)
+    volume_mean = FloatAttribute(min=0, verbose_name='Volume mean')
+    volume_std = FloatAttribute(min=0, verbose_name='Volume standard deviation')
+    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.L)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
@@ -1656,7 +1658,7 @@ class Compartment(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'type', 'mean_volume', 'mean_volume_units',
+                           'type', 'volume_mean', 'volume_std', 'volume_units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1676,7 +1678,7 @@ class Compartment(obj_model.Model):
         wrap_libsbml(sbml_compartment.setIdAttribute, self.id)
         wrap_libsbml(sbml_compartment.setName, self.name)
         wrap_libsbml(sbml_compartment.setSpatialDimensions, 3)
-        wrap_libsbml(sbml_compartment.setSize, self.mean_volume)
+        wrap_libsbml(sbml_compartment.setSize, self.volume_mean)
         wrap_libsbml(sbml_compartment.setConstant, False)
         if self.comments:
             wrap_libsbml(sbml_compartment.setNotes, self.comments, True)
@@ -1702,7 +1704,7 @@ class SpeciesType(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1750,7 +1752,7 @@ class Species(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        concentration (:obj:`Concentration`): concentration
+        concentration (:obj:`Concentration`): mean concentration
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
@@ -1883,7 +1885,7 @@ class Species(obj_model.Model):
         wrap_libsbml(sbml_species.setCompartment, self.compartment.id)
 
         # set the Initial Concentration
-        wrap_libsbml(sbml_species.setInitialConcentration, self.concentration.value)
+        wrap_libsbml(sbml_species.setInitialConcentration, self.concentration.mean)
 
         # set units
         unit_xml_id = ConcentrationUnit.Meta[self.concentration.units]['xml_id']
@@ -1893,14 +1895,15 @@ class Species(obj_model.Model):
 
 
 class Concentration(obj_model.Model):
-    """ Species concentration
+    """ Species mean concentration
 
     Attributes:
         id (:obj:`str`): identifier equal to `conc-{species.id}`
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`Species`): species
-        value (:obj:`float`): value
+        mean (:obj:`float`): mean concentration
+        std (:obj:`float`): standard deviation of the concentration
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -1911,16 +1914,17 @@ class Concentration(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='concentrations')
     species = OneToOneAttribute(Species, related_name='concentration')
-    value = FloatAttribute(min=0)
+    mean = FloatAttribute(min=0)
+    std = FloatAttribute(min=0, verbose_name='Standard deviation')
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='concentations')
-    evidence = ManyToManyAttribute('Evidence', related_name='concentations')
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='concentrations')
+    evidence = ManyToManyAttribute('Evidence', related_name='concentrations')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='concentrations')
 
     class Meta(obj_model.Model.Meta):
         # unique_together = (('species', ), )
-        attribute_order = ('id', 'name', 'species', 'value', 'units',
+        attribute_order = ('id', 'name', 'species', 'mean', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
 
         frozen_columns = 1
@@ -1938,7 +1942,7 @@ class Concentration(obj_model.Model):
         return 'conc-{}'.format(species_id)
 
     def validate(self):
-        """ Check that the concentration is valid
+        """ Check that the mean concentration is valid
 
         * Validate that identifier is equal to `conc-{species.id}]`
 
@@ -2632,7 +2636,7 @@ class RateLawExpression(obj_model.Model, Expression):
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
-        modifiers (:obj:`list` of :obj:`Species`): species whose concentrations are used in the rate law
+        modifiers (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
 
     Related attributes:
@@ -2961,7 +2965,7 @@ class Evidence(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -3028,7 +3032,7 @@ class Reference(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -3079,7 +3083,7 @@ class DatabaseReference(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): concentrations
+        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
