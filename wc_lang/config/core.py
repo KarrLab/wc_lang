@@ -31,8 +31,41 @@ def get_config(extra=None):
         ),
     )
 
-    return wc_utils.config.ConfigManager(paths).get_config(extra=extra)
+    config = wc_utils.config.ConfigManager(paths).get_config(extra=extra)
+    validate_config(config)
+    return config
 
+def validate_config(config):
+    """ Validate configuration
+
+    * Check that min_flux_bound >= 0 and max_flux_bound >= min_flux_bound
+
+    Args:
+        config (:obj:`configobj.ConfigObj`): nested dictionary with the configuration settings
+
+    Raises:
+        :obj:`ValueError`: if minimum dFBA flux bound is negative or the 
+            maximum dFBA flux bound is less than the minimum dFBA flux bound
+    """
+    min_reversible_flux_bound = config['wc_lang']['dfba']['min_reversible_flux_bound']
+    min_irreversible_flux_bound = config['wc_lang']['dfba']['min_irreversible_flux_bound']
+    max_flux_bound = config['wc_lang']['dfba']['max_flux_bound']
+    
+    if max_flux_bound < min_reversible_flux_bound:
+        raise ValueError(("minimum dFBA reversible flux bound must be greater than or equal to "
+                          "the maximum bound:\n"
+                          "  min_reversible_flux_bound={}\n"
+                          "  max_flux_bound={}").format(
+            min_reversible_flux_bound,
+            max_flux_bound))
+    
+    if max_flux_bound < min_irreversible_flux_bound:
+        raise ValueError(("minimum dFBA irreversible flux bound must be greater than or equal to "
+                          "the maximum bound:\n"
+                          "  min_irreversible_flux_bound={}\n"
+                          "  max_flux_bound={}").format(
+            min_irreversible_flux_bound,
+            max_flux_bound))
 
 def get_debug_logs_config(extra=None):
     """ Get debug logs configuration

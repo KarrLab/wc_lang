@@ -5,97 +5,124 @@
 :Copyright: 2017, Karr Lab
 :License: MIT
 """
-import ast
-import mock
-import numpy
-import os
-import re
-import six
-import unittest
-
 from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
-                     Compartment, RateLaw, RateLawExpression, RateLawDirection, SubmodelAlgorithm,
-                     DfbaNetComponent, DfbaNetReaction, SpeciesTypeType, Parameter,
-                     Observable, ObservableExpression, Function, FunctionExpression,
-                     Expression, DfbaObjectiveExpression)
-from wc_lang.io import Reader
+                     Compartment, SubmodelAlgorithm)
 from wc_lang.prepare import PrepareModel
-from wc_lang.expression import ParsedExpression
-
-# configuration
+import mock
+import unittest
 import wc_lang.config.core
-config_wc_lang = wc_lang.config.core.get_config()['wc_lang']
 
 
 class TestPrepareModel(unittest.TestCase):
+    def test_create_implicit_zero_concentrations(self):
+        model = Model()
+        c_1 = model.compartments.create(id='c_1')
+        c_2 = model.compartments.create(id='c_2')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        st_1_c_1 = model.species.create(id=Species.gen_id('st_1', 'c_1'), species_type=st_1, compartment=c_1)
+        st_1_c_2 = model.species.create(id=Species.gen_id('st_1', 'c_2'), species_type=st_1, compartment=c_2)
+        st_2_c_1 = model.species.create(id=Species.gen_id('st_2', 'c_1'), species_type=st_2, compartment=c_1)
+        st_2_c_2 = model.species.create(id=Species.gen_id('st_2', 'c_2'), species_type=st_2, compartment=c_2)
+        model.concentrations.create(species=st_1_c_1, value=1.)
+        model.concentrations.create(species=st_2_c_2, value=1.)
 
-    MODEL_FILENAME = os.path.join(os.path.dirname(__file__), 'fixtures', 'test_model.xlsx')
+        prep_model = PrepareModel(model)
+        prep_model.create_implicit_zero_concentrations()
 
-    def setUp(self):
-        # read and initialize a model
-        self.model = Reader().run(self.MODEL_FILENAME)
-        self.dfba_submodel = self.model.submodels.get_one(id='submodel_1')
-        self.prepare_model = PrepareModel(self.model)
-        self.id_idx = 0
+        self.assertEqual(len(model.concentrations), 4)
+        self.assertEqual(st_1_c_1.concentration.value, 1.)
+        self.assertEqual(st_1_c_2.concentration.value, 0.)
+        self.assertEqual(st_2_c_1.concentration.value, 0.)
+        self.assertEqual(st_2_c_2.concentration.value, 1.)
 
-    def test_create_dfba_exchange_rxns(self):
-        EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
+    def test_create_implicit_dfba_exchange_reactions(self):
+        model = Model()
+        submodel = model.submodels.create(id='submdl', name='submodel', algorithm=SubmodelAlgorithm.dfba)
 
-        self.assertEqual(
-            self.prepare_model.create_dfba_exchange_rxns(self.dfba_submodel, EXTRACELLULAR_COMPARTMENT_ID), 2)
+        comps = [
+            model.compartments.create(id='c', name='cytosol'),
+            model.compartments.create(id='d', name='dna'),
+            model.compartments.create(id='e', name='extracellular space'),
+        ]
+        sts = [
+            model.species_types.create(id='st_1', name='species type 1'),
+            model.species_types.create(id='st_2', name='species type 2'),
+            model.species_types.create(id='st_3', name='species type 3'),
+        ]
+        specs = []
+        for st in sts:
+            spec_comps = []
+            specs.append(spec_comps)
+            for comp in comps:
+                spec_comps.append(model.species.create(species_type=st, compartment=comp))
 
-        # should add these exchange reactions:
-        # -> specie_1[e]
-        # -> specie_2[e]
-        EXCHANGE_RXN_ID_PREFIX = config_wc_lang['EXCHANGE_RXN_ID_PREFIX']
-        species_found = set()
-        for rxn in self.dfba_submodel.reactions:
-            if EXCHANGE_RXN_ID_PREFIX in rxn.id:
-                self.assertEqual(-float('inf'), rxn.min_flux)
-                self.assertEqual(float('inf'), rxn.max_flux)
-                self.assertEqual(1, len(rxn.participants))
-                for participant in rxn.participants:
-                    self.assertEqual(1, participant.coefficient)
-                    species_found.add(participant.species)
+        rxn = model.reactions.create(submodel=submodel)
+        rxn.participants.create(species=specs[0][0])
+        rxn.participants.create(species=specs[0][1])
+        rxn.participants.create(species=specs[0][2])
 
-        self.assertEqual(species_found,
-                         set(Species.get(['specie_1[e]', 'specie_2[e]'], self.dfba_submodel.get_species())))
+        rxn = model.reactions.create(submodel=submodel)
+        rxn.participants.create(species=specs[1][0])
+        rxn.participants.create(species=specs[1][1])
+        rxn.participants.create(species=specs[1][2])
 
-        # test exception
-        with self.assertRaisesRegex(ValueError, ' not a dFBA submodel$'):
-            self.prepare_model.create_dfba_exchange_rxns(Submodel(algorithm=SubmodelAlgorithm.ssa), None)
+        rxn = model.reactions.create(submodel=submodel)
+        rxn.participants.create(species=specs[2][0])
+        rxn.participants.create(species=specs[2][1])
 
-    def test_apply_default_dfba_submodel_flux_bounds(self):
-        self.assertEqual(
-            self.prepare_model.apply_default_dfba_submodel_flux_bounds(self.dfba_submodel), (1, 1))
-        test_non_rev = self.dfba_submodel.reactions.create(
-            id='__test_1',
-            reversible=False
-        )
-        test_rev = self.dfba_submodel.reactions.create(
-            id='__test_2',
-            reversible=True
-        )
-        self.assertEqual(self.prepare_model.apply_default_dfba_submodel_flux_bounds(self.dfba_submodel),
-                         (2, 2))
-        self.prepare_model.apply_default_dfba_submodel_flux_bounds(self.dfba_submodel)
-        self.assertEqual(test_non_rev.max_flux, test_rev.max_flux)
-        self.assertEqual(-test_rev.min_flux, test_rev.max_flux)
-        self.assertEqual(self.prepare_model.apply_default_dfba_submodel_flux_bounds(self.dfba_submodel),
-                         (0, 0))
+        prep_model = PrepareModel(model)
+        prep_model.create_implicit_dfba_exchange_reactions()
 
-        # test exception
-        with self.assertRaisesRegex(ValueError, ' not a dFBA submodel$'):
-            self.prepare_model.apply_default_dfba_submodel_flux_bounds(Submodel(algorithm=SubmodelAlgorithm.ssa))
+        self.assertEqual(len(model.reactions), 5)
+        self.assertEqual(len(submodel.reactions), 5)
+        print([rxn.id for rxn in model.reactions])
+        self.assertNotEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_1_e'), None)
+        self.assertNotEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_2_e'), None)
+        self.assertEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_3_e'), None)
 
-        submodel = Submodel(algorithm=SubmodelAlgorithm.dfba)
-        submodel.reactions.create(min_flux=float('nan'))
-        with mock.patch('wc_lang.prepare.config_wc_lang', {}):
-            with self.assertRaisesRegex(ValueError, "cannot obtain default_min_flux_bound and default_max_flux_bound="):
-                self.prepare_model.apply_default_dfba_submodel_flux_bounds(submodel)
+        rxn = model.reactions.get_one(id='__dfba_ex_submdl_st_1_e')
+        self.assertEqual(rxn.name, 'dFBA exchange (submodel, species type 1, extracellular space)')
+        self.assertEqual(len(rxn.participants), 1)
+        self.assertEqual(rxn.participants[0].species, specs[0][2])
+        self.assertEqual(rxn.participants[0].coefficient, 1.)
+        self.assertEqual(rxn.reversible, True)
 
-        submodel = Submodel(algorithm=SubmodelAlgorithm.dfba)
-        submodel.reactions.create(min_flux=float('nan'))
-        with mock.patch('wc_lang.prepare.config_wc_lang', {'default_min_flux_bound': 1, 'default_max_flux_bound': -1}):
-            with self.assertRaisesRegex(ValueError, "default flux bounds violate 0 <= default_min_flux_bound <= default_max_flux_bound:"):
-                self.prepare_model.apply_default_dfba_submodel_flux_bounds(submodel)
+    def test_set_finite_dfba_flux_bounds(self):
+        model = Model()
+        submodel = model.submodels.create(algorithm=SubmodelAlgorithm.dfba)
+        rxn_1 = model.reactions.create(submodel=submodel, reversible=True, min_flux=None, max_flux=None)
+        rxn_2 = model.reactions.create(submodel=submodel, reversible=False, min_flux=None, max_flux=None)
+        rxn_3 = model.reactions.create(submodel=submodel, reversible=True, min_flux=float('nan'), max_flux=float('nan'))
+        rxn_4 = model.reactions.create(submodel=submodel, reversible=False, min_flux=float('nan'), max_flux=float('nan'))
+        rxn_5 = model.reactions.create(submodel=submodel, reversible=True, min_flux=-1e3, max_flux=1e3)
+        rxn_6 = model.reactions.create(submodel=submodel, reversible=False, min_flux=-1e3, max_flux=1e3)
+        rxn_7 = model.reactions.create(submodel=submodel, reversible=True, min_flux=-1e1, max_flux=1e1)
+        rxn_8 = model.reactions.create(submodel=submodel, reversible=False, min_flux=-1e1, max_flux=1e1)
+
+        prep_model = PrepareModel(model)
+        with mock.patch('wc_lang.prepare.config', {
+            'dfba': {
+                'min_reversible_flux_bound': -2e2,
+                'min_irreversible_flux_bound': 0.,
+                'max_flux_bound': 1e2,
+            },
+        }):
+            prep_model.set_finite_dfba_flux_bounds()
+
+        self.assertEqual(rxn_1.min_flux, -2e2)
+        self.assertEqual(rxn_1.max_flux, 1e2)
+        self.assertEqual(rxn_2.min_flux, 0)
+        self.assertEqual(rxn_2.max_flux, 1e2)
+        self.assertEqual(rxn_3.min_flux, -2e2)
+        self.assertEqual(rxn_3.max_flux, 1e2)
+        self.assertEqual(rxn_4.min_flux, 0)
+        self.assertEqual(rxn_4.max_flux, 1e2)
+        self.assertEqual(rxn_5.min_flux, -2e2)
+        self.assertEqual(rxn_5.max_flux, 1e2)
+        self.assertEqual(rxn_6.min_flux, 0)
+        self.assertEqual(rxn_6.max_flux, 1e2)
+        self.assertEqual(rxn_7.min_flux, -1e1)
+        self.assertEqual(rxn_7.max_flux, 1e1)
+        self.assertEqual(rxn_8.min_flux, 0)
+        self.assertEqual(rxn_8.max_flux, 1e1)
