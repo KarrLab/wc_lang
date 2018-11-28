@@ -14,14 +14,14 @@ import unittest
 
 class ChangeValueTransformTestCase(unittest.TestCase):
 
-    def test_compartment_initial_volume(self):
+    def test_compartment_mean_volume(self):
         model = Model()
-        c = model.compartments.create(id='c', initial_volume=1.)
-        e = model.compartments.create(id='e', initial_volume=1.)
-        ChangeValueTransform(Compartment, 'c', ['initial_volume'], 2.).run(model)
+        c = model.compartments.create(id='c', mean_volume=1.)
+        e = model.compartments.create(id='e', mean_volume=1.)
+        ChangeValueTransform(Compartment, 'c', ['mean_volume'], 2.).run(model)
 
-        self.assertEqual(c.initial_volume, 2.)
-        self.assertEqual(e.initial_volume, 1.)
+        self.assertEqual(c.mean_volume, 2.)
+        self.assertEqual(e.mean_volume, 1.)
 
     def test_function_expression(self):
         model = Model()

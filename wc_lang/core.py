@@ -146,6 +146,12 @@ class CompartmentType(int, CaseInsensitiveEnum):
     physical_3d = 3
 
 
+VolumeUnit = Enum('VolumeUnit', type=int, names=[
+    ('L', 1),
+    # ('dm^2', 2),
+])
+
+
 class SubmodelAlgorithm(int, CaseInsensitiveEnum):
     """ Submodel algorithms """
     dfba = 1
@@ -171,7 +177,7 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('pM', 6),
     ('fM', 7),
     ('aM', 8),
-    ('mol dm^-2', 9),
+    # ('mol dm^-2', 9),
 ])
 ConcentrationUnit.Meta = {
     ConcentrationUnit['molecules']: {
@@ -214,11 +220,11 @@ ConcentrationUnit.Meta = {
         'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': -18},
         'volume_units': {'kind': 'litre', 'exponent': -1, 'scale': 0},
     },
-    ConcentrationUnit['mol dm^-2']: {
-        'xml_id': 'mol_per_dm_2',
-        'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': 0},
-        'volume_units': {'kind': 'metre', 'exponent': -2, 'scale': -1},
-    },
+    # ConcentrationUnit['mol dm^-2']: {
+    #    'xml_id': 'mol_per_dm_2',
+    #    'substance_units': {'kind': 'mole', 'exponent': 1, 'scale': 0},
+    #    'volume_units': {'kind': 'metre', 'exponent': -2, 'scale': -1},
+    #},
 }
 
 
@@ -1627,7 +1633,8 @@ class Compartment(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         type (:obj:`CompartmentType`): type
-        initial_volume (:obj:`float`): initial volume (L)
+        mean_volume (:obj:`float`): mean volume
+        mean_volume_units (:obj:`VolumeUnit`): mean volume units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1640,7 +1647,8 @@ class Compartment(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
-    initial_volume = FloatAttribute(min=0)
+    mean_volume = FloatAttribute(min=0)
+    mean_volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.L)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
@@ -1648,7 +1656,7 @@ class Compartment(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'type', 'initial_volume',
+                           'type', 'mean_volume', 'mean_volume_units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1668,7 +1676,7 @@ class Compartment(obj_model.Model):
         wrap_libsbml(sbml_compartment.setIdAttribute, self.id)
         wrap_libsbml(sbml_compartment.setName, self.name)
         wrap_libsbml(sbml_compartment.setSpatialDimensions, 3)
-        wrap_libsbml(sbml_compartment.setSize, self.initial_volume)
+        wrap_libsbml(sbml_compartment.setSize, self.mean_volume)
         wrap_libsbml(sbml_compartment.setConstant, False)
         if self.comments:
             wrap_libsbml(sbml_compartment.setNotes, self.comments, True)

@@ -44,9 +44,9 @@ class TestCore(unittest.TestCase):
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
         self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0',
-                                                       initial_volume=1.25)
+                                                       mean_volume=1.25)
         self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1',
-                                                       initial_volume=2.5)
+                                                       mean_volume=2.5)
         self.compartments = compartments = [comp_0, comp_1]
 
         self.species_types = species_types = []
@@ -1524,7 +1524,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(sbml_compartment.hasRequiredAttributes())
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
-        self.assertEqual(sbml_compartment.getSize(), self.comp_0.initial_volume)
+        self.assertEqual(sbml_compartment.getSize(), self.comp_0.mean_volume)
         self.assertIn(self.comp_0.comments, sbml_compartment.getNotesString())
 
         # Write species used by the submodel to the SBML document
