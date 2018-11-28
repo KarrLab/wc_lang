@@ -7,14 +7,17 @@
 :License: MIT
 """
 
+import libsbml
 import os
 import pytest
 import re
 import unittest
 import warnings
 import math
-from obj_model.core import InvalidAttribute
 import wc_lang
+from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
+from obj_model.core import InvalidAttribute
+from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
@@ -26,11 +29,9 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           StopCondition, StopConditionExpression,
                           SubmodelAlgorithm, Concentration, DfbaNetComponent, DfbaNetReaction,
                           ReactionParticipantAttribute, Expression,
-                          InvalidObject, EXTRACELLULAR_COMPARTMENT_ID)
-from wc_lang.prepare import PrepareModel
+                          InvalidObject)
 from wc_lang.io import Reader
-from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
-import libsbml
+from wc_lang.prepare import PrepareModel
 from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
                                create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
 
@@ -554,6 +555,61 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(part, objs[SpeciesCoefficient]['(2) spec_0[c_0]'])
 
+    def test_validate_reaction_balance(self):
+        c = Compartment()
+        st_1 = SpeciesType(empirical_formula='CH1N2OP2', charge=1)
+        st_2 = SpeciesType(empirical_formula='C2H2N4O2P4', charge=2)
+        st_3 = SpeciesType(empirical_formula='C3H3N6O3P6', charge=3)
+        st_4 = SpeciesType(empirical_formula='CH1N2', charge=2)
+        st_5 = SpeciesType(empirical_formula='OP2', charge=-1)
+        s_1 = Species(species_type=st_1, compartment=c)
+        s_2 = Species(species_type=st_2, compartment=c)
+        s_3 = Species(species_type=st_3, compartment=c)
+        s_4 = Species(species_type=st_4, compartment=c)
+        s_5 = Species(species_type=st_5, compartment=c)
+
+        validate_element_charge_balance = wc_lang.core.config['validation']['validate_element_charge_balance']
+        wc_lang.core.config['validation']['validate_element_charge_balance'] = True
+
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-2.)
+        rxn.participants.create(species=s_2, coefficient=1.)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-3.)
+        rxn.participants.create(species=s_3, coefficient=1.)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-1.)
+        rxn.participants.create(species=s_2, coefficient=-1.)
+        rxn.participants.create(species=s_3, coefficient=1.)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-1.)
+        rxn.participants.create(species=s_4, coefficient=1.)
+        rxn.participants.create(species=s_5, coefficient=1.)
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_4, coefficient=1.)
+        rxn.participants.create(species=s_5, coefficient=1.)
+        rv = rxn.validate()
+        self.assertRegex(str(rv), 'element imbalanced')
+        self.assertRegex(str(rv), 'charge imbalanced')
+
+        wc_lang.core.config['validation']['validate_element_charge_balance'] = False
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        wc_lang.core.config['validation']['validate_element_charge_balance'] = validate_element_charge_balance
+
     def test_rate_gen_id(self):
         self.assertEqual(self.rate_laws[0].id, 'rxn_0-forward')
         self.assertEqual(self.rate_laws[1].id, 'rxn_1-forward')
@@ -1070,8 +1126,8 @@ class TestCore(unittest.TestCase):
 
     def test_ReactionParticipantAttribute_validate(self):
         species_types = [
-            SpeciesType(id='A'),
-            SpeciesType(id='B'),
+            SpeciesType(id='A', empirical_formula='CHO', charge=2),
+            SpeciesType(id='B', empirical_formula='C1H1O1', charge=2),
         ]
         compartments = [
             Compartment(id='c'),
@@ -1972,8 +2028,15 @@ class ValidateModelTestCase(unittest.TestCase):
         self.dfba_submodel = self.model.submodels.get_one(id='dfba_submodel')
 
     def test_min_max_fluxes(self):
-        species = Species(id=Species.gen_id('s', 'c'), species_type=SpeciesType(id='s'), compartment=Compartment(id='c'))
-        participants = [SpeciesCoefficient(species=species, coefficient=1.)]
+        c_1 = Compartment(id='c_1')
+        c_2 = Compartment(id='c_2')
+        st = SpeciesType(id='s', empirical_formula='CHN2P1', charge=-1)
+        species_1 = Species(id=Species.gen_id('s', 'c_1'), species_type=st, compartment=c_1)
+        species_2 = Species(id=Species.gen_id('s', 'c_2'), species_type=st, compartment=c_2)
+        participants = [
+            SpeciesCoefficient(species=species_1, coefficient=1.),
+            SpeciesCoefficient(species=species_2, coefficient=-1.),
+        ]
 
         rxn = Reaction(id='rxn', reversible=True, min_flux=-1., max_flux=1.,
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
@@ -2083,8 +2146,15 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must contain the following reactions')
 
     def test_rate_laws(self):
-        species = Species(id=Species.gen_id('s', 'c'), species_type=SpeciesType(id='s'), compartment=Compartment(id='c'))
-        participants = [SpeciesCoefficient(species=species, coefficient=1.)]
+        c_1 = Compartment(id='c_1')
+        c_2 = Compartment(id='c_2')
+        st = SpeciesType(id='s', empirical_formula='CHO', charge=1)
+        species_1 = Species(id=Species.gen_id('s', 'c_1'), species_type=st, compartment=c_1)
+        species_2 = Species(id=Species.gen_id('s', 'c_2'), species_type=st, compartment=c_2)
+        participants = [
+            SpeciesCoefficient(species=species_1, coefficient=-1.),
+            SpeciesCoefficient(species=species_2, coefficient=1.),
+        ]
 
         rxn = Reaction(id='rxn', reversible=True,
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),

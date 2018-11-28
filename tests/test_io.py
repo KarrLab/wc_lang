@@ -127,9 +127,9 @@ class TestSimpleModel(unittest.TestCase):
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(
             id='rxn_0', name='reaction 0', model=mdl)
 
-        rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
-        rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=1))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=3))
         expression = RateLawExpression(
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
@@ -161,7 +161,7 @@ class TestSimpleModel(unittest.TestCase):
             id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
-        rxn_2.participants.append(get_or_create_species_coefficient(species=species[4], coefficient=1))
+        rxn_2.participants.append(get_or_create_species_coefficient(species=species[7], coefficient=1))
         expression = RateLawExpression(
             expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])

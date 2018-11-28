@@ -58,12 +58,13 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
                        InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
-from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
-from wc_utils.util.list import det_dedupe
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                init_sbml_model, create_sbml_parameter, add_sbml_unit)
 from wc_lang.expression import (Expression, ParsedExpression, ParsedExpressionError,
                                 LinearParsedExpressionVerifier, WcToken, WcTokenCodes)
+from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
+from wc_utils.util.list import det_dedupe
+from wc_utils.util.chem import EmpiricalFormula
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -77,9 +78,7 @@ warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 
 # configuration
 import wc_lang.config.core
-config_wc_lang = wc_lang.config.core.get_config()['wc_lang']
-
-EXTRACELLULAR_COMPARTMENT_ID = config_wc_lang['EXTRACELLULAR_COMPARTMENT_ID']
+config = wc_lang.config.core.get_config()['wc_lang']
 
 
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
@@ -476,6 +475,23 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 net_coeffs.pop(spec_coeff.species)
         if not net_coeffs:
             return InvalidAttribute(self, ['LHS and RHS must be different'])
+
+        # check element and charge balance
+        if config['validation']['validate_element_charge_balance']:
+            delta_formula = EmpiricalFormula()
+            delta_charge = 0.
+            for part in value:
+                delta_formula += EmpiricalFormula(part.species.species_type.empirical_formula) * part.coefficient
+                delta_charge += part.species.species_type.charge * part.coefficient
+            errors = []
+            if delta_formula:
+                errors.append('Reaction is element imbalanced: {}'.format(delta_formula))
+            if delta_charge != 0.:
+                errors.append('Reaction is charge imbalanced: {}'.format(delta_charge))
+            if errors:
+                return InvalidAttribute(self, errors)
+
+        # return None
         return None
 
 
@@ -2242,9 +2258,7 @@ class Reaction(obj_model.Model):
         * If the submodel is ODE or SSA and the reaction is reversible, check that the reaction has a
           backward rate law
         * Check that `min_flux` <= `max_flux`
-
-        .. todo :: Check reaction is mass-balanced
-        .. todo :: Check reaction is charge-balanced
+        * Check that reaction is element and charge balanced
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,

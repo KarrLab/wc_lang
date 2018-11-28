@@ -31,28 +31,38 @@ class RoundTripTestCase(unittest.TestCase):
     def test_write_error(self):
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
-        species_type = model.species_types.create(id='species_type_1')
-        species = comp.species.create(species_type=species_type)
-        species.id = ''
-        species.model = model
+        species_type_1 = model.species_types.create(
+            id='species_type_1',
+            empirical_formula='CHO',
+            charge=1)
+        species_type_2 = model.species_types.create(
+            id='species_type_2',
+            empirical_formula='C2H2O2',
+            charge=2)
+        species_1 = comp.species.create(species_type=species_type_1,
+                                        id='', model=model)
+        species_2 = comp.species.create(species_type=species_type_2,
+                                        id='', model=model)
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(
-            id=Concentration.gen_id(species.id),
+        species_1.concentration = Concentration(
+            id=Concentration.gen_id(species_1.id),
             model=model,
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
-        objects[Species][species.id] = species
-        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species.id, objects)
+        objects[Species][species_1.id] = species_1
+        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
 
-        coefficient = 1
-        rxn_species_coeff = species.species_coefficients.create(coefficient=coefficient)
+        rxn_species_coeffs = [
+            species_1.species_coefficients.create(coefficient=-2.),
+            species_2.species_coefficients.create(coefficient=1.),
+        ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                              direction=RateLawDirection.forward, model=model,
                              expression=RateLawExpression(expression='1.'))
-        rxn.participants.append(rxn_species_coeff)
+        rxn.participants.extend(rxn_species_coeffs)
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertNotEqual(errors, None)
@@ -71,20 +81,30 @@ class RoundTripTestCase(unittest.TestCase):
         """
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
-        species_type = model.species_types.create(id='species_type_1')
-        species = comp.species.create(species_type=species_type)
-        species.id = species.gen_id(species_type.id, comp.id)
-        species.model = model
+        species_type_1 = model.species_types.create(
+            id='species_type_1',
+            empirical_formula='CHO',
+            charge=1)
+        species_type_2 = model.species_types.create(
+            id='species_type_2',
+            empirical_formula='C3H3O3',
+            charge=3)
+        species_1 = comp.species.create(species_type=species_type_1,
+                                        id=Species.gen_id(species_type_1.id, comp.id),
+                                        model=model)
+        species_2 = comp.species.create(species_type=species_type_2,
+                                        id=Species.gen_id(species_type_2.id, comp.id),
+                                        model=model)
         submdl = model.submodels.create(id='submodel_1')
 
         # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species.concentration = Concentration(
-            id=Concentration.gen_id(species.id),
+        species_1.concentration = Concentration(
+            id=Concentration.gen_id(species_1.id),
             model=model,
             value=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
-        objects[Species][species.id] = species
-        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species.id, objects)
+        objects[Species][species_1.id] = species_1
+        observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
         objects = {Observable: {'observable_1': observable_1}}
         Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
@@ -92,11 +112,12 @@ class RoundTripTestCase(unittest.TestCase):
         objects = {Parameter: {'param_1': param}}
         Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
 
-        coefficient = 1
-
-        rxn_species_coeff = species.species_coefficients.get_or_create(coefficient=coefficient)
+        rxn_species_coeffs = [
+            species_1.species_coefficients.get_or_create(coefficient=-3.),
+            species_2.species_coefficients.get_or_create(coefficient=1.),
+        ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
-        rxn.participants.append(rxn_species_coeff)
+        rxn.participants.extend(rxn_species_coeffs)
         rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                              direction=RateLawDirection.forward, model=model,
                              expression=RateLawExpression(expression='1.'))
