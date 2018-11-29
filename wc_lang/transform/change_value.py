@@ -24,25 +24,26 @@ class ChangeValueTransform(Transform):
 
     Supports the following combinations of :obj:`target_type`, :obj:`target_id` and :obj:`target_attr`
 
-        +-------------+-----------------------------------+-----------------------------------------------------------+
-        | target_type | target_id                         | target_attr                                               |
-        +=============+===================================+===========================================================+
-        | Compartment | Compartment.id                    | ['volume_mean']                                        |
-        +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Function    | Function.id                       | ['expression', 'expression']                              |
-        +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Parameter   | Parameter.id                      | ['value']                                                 |
-        | Parameter   | Parameter.id                      | ['units']                                                 |
-        +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Reaction    | Reaction.id                       | ['reversible']                                            |
-        | Reaction    | Reaction.id                       | ['min_flux']                                              |
-        | Reaction    | Reaction.id                       | ['max_flux']                                              |
+        +-------------+-----------------------------------+-------------------------------------------------------------+
+        | target_type | target_id                         | target_attr                                                 |
+        +=============+===================================+=============================================================+
+        | Compartment | Compartment.id                    | ['volume_mean']                                             |
+        +-------------+-----------------------------------+-------------------------------------------------------------+
+        | Function    | Function.id                       | ['expression', 'expression']                                |
+        +-------------+-----------------------------------+-------------------------------------------------------------+
+        | Parameter   | Parameter.id                      | ['value']                                                   |
+        | Parameter   | Parameter.id                      | ['units']                                                   |
+        +-------------+-----------------------------------+-------------------------------------------------------------+
+        | Reaction    | Reaction.id                       | ['reversible']                                              |
+        | Reaction    | Reaction.id                       | ['flux_min']                                                |
+        | Reaction    | Reaction.id                       | ['flux_max']                                                |
+        | Reaction    | Reaction.id                       | ['flux_units']                                              |
         | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'expression', 'expression'] |
-        +-------------+-----------------------------------+-----------------------------------------------------------+
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'mean']                                 |
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'std']                                  |
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                |
-        +-------------+-----------------------------------+-----------------------------------------------------------+
+        +-------------+-----------------------------------+-------------------------------------------------------------+
+        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'mean']                                   |
+        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'std']                                    |
+        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                  |
+        +-------------+-----------------------------------+-------------------------------------------------------------+
     """
 
     class Meta(object):

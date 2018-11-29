@@ -21,7 +21,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
-                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection,
+                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection, FluxUnit,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
@@ -1534,8 +1534,9 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.mean)
 
         # Write reactions used by the submodel to an SBML document
-        self.rxn_2.min_flux = 100
-        self.rxn_2.max_flux = 200
+        self.rxn_2.flux_min = 100
+        self.rxn_2.flux_max = 200
+        self.rxn_2.flux_units = FluxUnit['mol g^-1 s^-1'],
         self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
@@ -1544,9 +1545,9 @@ class TestCore(unittest.TestCase):
         fbc_plugin = sbml_reaction.getPlugin('fbc')
         sbml_model = document.getModel()
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),
-                         self.rxn_2.min_flux)
+                         self.rxn_2.flux_min)
         self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
-                         self.rxn_2.max_flux)
+                         self.rxn_2.flux_max)
         self.assertEqual(len(sbml_reaction.getListOfReactants()) + len(sbml_reaction.getListOfProducts()),
                          len(self.rxn_2.participants))
         for reactant in sbml_reaction.getListOfReactants():
@@ -2024,7 +2025,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.model = Reader().run(self.MODEL_FILENAME)
         self.dfba_submodel = self.model.submodels.get_one(id='dfba_submodel')
 
-    def test_min_max_fluxes(self):
+    def test_min_flux_maxes(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
         st = SpeciesType(id='s', empirical_formula='CHN2P1', charge=-1)
@@ -2035,19 +2036,25 @@ class ValidateModelTestCase(unittest.TestCase):
             SpeciesCoefficient(species=species_2, coefficient=-1.),
         ]
 
-        rxn = Reaction(id='rxn', reversible=True, min_flux=-1., max_flux=1.,
+        rxn = Reaction(id='rxn', reversible=True,
+                       flux_min=-1., flux_max=1.,
+                       flux_units=FluxUnit['mol g^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn', reversible=False, min_flux=0., max_flux=1.,
+        rxn = Reaction(id='rxn', reversible=False,
+                       flux_min=0., flux_max=1.,
+                       flux_units=FluxUnit['mol g^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn', reversible=True, min_flux=1., max_flux=-1.,
+        rxn = Reaction(id='rxn', reversible=True,
+                       flux_min=1., flux_max=-1.,
+                       flux_units=FluxUnit['mol g^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -2062,7 +2069,9 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'Minimum flux for reversible reaction should be negative')
         self.assertRegex(str(rv), 'Value must be at least 0.000000')
 
-        rxn = Reaction(id='rxn', reversible=False, min_flux=-1., max_flux=-1.5,
+        rxn = Reaction(id='rxn', reversible=False,
+                       flux_min=-1., flux_max=-1.5,
+                       flux_units=FluxUnit['mol g^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[

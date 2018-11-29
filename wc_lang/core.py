@@ -261,6 +261,10 @@ RateLawUnit = Enum('RateLawUnit', type=int, names=[
     ('M s^-1', 2),
 ])
 
+FluxUnit = Enum('FluxUnit', type=int, names=[
+    ('mol g^-1 s^-1')
+])
+
 DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
     ('M s^-1', 1),
 ])
@@ -2281,8 +2285,9 @@ class Reaction(obj_model.Model):
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of :obj:`SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
-        min_flux (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
-        max_flux (:obj:`float`): maximum flux bound for solving an FBA model
+        flux_min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
+        flux_max (:obj:`float`): maximum flux bound for solving an FBA model
+        flux_units (:obj:`FluxUnit`): units for the minimum and maximum fluxes
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2299,8 +2304,9 @@ class Reaction(obj_model.Model):
     submodel = ManyToOneAttribute(Submodel, related_name='reactions')
     participants = ReactionParticipantAttribute(related_name='reactions')
     reversible = BooleanAttribute()
-    min_flux = FloatAttribute(nan=True)
-    max_flux = FloatAttribute(min=0, nan=True)
+    flux_min = FloatAttribute(nan=True)
+    flux_max = FloatAttribute(min=0, nan=True)
+    flux_units = EnumAttribute(FluxUnit, default=None, none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     comments = LongStringAttribute()
@@ -2308,7 +2314,8 @@ class Reaction(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel',
-                           'participants', 'reversible', 'min_flux', 'max_flux',
+                           'participants', 'reversible',
+                           'flux_min', 'flux_max', 'flux_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -2318,7 +2325,8 @@ class Reaction(obj_model.Model):
         * If the submodel is ODE or SSA, check that the reaction has a forward rate law
         * If the submodel is ODE or SSA and the reaction is reversible, check that the reaction has a
           backward rate law
-        * Check that `min_flux` <= `max_flux`
+        * Check flux units are not None if flux_min or flux_max is defined
+        * Check that `flux_min` <= `flux_max`
         * Check that reaction is element and charge balanced
 
         Returns:
@@ -2351,23 +2359,27 @@ class Reaction(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.related_attributes['rate_laws'], rl_errors))
 
         # check min, max fluxes
+        if (not isnan(self.flux_min) or not isnan(self.flux_max)) and self.flux_units is None:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_units'],
+                                           ['Units must be defined for the flux bounds']))
+
         if self.submodel and self.submodel.algorithm is not SubmodelAlgorithm.dfba:
-            if not isnan(self.min_flux):
-                errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+            if not isnan(self.flux_min):
+                errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                                ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
-            if not isnan(self.max_flux):
-                errors.append(InvalidAttribute(self.Meta.attributes['max_flux'],
+            if not isnan(self.flux_max):
+                errors.append(InvalidAttribute(self.Meta.attributes['flux_max'],
                                                ['Maximum flux should be NaN for reactions in non-dFBA submodels']))
 
-        if not isnan(self.min_flux) and not isnan(self.min_flux) and self.min_flux > self.max_flux:
-            errors.append(InvalidAttribute(self.Meta.attributes['max_flux'],
+        if not isnan(self.flux_min) and not isnan(self.flux_min) and self.flux_min > self.flux_max:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_max'],
                                            ['Maximum flux must be least the minimum flux']))
 
-        if self.reversible and not isnan(self.min_flux) and self.min_flux >= 0:
-            errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+        if self.reversible and not isnan(self.flux_min) and self.flux_min >= 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                            ['Minimum flux for reversible reaction should be negative or NaN']))
-        if not self.reversible and not isnan(self.min_flux) and self.min_flux < 0:
-            errors.append(InvalidAttribute(self.Meta.attributes['min_flux'],
+        if not self.reversible and not isnan(self.flux_min) and self.flux_min < 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                            ['Minimum flux for irreversible reaction should be non-negative']))
 
         # return errors
@@ -2443,13 +2455,13 @@ class Reaction(obj_model.Model):
                 # make a unique ID for each flux bound parameter
                 # ids for wc_lang Parameters all start with 'parameter'
                 param_id = "_reaction_{}_{}_bound".format(self.id, bound)
-                param = create_sbml_parameter(sbml_model, id=param_id, value=self.min_flux,
+                param = create_sbml_parameter(sbml_model, id=param_id, value=self.flux_min,
                                               units='mmol_per_gDW_per_hr')
                 if bound == 'lower':
-                    wrap_libsbml(param.setValue, self.min_flux)
+                    wrap_libsbml(param.setValue, self.flux_min)
                     wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
                 if bound == 'upper':
-                    wrap_libsbml(param.setValue, self.max_flux)
+                    wrap_libsbml(param.setValue, self.flux_max)
                     wrap_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
         return sbml_reaction
 
@@ -2579,6 +2591,7 @@ class RateLaw(obj_model.Model):
         direction (:obj:`RateLawDirection`): direction
         type (:obj:`RateLawType`): type
         expression (:obj:`RateLawExpression`): expression
+        units (:obj:`RateLawUnit`): units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments

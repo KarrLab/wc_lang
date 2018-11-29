@@ -7,7 +7,8 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # API
 from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit,
                    SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit,
-                   RateLawDirection, RateLawType, RateLawUnit, DfbaNetComponentUnit, ParameterType,
+                   RateLawDirection, RateLawType, RateLawUnit, FluxUnit,
+                   DfbaNetComponentUnit, ParameterType,
                    EvidenceType, ReferenceType,
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, Concentration, DfbaObjective, DfbaObjectiveExpression,

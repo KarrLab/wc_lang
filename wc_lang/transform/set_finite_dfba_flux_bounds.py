@@ -9,7 +9,7 @@
 
 from .core import Transform
 from math import isnan
-from wc_lang.core import SubmodelAlgorithm
+from wc_lang.core import SubmodelAlgorithm, FluxUnit
 import wc_lang.config.core
 config = wc_lang.config.core.get_config()['wc_lang']
 
@@ -25,13 +25,13 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
 
         * reversible reactions:
 
-          * min_flux = max(min_flux, min_reversible_flux_bound)
-          * max_flux = min(max_flux, max_flux_bound)
+          * flux_min = max(flux_min, flux_min_bound_reversible)
+          * flux_max = min(flux_max, flux_max_bound)
 
         * irreversible reactions:
 
-          * min_flux = max(min_flux, min_irreversible_flux_bound)
-          * max_flux = min(max_flux, max_flux_bound)
+          * flux_min = max(flux_min, flux_min_bound_irreversible)
+          * flux_max = min(flux_max, flux_max_bound)
     """
 
     class Meta(object):
@@ -48,26 +48,28 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
         Returns:
             :obj:`Model`: same model, but transformed
         """
-        min_reversible_flux_bound = config['dfba']['min_reversible_flux_bound']
-        min_irreversible_flux_bound = config['dfba']['min_irreversible_flux_bound']
-        max_flux_bound = config['dfba']['max_flux_bound']
+        flux_min_bound_reversible = config['dfba']['flux_min_bound_reversible']
+        flux_min_bound_irreversible = config['dfba']['flux_min_bound_irreversible']
+        flux_max_bound = config['dfba']['flux_max_bound']
 
         for submodel in model.submodels:
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 for rxn in submodel.reactions:
                     if rxn.reversible:
-                        min_flux = min_reversible_flux_bound
+                        flux_min = flux_min_bound_reversible
                     else:
-                        min_flux = min_irreversible_flux_bound
-                    max_flux = max_flux_bound
+                        flux_min = flux_min_bound_irreversible
+                    flux_max = flux_max_bound
 
-                    if rxn.min_flux is None or isnan(rxn.min_flux):
-                        rxn.min_flux = min_flux
+                    if rxn.flux_min is None or isnan(rxn.flux_min):
+                        rxn.flux_min = flux_min
                     else:
-                        rxn.min_flux = max(rxn.min_flux, min_flux)
+                        rxn.flux_min = max(rxn.flux_min, flux_min)
 
-                    if rxn.max_flux is None or isnan(rxn.max_flux):
-                        rxn.max_flux = max_flux
+                    if rxn.flux_max is None or isnan(rxn.flux_max):
+                        rxn.flux_max = flux_max
                     else:
-                        rxn.max_flux = min(rxn.max_flux, max_flux)
+                        rxn.flux_max = min(rxn.flux_max, flux_max)
+
+                    rxn.flux_units = FluxUnit['mol g^-1 s^-1'],
         return model
