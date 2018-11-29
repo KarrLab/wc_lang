@@ -14,9 +14,9 @@ from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationU
                    DfbaNetComponent, DfbaNetReaction, Parameter, StopCondition, StopConditionExpression,
                    Reference, DatabaseReference)
 from . import config
-from . import io
-from . import prepare
 from . import expression
+from . import io
+from . import prep_for_sim
 from . import sbml
 from . import transform
 from . import util

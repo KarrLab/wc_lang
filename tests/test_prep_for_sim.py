@@ -6,7 +6,7 @@
 :Copyright: 2017-2018, Karr Lab
 :License: MIT
 """
-from wc_lang import prepare
+from wc_lang import prep_for_sim
 import os
 import unittest
 import wc_lang.io

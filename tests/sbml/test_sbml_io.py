@@ -27,7 +27,7 @@ from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, DfbaObjective, Compartment,
                      Species, Concentration, Reaction, RateLaw, RateLawExpression,
                      DfbaNetComponent, DfbaNetReaction, Parameter, Reference, DatabaseReference)
-from wc_lang.prepare import PrepareModelTransform
+from wc_lang.transform.prep_for_sim import PrepareForSimulationTransform
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
@@ -124,7 +124,7 @@ class TestSbml(unittest.TestCase):
         self.dirname = tempfile.mkdtemp()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-        PrepareModelTransform().run(self.model)
+        PrepareForSimulationTransform().run(self.model)
 
     def tearDown(self):
         shutil.rmtree(self.dirname)
