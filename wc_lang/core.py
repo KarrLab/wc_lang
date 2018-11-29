@@ -256,6 +256,10 @@ RateLawUnits = Enum('RateLawUnits', type=int, names=[
     ('M s^-1', 2),
 ])
 
+DfbaNetComponentUnits = Enum('DfbaNetComponentUnits', type=int, names=[
+    ('M s^-1', 1),
+])
+
 
 class ParameterType(int, Enum):
     """ SBO parameter types """
@@ -1615,7 +1619,7 @@ class DfbaObjective(obj_model.Model):
         tmp_species_ids = []
         for dfba_net_reaction in self.expression.dfba_net_reactions:
             for dfba_net_comp in dfba_net_reaction.dfba_net_components:
-                if 0 < dfba_net_comp.coefficient:
+                if 0 < dfba_net_comp.value:
                     tmp_species_ids.append(dfba_net_comp.species.id)
         with self.submodel as submodel:
             tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
@@ -2707,9 +2711,10 @@ class DfbaNetComponent(obj_model.Model):
         id (:obj:`str`): unique identifier per DfbaNetComponent equal to
             `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
         name (:obj:`str`): name
-        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component
-        coefficient (:obj:`float`): the specie's reaction coefficient
+        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component        
         species (:obj:`Species`): species
+        value (:obj:`float`): the specie's reaction coefficient
+        units (:obj:`DfbaNetComponentUnits`): units of the value
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2720,9 +2725,10 @@ class DfbaNetComponent(obj_model.Model):
     dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', related_name='dfba_net_components',
                                            verbose_name='dFBA net reaction',
                                            verbose_related_name='dFBA net components')
-    coefficient = FloatAttribute()
     species = ManyToOneAttribute(Species, related_name='dfba_net_components',
                                  verbose_related_name='dFBA net components')
+    value = FloatAttribute()
+    units = EnumAttribute(DfbaNetComponentUnits, default=DfbaNetComponentUnits['M s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
                                                    verbose_related_name='dFBA net components')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
@@ -2734,7 +2740,7 @@ class DfbaNetComponent(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         # unique_together = (('dfba_net_reaction', 'species'), )
         attribute_order = ('id', 'name', 'dfba_net_reaction',
-                           'coefficient', 'species',
+                           'species', 'value', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         verbose_name = 'dFBA net component'
 
@@ -2843,12 +2849,12 @@ class DfbaNetReaction(obj_model.Model):
 
         # write dFBA net reaction participants to SBML document
         for dfba_net_comp in self.dfba_net_components:
-            if dfba_net_comp.coefficient < 0:
+            if dfba_net_comp.value < 0:
                 species_reference = wrap_libsbml(sbml_reaction.createReactant)
-                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_comp.coefficient)
-            elif 0 < dfba_net_comp.coefficient:
+                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_comp.value)
+            elif 0 < dfba_net_comp.value:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
-                wrap_libsbml(species_reference.setStoichiometry, dfba_net_comp.coefficient)
+                wrap_libsbml(species_reference.setStoichiometry, dfba_net_comp.value)
             id = dfba_net_comp.species.gen_sbml_id()
             wrap_libsbml(species_reference.setSpecies, id)
             wrap_libsbml(species_reference.setConstant, True)

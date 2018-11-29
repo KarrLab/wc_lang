@@ -85,7 +85,7 @@ class TestCore(unittest.TestCase):
             dfba_net_components.append(
                 dfba_net_reaction.dfba_net_components.create(
                     id=DfbaNetComponent.gen_id(dfba_net_reaction.id, species[i].id),
-                    coefficient=2 * (float(i) - 0.5),  # create a reactant and a product
+                    value=2 * (float(i) - 0.5),  # create a reactant and a product
                     species=species[i]))
         self.dfba_net_components = dfba_net_components
 
@@ -1654,7 +1654,7 @@ class TestCore(unittest.TestCase):
                         id='dfba_net_rxn',
                         dfba_net_components=[DfbaNetComponent(
                             id=DfbaNetComponent.gen_id('dfba_net_rxn', 'spec_1[c_1]'),
-                            coefficient=-1, species=species_1)],
+                            value=-1, species=species_1)],
                     ),
                 ],
             ),
