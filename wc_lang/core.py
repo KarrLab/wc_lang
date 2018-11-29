@@ -81,6 +81,10 @@ import wc_lang.config.core
 config = wc_lang.config.core.get_config()['wc_lang']
 
 
+class TimeUnit(int, CaseInsensitiveEnum):
+    """ Time units """
+    s = 1
+
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
 
     def __getattr__(cls, name):
@@ -251,12 +255,12 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
     ('other', 1),
 ])
 
-RateLawUnits = Enum('RateLawUnits', type=int, names=[
+RateLawUnit = Enum('RateLawUnit', type=int, names=[
     ('s^-1', 1),
     ('M s^-1', 2),
 ])
 
-DfbaNetComponentUnits = Enum('DfbaNetComponentUnits', type=int, names=[
+DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
     ('M s^-1', 1),
 ])
 
@@ -716,6 +720,7 @@ class Model(obj_model.Model):
         author (:obj:`str`): author(s)
         author_organization (:obj:`str`): author organization(s)
         author_email (:obj:`str`): author emails(s)
+        time_units (:obj:`TimeUnit`): time units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         comments (:obj:`str`): comments
         created (:obj:`datetime`): date created
@@ -749,6 +754,7 @@ class Model(obj_model.Model):
     author = LongStringAttribute()
     author_organization = LongStringAttribute()
     author_email = LongStringAttribute()
+    time_units = EnumAttribute(TimeUnit, default=TimeUnit.s)
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='model')
     comments = LongStringAttribute()
     created = DateTimeAttribute()
@@ -759,6 +765,7 @@ class Model(obj_model.Model):
                            'url', 'branch', 'revision',
                            'wc_lang_version',
                            'author', 'author_organization', 'author_email',
+                           'time_units',
                            'db_refs', 'comments',
                            'created', 'updated')
         tabular_orientation = TabularOrientation.column
@@ -2583,7 +2590,7 @@ class RateLaw(obj_model.Model):
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
     expression = RateLawExpressionAttribute(related_name='rate_laws')
-    units = EnumAttribute(RateLawUnits, default=RateLawUnits['s^-1'])
+    units = EnumAttribute(RateLawUnit, default=RateLawUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
@@ -2714,7 +2721,7 @@ class DfbaNetComponent(obj_model.Model):
         dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component        
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
-        units (:obj:`DfbaNetComponentUnits`): units of the value
+        units (:obj:`DfbaNetComponentUnit`): units of the value
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2728,7 +2735,7 @@ class DfbaNetComponent(obj_model.Model):
     species = ManyToOneAttribute(Species, related_name='dfba_net_components',
                                  verbose_related_name='dFBA net components')
     value = FloatAttribute()
-    units = EnumAttribute(DfbaNetComponentUnits, default=DfbaNetComponentUnits['M s^-1'])
+    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
                                                    verbose_related_name='dFBA net components')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
