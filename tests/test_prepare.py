@@ -12,9 +12,6 @@ import unittest
 import wc_lang.io
 
 
-class PrepareModelTransformTestCase(unittest.TestCase):
-    def test_run(self):
-        filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
-        model = wc_lang.io.Reader().run(filename)
-        transform = prepare.PrepareModelTransform()
-        transform.run(model)
+class PrepForSimTestCase(unittest.TestCase):
+    def test(self):
+        pass
