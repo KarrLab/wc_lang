@@ -10,35 +10,55 @@
 from math import isnan
 from obj_model.utils import get_component_by_id
 from wc_lang.core import Submodel, SubmodelAlgorithm, Concentration, ConcentrationUnit
+from wc_lang.transform.core import Transform
 import wc_lang.config.core
 
 # configuration
 config = wc_lang.config.core.get_config()['wc_lang']
 
 
-class PrepareModel(object):
-    """ Prepare a model for simulation by adding implicit information that is not explicitly
-    specified in model definitions.
+class PrepareModelTransform(Transform):
+    """ Prepare a model for simulation by making implicit information in the model
+    explicit.
 
-    * Insert 0 mean concentrations for species that don't have mean concentrations
+    * Create explicit zero mean concentrations for species that don't have explicit
+      mean concentrations (i.e. implicit zero concentrations)
     * Create implicit exchange reactions for dFBA submodels
-    * Apply default flux bounds to the reactions in dFBA submodels
+    * Clip the flux bounds for the reactions in dFBA submodels to the default
+      flux range
     """
 
-    def __init__(self, model):
-        self.model = model
+    def run(self, model):
+        """ Transform model
 
-    def run(self):
-        """ Statically prepare a model for simulation by adding implicit information that is not explicitly
-        specified in model definitions.
+        Args:
+            model (:obj:`Model`): model
+
+        Returns:
+            :obj:`Model`: same model, but transformed
         """
-        self.create_implicit_zero_concentrations()
-        self.create_implicit_dfba_exchange_reactions()
-        self.set_finite_dfba_flux_bounds()
+        CreateImplicitZeroConcentrationsTransform().run(model)
+        CreateImplicitDfbaExchangeReactionsTransform().run(model)
+        SetFiniteDfbaFluxBoundsTransform().run(model)
 
-    def create_implicit_zero_concentrations(self):
-        """ Define implicit zero mean concentrations """
-        model = self.model
+
+class CreateImplicitZeroConcentrationsTransform(Transform):
+    """ Create the implicit zero concentrations in a model
+    """
+
+    class Meta(object):
+        id = 'CreateImplicitZeroConcentrations'
+        label = 'Create the implicit zero concentrations in a model'
+
+    def run(self, model):
+        """ Transform model
+
+        Args:
+            model (:obj:`Model`): model
+
+        Returns:
+            :obj:`Model`: same model, but transformed
+        """
         for species in model.get_species():
             if species.concentration is None:
                 species.concentration = Concentration(
@@ -47,16 +67,32 @@ class PrepareModel(object):
                     species=species,
                     mean=0.0, std=0.0, units=ConcentrationUnit.molecules)
 
-    def create_implicit_dfba_exchange_reactions(self):
-        """ Create implicit exchange reactions for dFBA submodels.
+        return model
+
+
+class CreateImplicitDfbaExchangeReactionsTransform(Transform):
+    """ Create implicit exchange reactions for dFBA submodels.
 
         To enable FBA to represent a closed system, create implicit forward exchange reactions
 
         * Metabolites transported from the extracellular environment (generate a 
           "-> species_type[e]" reaction for each extracellular species involved in each dFBA submodel)
         * TODO: Metabolites recycled from the byproducts of other submodels
+    """
+
+    class Meta(object):
+        id = 'CreateImplicitZeroConcentrations'
+        label = 'Create implicit exchange reactions for dFBA submodels'
+
+    def run(self, model):
+        """ Transform model
+
+        Args:
+            model (:obj:`Model`): model
+
+        Returns:
+            :obj:`Model`: same model, but transformed
         """
-        model = self.model
         ext_comp = model.compartments.get_one(id=config['EXTRACELLULAR_COMPARTMENT_ID'])
         rxn_id_template = config['dfba']['exchange_reaction_id_template']
         rxn_name_template = config['dfba']['exchange_reaction_name_template']
@@ -75,30 +111,47 @@ class PrepareModel(object):
                             model=model,
                             reversible=True)
                         rxn.participants.create(species=species, coefficient=1.)
+        return model
 
-    def set_finite_dfba_flux_bounds(self):
-        """ Apply default flux bounds to the reactions in dFBA submodels because 
-        some linear programming solvers require finite minimum and maximum flux bounds.
 
-        The default default bounds are provided in the wc_lang configuration.
+class SetFiniteDfbaFluxBoundsTransform(Transform):
+    """ Clip the flux bounds for the reactions in dFBA submodels to the 
+    default flux range because some linear programming solvers require
+    finite minimum and maximum flux bounds.
 
-        Specifically, the default minimum and maximum flux bounds are applied as follows:
+    The default bounds are provided in the wc_lang configuration.
 
-            * reversible reactions:
+    Specifically, the default minimum and maximum flux bounds are applied as follows:
 
-              * min_flux = max(min_flux, min_reversible_flux_bound)
-              * max_flux = min(max_flux, max_flux_bound)
+        * reversible reactions:
 
-            * irreversible reactions:
+          * min_flux = max(min_flux, min_reversible_flux_bound)
+          * max_flux = min(max_flux, max_flux_bound)
 
-              * min_flux = max(min_flux, min_irreversible_flux_bound)
-              * max_flux = min(max_flux, max_flux_bound)
+        * irreversible reactions:
+
+          * min_flux = max(min_flux, min_irreversible_flux_bound)
+          * max_flux = min(max_flux, max_flux_bound)
+    """
+
+    class Meta(object):
+        id = 'SetFiniteDfbaFluxBoundsTransform'
+        label = ('Clip the flux bounds for the reactions in dFBA submodels'
+                 ' to the default flux range')
+
+    def run(self, model):
+        """ Transform model
+
+        Args:
+            model (:obj:`Model`): model
+
+        Returns:
+            :obj:`Model`: same model, but transformed
         """
         min_reversible_flux_bound = config['dfba']['min_reversible_flux_bound']
         min_irreversible_flux_bound = config['dfba']['min_irreversible_flux_bound']
         max_flux_bound = config['dfba']['max_flux_bound']
 
-        model = self.model
         for submodel in model.submodels:
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 for rxn in submodel.reactions:
@@ -117,3 +170,4 @@ class PrepareModel(object):
                         rxn.max_flux = max_flux
                     else:
                         rxn.max_flux = min(rxn.max_flux, max_flux)
+        return model

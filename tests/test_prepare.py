@@ -7,14 +7,24 @@
 """
 from wc_lang import (Model, Submodel, Reaction, SpeciesType, Species,
                      Compartment, SubmodelAlgorithm)
-from wc_lang.prepare import PrepareModel
+from wc_lang import prepare
 import mock
+import os
 import unittest
 import wc_lang.config.core
+import wc_lang.io
 
 
-class TestPrepareModel(unittest.TestCase):
-    def test_create_implicit_zero_concentrations(self):
+class PrepareModelTransformTestCase(unittest.TestCase):
+    def test_run(self):
+        filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
+        model = wc_lang.io.Reader().run(filename)
+        transform = prepare.PrepareModelTransform()
+        transform.run(model)
+
+
+class CreateImplicitZeroConcentrationsTransformTestCase(unittest.TestCase):
+    def test(self):
         model = Model()
         c_1 = model.compartments.create(id='c_1')
         c_2 = model.compartments.create(id='c_2')
@@ -27,8 +37,8 @@ class TestPrepareModel(unittest.TestCase):
         model.concentrations.create(species=st_1_c_1, mean=1., std=2.)
         model.concentrations.create(species=st_2_c_2, mean=1., std=2.)
 
-        prep_model = PrepareModel(model)
-        prep_model.create_implicit_zero_concentrations()
+        transform = prepare.CreateImplicitZeroConcentrationsTransform()
+        transform.run(model)
 
         self.assertEqual(len(model.concentrations), 4)
         self.assertEqual(st_1_c_1.concentration.mean, 1.)
@@ -40,7 +50,9 @@ class TestPrepareModel(unittest.TestCase):
         self.assertEqual(st_2_c_1.concentration.std, 0.)
         self.assertEqual(st_2_c_2.concentration.std, 2.)
 
-    def test_create_implicit_dfba_exchange_reactions(self):
+
+class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
+    def test(self):
         model = Model()
         submodel = model.submodels.create(id='submdl', name='submodel', algorithm=SubmodelAlgorithm.dfba)
 
@@ -75,12 +87,11 @@ class TestPrepareModel(unittest.TestCase):
         rxn.participants.create(species=specs[2][0])
         rxn.participants.create(species=specs[2][1])
 
-        prep_model = PrepareModel(model)
-        prep_model.create_implicit_dfba_exchange_reactions()
+        transform = prepare.CreateImplicitDfbaExchangeReactionsTransform()
+        transform.run(model)
 
         self.assertEqual(len(model.reactions), 5)
         self.assertEqual(len(submodel.reactions), 5)
-        print([rxn.id for rxn in model.reactions])
         self.assertNotEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_1_e'), None)
         self.assertNotEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_2_e'), None)
         self.assertEqual(model.reactions.get_one(id='__dfba_ex_submdl_st_3_e'), None)
@@ -92,7 +103,9 @@ class TestPrepareModel(unittest.TestCase):
         self.assertEqual(rxn.participants[0].coefficient, 1.)
         self.assertEqual(rxn.reversible, True)
 
-    def test_set_finite_dfba_flux_bounds(self):
+
+class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
+    def test(self):
         model = Model()
         submodel = model.submodels.create(algorithm=SubmodelAlgorithm.dfba)
         rxn_1 = model.reactions.create(submodel=submodel, reversible=True, min_flux=None, max_flux=None)
@@ -104,7 +117,7 @@ class TestPrepareModel(unittest.TestCase):
         rxn_7 = model.reactions.create(submodel=submodel, reversible=True, min_flux=-1e1, max_flux=1e1)
         rxn_8 = model.reactions.create(submodel=submodel, reversible=False, min_flux=-1e1, max_flux=1e1)
 
-        prep_model = PrepareModel(model)
+        transform = prepare.SetFiniteDfbaFluxBoundsTransform()
         with mock.patch('wc_lang.prepare.config', {
             'dfba': {
                 'min_reversible_flux_bound': -2e2,
@@ -112,7 +125,7 @@ class TestPrepareModel(unittest.TestCase):
                 'max_flux_bound': 1e2,
             },
         }):
-            prep_model.set_finite_dfba_flux_bounds()
+            transform.run(model)
 
         self.assertEqual(rxn_1.min_flux, -2e2)
         self.assertEqual(rxn_1.max_flux, 1e2)

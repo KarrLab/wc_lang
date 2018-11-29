@@ -7,15 +7,13 @@
 :License: MIT
 """
 
-import libsbml
+import math
 import os
 import pytest
 import re
 import unittest
-import warnings
-import math
 import wc_lang
-from libsbml import (SBMLNamespaces, SBMLDocument, readSBMLFromString)
+from libsbml import SBMLDocument
 from obj_model.core import InvalidAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
@@ -31,9 +29,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject)
 from wc_lang.io import Reader
-from wc_lang.prepare import PrepareModel
-from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, init_sbml_model,
-                               create_sbml_doc_w_fbc, SBML_LEVEL, SBML_VERSION, get_SBML_compatibility_method)
+from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
+                               create_sbml_doc_w_fbc, get_SBML_compatibility_method)
 
 
 class TestCore(unittest.TestCase):
