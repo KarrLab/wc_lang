@@ -16,7 +16,7 @@ from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit,
                    Function, FunctionExpression,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaNetComponent, DfbaNetReaction, Parameter,
-                   StopCondition, StopConditionExpression,
+                   StopCondition, StopConditionExpression, StopConditionUnit,
                    DatabaseReference, Reference)
 from . import config
 from . import expression

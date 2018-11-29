@@ -81,7 +81,7 @@ import wc_lang.config.core
 config = wc_lang.config.core.get_config()['wc_lang']
 
 
-class TimeUnit(int, CaseInsensitiveEnum):
+class TimeUnit(int, Enum):
     """ Time units """
     s = 1
 
@@ -277,6 +277,11 @@ class ParameterType(int, Enum):
     K_m = 27
     K_i = 261
     other = 2
+
+
+class StopConditionUnit(int, Enum):
+    """ Stop condition units """
+    dimensionless = 1
 
 
 class EvidenceType(int, CaseInsensitiveEnum):
@@ -2252,6 +2257,7 @@ class StopCondition(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
+        units (:obj:`StopConditionUnit`): units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2264,13 +2270,14 @@ class StopCondition(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
     expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
+    units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression',
+        attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
 
