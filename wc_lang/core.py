@@ -85,6 +85,7 @@ class TimeUnit(int, CaseInsensitiveEnum):
     """ Time units """
     s = 1
 
+
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
 
     def __getattr__(cls, name):
@@ -173,7 +174,7 @@ class SpeciesTypeType(int, CaseInsensitiveEnum):
 
 
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
-    ('molecules', 1),
+    ('molecule cell^-1', 1),
     ('M', 2),
     ('mM', 3),
     ('uM', 4),
@@ -184,10 +185,10 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     # ('mol dm^-2', 9),
 ])
 ConcentrationUnit.Meta = {
-    ConcentrationUnit['molecules']: {
-        'xml_id': 'molecules',
+    ConcentrationUnit['molecule cell^-1']: {
+        'xml_id': 'molecule_per_cell',
         'substance_units': {'kind': 'item', 'exponent': 1, 'scale': 0},
-        'volume_units': None,
+        'volume_units': {'kind': 'item', 'exponent': 1, 'scale': 0},
     },
     ConcentrationUnit['M']: {
         'xml_id': 'M',

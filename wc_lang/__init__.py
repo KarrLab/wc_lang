@@ -5,14 +5,18 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # :obj:`str`: version
 
 # API
-from .core import (TaxonRank, SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit, RateLawDirection, ReferenceType,
+from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit,
+                   SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit,
+                   RateLawDirection, RateLawType, RateLawUnit, DfbaNetComponentUnit, ParameterType,
+                   EvidenceType, ReferenceType,
                    Model, Taxon, Submodel, Compartment,
-                   SpeciesType, Species, DfbaObjective, DfbaObjectiveExpression,
+                   SpeciesType, Species, Concentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
-                   Function, FunctionExpression, Concentration,
-                   Reaction, SpeciesCoefficient, RateLaw, RateLawExpression, Expression,
-                   DfbaNetComponent, DfbaNetReaction, Parameter, StopCondition, StopConditionExpression,
-                   Reference, DatabaseReference)
+                   Function, FunctionExpression,
+                   Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
+                   DfbaNetComponent, DfbaNetReaction, Parameter,
+                   StopCondition, StopConditionExpression,
+                   DatabaseReference, Reference)
 from . import config
 from . import expression
 from . import io

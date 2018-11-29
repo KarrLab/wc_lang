@@ -34,6 +34,6 @@ class CreateImplicitZeroConcentrationsTransform(Transform):
                     id=Concentration.gen_id(species.id),
                     model=model,
                     species=species,
-                    mean=0.0, std=0.0, units=ConcentrationUnit.molecules)
+                    mean=0.0, std=0.0, units=ConcentrationUnit.M)
 
         return model
