@@ -1869,7 +1869,7 @@ class Species(obj_model.Model):
                 of `ids` and contains either a `Species` with `id()` equal to the element in `ids`,
                 or `None` indicating that `species_iterator` does not contain a matching `Species`
         """
-        # TODO: this costs O(|ids||species_iterator|); replace with O(|ids|) operation using obj_model.Manager.get()
+        # TODO: this costs O(|ids||species_iterator|); replace with O(|ids|) operation
         rv = []
         for id in ids:
             s = None
