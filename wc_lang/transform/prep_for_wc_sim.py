@@ -13,7 +13,7 @@ from wc_lang.transform import create_implicit_dfba_ex_rxns
 from wc_lang.transform import set_finite_dfba_flux_bounds
 
 
-class PrepareForSimulationTransform(Transform):
+class PrepareForWcSimTransform(Transform):
     """ Prepare a model for simulation by making implicit information in the model
     explicit.
 

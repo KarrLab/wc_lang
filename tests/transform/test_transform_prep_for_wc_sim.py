@@ -6,16 +6,16 @@
 :Copyright: 2017-2018, Karr Lab
 :License: MIT
 """
-from wc_lang.transform.prep_for_sim import PrepareForSimulationTransform
+from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
 import os
 import unittest
 import wc_lang.io
 
 
-class PrepareForSimulationTransformTestCase(unittest.TestCase):
+class PrepareForWcSimTransformTestCase(unittest.TestCase):
     def test_run(self):
         filename = os.path.join(os.path.dirname(__file__),
                                 '..', 'fixtures', 'example-model.xlsx')
         model = wc_lang.io.Reader().run(filename)
-        transform = PrepareForSimulationTransform()
+        transform = PrepareForWcSimTransform()
         transform.run(model)

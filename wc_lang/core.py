@@ -271,7 +271,7 @@ ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
 ])
 
 ReactionFluxUnit = Enum('ReactionFluxUnit', type=int, names=[
-    ('mol reaction gCell^-1 s^-1')
+    ('mol reaction gCell^-1 s^-1', 1),
 ])
 
 DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[

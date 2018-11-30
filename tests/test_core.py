@@ -1536,7 +1536,7 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.flux_min = 100
         self.rxn_2.flux_max = 200
-        self.rxn_2.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+        self.rxn_2.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1']
         self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())

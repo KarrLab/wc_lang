@@ -21,7 +21,6 @@ from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit,
 from . import config
 from . import expression
 from . import io
-from . import prep_for_sim
 from . import sbml
 from . import transform
 from . import util

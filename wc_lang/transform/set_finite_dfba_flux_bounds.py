@@ -71,5 +71,5 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
                     else:
                         rxn.flux_max = min(rxn.flux_max, flux_max)
 
-                    rxn.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+                    rxn.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1']
         return model
