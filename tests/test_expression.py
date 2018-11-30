@@ -156,9 +156,9 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', which doesn't refer to a Function")
 
         self.do_disambiguated_id_test('Function.fun_1()', Function, 'fun_1',
-                                      ParsedExpression.fun_type_disambig_patttern)
+                                      ParsedExpression.FUNC_TYPE_DISAMBIG_PATTERN)
         self.do_disambiguated_id_test('Function.FUN_1()', Function, 'fun_1',
-                                      ParsedExpression.fun_type_disambig_patttern, case_fold_match=True)
+                                      ParsedExpression.FUNC_TYPE_DISAMBIG_PATTERN, case_fold_match=True)
 
         self.do_disambiguated_id_error_test(
             'NotFunction.foo()',
@@ -175,9 +175,9 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', but 'fun_1' is not the id of a 'Parameter'")
 
         self.do_disambiguated_id_test('Observable.test_id', Observable, 'test_id',
-                                      ParsedExpression.model_type_disambig_pattern)
+                                      ParsedExpression.MODEL_TYPE_DISAMBIG_PATTERN)
         self.do_disambiguated_id_test('Observable.TEST_ID', Observable, 'test_id',
-                                      ParsedExpression.model_type_disambig_pattern, case_fold_match=True)
+                                      ParsedExpression.MODEL_TYPE_DISAMBIG_PATTERN, case_fold_match=True)
 
         # do not find a match
         wc_lang_expr = self.make_wc_lang_expr('3 * 2')
@@ -251,9 +251,9 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr('log(3)')
         lex_match = wc_lang_expr.get_func_call_id(0)
         self.assertTrue(isinstance(lex_match, LexMatch))
-        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.function_pattern))
+        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.FUNC_PATTERN))
         self.assertEqual(len(lex_match.wc_tokens), 2)
-        self.assertEqual(lex_match.wc_tokens[0], WcToken(WcTokenCodes.math_fun_id, 'log'))
+        self.assertEqual(lex_match.wc_tokens[0], WcToken(WcTokenCodes.math_func_id, 'log'))
         self.assertEqual(lex_match.wc_tokens[1], WcToken(WcTokenCodes.op, '('))
 
         # no token match
@@ -337,7 +337,7 @@ class TestWcLangExpression(unittest.TestCase):
         # test get_func_call_id
         expr = 'log(3) + fun_2() - Function.Observable()'
         expected_wc_tokens = [
-            WcToken(code=WcTokenCodes.math_fun_id, token_string='log'),
+            WcToken(code=WcTokenCodes.math_func_id, token_string='log'),
             WcToken(WcTokenCodes.op, '('),
             WcToken(WcTokenCodes.number, '3'),
             WcToken(WcTokenCodes.op, ')'),
@@ -554,7 +554,7 @@ class TestParsedExpressionVerifier(unittest.TestCase):
         self.assertTrue(error is None)
 
         invalid_linear_exprressions = [
-            [WcToken(WcTokenCodes.math_fun_id, 'log')],     # math functions not allowed
+            [WcToken(WcTokenCodes.math_func_id, 'log')],     # math functions not allowed
             [WcToken(WcTokenCodes.number, '3j')],           # numbers must be floats
         ]
         for invalid_linear_exprression in invalid_linear_exprressions:

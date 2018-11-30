@@ -17,13 +17,11 @@ from wc_lang.core import InvalidObject, InvalidAttribute
 from wc_lang.util import get_models
 from wc_utils.util.misc import DFSMAcceptor
 
-# TODO: support logical operators (or, and, not) in expressions, esp. StopConditions
-
 
 class WcTokenCodes(int, Enum):
     """ WcToken codes used in parsed expressions """
     wc_obj_id = 1
-    math_fun_id = 2
+    math_func_id = 2
     number = 3
     op = 4
     other = 5
@@ -322,6 +320,17 @@ class ParsedExpressionError(Exception):
         super().__init__(message)
 
 
+# enumerate and detect Python tokens that are illegal in wc_lang expressions
+ILLEGAL_TOKENS_NAMES = ('ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
+                        'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
+                        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
+                        'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET',
+                        'SEMI', 'TILDE', 'AT')
+ILLEGAL_TOKENS = set()
+for illegal_name in ILLEGAL_TOKENS_NAMES:
+    ILLEGAL_TOKENS.add(getattr(token, illegal_name))
+
+
 class ParsedExpression(object):
     """ An expression in a wc_lang Model
 
@@ -376,20 +385,10 @@ class ParsedExpression(object):
     """
 
     # Function.identifier()
-    fun_type_disambig_patttern = (token.NAME, token.DOT, token.NAME, token.LPAR, token.RPAR)
+    FUNC_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME, token.LPAR, token.RPAR)
     # ModelType.model_id
-    model_type_disambig_pattern = (token.NAME, token.DOT, token.NAME)
-    function_pattern = (token.NAME, token.LPAR)
-
-    # enumerate and detect Python tokens that are illegal in wc_lang expressions
-    # TODO: consider the handful of other tokens that may also be illegal: COMMA, SEMI, TILDE, CIRCUMFLEX, and AT
-    illegal_token_names = ['ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
-                           'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
-                           'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
-                           'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET']
-    illegal_tokens = set()
-    for illegal_name in illegal_token_names:
-        illegal_tokens.add(getattr(token, illegal_name))
+    MODEL_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME)
+    FUNC_PATTERN = (token.NAME, token.LPAR)
 
     def __init__(self, model_cls, attr, expression, objs):
         """ Create an instance of ParsedExpression
@@ -514,24 +513,24 @@ class ParsedExpression(object):
                 but their values are wrong, return an error `str`.
                 If a disambugated id is found, return a `LexMatch` describing it.
         """
-        fun_match = self.match_tokens(self.fun_type_disambig_patttern, idx)
-        if fun_match:
+        func_match = self.match_tokens(self.FUNC_TYPE_DISAMBIG_PATTERN, idx)
+        if func_match:
             possible_macro_id = self.py_tokens[idx+2].string
             if case_fold_match:
                 possible_macro_id = possible_macro_id.casefold()
             # the disambiguation model type must be Function
             if self.py_tokens[idx].string != wc_lang.core.Function.__name__:
                 return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
-                        "model type".format(self.expression, self.model_cls.__name__, self.attr, fun_match))
+                        "model type".format(self.expression, self.model_cls.__name__, self.attr, func_match))
             # the identifier must be in the Function objects
             if wc_lang.core.Function not in self.valid_models or possible_macro_id not in self._objs[wc_lang.core.Function]:
                 return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function".format(
-                    self.expression, self.model_cls.__name__, self.attr, fun_match)
-            return LexMatch([WcToken(WcTokenCodes.wc_obj_id, fun_match, wc_lang.core.Function,
+                    self.expression, self.model_cls.__name__, self.attr, func_match)
+            return LexMatch([WcToken(WcTokenCodes.wc_obj_id, func_match, wc_lang.core.Function,
                                      possible_macro_id, self._objs[wc_lang.core.Function][possible_macro_id])],
-                            len(self.fun_type_disambig_patttern))
+                            len(self.FUNC_TYPE_DISAMBIG_PATTERN))
 
-        disambig_model_match = self.match_tokens(self.model_type_disambig_pattern, idx)
+        disambig_model_match = self.match_tokens(self.MODEL_TYPE_DISAMBIG_PATTERN, idx)
         if disambig_model_match:
             disambig_model_type = self.py_tokens[idx].string
             possible_model_id = self.py_tokens[idx+2].string
@@ -559,7 +558,7 @@ class ParsedExpression(object):
 
             return LexMatch([WcToken(WcTokenCodes.wc_obj_id, disambig_model_match, model_type,
                                      possible_model_id, self._objs[model_type][possible_model_id])],
-                            len(self.model_type_disambig_pattern))
+                            len(self.MODEL_TYPE_DISAMBIG_PATTERN))
 
         # no match
         return None
@@ -650,30 +649,30 @@ class ParsedExpression(object):
                 but their values are wrong, return an error `str`.
                 If a function call is found, return a `LexMatch` describing it.
         """
-        fun_match = self.match_tokens(self.function_pattern, idx)
-        if fun_match:
-            fun_name = self.py_tokens[idx].string
-            # function_pattern is "identifier ("
+        func_match = self.match_tokens(self.FUNC_PATTERN, idx)
+        if func_match:
+            func_name = self.py_tokens[idx].string
+            # FUNC_PATTERN is "identifier ("
             # the closing paren ")" will simply be encoded as a WcToken with code == op
 
             # are Python math functions defined?
             if not hasattr(self.model_cls.Meta, 'valid_functions'):
                 return ("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
                         "define 'valid_functions'".format(self.expression,
-                                                          self.model_cls.__name__, self.attr, fun_name, self.model_cls.__name__))
+                                                          self.model_cls.__name__, self.attr, func_name, self.model_cls.__name__))
 
             function_ids = set([f.__name__ for f in self.model_cls.Meta.valid_functions])
 
             # is the function allowed?
-            if fun_name not in function_ids:
+            if func_name not in function_ids:
                 return ("'{}', a {}.{}, contains the func name '{}', but it isn't in "
                         "{}.Meta.valid_functions: {}".format(self.expression, self.model_cls.__name__,
-                                                             self.attr, fun_name, self.model_cls.__name__, ', '.join(function_ids)))
+                                                             self.attr, func_name, self.model_cls.__name__, ', '.join(function_ids)))
 
             # return a lexical match about a math function
             return LexMatch(
-                [WcToken(WcTokenCodes.math_fun_id, fun_name), WcToken(WcTokenCodes.op, '(')],
-                len(self.function_pattern))
+                [WcToken(WcTokenCodes.math_func_id, func_name), WcToken(WcTokenCodes.op, '(')],
+                len(self.FUNC_PATTERN))
 
         # no match
         return None
@@ -698,7 +697,8 @@ class ParsedExpression(object):
         # detect and report bad tokens
         bad_tokens = set()
         for tok in self.py_tokens:
-            if tok.exact_type in self.illegal_tokens:
+            print(tok.exact_type, tok.string)
+            if tok.exact_type in ILLEGAL_TOKENS:
                 if tok.string and tok.string != ' ':
                     bad_tokens.add(tok.string)
                 else:
@@ -770,7 +770,7 @@ class ParsedExpression(object):
         # detect ambiguous tokens
         valid_function_names = [func.__name__ for func in self.valid_functions]
         for wc_token in self.wc_tokens:
-            if wc_token.code in [WcTokenCodes.wc_obj_id, WcTokenCodes.math_fun_id]:
+            if wc_token.code in [WcTokenCodes.wc_obj_id, WcTokenCodes.math_func_id]:
                 matching_items = []
 
                 for model_type in self.valid_models:
@@ -912,7 +912,7 @@ class ParsedExpressionVerifier(object):
         """ Check whether the content of a sequence of `WcToken`s is valid
 
         In particular, all numbers in `tokens` must be floats, and all token codes must not
-        be `math_fun_id` or `other`.
+        be `math_func_id` or `other`.
 
         Args:
             tokens (:obj:`iterator` of `WcToken`): sequence of `WcToken`s
@@ -985,7 +985,7 @@ class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
         """ Check whether the content of a sequence of `WcToken`s is valid
 
         In particular, all numbers in `tokens` must be floats, and all token codes must not
-        be `math_fun_id` or `other`.
+        be `math_func_id` or `other`.
 
         Args:
             tokens (:obj:`iterator` of `WcToken`): sequence of `WcToken`s
@@ -995,8 +995,8 @@ class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
                 (`True`, `True`) if it can
         """
         for token in tokens:
-            if token.code in set([WcTokenCodes.math_fun_id, WcTokenCodes.other]):
-                return (False, "messages do not use token codes `math_fun_id` or `other`")
+            if token.code in set([WcTokenCodes.math_func_id, WcTokenCodes.other]):
+                return (False, "messages do not use token codes `math_func_id` or `other`")
             if token.code == WcTokenCodes.number:
                 try:
                     float(token.token_string)

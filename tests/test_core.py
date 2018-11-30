@@ -1909,9 +1909,21 @@ class TestCore(unittest.TestCase):
         self.assertEqual(stop_condition.model, model)
         self.assertEqual(model.stop_conditions[-1], stop_condition)
         self.assertEqual(stop_condition.comments, kwargs['comments'])
+
         expr = 'ccc + ddd'
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         stop_condition.expression = stop_condition_expr
+        self.assertEqual(stop_condition.validate(), None)
+
+        expr = 'ccc or ddd'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        stop_condition.expression = stop_condition_expr
+        self.assertEqual(stop_condition.validate(), None)
+
+        expr = 'ccc or !ddd'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        stop_condition.expression = stop_condition_expr
+        self.assertEqual(stop_condition.validate(), None)
 
     def test_valid_observable_expressions(self):
         _, objects, id_map = self.make_objects()
