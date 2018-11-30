@@ -6,18 +6,15 @@
 '''
 
 import unittest
-import os
 import re
 import tokenize
 import token
-from io import BytesIO
 
 import obj_model
-from wc_lang.io import Reader
-from wc_lang import (RateLawExpression, RateLaw, Reaction, Submodel, SpeciesType, Species,
+from wc_lang import (RateLawExpression, RateLaw, SpeciesType, Species,
                      FunctionExpression, Function,
-                     StopCondition, Observable, Parameter,
-                     DfbaNetReaction, Compartment)
+                     Observable, Parameter,
+                     Compartment)
 from wc_lang.expression import (WcTokenCodes, WcToken, LexMatch,
                                 ParsedExpression, ParsedExpressionError,
                                 ParsedExpressionVerifier, LinearParsedExpressionVerifier)

@@ -15,7 +15,6 @@ import unittest
 import wc_lang
 from libsbml import SBMLDocument
 from obj_model.core import InvalidAttribute
-from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,

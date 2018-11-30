@@ -35,10 +35,9 @@ This module also defines numerous classes that serve as attributes of these clas
 """
 
 from enum import Enum, EnumMeta
-from itertools import chain
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
-from six import with_metaclass, string_types
+from six import with_metaclass
 import collections
 import datetime
 import networkx
@@ -46,7 +45,6 @@ import pkg_resources
 import re
 import six
 import stringcase
-import sys
 import token
 
 from obj_model import (BooleanAttribute, EnumAttribute,
@@ -58,9 +56,8 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
-                               init_sbml_model, create_sbml_parameter, add_sbml_unit)
-from wc_lang.expression import (Expression, ParsedExpression, ParsedExpressionError,
-                                LinearParsedExpressionVerifier, WcToken, WcTokenCodes)
+                               create_sbml_parameter)
+from wc_lang.expression import Expression, ParsedExpression
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.chem import EmpiricalFormula

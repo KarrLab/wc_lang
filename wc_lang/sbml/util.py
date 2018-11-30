@@ -17,7 +17,6 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
 from warnings import warn
 import libsbml
 import six
-import sys
 import wc_lang.core
 
 # Centralize code that depends on levels and versions
