@@ -35,6 +35,7 @@ def get_config(extra=None):
     validate_config(config)
     return config
 
+
 def validate_config(config):
     """ Validate configuration
 
@@ -50,7 +51,7 @@ def validate_config(config):
     flux_min_bound_reversible = config['wc_lang']['dfba']['flux_min_bound_reversible']
     flux_min_bound_irreversible = config['wc_lang']['dfba']['flux_min_bound_irreversible']
     flux_max_bound = config['wc_lang']['dfba']['flux_max_bound']
-    
+
     if flux_max_bound < flux_min_bound_reversible:
         raise ValueError(("minimum dFBA reversible flux bound must be greater than or equal to "
                           "the maximum bound:\n"
@@ -58,7 +59,7 @@ def validate_config(config):
                           "  flux_max_bound={}").format(
             flux_min_bound_reversible,
             flux_max_bound))
-    
+
     if flux_max_bound < flux_min_bound_irreversible:
         raise ValueError(("minimum dFBA irreversible flux bound must be greater than or equal to "
                           "the maximum bound:\n"
@@ -66,6 +67,7 @@ def validate_config(config):
                           "  flux_max_bound={}").format(
             flux_min_bound_irreversible,
             flux_max_bound))
+
 
 def get_debug_logs_config(extra=None):
     """ Get debug logs configuration

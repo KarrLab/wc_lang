@@ -241,6 +241,7 @@ ReactionParticipantUnit = Enum('ReactionParticipantUnit', type=int, names=[
     ('molecule reaction^-1', 1),
 ])
 
+
 class RateLawDirection(int, CaseInsensitiveEnum):
     """ Rate law directions """
     backward = -1
