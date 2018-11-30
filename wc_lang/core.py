@@ -33,7 +33,6 @@ This module also defines numerous classes that serve as attributes of these clas
 :Copyright: 2016-2017, Karr Lab
 :License: MIT
 """
-# TODO: for determinism, replace remaining list(set(list1)) expressions with det_dedupe(list1) in other packages
 
 from enum import Enum, EnumMeta
 from itertools import chain
@@ -676,7 +675,7 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         if errors:
             return (None, InvalidAttribute(self, errors))
         else:
-            return (list(db_refs), None)
+            return (det_dedupe(db_refs), None)
 
 
 class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
@@ -735,7 +734,7 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
         if errors:
             return (None, InvalidAttribute(self, errors))
         else:
-            return (list(db_refs), None)
+            return (det_dedupe(db_refs), None)
 
 
 class Model(obj_model.Model):
@@ -1778,7 +1777,6 @@ class SpeciesType(obj_model.Model):
         Returns:
             :obj:`bool`: `True` is species contains at least one carbon atom.
         """
-        # todo: move to compiled model
         return re.match('C[1-9]', self.empirical_formula) is not None
 
 
