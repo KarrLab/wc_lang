@@ -1925,6 +1925,18 @@ class TestCore(unittest.TestCase):
         stop_condition.expression = stop_condition_expr
         self.assertEqual(stop_condition.validate(), None)
 
+        expr = 'ccc or ddd\n'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        self.assertEqual(stop_condition_expr, None)
+
+        expr = 'ccc << ddd'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        self.assertEqual(stop_condition_expr, None)
+
+        expr = 'ccc or ~ddd'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        self.assertEqual(stop_condition_expr, None)
+
     def test_valid_observable_expressions(self):
         _, objects, id_map = self.make_objects()
 

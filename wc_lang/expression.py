@@ -320,17 +320,6 @@ class ParsedExpressionError(Exception):
         super().__init__(message)
 
 
-# enumerate and detect Python tokens that are illegal in wc_lang expressions
-ILLEGAL_TOKENS_NAMES = ('ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
-                        'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
-                        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
-                        'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET',
-                        'SEMI', 'TILDE', 'AT')
-ILLEGAL_TOKENS = set()
-for illegal_name in ILLEGAL_TOKENS_NAMES:
-    ILLEGAL_TOKENS.add(getattr(token, illegal_name))
-
-
 class ParsedExpression(object):
     """ An expression in a wc_lang Model
 
@@ -389,6 +378,20 @@ class ParsedExpression(object):
     # ModelType.model_id
     MODEL_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME)
     FUNC_PATTERN = (token.NAME, token.LPAR)
+
+    # enumerate and detect Python tokens that are illegal in wc_lang expressions
+    ILLEGAL_TOKENS_NAMES = ('ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
+                            'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
+                            'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
+                            'ATEQUAL', 'RARROW', 'ELLIPSIS', 'AWAIT', 'ASYNC', 'ERRORTOKEN', 'N_TOKENS', 'NT_OFFSET',
+                            'PERCENT', 'DOUBLESLASH',
+                            'CIRCUMFLEX', 'RIGHTSHIFT', 'LEFTSHIFT', 'VBAR', 'AMPER', 'TILDE',
+                            'EQEQUAL',
+                            'SEMI', 'AT')
+    ILLEGAL_TOKENS = set()
+    for illegal_token_name in ILLEGAL_TOKENS_NAMES:
+        illegal_token = getattr(token, illegal_token_name)
+        ILLEGAL_TOKENS.add(illegal_token)
 
     def __init__(self, model_cls, attr, expression, objs):
         """ Create an instance of ParsedExpression
@@ -698,7 +701,7 @@ class ParsedExpression(object):
         bad_tokens = set()
         for tok in self.py_tokens:
             print(tok.exact_type, tok.string)
-            if tok.exact_type in ILLEGAL_TOKENS:
+            if tok.exact_type in self.ILLEGAL_TOKENS:
                 if tok.string and tok.string != ' ':
                     bad_tokens.add(tok.string)
                 else:
