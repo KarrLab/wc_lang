@@ -14,6 +14,7 @@ from tempfile import mkdtemp
 from wc_lang import __main__
 from wc_lang import Model, Parameter
 from wc_lang.io import Writer, Reader
+import datetime
 import mock
 import unittest
 import wc_lang
@@ -65,15 +66,17 @@ class TestCli(unittest.TestCase):
                 app.run()
 
     def test_difference(self):
-        model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        now = datetime.datetime.now().replace(microsecond=0)
+
+        model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename1 = path.join(self.tempdir, 'model1.xlsx')
         Writer().run(model1, filename1, set_repo_metadata_from_path=False)
 
-        model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename2 = path.join(self.tempdir, 'model2.xlsx')
         Writer().run(model2, filename2, set_repo_metadata_from_path=False)
 
-        model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1', created=now, updated=now)
         filename3 = path.join(self.tempdir, 'model3.xlsx')
         Writer().run(model3, filename3, set_repo_metadata_from_path=False)
 

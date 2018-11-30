@@ -1490,7 +1490,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
 
         if errors:
             return InvalidObject(self, errors)
-        return Expression.validate(self)
+        return Expression.validate(self, self.dfba_obj)
 
     def serialize(self):
         """ Generate string representation
@@ -2015,6 +2015,9 @@ class ObservableExpression(obj_model.Model, Expression):
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this Observable expression
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
+
+    Related attributes:
+        observable (:obj:`Observable`): observable
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -2063,7 +2066,7 @@ class ObservableExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return Expression.validate(self, check_linear=True)
+        return Expression.validate(self, self.observable, check_linear=True)
 
 
 class Observable(obj_model.Model):
@@ -2165,7 +2168,7 @@ class FunctionExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return Expression.validate(self)
+        return Expression.validate(self, self.function)
 
 
 class Function(obj_model.Model):
@@ -2217,6 +2220,9 @@ class StopConditionExpression(obj_model.Model, Expression):
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
+
+    Related attributes:
+        stop_condition (:obj:`StopCondition`): stop condition
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -2267,7 +2273,7 @@ class StopConditionExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return Expression.validate(self, return_type=bool)
+        return Expression.validate(self, self.stop_condition, return_type=bool)
 
 
 class StopCondition(obj_model.Model):
@@ -2756,7 +2762,7 @@ class RateLawExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors in an `InvalidObject` instance
         """
-        return Expression.validate(self)
+        return Expression.validate(self, self.rate_laws[0])
 
 
 class DfbaNetComponent(obj_model.Model):

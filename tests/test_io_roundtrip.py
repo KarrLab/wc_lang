@@ -106,11 +106,11 @@ class RoundTripTestCase(unittest.TestCase):
         objects[Species][species_1.id] = species_1
         observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
         objects = {Observable: {'observable_1': observable_1}}
-        Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
+        observable_2 = Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
-        param = model.parameters.create(id='param_1')
+        param = model.parameters.create(id='param_1', value=1.)
         objects = {Parameter: {'param_1': param}}
-        Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
+        fun_1 = Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
 
         rxn_species_coeffs = [
             species_1.species_coefficients.get_or_create(coefficient=-3.),

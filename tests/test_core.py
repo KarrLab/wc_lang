@@ -17,7 +17,8 @@ from libsbml import SBMLDocument
 from obj_model.core import InvalidAttribute
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
-                          Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
+                          Reaction, ConcentrationUnit, Compartment,
+                          SpeciesType, SpeciesTypeType, Species,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
                           RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection, ReactionFluxUnit,
@@ -716,7 +717,7 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_1'),
         ]
         parameters = [
-            Parameter(id='p_0'),
+            Parameter(id='p_0', value=1.),
         ]
 
         # unknown specie error
@@ -789,8 +790,9 @@ class TestCore(unittest.TestCase):
             expression=expression,
         )
         error = rate_law.validate()
-        self.assertEqual(rate_law.validate(), None, str(error))
-        self.assertEqual(rate_law.expression.validate(), None, str(error))
+        self.assertEqual(error, None, str(error))
+        error = rate_law.expression.validate()
+        self.assertEqual(error, None, str(error))
 
         # No error with parameters
         expression = 'p_0 * spec_0[c_0]'
@@ -807,8 +809,10 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             expression=expression
         )
-        self.assertEqual(rate_law.validate(), None)
-        self.assertEqual(rate_law.expression.validate(), None, str(error))
+        error = rate_law.validate()
+        self.assertEqual(error, None, str(error))
+        error = rate_law.expression.validate()
+        self.assertEqual(error, None, str(error))
 
     def test_rate_law_expression_validate(self):
         species_types = [
@@ -822,30 +826,35 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_2'),
         ]
         parameters = [
-            Parameter(id='p_0'),
-            Parameter(id='p_1'),
-            Parameter(id='k_m'),
+            Parameter(id='p_0', value=1.),
+            Parameter(id='p_1', value=1.),
+            Parameter(id='k_m', value=1.),
         ]
 
         expression = 'spec_0[c_0]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ])
-        self.assertEqual(expression.validate(), None)
+        error = expression.validate()
+        self.assertEqual(error, None, str(error))
 
         expression = 'spec_0[c_0] * spec_1[c_2]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
                 Species(id='spec_1[c_2]', species_type=species_types[1], compartment=compartments[2]),
             ])
-        self.assertEqual(expression.validate(), None)
+        error = expression.validate()
+        self.assertEqual(error, None, str(error))
 
         expression = 'spec_0[c_0] * spec_1[c_2]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
@@ -856,6 +865,7 @@ class TestCore(unittest.TestCase):
 
         expression = 'spec_0[c_0] * spec_1[c_2]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
@@ -865,15 +875,18 @@ class TestCore(unittest.TestCase):
         # parameters
         expression = 'p_0 * spec_0[c_0]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[0]])
-        self.assertEqual(expression.validate(), None)
+        error = expression.validate()
+        self.assertEqual(error, None, str(error))
 
         expression = 'p_0 * spec_0[c_0]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
@@ -883,6 +896,7 @@ class TestCore(unittest.TestCase):
 
         expression = 'p_1 * spec_0[c_0]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
@@ -892,13 +906,14 @@ class TestCore(unittest.TestCase):
 
         expression = 'k_m * spec_0[c_0]'
         expression = RateLawExpression(
+            rate_laws=[RateLaw()],
             expression=expression,
             modifiers=[
                 Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
             ],
             parameters=[parameters[2]])
-        invalid = expression.validate()
-        self.assertEqual(invalid, None, str(invalid))
+        error = expression.validate()
+        self.assertEqual(error, None, str(error))
 
     def test_rate_law_modifiers(self):
         self.assertEqual(self.rxn_0.rate_laws[0].expression.modifiers, self.species[5:6])
@@ -1670,20 +1685,22 @@ class TestCore(unittest.TestCase):
             Species: {},
         }
         for id in ['a', 'b', 'duped_id']:
-            param = model.parameters.create(id=id)
+            param = model.parameters.create(id=id, value=1.)
             objects[Parameter][id] = param
-
-        for id in ['ccc', 'ddd', 'eee', 'duped_id']:
-            observable = model.observables.create(id=id)
-            objects[Observable][id] = observable
-
-        for id in ['f', 'g', 'duped_id']:
-            function = model.functions.create(id=id)
-            objects[Function][id] = function
 
         # use existing species
         for s in self.species:
             objects[Species][s.id] = s
+
+        for id, species in zip(['ccc', 'ddd', 'eee', 'duped_id'], self.species):
+            observable = model.observables.create(id=id)
+            observable.expression, _ = ObservableExpression.deserialize(species.id, objects)
+            objects[Observable][id] = observable
+
+        for id, species in zip(['f', 'g', 'duped_id'], self.species):
+            function = model.functions.create(id=id)
+            function.expression, _ = FunctionExpression.deserialize(species.id, objects)
+            objects[Function][id] = function
 
         id_map = {}
         for model_type in objects.keys():
@@ -1731,6 +1748,14 @@ class TestCore(unittest.TestCase):
             expected_related_objs (:obj:`dict`, optional): objects that should be used by the deserialize expression
         """
         expr_obj, error = expression_class.deserialize(expr, objects)
+        conc_units_opts = {'concentration_units': ConcentrationUnit['molecule cell^-1']}
+        if 'concentration_units' in parent_class.Meta.attributes:
+            parent_opts = conc_units_opts
+            eval_opts = {}
+        else:
+            parent_opts = {}
+            eval_opts = conc_units_opts
+        parent = parent_class(expression=expr_obj, **parent_opts)
         if expected_error:
             self.assertIn(expected_error, str(error))
         else:
@@ -1743,8 +1768,8 @@ class TestCore(unittest.TestCase):
                 for modifier, elements in expected_related_objs.items():
                     self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
             error = expr_obj.validate()
-            self.assertEqual(error, None)
-            self.assertEqual(expr_obj._parsed_expression.test_eval(), expected_val)
+            self.assertEqual(error, None, str(error))
+            self.assertEqual(expr_obj._parsed_expression.test_eval(parent, **eval_opts), expected_val)
 
     def test_valid_function_expressions(self):
         _, objects, id_map = self.make_objects()
@@ -1752,7 +1777,6 @@ class TestCore(unittest.TestCase):
         i = 0
         for i_expr, (expr, expected_test_val, expected_related_objs, error) in enumerate([
             ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),
-            ('ccc', 1, {'observables': [id_map['Observable.ccc']]}, None),     # reuse the FunctionExpression
             ('ddd + eee', 2, {'observables': [id_map['Observable.ddd'], id_map['Observable.eee']]}, None),
             ('ddd + 2 * eee', 3, {}, None),
             ('ddd + 2 * eee > 3', False, {}, None),
@@ -1780,6 +1804,12 @@ class TestCore(unittest.TestCase):
             self.do_test_valid_expression(FunctionExpression, Function,
                                           objects, expr, expected_test_val, expected_related_objs,
                                           expected_error=error)
+
+        # reuse the FunctionExpression
+        with self.assertRaisesRegex(ValueError, 'must be `None`'):
+            self.do_test_valid_expression(FunctionExpression, Function,
+                                          objects, 'ccc', 1, {'observables': [id_map['Observable.ccc']]},
+                                          expected_error=None)
 
     def do_test_expr_deserialize_error(self, expression_class, parent_class, objects, expr, error_msg_substr):
         """ Test an expression that fails to deserialize
@@ -1885,11 +1915,15 @@ class TestCore(unittest.TestCase):
         for expr, expected_test_val, expected_attrs in [
             ('ccc > 10', False, {'observables': [id_map['Observable.ccc']]}),
             ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),
-            ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),    # reuse StopConditionExpression
             ('ccc + ddd - a + f() * g() + 10 > 0', True, some_used_objs)
         ]:
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
                                           objects, expr, expected_test_val, expected_attrs)
+
+        with self.assertRaisesRegex(ValueError, 'must be `None`'):
+            # reuse StopConditionExpression
+            self.do_test_valid_expression(StopConditionExpression, StopCondition,
+                                          objects, 'ccc > 0', True, {'observables': [id_map['Observable.ccc']]})
 
     def test_invalid_stop_condition_expressions(self):
         _, objects, _ = self.make_objects()
