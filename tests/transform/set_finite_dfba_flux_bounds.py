@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-from wc_lang import Model, SubmodelAlgorithm, FluxUnit
+from wc_lang import Model, SubmodelAlgorithm, ReactionFluxUnit
 from wc_lang.transform.set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
 import mock
 import unittest
@@ -26,13 +26,13 @@ class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
         rxn_4 = model.reactions.create(submodel=submodel, reversible=False,
                                        flux_min=float('nan'), flux_max=float('nan'))
         rxn_5 = model.reactions.create(submodel=submodel, reversible=True,
-                                       flux_min=-1e3, flux_max=1e3, flux_units=FluxUnit['mol g^-1 s^-1'])
+                                       flux_min=-1e3, flux_max=1e3, flux_units=ReactionFluxUnit['mol g^-1 s^-1'])
         rxn_6 = model.reactions.create(submodel=submodel, reversible=False,
-                                       flux_min=-1e3, flux_max=1e3, flux_units=FluxUnit['mol g^-1 s^-1'])
+                                       flux_min=-1e3, flux_max=1e3, flux_units=ReactionFluxUnit['mol g^-1 s^-1'])
         rxn_7 = model.reactions.create(submodel=submodel, reversible=True,
-                                       flux_min=-1e1, flux_max=1e1, flux_units=FluxUnit['mol g^-1 s^-1'])
+                                       flux_min=-1e1, flux_max=1e1, flux_units=ReactionFluxUnit['mol g^-1 s^-1'])
         rxn_8 = model.reactions.create(submodel=submodel, reversible=False,
-                                       flux_min=-1e1, flux_max=1e1, flux_units=FluxUnit['mol g^-1 s^-1'])
+                                       flux_min=-1e1, flux_max=1e1, flux_units=ReactionFluxUnit['mol g^-1 s^-1'])
 
         transform = SetFiniteDfbaFluxBoundsTransform()
         with mock.patch('wc_lang.transform.set_finite_dfba_flux_bounds.config', {

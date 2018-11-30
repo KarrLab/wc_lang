@@ -21,7 +21,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Reaction, SpeciesType, SpeciesTypeType, Species, Compartment,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
-                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection, FluxUnit,
+                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection, ReactionFluxUnit,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
@@ -1536,7 +1536,7 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.flux_min = 100
         self.rxn_2.flux_max = 200
-        self.rxn_2.flux_units = FluxUnit['mol g^-1 s^-1'],
+        self.rxn_2.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
         self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
@@ -2038,7 +2038,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=-1., flux_max=1.,
-                       flux_units=FluxUnit['mol g^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2046,7 +2046,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=0., flux_max=1.,
-                       flux_units=FluxUnit['mol g^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2054,7 +2054,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=1., flux_max=-1.,
-                       flux_units=FluxUnit['mol g^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -2071,7 +2071,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=-1., flux_max=-1.5,
-                       flux_units=FluxUnit['mol g^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[

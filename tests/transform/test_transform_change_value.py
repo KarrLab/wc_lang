@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Compartment, Concentration, Function, FunctionExpression, Parameter,
-                     Reaction, RateLawDirection, RateLawExpression, FluxUnit, Species)
+                     Reaction, RateLawDirection, RateLawExpression, ReactionFluxUnit, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
 
@@ -69,10 +69,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = s_1.reactions.create(id='r_1_1', flux_min=1, flux_units=FluxUnit['mol g^-1 s^-1'])
-        r_1_2 = s_1.reactions.create(id='r_1_2', flux_min=2, flux_units=FluxUnit['mol g^-1 s^-1'])
-        r_2_1 = s_2.reactions.create(id='r_2_1', flux_min=3, flux_units=FluxUnit['mol g^-1 s^-1'])
-        r_2_2 = s_2.reactions.create(id='r_2_2', flux_min=4, flux_units=FluxUnit['mol g^-1 s^-1'])
+        r_1_1 = s_1.reactions.create(id='r_1_1', flux_min=1, flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'])
+        r_1_2 = s_1.reactions.create(id='r_1_2', flux_min=2, flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'])
+        r_2_1 = s_2.reactions.create(id='r_2_1', flux_min=3, flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'])
+        r_2_2 = s_2.reactions.create(id='r_2_2', flux_min=4, flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'])
         ChangeValueTransform(Reaction, 'r_1_2', ['flux_min'], 0).run(model)
 
         self.assertEqual(r_1_1.flux_min, 1)

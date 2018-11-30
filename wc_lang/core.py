@@ -173,6 +173,11 @@ class SpeciesTypeType(int, CaseInsensitiveEnum):
     pseudo_species = 5
 
 
+class ObservableCoefficientUnit(int, Enum):
+    """ Observable coefficient units """
+    dimensionless = 1
+
+
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('molecule cell^-1', 1),
     ('M', 2),
@@ -232,6 +237,9 @@ ConcentrationUnit.Meta = {
     #},
 }
 
+ReactionParticipantUnit = Enum('ReactionParticipantUnit', type=int, names=[
+    ('molecule reaction^-1', 1),
+])
 
 class RateLawDirection(int, CaseInsensitiveEnum):
     """ Rate law directions """
@@ -256,17 +264,30 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
     ('other', 1),
 ])
 
-RateLawUnit = Enum('RateLawUnit', type=int, names=[
-    ('s^-1', 1),
-    ('M s^-1', 2),
+ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
+    ('reaction cell^-1 s^-1', 1),
+    ('M reaction s^-1', 2),
 ])
 
-FluxUnit = Enum('FluxUnit', type=int, names=[
-    ('mol g^-1 s^-1')
+ReactionFluxUnit = Enum('ReactionFluxUnit', type=int, names=[
+    ('mol reaction gCell^-1 s^-1')
+])
+
+DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[
+    ('gsCellCycle gCell^-1 s^-1', 1),
+])
+
+DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
+    ('dimensionless', 1),
+    ('mol reaction gsCellCycle^-1', 2),
 ])
 
 DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
-    ('M s^-1', 1),
+    ('mol gsCellCycle^-1', 1),
+])
+
+DfbaNetFluxUnit = Enum('DfbaNetFluxUnit', type=int, names=[
+    ('gsCellCycle gCell^-1 s^-1', 1),
 ])
 
 
@@ -1506,6 +1527,7 @@ class DfbaObjective(obj_model.Model):
         model (:obj:`Model`): model
         submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
         expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
+        units (:obj:`DfbaObjectiveUnit`): units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1517,6 +1539,7 @@ class DfbaObjective(obj_model.Model):
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
+    units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['gsCellCycle gCell^-1 s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = LongStringAttribute()
@@ -1524,7 +1547,7 @@ class DfbaObjective(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', 'expression',
+        attribute_order = ('id', 'name', 'submodel', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = DfbaObjectiveExpression
 
@@ -2157,6 +2180,9 @@ class Function(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
+        units (:obj:`str`): units
+        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
+            concentrations to evaluate function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2171,13 +2197,15 @@ class Function(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='functions')
     expression = ExpressionAttribute('FunctionExpression', related_name='function')
+    units = LongStringAttribute()
+    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression',
+        attribute_order = ('id', 'name', 'expression', 'units', 'concentration_units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = FunctionExpression
 
@@ -2258,6 +2286,8 @@ class StopCondition(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         units (:obj:`StopConditionUnit`): units
+        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
+            concentrations to evaluate stop condition
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2271,13 +2301,14 @@ class StopCondition(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
     expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
     units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
+    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'units',
+        attribute_order = ('id', 'name', 'expression', 'units', 'concentration_units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
 
@@ -2294,7 +2325,7 @@ class Reaction(obj_model.Model):
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
         flux_min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         flux_max (:obj:`float`): maximum flux bound for solving an FBA model
-        flux_units (:obj:`FluxUnit`): units for the minimum and maximum fluxes
+        flux_units (:obj:`ReactionFluxUnit`): units for the minimum and maximum fluxes
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2313,7 +2344,7 @@ class Reaction(obj_model.Model):
     reversible = BooleanAttribute()
     flux_min = FloatAttribute(nan=True)
     flux_max = FloatAttribute(min=0, nan=True)
-    flux_units = EnumAttribute(FluxUnit, default=None, none=True)
+    flux_units = EnumAttribute(ReactionFluxUnit, default=None, none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     comments = LongStringAttribute()
@@ -2598,7 +2629,9 @@ class RateLaw(obj_model.Model):
         direction (:obj:`RateLawDirection`): direction
         type (:obj:`RateLawType`): type
         expression (:obj:`RateLawExpression`): expression
-        units (:obj:`RateLawUnit`): units
+        units (:obj:`ReactionRateUnit`): units
+        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
+            concentrations to evaluate function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2611,7 +2644,8 @@ class RateLaw(obj_model.Model):
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
     expression = RateLawExpressionAttribute(related_name='rate_laws')
-    units = EnumAttribute(RateLawUnit, default=RateLawUnit['s^-1'])
+    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['reaction cell^-1 s^-1'])
+    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
@@ -2619,7 +2653,7 @@ class RateLaw(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
-                           'expression', 'units',
+                           'expression', 'units', 'concentration_units',
                            'db_refs', 'evidence', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
 
@@ -2756,7 +2790,7 @@ class DfbaNetComponent(obj_model.Model):
     species = ManyToOneAttribute(Species, related_name='dfba_net_components',
                                  verbose_related_name='dFBA net components')
     value = FloatAttribute()
-    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
+    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['mol gsCellCycle^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
                                                    verbose_related_name='dFBA net components')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
