@@ -6,12 +6,11 @@
 '''
 
 import mock
-import unittest
-import re
-import tokenize
-import token
-
 import obj_model
+import re
+import token
+import tokenize
+import unittest
 from wc_lang import (Compartment, ConcentrationUnit, SpeciesType, Species,
                      Observable, ObservableExpression,
                      Function, FunctionExpression,
@@ -27,8 +26,8 @@ class TestWcLangExpression(unittest.TestCase):
     def setUp(self):
         self.objects = {
             SpeciesType: {
-                'test': SpeciesType(id='test'),
-                'x': SpeciesType(id='x'),
+                'test_id': SpeciesType(id='test_id'),
+                'x_id': SpeciesType(id='x_id'),
             },
             Compartment: {
                 'c': Compartment(id='c'),
@@ -50,6 +49,10 @@ class TestWcLangExpression(unittest.TestCase):
                 'fun_2': Function(id='fun_2'),
             }
         }
+        self.objects[Species]['test_id[c]'].species_type = self.objects[SpeciesType]['test_id']
+        self.objects[Species]['test_id[c]'].compartment = self.objects[Compartment]['c']
+        self.objects[Species]['x_id[c]'].species_type = self.objects[SpeciesType]['x_id']
+        self.objects[Species]['x_id[c]'].compartment = self.objects[Compartment]['c']
         self.objects[Observable]['test_id'].expression, _ = ObservableExpression.deserialize('2 * test_id[c]', self.objects)
         self.objects[Observable]['obs_id'].expression, _ = ObservableExpression.deserialize('1 * test_id[c]', self.objects)
         self.objects[Function]['fun_1'].expression, _ = FunctionExpression.deserialize('2 * test_id[c]', self.objects)
@@ -470,8 +473,8 @@ class TestWcLangExpression(unittest.TestCase):
     def do_test_eval(self, expr, parent_type, obj_type, related_obj_val, expected_val):
         obj, _ = Expression.deserialize(obj_type, expr, self.objects.copy())
         wc_lang_expr = obj._parsed_expression
-        parent = parent_type(expression=obj, concentration_units=ConcentrationUnit['molecule cell^-1'])
-        evaled_val = wc_lang_expr.test_eval(parent, species_counts=related_obj_val)
+        parent = parent_type(expression=obj)
+        evaled_val = wc_lang_expr.test_eval(species_counts=related_obj_val)
         self.assertEqual(expected_val, evaled_val)
 
     def test_test_eval(self):
@@ -499,7 +502,7 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegex(ParsedExpressionError,
                                     "SyntaxError: cannot eval expression .* in {}".format(
                 model_type.__name__)):
-            wc_lang_expr.test_eval(model)
+            wc_lang_expr.test_eval()
 
         # expression that could not be serialized
         expr = 'foo(6)'
@@ -508,8 +511,8 @@ class TestWcLangExpression(unittest.TestCase):
         model = model_type(expression=wc_lang_expr)
         with self.assertRaisesRegex(ParsedExpressionError,
                                     re.escape("Cannot evaluate '{}', as it not been "
-                                              "successfully tokenized".format(expr))):
-            wc_lang_expr.test_eval(model)
+                                              "successfully compiled".format(expr))):
+            wc_lang_expr.test_eval()
 
     def test_eval(self):
         pass
@@ -535,7 +538,7 @@ class TestParsedExpressionVerifier(unittest.TestCase):
 
     def test_linear_expression_verifier(self):
 
-        wc_tokens=[   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
+        wc_tokens = [   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
             WcToken(WcTokenCodes.wc_obj_id, 'id0'),
             WcToken(WcTokenCodes.op, '-'),
             WcToken(WcTokenCodes.number, '3'),

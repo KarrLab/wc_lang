@@ -1234,19 +1234,13 @@ class TestCore(unittest.TestCase):
 
         value = None
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        self.assertEqual(of_expr.expression, '')
-        self.assertEqual(of_expr.reactions, [])
-        self.assertEqual(of_expr.dfba_net_reactions, [])
-        self.assertEqual(of_expr._parsed_expression.is_linear, True)
-        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr, None)
+        self.assertNotEqual(invalid_attribute, None)
 
         value = ''
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
-        self.assertEqual(of_expr.expression, '')
-        self.assertEqual(of_expr.reactions, [])
-        self.assertEqual(of_expr.dfba_net_reactions, [])
-        self.assertEqual(of_expr._parsed_expression.is_linear, True)
-        self.assertEqual(invalid_attribute, None)
+        self.assertEqual(of_expr, None)
+        self.assertNotEqual(invalid_attribute, None)
 
         value = "2*dfba_net_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
@@ -1733,7 +1727,7 @@ class TestCore(unittest.TestCase):
 
         fun_obj = Expression.make_obj(model, Function, 'fun_id', '', objects,
                                       allow_invalid_objects=True)
-        self.assertTrue(isinstance(fun_obj, Function))
+        self.assertFalse(isinstance(fun_obj, Function))
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
                                  expected_related_objs=None, expected_error=None):
@@ -1748,14 +1742,7 @@ class TestCore(unittest.TestCase):
             expected_related_objs (:obj:`dict`, optional): objects that should be used by the deserialize expression
         """
         expr_obj, error = expression_class.deserialize(expr, objects)
-        conc_units_opts = {'concentration_units': ConcentrationUnit['molecule cell^-1']}
-        if 'concentration_units' in parent_class.Meta.attributes:
-            parent_opts = conc_units_opts
-            eval_opts = {}
-        else:
-            parent_opts = {}
-            eval_opts = conc_units_opts
-        parent = parent_class(expression=expr_obj, **parent_opts)
+        parent = parent_class(expression=expr_obj)
         if expected_error:
             self.assertIn(expected_error, str(error))
         else:
@@ -1769,7 +1756,9 @@ class TestCore(unittest.TestCase):
                     self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
             error = expr_obj.validate()
             self.assertEqual(error, None, str(error))
-            self.assertEqual(expr_obj._parsed_expression.test_eval(parent, **eval_opts), expected_val)
+            self.assertEqual(expr_obj._parsed_expression.test_eval(species_counts=1.),
+                             expected_val,
+                             expr_obj._parsed_expression.expression)
 
     def test_valid_function_expressions(self):
         _, objects, id_map = self.make_objects()
@@ -1785,8 +1774,7 @@ class TestCore(unittest.TestCase):
                 {'observables': [id_map['Observable.duped_id']]},
                 None),
             ('a + f()', 2,
-                {'parameters': [id_map['Parameter.a']],
-                 'functions':[id_map['Function.f']]},
+                {'functions': [id_map['Function.f']]},
                 None),
             ('log(a)', math.log(1), {}, None),
             ('max(a, b)', 1,

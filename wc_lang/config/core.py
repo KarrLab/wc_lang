@@ -45,7 +45,7 @@ def validate_config(config):
         config (:obj:`configobj.ConfigObj`): nested dictionary with the configuration settings
 
     Raises:
-        :obj:`ValueError`: if minimum dFBA flux bound is negative or the 
+        :obj:`ValueError`: if minimum dFBA flux bound is negative or the
             maximum dFBA flux bound is less than the minimum dFBA flux bound
     """
     flux_min_bound_reversible = config['wc_lang']['dfba']['flux_min_bound_reversible']

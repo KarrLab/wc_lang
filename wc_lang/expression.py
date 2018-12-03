@@ -10,7 +10,6 @@ import collections
 import obj_model
 import token
 import tokenize
-import scipy.constants
 import wc_lang.core
 from enum import Enum
 from io import BytesIO
@@ -231,7 +230,7 @@ class Expression(object):
 
         # check expression is valid
         try:
-            rv = model_obj._parsed_expression.test_eval(parent_obj)
+            rv = model_obj._parsed_expression.test_eval()
             if return_type is not None:
                 if not isinstance(rv, return_type):
                     attr = model_cls.Meta.attributes['expression']
@@ -698,6 +697,10 @@ class ParsedExpression(object):
         """
         self.__reset_tokenization()
 
+        if not self.expression:
+            self.errors.append('Expression cannot be empty')
+            return (None, None, self.errors)
+
         # detect and report bad tokens
         bad_tokens = set()
         for tok in self._py_tokens:
@@ -789,22 +792,18 @@ class ParsedExpression(object):
 
         if self.errors:
             return (None, None, self.errors)
-        # self._compile()
+        self._compile()
         return (self._wc_tokens, self.related_objects, None)
 
-    def test_eval(self, model,
-                  species_counts=1., compartment_volumes=1., concentration_units=None,
+    def test_eval(self, species_counts=1., compartment_volumes=1.,
                   reaction_fluxes=1., dfba_net_reaction_fluxes=1.):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
 
         This is used to validate this :obj:`ParsedExpression`, as well as for testing.
 
         Args:
-            model (:obj:`obj_model.Model`): model who's expression is being evaluated
             species_counts (:obj:`float`, optional): species counts to use to evaluate expression
             compartment_volumes (:obj:`float`, optional): compartment volumes (L) to use to evaluate expression
-            concentration_units (:obj:`wc_lang.core.ConcentrationUnit`, optional): units of species
-                concentrations to evaluate expression
             reaction_fluxes (:obj:`float`, optional): reaction fluxes (mol reaction gCell^-1 s^-1) to use
                 to use to evaluate expression
             dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (gsCellCycle gCell^-1 s^-1)
@@ -816,15 +815,12 @@ class ParsedExpression(object):
         Raises:
             :obj:`ParsedExpressionError`: if the expression evaluation fails
         """
-        return self.eval(model,
-                         species_counts=collections.defaultdict(lambda: species_counts),
+        return self.eval(species_counts=collections.defaultdict(lambda: species_counts),
                          compartment_volumes=collections.defaultdict(lambda: compartment_volumes),
-                         concentration_units=concentration_units,
                          reaction_fluxes=collections.defaultdict(lambda: reaction_fluxes),
                          dfba_net_reaction_fluxes=collections.defaultdict(lambda: dfba_net_reaction_fluxes))
 
-    def eval(self, model,
-             species_counts=None, compartment_volumes=None, concentration_units=None,
+    def eval(self, species_counts=None, compartment_volumes=None,
              reaction_fluxes=None, dfba_net_reaction_fluxes=None):
         """ Evaluate the expression
 
@@ -837,17 +833,14 @@ class ParsedExpression(object):
             3. `eval` the Python expression
 
         Args:
-            model (:obj:`obj_model.Model`): model who's expression is being evaluated
-            species_counts (:obj:`dict` of :object:`wc_lang.core.Species`, :obj:`float`): 
-                dictionary that maps instances of :obj:`wc_lang.core.Species` to their counts
-            compartment_volumes (:obj:`dict` of :obj:`wc_lang.core.Compartment`, :obj:`float`):
-                dictionary that maps instances of :obj:`wc_lang.core.Compartment` to their volumes (L)
-            concentration_units (:obj:`wc_lang.core.ConcentrationUnit`, optional): units of species
-                concentrations to evaluate expression
-            reaction_fluxes (:obj:`dict` of :obj:`wc_lang.core.Reaction`, :obj:`float`): 
-                dictionary that maps instances of :obj:`wc_lang.core.Reaction` to their fluxes (mol reaction gCell^-1 s^-1)
-            dfba_net_reaction_fluxes (:obj:`dict` of :obj:`wc_lang.core.DfbaNetReaction`, :obj:`float`)
-                dictionary that maps instances of :obj:`wc_lang.core.DfbaNetReaction` to their fluxes 
+            species_counts (:obj:`dict` of :object:`str`, :obj:`float`):
+                dictionary that maps ids of :obj:`wc_lang.core.Species` to their counts
+            compartment_volumes (:obj:`dict` of :str`, :obj:`float`):
+                dictionary that maps ids of :obj:`wc_lang.core.Compartment` to their volumes (L)
+            reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`):
+                dictionary that maps ids of :obj:`wc_lang.core.Reaction` to their fluxes (mol reaction gCell^-1 s^-1)
+            dfba_net_reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`)
+                dictionary that maps ids of :obj:`wc_lang.core.DfbaNetReaction` to their fluxes
                 (gsCellCycle gCell^-1 s^-1)
 
         Returns:
@@ -856,19 +849,35 @@ class ParsedExpression(object):
         Raises:
             :obj:`ParsedExpressionError`: if the evaluation fails
         """
-        # check that the expression has been successfully compiled
-        self._compile(model, species_counts, compartment_volumes, concentration_units,
-                      reaction_fluxes, dfba_net_reaction_fluxes)
         if not self._compiled_expression:
             raise ParsedExpressionError("Cannot evaluate '{}', as it not been successfully compiled".format(
                 self.expression))
 
-        # evaluate compiled expression
-        local_ns = {func.__name__: func for func in self.valid_functions}
+        # prepare name space
+        namespace = self._compiled_expression_namespace
+
+        namespace['compartment_volumes'] = compartment_volumes
+        namespace['species_counts'] = species_counts
+        namespace['reaction_fluxes'] = reaction_fluxes
+        namespace['dfba_net_reaction_fluxes'] = dfba_net_reaction_fluxes
+
+        namespace['observable_counts'] = {}
+        for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():
+            namespace['observable_counts'][obs.id] = obs.expression._parsed_expression.eval(
+                species_counts, compartment_volumes)
+
+        namespace['function_values'] = {}
+        for func in self.related_objects.get(wc_lang.core.Function, {}).values():
+            namespace['function_values'][func.id] = func.expression._parsed_expression.eval(
+                species_counts, compartment_volumes)
+
+        # prepare error message
         error_suffix = " cannot eval expression '{}' in {}; ".format(self._compiled_expression,
                                                                      self.model_cls.__name__)
+
+        # evaluate compiled expression
         try:
-            return eval(self._compiled_expression, {}, local_ns)
+            return eval(self._compiled_expression, {}, namespace)
         except SyntaxError as error:
             raise ParsedExpressionError("SyntaxError:" + error_suffix + str(error))
         except NameError as error:  # pragma: no cover
@@ -876,69 +885,51 @@ class ParsedExpression(object):
         except Exception as error:  # pragma: no cover
             raise ParsedExpressionError("Exception:" + error_suffix + str(error))
 
-    def _compile(self, model,
-                 species_counts=None, compartment_volumes=None, concentration_units=None,
-                 reaction_fluxes=None, dfba_net_reaction_fluxes=None):
-        """ Compile expression for evaluation by `eval` method """
+    def _compile(self):
+        """ Compile expression for evaluation by `eval` method
+
+        Raises:
+            :obj:`ParsedExpressionError`: if the expression is invalid
+        """
         if not self._wc_tokens:
             raise ParsedExpressionError("Cannot evaluate '{}', as it not been successfully tokenized".format(
                 self.expression))
 
-        if concentration_units is None:
-            if isinstance(model, (wc_lang.core.Function, wc_lang.core.RateLaw, wc_lang.core.StopCondition)):
-                concentration_units = model.concentration_units
-            else:
-                concentration_units = wc_lang.core.ConcentrationUnit['molecule cell^-1']
-
-        evaled_tokens = []
+        compiled_tokens = []
         idx = 0
         while idx < len(self._wc_tokens):
             wc_token = self._wc_tokens[idx]
             if wc_token.code == WcTokenCodes.wc_obj_id:
-                if wc_token.model_type == wc_lang.core.Species:
-                    val = species_counts[wc_token.model]
-                    if concentration_units == wc_lang.core.ConcentrationUnit['molecule cell^-1']:
-                        pass
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.M:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e0
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.mM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e3
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.uM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e6
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.nM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e9
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.pM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e12
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.fM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e15
-                    elif concentration_units == wc_lang.core.ConcentrationUnit.aM:
-                        val = val / compartment_volumes[wc_token.model.compartment] / scipy.constants.Avogadro * 1e18
-                    else:
-                        raise ParsedExpression('Unsupported concentration unit: {}'.format(concentration_units.name))
-                elif wc_token.model_type == wc_lang.core.Parameter:
-                    val = wc_token.model.value
+                if wc_token.model_type == wc_lang.core.Compartment:
+                    val = 'compartment_volumes["{}"]'.format(wc_token.model.id)
+                elif wc_token.model_type == wc_lang.core.Species:
+                    val = 'species_counts["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Observable:
-                    val = wc_token.model.expression._parsed_expression.eval(wc_token.model, species_counts,
-                                                                            compartment_volumes, concentration_units=concentration_units)
+                    val = 'observable_counts["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Function:
-                    val = wc_token.model.expression._parsed_expression.eval(wc_token.model, species_counts,
-                                                                            compartment_volumes, concentration_units=concentration_units)
+                    val = 'function_values["{}"]'.format(wc_token.model.id)
                     # skip past the following ( ) tokens -- they're just syntactic sugar for Functions
                     idx += 2
+                elif wc_token.model_type == wc_lang.core.Parameter:
+                    val = 'parameter_values["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Reaction:
-                    val = reaction_fluxes[wc_token.model]
+                    val = 'reaction_fluxes["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.DfbaNetReaction:
-                    val = dfba_net_reaction_fluxes[wc_token.model]
+                    val = 'dfba_net_reaction_fluxes["{}"]'.format(wc_token.model.id)
                 else:
-                    raise ParsedExpressionError(('Expression {} can only contain species, observables, functions, '
-                                                 'parameters, reactions, and dFBA net reactions').format(
+                    raise ParsedExpressionError(('Expression {} can only contain compartments, species, observables, '
+                                                 'functions, parameters, reactions, and dFBA net reactions').format(
                         self.expression))  # pragma: no cover
-                evaled_tokens.append(str(val))
+                compiled_tokens.append(val)
             else:
-                evaled_tokens.append(wc_token.token_string)
+                compiled_tokens.append(wc_token.token_string)
             idx += 1
 
-        self._compiled_expression = ' '.join(evaled_tokens)
+        self._compiled_expression = ' '.join(compiled_tokens)
+
+        self._compiled_expression_namespace = {func.__name__: func for func in self.valid_functions}
+        self._compiled_expression_namespace['parameter_values'] = {
+            param.id: param.value for param in self.related_objects.get(wc_lang.core.Parameter, {}).values()}
 
     def __str__(self):
         rv = []
@@ -1013,7 +1004,7 @@ class ParsedExpressionVerifier(object):
     def validate(self, expression):
         """ Indicate whether `tokens` is valid
 
-        Args:        
+        Args:
             expression (:obj:`ParsedExpression`): parsed expression
 
         Returns:

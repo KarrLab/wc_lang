@@ -180,6 +180,11 @@ class ObservableCoefficientUnit(int, Enum):
     dimensionless = 1
 
 
+class ObservableUnit(int, Enum):
+    """ Observable concentration units """
+    M = 1
+
+
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     ('molecule cell^-1', 1),
     ('M', 2),
@@ -1710,7 +1715,7 @@ class Compartment(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'type', 
+        attribute_order = ('id', 'name', 'type',
                            'volume_mean', 'volume_std', 'volume_units',
                            'density_mean', 'density_std', 'density_units',
                            'db_refs', 'evidence', 'comments', 'references')
@@ -2090,6 +2095,7 @@ class Observable(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
+        units (:obj:`ObservableUnit`): units of expression
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2105,13 +2111,14 @@ class Observable(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
     expression = ExpressionAttribute('ObservableExpression', related_name='observable')
+    units = EnumAttribute(ObservableUnit, default=ObservableUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='observables')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression',
+        attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = ObservableExpression
 
@@ -2148,7 +2155,7 @@ class FunctionExpression(obj_model.Model, Expression):
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Species', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2193,8 +2200,6 @@ class Function(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
         units (:obj:`str`): units
-        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
-            concentrations to evaluate function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2210,14 +2215,13 @@ class Function(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='functions')
     expression = ExpressionAttribute('FunctionExpression', related_name='function')
     units = LongStringAttribute()
-    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'units', 'concentration_units',
+        attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = FunctionExpression
 
@@ -2253,7 +2257,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2301,8 +2305,6 @@ class StopCondition(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         units (:obj:`StopConditionUnit`): units
-        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
-            concentrations to evaluate stop condition
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2316,14 +2318,13 @@ class StopCondition(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
     expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
     units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
-    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'expression', 'units', 'concentration_units',
+        attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
 
@@ -2645,8 +2646,6 @@ class RateLaw(obj_model.Model):
         type (:obj:`RateLawType`): type
         expression (:obj:`RateLawExpression`): expression
         units (:obj:`ReactionRateUnit`): units
-        concentration_units (:obj:`ConcentrationUnit`): units of species and observable
-            concentrations to evaluate function
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2660,7 +2659,6 @@ class RateLaw(obj_model.Model):
     type = EnumAttribute(RateLawType, default=RateLawType.other)
     expression = RateLawExpressionAttribute(related_name='rate_laws')
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['reaction cell^-1 s^-1'])
-    concentration_units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
@@ -2668,7 +2666,7 @@ class RateLaw(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
-                           'expression', 'units', 'concentration_units',
+                           'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
 
@@ -2741,7 +2739,7 @@ class RateLawExpression(obj_model.Model, Expression):
         tabular_orientation = TabularOrientation.inline
         ordering = ('expression',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Species', 'Observable', 'Function')
+        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2788,7 +2786,7 @@ class DfbaNetComponent(obj_model.Model):
         id (:obj:`str`): unique identifier per DfbaNetComponent equal to
             `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
         name (:obj:`str`): name
-        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component        
+        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
         units (:obj:`DfbaNetComponentUnit`): units of the value

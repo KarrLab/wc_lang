@@ -18,7 +18,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
 
     To enable FBA to represent a closed system, create implicit forward exchange reactions
 
-    * Metabolites transported from the extracellular environment (generate a 
+    * Metabolites transported from the extracellular environment (generate a
       "-> species_type[e]" reaction for each extracellular species involved in each dFBA submodel)
     * TODO: Metabolites recycled from the byproducts of other submodels
     """

@@ -15,7 +15,7 @@ config = wc_lang.config.core.get_config()['wc_lang']
 
 
 class SetFiniteDfbaFluxBoundsTransform(Transform):
-    """ Clip the flux bounds for the reactions in dFBA submodels to the 
+    """ Clip the flux bounds for the reactions in dFBA submodels to the
     default flux range because some linear programming solvers require
     finite minimum and maximum flux bounds.
 
