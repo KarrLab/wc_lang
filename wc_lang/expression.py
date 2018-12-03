@@ -48,7 +48,7 @@ WcToken.model_id.__doc__ = "When code is wc_obj_id, the wc_lang obj's id"
 WcToken.model.__doc__ = "When code is wc_obj_id, the wc_lang obj"
 
 
-# result returned by a tokens lexer, like get_disambiguated_id()
+# result returned by a tokens lexer, like _get_disambiguated_id()
 LexMatch = collections.namedtuple('LexMatch', 'wc_tokens, num_py_tokens')
 LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
 LexMatch.wc_tokens.__doc__ = 'List of WcLangTokens created'
@@ -92,16 +92,14 @@ class Expression(object):
             used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
-            _parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
+            parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
         except ParsedExpressionError as e:
             attr = model_cls.Meta.attributes['expression']
             return (None, InvalidAttribute(attr, [str(e)]))
-        rv = _parsed_expression.tokenize()
-        if rv[0] is None:
+        _, used_objects, errors = parsed_expression.tokenize()
+        if errors:
             attr = model_cls.Meta.attributes['expression']
-            errors = rv[1]
             return (None, InvalidAttribute(attr, errors))
-        _, used_objects = rv
         if model_cls not in objects:
             objects[model_cls] = {}
         if value in objects[model_cls]:
@@ -115,11 +113,11 @@ class Expression(object):
                         attr.related_class.__name__ in model_cls.Meta.valid_models:
                     attr_value = list(used_objects.get(attr.related_class, {}).values())
                     setattr(obj, attr_name, attr_value)
-        obj._parsed_expression = _parsed_expression
+        obj._parsed_expression = parsed_expression
 
         # check expression is linear
-        obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
-            obj._parsed_expression.wc_tokens)
+        parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
+            parsed_expression.wc_tokens)
         cls.set_lin_coeffs(obj)
 
         return (obj, None)
@@ -200,7 +198,7 @@ class Expression(object):
             attr_err = InvalidAttribute(attr, [str(e)])
             return InvalidObject(model_obj, [attr_err])
 
-        is_valid, errors = model_obj._parsed_expression.tokenize()
+        is_valid, _, errors = model_obj._parsed_expression.tokenize()
         if is_valid is None:
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
@@ -457,7 +455,7 @@ class ParsedExpression(object):
         self.errors = []
         self.wc_tokens = []
 
-    def get_model_type(self, name):
+    def _get_model_type(self, name):
         """ Find the `wc_lang` model type corresponding to `name`
 
         Args:
@@ -472,7 +470,7 @@ class ParsedExpression(object):
                 return model_type
         return None
 
-    def match_tokens(self, token_pattern, idx):
+    def _match_tokens(self, token_pattern, idx):
         """ Indicate whether `tokens` begins with a pattern of tokens that match `token_pattern`
 
         Args:
@@ -498,7 +496,7 @@ class ParsedExpression(object):
         match_val = ''.join([self.py_tokens[idx+i].string for i in range(len(token_pattern))])
         return match_val
 
-    def get_disambiguated_id(self, idx, case_fold_match=False):
+    def _get_disambiguated_id(self, idx, case_fold_match=False):
         """ Try to parse a disambiguated `wc_lang` id from `self.py_tokens` at `idx`
 
         Look for a disambugated id (either a Function written as `Function.identifier()`, or a
@@ -518,7 +516,7 @@ class ParsedExpression(object):
                 but their values are wrong, return an error `str`.
                 If a disambugated id is found, return a `LexMatch` describing it.
         """
-        func_match = self.match_tokens(self.FUNC_TYPE_DISAMBIG_PATTERN, idx)
+        func_match = self._match_tokens(self.FUNC_TYPE_DISAMBIG_PATTERN, idx)
         if func_match:
             possible_macro_id = self.py_tokens[idx+2].string
             if case_fold_match:
@@ -535,7 +533,7 @@ class ParsedExpression(object):
                                      possible_macro_id, self._objs[wc_lang.core.Function][possible_macro_id])],
                             len(self.FUNC_TYPE_DISAMBIG_PATTERN))
 
-        disambig_model_match = self.match_tokens(self.MODEL_TYPE_DISAMBIG_PATTERN, idx)
+        disambig_model_match = self._match_tokens(self.MODEL_TYPE_DISAMBIG_PATTERN, idx)
         if disambig_model_match:
             disambig_model_type = self.py_tokens[idx].string
             possible_model_id = self.py_tokens[idx+2].string
@@ -548,7 +546,7 @@ class ParsedExpression(object):
                                                                             self.attr, disambig_model_match))
 
             # the disambiguation model type must be in self.valid_models
-            model_type = self.get_model_type(disambig_model_type)
+            model_type = self._get_model_type(disambig_model_type)
             if model_type is None:
                 return ("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
                         "cannot be referenced by '{}' expressions".format(
@@ -568,7 +566,7 @@ class ParsedExpression(object):
         # no match
         return None
 
-    def get_related_obj_id(self, idx, case_fold_match=False):
+    def _get_related_obj_id(self, idx, case_fold_match=False):
         """ Try to parse a related object `wc_lang` id from `self.py_tokens` at `idx`
 
         Different `wc_lang` objects match different Python token patterns. The default pattern
@@ -591,7 +589,7 @@ class ParsedExpression(object):
             token_pattern = (token.NAME, )
             if hasattr(model_type.Meta, 'token_pattern'):
                 token_pattern = model_type.Meta.token_pattern
-            match_string = self.match_tokens(token_pattern, idx)
+            match_string = self._match_tokens(token_pattern, idx)
             if match_string:
                 token_matches.add(match_string)
                 # is match_string the ID of an instance in model_type?
@@ -638,7 +636,7 @@ class ParsedExpression(object):
                          self._objs[match.model_type][right_case_match_string])],
                 len(match.token_pattern))
 
-    def get_func_call_id(self, idx, case_fold_match='unused'):
+    def _get_func_call_id(self, idx, case_fold_match='unused'):
         """ Try to parse a Python math function call from `self.py_tokens` at `idx`
 
         Each `wc_lang` object `model_cls` that contains an expression which can use Python math
@@ -654,7 +652,7 @@ class ParsedExpression(object):
                 but their values are wrong, return an error `str`.
                 If a function call is found, return a `LexMatch` describing it.
         """
-        func_match = self.match_tokens(self.FUNC_PATTERN, idx)
+        func_match = self._match_tokens(self.FUNC_PATTERN, idx)
         if func_match:
             func_name = self.py_tokens[idx].string
             # FUNC_PATTERN is "identifier ("
@@ -690,9 +688,9 @@ class ParsedExpression(object):
                 identifier keys in `self._objs` must already be casefold'ed; default = False
 
         Returns:
-            (:obj:`tuple`): either `(:obj:`None`, :obj:`list` of :obj:`str)` containing a list of errors, or
-                `(:obj:`list`, :obj:`dict`)` containing a list of :obj:`WcToken`s and a dict of Model
-                instances used by this list, grouped by Model type
+            * :obj:`list`: list of :obj:`WcToken`s
+            * :obj:`dict`: dict of Model instances used by this list, grouped by Model type
+            * :obj:`list` of :obj:`str`: list of errors
 
         Raises:
             :obj:`ParsedExpressionError`: if `model_cls` does not have a `Meta` attribute
@@ -711,7 +709,7 @@ class ParsedExpression(object):
             self.errors.append("'{}', a {}.{}, contains bad token(s): '{}'".format(
                 self.expression, self.model_cls.__name__,
                 self.attr, "', '".join(bad_tokens)))
-            return (None, self.errors)
+            return (None, None, self.errors)
 
         idx = 0
         while idx < len(self.py_tokens):
@@ -732,7 +730,7 @@ class ParsedExpression(object):
 
             matches = []
             tmp_errors = []
-            for get_wc_lex_el in [self.get_related_obj_id, self.get_disambiguated_id, self.get_func_call_id]:
+            for get_wc_lex_el in [self._get_related_obj_id, self._get_disambiguated_id, self._get_func_call_id]:
                 result = get_wc_lex_el(idx, case_fold_match=case_fold_match)
                 if result is not None:
                     if isinstance(result, str):
@@ -789,8 +787,8 @@ class ParsedExpression(object):
                         wc_token.token_string, ', a '.join(matching_items[0:-1]), matching_items[-1]))
 
         if self.errors:
-            return (None, self.errors)
-        return (self.wc_tokens, self.related_objects)
+            return (None, None, self.errors)
+        return (self.wc_tokens, self.related_objects, None)
 
     def test_eval(self, model,
                   species_counts=1., compartment_volumes=1., concentration_units=None,
@@ -862,6 +860,7 @@ class ParsedExpression(object):
             :obj:`ParsedExpressionError`: if the evaluation fails
         """
         # check that the expression has been successfully tokenized
+
         if not self.wc_tokens:
             raise ParsedExpressionError("Cannot evaluate '{}', as it not been successfully tokenized".format(
                 self.expression))
@@ -952,7 +951,7 @@ class ParsedExpressionVerifier(object):
 
     An `ParsedExpressionVerifier` consists of two parts:
 
-    * An optional method `validate_tokens` that examines the content of individual tokens
+    * An optional method `_validate_tokens` that examines the content of individual tokens
       and returns `(True, True)` if they are all valid, or (`False`, error) otherwise. It can be
       overridden by subclasses.
     * A `DFSMAcceptor` which determines whether the tokens describe a particular pattern
@@ -975,7 +974,7 @@ class ParsedExpressionVerifier(object):
         self.dfsm_acceptor = DFSMAcceptor(start_state, accepting_state, transitions)
         self.empty_is_valid = empty_is_valid
 
-    def validate_tokens(self, tokens):
+    def _validate_tokens(self, tokens):
         """ Check whether the content of a sequence of `WcToken`s is valid
 
         In particular, all numbers in `tokens` must be floats, and all token codes must not
@@ -990,7 +989,7 @@ class ParsedExpressionVerifier(object):
         """
         return (True, True)
 
-    def make_dfsa_messages(self, tokens):
+    def _make_dfsa_messages(self, tokens):
         """ Convert a sequence of `WcToken`s into a list of messages for transitions
 
         Args:
@@ -1016,10 +1015,10 @@ class ParsedExpressionVerifier(object):
         """
         if self.empty_is_valid and not tokens:
             return (True, None)
-        valid, error = self.validate_tokens(tokens)
+        valid, error = self._validate_tokens(tokens)
         if not valid:
             return (False, error)
-        dfsa_messages = self.make_dfsa_messages(tokens)
+        dfsa_messages = self._make_dfsa_messages(tokens)
         if DFSMAcceptor.ACCEPT == self.dfsm_acceptor.run(dfsa_messages):
             return (True, None)
         else:
@@ -1048,7 +1047,7 @@ class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
         super().__init__(start_state='need number or id', accepting_state='end',
                          transitions=self.TRANSITIONS, empty_is_valid=True)
 
-    def validate_tokens(self, tokens):
+    def _validate_tokens(self, tokens):
         """ Check whether the content of a sequence of `WcToken`s is valid
 
         In particular, all numbers in `tokens` must be floats, and all token codes must not
@@ -1072,7 +1071,7 @@ class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
 
         return (True, True)
 
-    def make_dfsa_messages(self, tokens):
+    def _make_dfsa_messages(self, tokens):
         """ Convert a sequence of `WcToken`s into a list of messages for transitions in
         :obj:`LinearParsedExpressionVerifier.TRANSITIONS`
 
