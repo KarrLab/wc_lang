@@ -386,8 +386,14 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
     def test_write_parameter(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         submodel = model.submodels.create(id='submodel')
+        species_type = model.species_types.create(id='st', molecular_weight=1., charge=0)
+        compartment = model.compartments.create(id='c')
+        species = model.species.create(id=Species.gen_id(species_type.id, compartment.id), 
+                                       species_type=species_type, compartment=compartment)
         reaction = submodel.reactions.create(id='reaction', model=model)
-        rate_law = reaction.rate_laws.create(model=model, direction=RateLawDirection.forward)
+        reaction.participants.create(species=species, coefficient=1.)
+        rate_law = reaction.rate_laws.create(id=RateLaw.gen_id(reaction.id, RateLawDirection.forward.name), 
+                                             model=model, direction=RateLawDirection.forward)
         rate_law_eq = rate_law.expression = RateLawExpression(expression='parameter')
         parameter = rate_law_eq.parameters.create(id='parameter', value=1., units='dimensionless', model=model)
 

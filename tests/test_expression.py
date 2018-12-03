@@ -5,6 +5,7 @@
 :License: MIT
 '''
 
+import mock
 import unittest
 import re
 import tokenize
@@ -88,7 +89,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(expr, wc_lang_expr.expression)
         n = 5
         wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', ' + ' * n, self.objects)
-        self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.py_tokens])
+        self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr._py_tokens])
         wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', '', {})
         self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
         wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', '', {Function: {}, Parameter: {}})
@@ -506,7 +507,7 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr.tokenize()
         model = model_type(expression=wc_lang_expr)
         with self.assertRaisesRegex(ParsedExpressionError,
-                                    re.escape("cannot evaluate '{}', as it not been "
+                                    re.escape("Cannot evaluate '{}', as it not been "
                                               "successfully tokenized".format(expr))):
             wc_lang_expr.test_eval(model)
 
@@ -525,16 +526,16 @@ class TestParsedExpressionVerifier(unittest.TestCase):
         number_is_good = [
             WcToken(WcTokenCodes.number, '3'),
         ]
-        valid, error = expression_verifier.validate(number_is_good)
+        valid, error = expression_verifier.validate(mock.Mock(_wc_tokens=number_is_good))
         self.assertTrue(valid)
         self.assertTrue(error is None)
         # an empty expression is invalid
-        valid, error = expression_verifier.validate([])
+        valid, error = expression_verifier.validate(mock.Mock(_wc_tokens=[]))
         self.assertFalse(valid)
 
     def test_linear_expression_verifier(self):
 
-        valid_linear_expr = [   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
+        wc_tokens=[   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
             WcToken(WcTokenCodes.wc_obj_id, 'id0'),
             WcToken(WcTokenCodes.op, '-'),
             WcToken(WcTokenCodes.number, '3'),
@@ -549,33 +550,34 @@ class TestParsedExpressionVerifier(unittest.TestCase):
             WcToken(WcTokenCodes.op, '*'),
             WcToken(WcTokenCodes.wc_obj_id, 'id3'),
         ]
+        valid_linear_expr = mock.Mock(_wc_tokens=wc_tokens)
 
         linear_expression_verifier = LinearParsedExpressionVerifier()
         valid, error = linear_expression_verifier.validate(valid_linear_expr)
         self.assertTrue(valid)
         self.assertTrue(error is None)
-        # dropping any single token from valid_linear_expr produces an invalid expression
-        for i in range(len(valid_linear_expr)):
-            valid_linear_expr_without_i = valid_linear_expr[:i] + valid_linear_expr[i+1:]
-            valid, error = linear_expression_verifier.validate(valid_linear_expr_without_i)
+        # dropping any single token from wc_tokens produces an invalid expression
+        for i in range(len(wc_tokens)):
+            wc_tokens_without_i = wc_tokens[:i] + wc_tokens[i+1:]
+            valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=wc_tokens_without_i))
             self.assertFalse(valid)
 
         # an empty expression is valid
-        valid, error = linear_expression_verifier.validate([])
+        valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=[]))
         self.assertTrue(valid)
         self.assertTrue(error is None)
 
-        invalid_linear_exprressions = [
+        invalid_wc_tokens = [
             [WcToken(WcTokenCodes.math_func_id, 'log')],     # math functions not allowed
             [WcToken(WcTokenCodes.number, '3j')],           # numbers must be floats
         ]
-        for invalid_linear_exprression in invalid_linear_exprressions:
-            valid, error = linear_expression_verifier.validate(invalid_linear_exprression)
+        for invalid_wc_token in invalid_wc_tokens:
+            valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=invalid_wc_token))
             self.assertFalse(valid)
 
-        invalid_linear_exprressions = [
+        invalid_wc_tokens = [
             [WcToken(WcTokenCodes.other, ',')],             # other not allowed
         ]
-        for invalid_linear_exprression in invalid_linear_exprressions:
-            error = linear_expression_verifier._make_dfsa_messages(invalid_linear_exprression)
+        for invalid_wc_token in invalid_wc_tokens:
+            error = linear_expression_verifier._make_dfsa_messages(invalid_wc_token)
             self.assertTrue(error is None)

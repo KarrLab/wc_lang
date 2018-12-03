@@ -54,8 +54,8 @@ class TestCli(unittest.TestCase):
 
     def test_validate_exception(self):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
-        model.parameters.append(Parameter(id='param_1'))
-        model.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
+        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
 
         self.assertNotEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
