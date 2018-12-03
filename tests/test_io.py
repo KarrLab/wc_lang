@@ -133,8 +133,8 @@ class TestSimpleModel(unittest.TestCase):
         expression = RateLawExpression(
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
             modifiers=species[5:6])
-        expression.parameters.create(id='k_cat_0', value=2, model=mdl)
-        expression.parameters.create(id='k_m_0', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_0', value=2, units='reaction molecule^-1 s^-1', model=mdl)
+        expression.parameters.create(id='k_m_0', value=1, units='molecule cell^-1', model=mdl)
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
@@ -149,8 +149,8 @@ class TestSimpleModel(unittest.TestCase):
         expression = RateLawExpression(
             expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].serialize()),
             modifiers=species[6:7])
-        expression.parameters.create(id='k_cat_1', value=2, model=mdl)
-        expression.parameters.create(id='k_m_1', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_1', value=2, units='reaction molecule^-1 s^-1', model=mdl)
+        expression.parameters.create(id='k_m_1', value=1, units='molecule cell^-1', model=mdl)
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
@@ -165,8 +165,8 @@ class TestSimpleModel(unittest.TestCase):
         expression = RateLawExpression(
             expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].serialize()),
             modifiers=species[7:8])
-        expression.parameters.create(id='k_cat_2', value=2, model=mdl)
-        expression.parameters.create(id='k_m_2', value=1, model=mdl)
+        expression.parameters.create(id='k_cat_2', units='reaction molecule^-1 s^-1', value=2, model=mdl)
+        expression.parameters.create(id='k_m_2', value=1, units='molecule cell^-1', model=mdl)
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             model=mdl,
@@ -389,7 +389,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         reaction = submodel.reactions.create(id='reaction', model=model)
         rate_law = reaction.rate_laws.create(model=model, direction=RateLawDirection.forward)
         rate_law_eq = rate_law.expression = RateLawExpression(expression='parameter')
-        parameter = rate_law_eq.parameters.create(id='parameter', model=model)
+        parameter = rate_law_eq.parameters.create(id='parameter', value=1., units='dimensionless', model=model)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)

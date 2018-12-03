@@ -148,8 +148,14 @@ class CompartmentType(int, CaseInsensitiveEnum):
 
 
 VolumeUnit = Enum('VolumeUnit', type=int, names=[
-    ('L', 1),
+    ('l', 1),
     # ('dm^2', 2),
+])
+
+
+DensityUnit = Enum('DensityUnit', type=int, names=[
+    ('g ml^-1', 1),
+    # ('g dm^-2', 2),
 ])
 
 
@@ -1674,9 +1680,12 @@ class Compartment(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         type (:obj:`CompartmentType`): type
-        volume_mean (:obj:`float`): mean volume
-        volume_std (:obj:`float`): standard deviation of the mean volume across single cells
-        volume_units (:obj:`VolumeUnit`): mean volume units
+        volume_mean (:obj:`float`): mean volume of a population of single cells
+        volume_std (:obj:`float`): standard deviation of the volume of a population of single cells
+        volume_units (:obj:`VolumeUnit`): units of mean volume
+        density_mean (:obj:`float`): mean density of a population of single cells
+        density_std (:obj:`float`): standard deviation of the density of a population of single cells
+        density_units (:obj:`DensityUnit`): units of mean density
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1691,15 +1700,19 @@ class Compartment(obj_model.Model):
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
     volume_mean = FloatAttribute(min=0, verbose_name='Volume mean')
     volume_std = FloatAttribute(min=0, verbose_name='Volume standard deviation')
-    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.L)
+    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
+    density_mean = FloatAttribute(min=0, verbose_name='Density mean')
+    density_std = FloatAttribute(min=0, verbose_name='Density standard deviation')
+    density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name',
-                           'type', 'volume_mean', 'volume_std', 'volume_units',
+        attribute_order = ('id', 'name', 'type', 
+                           'volume_mean', 'volume_std', 'volume_units',
+                           'density_mean', 'density_std', 'density_units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1942,8 +1955,8 @@ class Concentration(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`Species`): species
-        mean (:obj:`float`): mean concentration
-        std (:obj:`float`): standard deviation of the concentration
+        mean (:obj:`float`): mean concentration in a population of single cells
+        std (:obj:`float`): standard deviation of the concentration in a population of single cells
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -2949,7 +2962,8 @@ class Parameter(obj_model.Model):
         model (:obj:`Model`): model
         type (:obj:`ParameterType`): parameter type
         value (:obj:`float`): value
-        units (:obj:`str`): units of value
+        std (:obj:`float`): standard error of the value
+        units (:obj:`str`): units of the value and standard error
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2966,7 +2980,8 @@ class Parameter(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='parameters')
     type = EnumAttribute(ParameterType, default=ParameterType.other)
     value = FloatAttribute(min=0)
-    units = StringAttribute()
+    std = FloatAttribute(min=0, verbose_name='Standard error')
+    units = StringAttribute(min_length=1)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='parameters')
     evidence = ManyToManyAttribute('Evidence', related_name='parameters')
     comments = LongStringAttribute()
@@ -2974,7 +2989,7 @@ class Parameter(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'type',
-                           'value', 'units',
+                           'value', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):

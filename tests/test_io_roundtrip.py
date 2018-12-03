@@ -108,7 +108,7 @@ class RoundTripTestCase(unittest.TestCase):
         objects = {Observable: {'observable_1': observable_1}}
         observable_2 = Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
-        param = model.parameters.create(id='param_1', value=1.)
+        param = model.parameters.create(id='param_1', value=1., units='dimensionless')
         objects = {Parameter: {'param_1': param}}
         fun_1 = Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
 

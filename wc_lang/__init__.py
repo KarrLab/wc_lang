@@ -5,7 +5,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # :obj:`str`: version
 
 # API
-from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit,
+from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit, DensityUnit,
                    SubmodelAlgorithm, SpeciesTypeType, ConcentrationUnit,
                    ReactionParticipantUnit, RateLawDirection, RateLawType, ReactionRateUnit, ReactionFluxUnit,
                    DfbaObjectiveUnit, DfbaObjectiveCoefficientUnit, DfbaNetComponentUnit, ParameterType,
