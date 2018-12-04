@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import unittest
 
-from wc_lang.core import (Model, SpeciesCoefficient, Expression, Species, Observable, Function,
+from wc_lang.core import (ReactionRateUnit, Model, SpeciesCoefficient, Expression, Species, Observable, Function,
                           Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
@@ -59,10 +59,14 @@ class RoundTripTestCase(unittest.TestCase):
             species_2.species_coefficients.create(coefficient=1.),
         ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
-        rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
-                             direction=RateLawDirection.forward, model=model,
-                             expression=RateLawExpression(expression='1.'))
         rxn.participants.extend(rxn_species_coeffs)
+        rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
+                                  direction=RateLawDirection.forward,
+                                  units=ReactionRateUnit['reaction cell^-1 s^-1'],
+                                  model=model)
+        param_1 = model.parameters.create(id='param_1', value=1., units='reaction cell^-1 s^-1')
+        rl.expression, error = RateLawExpression.deserialize('param_1', {Parameter: {'param_1': param_1}})
+        self.assertEqual(error, None)
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertNotEqual(errors, None)
@@ -108,9 +112,15 @@ class RoundTripTestCase(unittest.TestCase):
         objects = {Observable: {'observable_1': observable_1}}
         observable_2 = Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
-        param = model.parameters.create(id='param_1', value=1., units='dimensionless')
-        objects = {Parameter: {'param_1': param}}
-        fun_1 = Expression.make_obj(model, Function, 'fun_1', 'param_1', objects)
+        param_1 = model.parameters.create(id='param_1', value=1., units='dimensionless')
+        param_2 = model.parameters.create(id='param_2', value=1., units='reaction cell^-1 s^-1')
+        objects = {
+            Parameter: {
+                'param_1': param_1,
+                'param_2': param_2,
+            },
+        }
+        func_1 = Expression.make_obj(model, Function, 'func_1', 'param_1', objects)
 
         rxn_species_coeffs = [
             species_1.species_coefficients.get_or_create(coefficient=-3.),
@@ -118,9 +128,12 @@ class RoundTripTestCase(unittest.TestCase):
         ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.extend(rxn_species_coeffs)
-        rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
-                             direction=RateLawDirection.forward, model=model,
-                             expression=RateLawExpression(expression='1.'))
+        rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
+                                  direction=RateLawDirection.forward,
+                                  units=ReactionRateUnit['reaction cell^-1 s^-1'],
+                                  model=model)
+        rl.expression, error = RateLawExpression.deserialize('param_2', objects)
+        self.assertEqual(error, None)
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertEqual(errors, None, str(errors))

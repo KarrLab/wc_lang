@@ -7,11 +7,12 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
+from wc_lang import (ReactionRateUnit,
+                     Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
                      DfbaNetComponent, DfbaNetReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
-                     StopCondition, StopConditionExpression,
+                     StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
                      SubmodelAlgorithm, Concentration, ConcentrationUnit,
@@ -113,7 +114,8 @@ class TestSimpleModel(unittest.TestCase):
             func_expr, _ = FunctionExpression.deserialize(obs_expr,
                                                           objects)
             func = mdl.functions.create(id='func_{}'.format(i),
-                                        expression=func_expr)
+                                        expression=func_expr,
+                                        units='molecule cell^-1')
             functions.append(func)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -130,48 +132,69 @@ class TestSimpleModel(unittest.TestCase):
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=3))
-        expression = RateLawExpression(
-            expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].serialize()),
-            modifiers=species[5:6])
-        expression.parameters.create(id='k_cat_0', value=2, units='reaction molecule^-1 s^-1', model=mdl)
-        expression.parameters.create(id='k_m_0', value=1, units='molecule cell^-1', model=mdl)
+        k_cat_0 = mdl.parameters.create(id='k_cat_0', value=2, units='reaction cell^-1 s^-1')
+        k_m_0 = mdl.parameters.create(id='k_m_0', value=1, units='molecule cell^-1')
+        expression, _ = RateLawExpression.deserialize('k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].id), {
+            Species: {
+                species[5].id: species[5],
+            },
+            Parameter: {
+                'k_cat_0': k_cat_0,
+                'k_m_0': k_m_0,
+            },
+        })
         rate_law_0 = rxn_0.rate_laws.create(
             id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            expression=expression)
+            expression=expression,
+            units=ReactionRateUnit['reaction cell^-1 s^-1'])
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(
             id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
-        expression = RateLawExpression(
-            expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].serialize()),
-            modifiers=species[6:7])
-        expression.parameters.create(id='k_cat_1', value=2, units='reaction molecule^-1 s^-1', model=mdl)
-        expression.parameters.create(id='k_m_1', value=1, units='molecule cell^-1', model=mdl)
+        k_cat_1 = mdl.parameters.create(id='k_cat_1', value=2, units='reaction cell^-1 s^-1')
+        k_m_1 = mdl.parameters.create(id='k_m_1', value=1, units='molecule cell^-1')
+        expression, _ = RateLawExpression.deserialize('k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].id), {
+            Species: {
+                species[6].id: species[6],
+            },
+            Parameter: {
+                'k_cat_1': k_cat_1,
+                'k_m_1': k_m_1,
+            },
+        })
         rate_law_1 = rxn_1.rate_laws.create(
             id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            expression=expression)
+            expression=expression,
+            units=ReactionRateUnit['reaction cell^-1 s^-1'])
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(
             id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[7], coefficient=1))
-        expression = RateLawExpression(
-            expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].serialize()),
-            modifiers=species[7:8])
-        expression.parameters.create(id='k_cat_2', units='reaction molecule^-1 s^-1', value=2, model=mdl)
-        expression.parameters.create(id='k_m_2', value=1, units='molecule cell^-1', model=mdl)
+        k_cat_2 = mdl.parameters.create(id='k_cat_2', value=2, units='reaction cell^-1 s^-1')
+        k_m_2 = mdl.parameters.create(id='k_m_2', value=1, units='molecule cell^-1')
+        expression, _ = RateLawExpression.deserialize('k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].id), {
+            Species: {
+                species[7].id: species[7],
+            },
+            Parameter: {
+                'k_cat_2': k_cat_2,
+                'k_m_2': k_m_2,
+            },
+        })
         rate_law_2 = rxn_2.rate_laws.create(
             id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
-            expression=expression)
+            expression=expression,
+            units=ReactionRateUnit['reaction cell^-1 s^-1'])
 
         submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
         submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])
@@ -198,11 +221,16 @@ class TestSimpleModel(unittest.TestCase):
             x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
             db_refs.append(x_ref)
 
+        param = mdl.parameters.create(
+            id='param_stop_cond', name='parameter - stop condition',
+            value=1., units='molecule cell^-1')
+        parameters.append(param)
+        objects[Parameter] = {param.id: param}
         self.stop_conditions = stop_conditions = []
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
-            expr = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
-            cond.expression = StopConditionExpression.deserialize(expr, objects)[0]
+            expr = '({}) > {}'.format(' + '.join(o.id for o in observables[0:i+1]), param.id)
+            cond.expression, error = StopConditionExpression.deserialize(expr, objects)
             self.stop_conditions.append(cond)
 
         self.dirname = tempfile.mkdtemp()
@@ -337,7 +365,7 @@ class TestExampleModel(unittest.TestCase):
         self.assertEqual(len(rate_law.expression.modifiers), 1)
         self.assertEqual(rate_law.expression.modifiers[0].id, 'Adk_Protein[c]')
         self.assertEqual(len(rate_law.expression.parameters), 1)
-        self.assertEqual(rate_law.expression.parameters[0].id, 'k_cat_ak')
+        self.assertEqual(rate_law.expression.parameters[0].id, 'k_cat_rev_ak')
         self.assertEqual(len(rate_law.expression.observables), 1)
         self.assertEqual(rate_law.expression.observables[0].id, 'AXP_c')
         self.assertEqual(len(rate_law.expression.functions), 1)

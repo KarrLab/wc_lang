@@ -53,14 +53,15 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                        DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
-                       InvalidModel, InvalidObject, InvalidAttribute, TabularOrientation)
+                       InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                create_sbml_parameter)
-from wc_lang.expression import Expression, ParsedExpression
+from wc_lang.expression import Expression, ParsedExpression, ParsedExpressionError
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.units import unit_registry
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -180,9 +181,9 @@ class ObservableCoefficientUnit(int, Enum):
     dimensionless = 1
 
 
-class ObservableUnit(int, Enum):
-    """ Observable concentration units """
-    M = 1
+MoleculeCountUnit = Enum('MoleculeCountUnit', type=int, names=[
+    ('molecule cell^-1', 1),
+])
 
 
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
@@ -287,7 +288,7 @@ DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[
 
 DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
     ('dimensionless', 1),
-    ('mol reaction gsCellCycle^-1', 2),
+    ('gsCellCycle mol^-1 reaction^-1', 2),
 ])
 
 DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
@@ -611,7 +612,10 @@ class ExpressionAttribute(OneToOneAttribute):
         Returns:
             :obj:`str`: simple Python representation
         """
-        return expression.serialize()
+        if expression:
+            return expression.serialize()
+        else:
+            return ''
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -624,7 +628,9 @@ class ExpressionAttribute(OneToOneAttribute):
         Returns:
             :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
         """
-        return self.related_class.deserialize(value, objects)
+        if value:
+            return self.related_class.deserialize(value, objects)
+        return (None, None)
 
 
 class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
@@ -1804,6 +1810,7 @@ class Species(obj_model.Model):
         model (:obj:`Model`): model
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
+        units (:obj:`MoleculeCountUnit`): units of counts
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1822,13 +1829,14 @@ class Species(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='species')
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
     compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
+    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule cell^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species')
     evidence = ManyToManyAttribute('Evidence', related_name='species')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'species_type', 'compartment',
+        attribute_order = ('id', 'name', 'species_type', 'compartment', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         frozen_columns = 1
         # unique_together = (('species_type', 'compartment', ), )
@@ -2095,7 +2103,7 @@ class Observable(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
-        units (:obj:`ObservableUnit`): units of expression
+        units (:obj:`MoleculeCountUnit`): units of expression
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2111,7 +2119,7 @@ class Observable(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
     expression = ExpressionAttribute('ObservableExpression', related_name='observable')
-    units = EnumAttribute(ObservableUnit, default=ObservableUnit.M)
+    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule cell^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
     comments = LongStringAttribute()
@@ -2225,6 +2233,44 @@ class Function(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = FunctionExpression
 
+    def validate(self):
+        """ Check that the Function is valid
+
+        * Check that `expression` has units `units`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(Function, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        # check that units are valid
+        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+            exp_units = unit_registry.parse_expression(self.units).units
+            try:
+                calc = self.expression._parsed_expression.test_eval(with_units=True)
+            except ParsedExpressionError as error:
+                errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
+            else:
+                if hasattr(calc, 'units'):
+                    calc_units = calc.units
+                else:
+                    calc_units = unit_registry.parse_expression('dimensionless')
+
+                if calc_units != exp_units:
+                    errors.append(InvalidAttribute(self.Meta.attributes['units'],
+                                                   ['Units of "{}" should be "{}" not "{}"'.format(
+                                                    self.expression.expression, exp_units, calc_units)]))
+
+        # return errors
+        if errors:
+            return InvalidObject(self, errors)
+        return None
+
 
 class StopConditionExpression(obj_model.Model, Expression):
     """ A mathematical expression of Functions, Observables, Parameters and Python functions
@@ -2327,6 +2373,42 @@ class StopCondition(obj_model.Model):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
+
+    def validate(self):
+        """ Check that the stop condition is valid
+
+        * Check that `expression` has units `units`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(StopCondition, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        # check that units are valid
+        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+            try:
+                test_val = self.expression._parsed_expression.test_eval(with_units=True)
+            except ParsedExpressionError as error:
+                errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
+            else:
+                if hasattr(test_val, 'units'):
+                    errors.append(InvalidAttribute(self.Meta.attributes['units'], ['Units must be dimensionless']))
+        else:
+            errors.append(InvalidAttribute(self.Meta.attributes['expression'],
+                                           ['Expression for {} could not be parsed'.format(self.id)]))
+
+        if self.units != StopConditionUnit.dimensionless:
+            errors.append(InvalidAttribute(self.Meta.attributes['units'], ['Units must be dimensionless']))
+
+        # return errors
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
 
 class Reaction(obj_model.Model):
@@ -2698,11 +2780,33 @@ class RateLaw(obj_model.Model):
         else:
             errors = []
 
+        # check ID
         if self.reaction and self.direction is not None and \
                 self.id != self.gen_id(self.reaction.id, self.direction.name):
             errors.append(InvalidAttribute(
                 self.Meta.attributes['id'],
                 ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
+
+        # check that units are valid
+        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+            exp_units = unit_registry.parse_expression(self.units.name).units
+            try:
+                calc = self.expression._parsed_expression.test_eval(with_units=True)
+            except ParsedExpressionError as error:
+                errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
+            else:
+                if hasattr(calc, 'units'):
+                    calc_units = calc.units
+                else:
+                    calc_units = unit_registry.parse_expression('dimensionless')
+
+                if calc_units != exp_units:
+                    errors.append(InvalidAttribute(self.Meta.attributes['units'],
+                                                   ['Units of "{}" should be "{}" not "{}"'.format(
+                                                    self.expression.expression, exp_units, calc_units)]))
+        else:
+            errors.append(InvalidAttribute(self.Meta.attributes['expression'],
+                                           ['Expression for {} could not be parsed'.format(self.id)]))
 
         """ return errors or `None` to indicate valid object """
         if errors:
@@ -2715,6 +2819,7 @@ class RateLawExpression(obj_model.Model, Expression):
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
+        _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         modifiers (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
 
@@ -2867,6 +2972,7 @@ class DfbaNetReaction(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that uses this reaction
+        units (:obj:`DfbaNetFluxUnit`): flux units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2880,6 +2986,7 @@ class DfbaNetReaction(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
+    units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
                                                    verbose_related_name='dFBA net reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_reactions',
@@ -2888,7 +2995,7 @@ class DfbaNetReaction(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'submodel',
+        attribute_order = ('id', 'name', 'submodel', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA net reaction'
@@ -2977,7 +3084,7 @@ class Parameter(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='parameters')
     type = EnumAttribute(ParameterType, default=ParameterType.other)
-    value = FloatAttribute(min=0)
+    value = FloatAttribute()
     std = FloatAttribute(min=0, verbose_name='Standard error')
     units = StringAttribute(min_length=1)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='parameters')
@@ -3210,7 +3317,7 @@ class DatabaseReference(obj_model.Model):
                 of cleaned value and cleaning error
         """
         if ': ' not in value:
-            return (None, InvalidAttribute(cls.Meta.attributes['id'], 'Invalid format'))
+            return (None, InvalidAttribute(cls.Meta.attributes['id'], ['Invalid format']))
 
         database, _, id = value.strip().partition(': ')
         db_ref = cls(database=database.strip(), id=id.strip())

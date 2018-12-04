@@ -15,13 +15,18 @@ import unittest
 import wc_lang
 from libsbml import SBMLDocument
 from obj_model.core import InvalidAttribute
-from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
+from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
+                          MoleculeCountUnit,
+                          ReactionRateUnit, ReactionFluxUnit, DfbaNetFluxUnit,
+                          DfbaObjectiveUnit, DfbaObjectiveCoefficientUnit,
+                          DfbaNetComponentUnit, StopConditionUnit,
+                          Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
-                          Reaction, ConcentrationUnit, Compartment,
+                          Reaction, Compartment,
                           SpeciesType, SpeciesTypeType, Species,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
-                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection, ReactionFluxUnit,
+                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
@@ -31,6 +36,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
 from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
                                create_sbml_doc_w_fbc, get_SBML_compatibility_method)
+from wc_utils.util.units import unit_registry
 
 
 class TestCore(unittest.TestCase):
@@ -781,13 +787,14 @@ class TestCore(unittest.TestCase):
                 'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
             },
             Parameter: {
-                'k_cat': Parameter(id='k_cat', value=1),
+                'k_cat': Parameter(id='k_cat', value=1, units='reaction molecule^-1 s^-1'),
             },
         })
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
             expression=expression,
+            units=ReactionRateUnit['reaction cell^-1 s^-1'],
         )
         error = rate_law.validate()
         self.assertEqual(error, None, str(error))
@@ -796,18 +803,15 @@ class TestCore(unittest.TestCase):
 
         # No error with parameters
         expression = 'p_0 * spec_0[c_0]'
-        expression = RateLawExpression(
-            expression=expression,
-            modifiers=[
-                Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])
-            ],
-            parameters=[
-                parameters[0],
-            ],)
+        expression, _ = RateLawExpression.deserialize(expression, {
+            Species: {'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])},
+            Parameter: {'p_0': Parameter(id='p_0', value=1, units='reaction molecule^-1 s^-1')},
+        })
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
-            expression=expression
+            expression=expression,
+            units=ReactionRateUnit['reaction cell^-1 s^-1'],
         )
         error = rate_law.validate()
         self.assertEqual(error, None, str(error))
@@ -826,7 +830,7 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_2'),
         ]
         parameters = [
-            Parameter(id='p_0', value=1.),
+            Parameter(id='p_0', value=1., units='reaction molecule^-1 s^-1'),
             Parameter(id='p_1', value=1.),
             Parameter(id='k_m', value=1.),
         ]
@@ -1934,27 +1938,33 @@ class TestCore(unittest.TestCase):
         expr = 'ccc + ddd'
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         stop_condition.expression = stop_condition_expr
-        self.assertEqual(stop_condition.validate(), None)
+        self.assertNotEqual(stop_condition.validate(), None)
 
-        expr = 'ccc or ddd'
+        expr = 'ccc / ddd > 2'
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         stop_condition.expression = stop_condition_expr
-        self.assertEqual(stop_condition.validate(), None)
+        rv = stop_condition.validate()
+        self.assertEqual(rv, None, str(rv))
 
-        expr = 'ccc or !ddd'
+        expr = 'ccc / !ddd > 2'
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         stop_condition.expression = stop_condition_expr
-        self.assertEqual(stop_condition.validate(), None)
-
-        expr = 'ccc or ddd\n'
-        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         self.assertEqual(stop_condition_expr, None)
+        rv = stop_condition.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        expr = 'ccc / ~ddd > 2'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        stop_condition.expression = stop_condition_expr
+        self.assertEqual(stop_condition_expr, None)
+        rv = stop_condition.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        expr = 'ccc / ddd > 2\n'
+        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
+        self.assertNotEqual(stop_condition_expr, None)
 
         expr = 'ccc << ddd'
-        stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
-        self.assertEqual(stop_condition_expr, None)
-
-        expr = 'ccc or ~ddd'
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         self.assertEqual(stop_condition_expr, None)
 
@@ -2334,3 +2344,292 @@ class ValidateModelTestCase(unittest.TestCase):
         rv = model.validate()
         self.assertEqual(len(rv.attributes), 1)
         self.assertRegex(str(rv), 'cannot have cyclic depencencies')
+
+
+class UnitsTestCase(unittest.TestCase):
+    def test_time(self):
+        self.assertEqual(Model.time_units.enum_class, TimeUnit)
+        self.assertEqual(len(TimeUnit), 1)
+        self.assertIn('s', TimeUnit.__members__)
+
+    def test_compartment_volume(self):
+        self.assertEqual(Compartment.volume_units.enum_class, VolumeUnit)
+        self.assertEqual(len(VolumeUnit), 1)
+        self.assertIn('l', VolumeUnit.__members__)
+
+    def test_compartment_density(self):
+        self.assertEqual(Compartment.density_units.enum_class, DensityUnit)
+        self.assertEqual(len(DensityUnit), 1)
+        self.assertIn('g ml^-1', DensityUnit.__members__)
+
+    def test_species_count(self):
+        self.assertEqual(Species.units.enum_class, MoleculeCountUnit)
+        self.assertEqual(len(MoleculeCountUnit), 1)
+        self.assertIn('molecule cell^-1', MoleculeCountUnit.__members__)
+
+    def test_observable_count(self):
+        self.assertEqual(Observable.units.enum_class, MoleculeCountUnit)
+        self.assertEqual(len(MoleculeCountUnit), 1)
+        self.assertIn('molecule cell^-1', MoleculeCountUnit.__members__)
+
+    def test_function_value(self):
+        self.assertTrue(hasattr(Function, 'units'))
+
+        objs = {
+            SpeciesType: {
+                'st_1': SpeciesType(id='st_1'),
+                'st_2': SpeciesType(id='st_2'),
+            },
+            Compartment: {
+                'c_1': Compartment(id='c_1'),
+                'c_2': Compartment(id='c_2'),
+            },
+            Species: {
+            },
+            Observable: {
+            },
+            Function: {
+            },
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units='g'),
+                'p_2': Parameter(id='p_2', value=2.5, units='kg'),
+            },
+        }
+        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
+                                             species_type=objs[SpeciesType]['st_1'],
+                                             compartment=objs[Compartment]['c_1'])
+        objs[Species]['st_2[c_2]'] = Species(id=Species.gen_id('st_2', 'c_2'),
+                                             species_type=objs[SpeciesType]['st_2'],
+                                             compartment=objs[Compartment]['c_2'])
+        obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
+        obs_1.expression, invalid = ObservableExpression.deserialize('3 * st_1[c_1]', objs)
+        obs_2 = objs[Observable]['obs_2'] = Observable(id='obs_2')
+        obs_2.expression, _ = ObservableExpression.deserialize('4 * st_2[c_2] + obs_1', objs)
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('1', objs)[0],
+            units='dimensionless')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2', objs)[0],
+            units='s')
+        rv = function.validate()
+        self.assertNotEqual(rv, None, str(rv))
+        self.assertRegex(str(rv), 'Units of ".*?" should be ".*?" not "dimensionless"')
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2 * st_1[c_1]', objs)[0],
+            units='molecule cell^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 4.)
+        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=3.), 6.)
+
+        # with parameters
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2 * st_1[c_1] / p_1', objs)[0],
+            units='molecule cell^-1 g^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 8./3.)
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2 * st_1[c_1] / p_2', objs)[0],
+            units='molecule cell^-1 kg^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 8./5.)
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('(2 * st_1[c_1] + st_2[c_2]) / p_2', objs)[0],
+            units='molecule cell^-1 kg^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 2.4)
+
+        # inconsistent units
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2 * st_1[c_1] + st_2[c_2] / p_2', objs)[0],
+            units='molecule cell^-1 kg^-1')
+        rv = function.validate()
+        self.assertNotEqual(rv, None, str(rv))
+        self.assertRegex(str(rv), 'Cannot convert from ')
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('2 * st_1[c_1] + st_2[c_2] / (p_1 / p_2)', objs)[0],
+            units='molecule cell^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(
+            species_counts=2., with_units=True),
+            (4. + 2. / (1.5/2.5e3)) * unit_registry.parse_expression('molecule cell^-1'))
+
+        function = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('obs_1', objs)[0],
+            units='molecule cell^-1')
+        rv = function.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(function.expression._parsed_expression.test_eval(
+            species_counts=2.), 6.)
+
+        func = Function(
+            id='func',
+            expression=FunctionExpression.deserialize('obs_2', objs)[0],
+            units='molecule cell^-1')
+        rv = func.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(func.expression._parsed_expression.test_eval(
+            species_counts=2.), 14.)
+
+        objs[Function]['func'] = func
+        func2 = Function(
+            id='func_2',
+            expression=FunctionExpression.deserialize('func() + p_1 / p_2 * st_1[c_1]', objs)[0],
+            units='molecule cell^-1')
+        rv = func2.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(func2.expression._parsed_expression.test_eval(
+            species_counts=2., with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
+
+    def test_rate_law_value(self):
+        self.assertTrue(hasattr(RateLaw, 'units'))
+
+        objs = {
+            SpeciesType: {
+                'st_1': SpeciesType(id='st_1'),
+            },
+            Compartment: {
+                'c_1': Compartment(id='c_1'),
+            },
+            Species: {
+            },
+            Observable: {
+            },
+            Function: {
+            },
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units='reaction molecule^-1 s^-1'),
+            },
+        }
+        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
+                                             species_type=objs[SpeciesType]['st_1'],
+                                             compartment=objs[Compartment]['c_1'])
+        obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
+        obs_1.expression, invalid = ObservableExpression.deserialize('2 * st_1[c_1]', objs)
+
+        func_1 = objs[Function]['func_1'] = Function(id='func_1', units='molecule cell^-1')
+        func_1.expression, _ = FunctionExpression.deserialize('3 * obs_1', objs)
+
+        rl = RateLaw(id='rxn_1-forward',
+                     reaction=Reaction(id='rxn_1'),
+                     direction=RateLawDirection.forward,
+                     units=ReactionRateUnit['reaction cell^-1 s^-1'])
+        rl.expression, _ = RateLawExpression.deserialize('4 * p_1 * func_1', objs)
+        rv = rl.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(rl.expression._parsed_expression.test_eval(species_counts=2., with_units=True).magnitude,
+                         4. * 1.5 * (3. * (2. * 2.)))
+
+        rl = RateLaw(id='rxn_1-forward',
+                     reaction=Reaction(id='rxn_1'),
+                     direction=RateLawDirection.forward,
+                     units=ReactionRateUnit['reaction cell^-1 s^-1'])
+        rl.expression, _ = RateLawExpression.deserialize('4 * func_1', objs)
+        rv = rl.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+    def test_reaction_flux(self):
+        self.assertEqual(Reaction.flux_units.enum_class, ReactionFluxUnit)
+        self.assertEqual(len(ReactionFluxUnit), 1)
+        self.assertIn('mol reaction gCell^-1 s^-1', ReactionFluxUnit.__members__)
+
+    def test_dfba_obj_value(self):
+        self.assertEqual(DfbaObjective.units.enum_class, DfbaObjectiveUnit)
+        self.assertEqual(len(DfbaObjectiveUnit), 1)
+        self.assertIn('gsCellCycle gCell^-1 s^-1', DfbaObjectiveUnit.__members__)
+
+        obj_units = unit_registry.parse_expression(DfbaObjectiveUnit['gsCellCycle gCell^-1 s^-1'].name)
+
+        rxn_units = unit_registry.parse_expression(ReactionFluxUnit['mol reaction gCell^-1 s^-1'].name)
+        rxn_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['gsCellCycle mol^-1 reaction^-1'].name)
+
+        net_units = unit_registry.parse_expression(DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'].name)
+        net_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['dimensionless'].name)
+
+        self.assertEqual(rxn_coeff * rxn_units, obj_units)
+        self.assertEqual(net_coeff * net_units, obj_units)
+
+    def test_dfba_net_component_value(self):
+        self.assertEqual(DfbaNetComponent.units.enum_class, DfbaNetComponentUnit)
+        self.assertEqual(len(DfbaNetComponentUnit), 1)
+        self.assertIn('mol gsCellCycle^-1', DfbaNetComponentUnit.__members__)
+
+    def test_dfba_net_reaction_flux_value(self):
+        self.assertEqual(DfbaNetReaction.units.enum_class, DfbaNetFluxUnit)
+        self.assertEqual(len(DfbaNetFluxUnit), 1)
+        self.assertIn('gsCellCycle gCell^-1 s^-1', DfbaNetFluxUnit.__members__)
+
+    def test_stop_condition_value(self):
+        self.assertEqual(StopCondition.units.enum_class, StopConditionUnit)
+        self.assertEqual(len(StopConditionUnit), 1)
+        self.assertIn('dimensionless', StopConditionUnit.__members__)
+
+        objs = {
+            SpeciesType: {
+                'st_1': SpeciesType(id='st_1'),
+            },
+            Compartment: {
+                'c_1': Compartment(id='c_1'),
+            },
+            Species: {
+            },
+            Observable: {
+            },
+            Function: {
+            },
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units='reaction molecule^-1 s^-1'),
+                'p_2': Parameter(id='p_2', value=1.5, units='molecule cell^-1'),
+                'p_3': Parameter(id='p_3', value=1.5, units='dimensionless'),
+                'p_4': Parameter(id='p_4', value=2.5, units='dimensionless'),
+            },
+        }
+        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
+                                             species_type=objs[SpeciesType]['st_1'],
+                                             compartment=objs[Compartment]['c_1'])
+        obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
+        obs_1.expression, invalid = ObservableExpression.deserialize('2 * st_1[c_1]', objs)
+
+        func_1 = objs[Function]['func_1'] = Function(id='func_1', units='molecule cell^-1')
+        func_1.expression, _ = FunctionExpression.deserialize('3 * obs_1', objs)
+
+        cond = StopCondition(id='cond_1')
+        cond.expression, _ = StopConditionExpression.deserialize('func_1 > p_2', objs)
+        rv = cond.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertTrue(cond.expression._parsed_expression.test_eval(with_units=True))
+
+        cond = StopCondition(id='cond_2')
+        cond.expression, _ = StopConditionExpression.deserialize('func_1 > p_3', objs)
+        rv = cond.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        cond = StopCondition(id='cond_3')
+        cond.expression, _ = StopConditionExpression.deserialize('p_3 > p_4', objs)
+        rv = cond.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertFalse(cond.expression._parsed_expression.test_eval(with_units=True))
+
+    def test_parameter_value(self):
+        self.assertTrue(hasattr(Parameter, 'units'))

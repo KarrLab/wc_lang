@@ -7,6 +7,7 @@
 :License: MIT
 """
 import collections
+import copy
 import obj_model
 import token
 import tokenize
@@ -16,6 +17,7 @@ from io import BytesIO
 from wc_lang.core import InvalidObject, InvalidAttribute
 from wc_lang.util import get_models
 from wc_utils.util.misc import DFSMAcceptor
+from wc_utils.util.units import unit_registry
 
 
 class WcTokenCodes(int, Enum):
@@ -56,7 +58,13 @@ LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 class Expression(object):
     """ Generic methods for mathematical expressions
+
+    Attributes:
+        _parsed_expression (:obj:`ParsedExpression`): parsed expression
     """
+
+    def __init__(self):
+        self.__reset_tokenization()
 
     def serialize(self):
         """ Generate string representation
@@ -115,7 +123,7 @@ class Expression(object):
         obj._parsed_expression = parsed_expression
 
         # check expression is linear
-        parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(parsed_expression)
+        parsed_expression.is_linear, _ = LinearParsedExpressionValidator().validate(parsed_expression)
         cls.set_lin_coeffs(obj)
 
         return (obj, None)
@@ -201,7 +209,7 @@ class Expression(object):
             attr = model_cls.Meta.attributes['expression']
             attr_err = InvalidAttribute(attr, errors)
             return InvalidObject(model_obj, [attr_err])
-        model_obj._parsed_expression.is_linear, _ = LinearParsedExpressionVerifier().validate(
+        model_obj._parsed_expression.is_linear, _ = LinearParsedExpressionValidator().validate(
             model_obj._parsed_expression)
         cls.set_lin_coeffs(model_obj)
 
@@ -370,6 +378,9 @@ class ParsedExpression(object):
         _wc_tokens (:obj:`list` of :obj:`WcToken`): tokens obtained when an `expression` is successfully
             `tokenize`d; if empty, then this `ParsedExpression` cannot use `eval()`
         _compiled_expression (:obj:`str`): compiled expression that can be evaluated by `eval`
+        _compiled_expression_with_units (:obj:`str`): compiled expression with units that can be evaluated by `eval`
+        _compiled_namespace (:obj:`dict`): compiled namespace for evaluation by `eval`
+        _compiled_namespace_with_units (:obj:`dict`): compiled namespace with units for evaluation by `eval`
     """
 
     # Function.identifier()
@@ -454,6 +465,9 @@ class ParsedExpression(object):
         self.errors = []
         self._wc_tokens = []
         self._compiled_expression = ''
+        self._compiled_expression_with_units = ''
+        self._compiled_namespace = {}
+        self._compiled_namespace_with_units = {}
 
     def _get_model_type(self, name):
         """ Find the `wc_lang` model type corresponding to `name`
@@ -792,11 +806,13 @@ class ParsedExpression(object):
 
         if self.errors:
             return (None, None, self.errors)
-        self._compile()
+        self._compiled_expression, self._compiled_namespace = self._compile()
+        self._compiled_expression_with_units, self._compiled_namespace_with_units = self._compile(with_units=True)
         return (self._wc_tokens, self.related_objects, None)
 
     def test_eval(self, species_counts=1., compartment_volumes=1.,
-                  reaction_fluxes=1., dfba_net_reaction_fluxes=1.):
+                  reaction_fluxes=1., dfba_net_reaction_fluxes=1.,
+                  with_units=False):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
 
         This is used to validate this :obj:`ParsedExpression`, as well as for testing.
@@ -808,6 +824,7 @@ class ParsedExpression(object):
                 to use to evaluate expression
             dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (gsCellCycle gCell^-1 s^-1)
                 to use to evaluate expression
+            with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
 
         Returns:
             :obj:`float`, :obj:`int`, or :obj:`bool`: the value of the expression
@@ -818,10 +835,12 @@ class ParsedExpression(object):
         return self.eval(species_counts=collections.defaultdict(lambda: species_counts),
                          compartment_volumes=collections.defaultdict(lambda: compartment_volumes),
                          reaction_fluxes=collections.defaultdict(lambda: reaction_fluxes),
-                         dfba_net_reaction_fluxes=collections.defaultdict(lambda: dfba_net_reaction_fluxes))
+                         dfba_net_reaction_fluxes=collections.defaultdict(lambda: dfba_net_reaction_fluxes),
+                         with_units=with_units)
 
     def eval(self, species_counts=None, compartment_volumes=None,
-             reaction_fluxes=None, dfba_net_reaction_fluxes=None):
+             reaction_fluxes=None, dfba_net_reaction_fluxes=None,
+             with_units=False):
         """ Evaluate the expression
 
         This expression must have been successfully `tokenize`d.
@@ -842,6 +861,7 @@ class ParsedExpression(object):
             dfba_net_reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`)
                 dictionary that maps ids of :obj:`wc_lang.core.DfbaNetReaction` to their fluxes
                 (gsCellCycle gCell^-1 s^-1)
+            with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
 
         Returns:
             :obj:`float`, :obj:`int`, or :obj:`bool`: the value of the expression
@@ -849,35 +869,78 @@ class ParsedExpression(object):
         Raises:
             :obj:`ParsedExpressionError`: if the evaluation fails
         """
-        if not self._compiled_expression:
+        if with_units:
+            expression = self._compiled_expression_with_units
+            namespace = self._compiled_namespace_with_units
+        else:
+            expression = self._compiled_expression
+            namespace = self._compiled_namespace
+
+        if not expression:
             raise ParsedExpressionError("Cannot evaluate '{}', as it not been successfully compiled".format(
                 self.expression))
 
         # prepare name space
-        namespace = self._compiled_expression_namespace
+        if with_units:
+            namespace['parameter_values'] = copy.copy(namespace['parameter_values'])
+            for obj in self.related_objects.get(wc_lang.core.Parameter, {}).values():
+                namespace['parameter_values'][obj.id] = obj.value * \
+                    unit_registry.parse_expression(obj.units)
 
         namespace['compartment_volumes'] = compartment_volumes
+        if with_units:
+            namespace['compartment_volumes'] = copy.copy(namespace['compartment_volumes'])
+            for obj in self.related_objects.get(wc_lang.core.Compartment, {}).values():
+                namespace['compartment_volumes'][obj.id] = compartment_volumes[obj.id] * \
+                    unit_registry.parse_expression(wc_lang.core.VolumeUnit.l.name)
+
         namespace['species_counts'] = species_counts
+        if with_units:
+            namespace['species_counts'] = copy.copy(namespace['species_counts'])
+            for obj in self.related_objects.get(wc_lang.core.Species, {}).values():
+                namespace['species_counts'][obj.id] = species_counts[obj.id] * \
+                    unit_registry.parse_expression(
+                        wc_lang.core.MoleculeCountUnit['molecule cell^-1'].name)
+
         namespace['reaction_fluxes'] = reaction_fluxes
+        if with_units:
+            namespace['reaction_fluxes'] = copy.copy(namespace['reaction_fluxes'])
+            for obj in self.related_objects.get(wc_lang.core.Reaction, {}).values():
+                namespace['reaction_fluxes'][obj.id] = reaction_fluxes[obj.id] * \
+                    unit_registry.parse_expression(
+                        wc_lang.core.ReactionFluxUnit['mol reaction gCell^-1 s^-1'].name)
+
         namespace['dfba_net_reaction_fluxes'] = dfba_net_reaction_fluxes
+        if with_units:
+            namespace['dfba_net_reaction_fluxes'] = copy.copy(namespace['dfba_net_reaction_fluxes'])
+            for obj in self.related_objects.get(wc_lang.core.DfbaNetReaction, {}).values():
+                namespace['dfba_net_reaction_fluxes'][obj.id] = dfba_net_reaction_fluxes[obj.id] * \
+                    unit_registry.parse_expression(
+                        wc_lang.core.DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'].name)
 
         namespace['observable_counts'] = {}
         for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():
-            namespace['observable_counts'][obs.id] = obs.expression._parsed_expression.eval(
+            val = namespace['observable_counts'][obs.id] = obs.expression._parsed_expression.eval(
                 species_counts, compartment_volumes)
+            if with_units:
+                namespace['observable_counts'][obs.id] = val * unit_registry.parse_expression(
+                    wc_lang.core.MoleculeCountUnit['molecule cell^-1'].name)
 
         namespace['function_values'] = {}
         for func in self.related_objects.get(wc_lang.core.Function, {}).values():
-            namespace['function_values'][func.id] = func.expression._parsed_expression.eval(
+            val = namespace['function_values'][func.id] = func.expression._parsed_expression.eval(
                 species_counts, compartment_volumes)
+            if with_units:
+                namespace['function_values'][func.id] = float(val) * \
+                    unit_registry.parse_expression(func.units)
 
         # prepare error message
-        error_suffix = " cannot eval expression '{}' in {}; ".format(self._compiled_expression,
+        error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
                                                                      self.model_cls.__name__)
 
         # evaluate compiled expression
         try:
-            return eval(self._compiled_expression, {}, namespace)
+            return eval(expression, {}, namespace)
         except SyntaxError as error:
             raise ParsedExpressionError("SyntaxError:" + error_suffix + str(error))
         except NameError as error:  # pragma: no cover
@@ -885,8 +948,15 @@ class ParsedExpression(object):
         except Exception as error:  # pragma: no cover
             raise ParsedExpressionError("Exception:" + error_suffix + str(error))
 
-    def _compile(self):
+    def _compile(self, with_units=False):
         """ Compile expression for evaluation by `eval` method
+
+        Args:
+            with_units (:obj:`bool`, optional): if :obj:`True`, include units
+
+        Returns:
+            :obj:`str`: compile expression for `eval`
+            :obj:`dict`: compiled namespace
 
         Raises:
             :obj:`ParsedExpressionError`: if the expression is invalid
@@ -909,7 +979,8 @@ class ParsedExpression(object):
                 elif wc_token.model_type == wc_lang.core.Function:
                     val = 'function_values["{}"]'.format(wc_token.model.id)
                     # skip past the following ( ) tokens -- they're just syntactic sugar for Functions
-                    idx += 2
+                    if idx + 1 < len(self._wc_tokens) and self._wc_tokens[idx+1].token_string == '(':
+                        idx += 2
                 elif wc_token.model_type == wc_lang.core.Parameter:
                     val = 'parameter_values["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Reaction:
@@ -921,15 +992,24 @@ class ParsedExpression(object):
                                                  'functions, parameters, reactions, and dFBA net reactions').format(
                         self.expression))  # pragma: no cover
                 compiled_tokens.append(val)
+            elif wc_token.code == WcTokenCodes.number:
+                if with_units:
+                    compiled_tokens.append(wc_token.token_string + ' * __dimensionless__')
+                else:
+                    compiled_tokens.append(wc_token.token_string)
             else:
                 compiled_tokens.append(wc_token.token_string)
             idx += 1
 
-        self._compiled_expression = ' '.join(compiled_tokens)
+        compiled_expression = ' '.join(compiled_tokens)
 
-        self._compiled_expression_namespace = {func.__name__: func for func in self.valid_functions}
-        self._compiled_expression_namespace['parameter_values'] = {
+        compiled_namespace = {func.__name__: func for func in self.valid_functions}
+        if with_units:
+            compiled_namespace['__dimensionless__'] = unit_registry['dimensionless']
+        compiled_namespace['parameter_values'] = {
             param.id: param.value for param in self.related_objects.get(wc_lang.core.Parameter, {}).values()}
+
+        return compiled_expression, compiled_namespace
 
     def __str__(self):
         rv = []
@@ -943,10 +1023,10 @@ class ParsedExpression(object):
         return '\n'.join(rv)
 
 
-class ParsedExpressionVerifier(object):
+class ParsedExpressionValidator(object):
     """ Verify whether a sequence of `WcToken` tokens
 
-    An `ParsedExpressionVerifier` consists of two parts:
+    An `ParsedExpressionValidator` consists of two parts:
 
     * An optional method `_validate_tokens` that examines the content of individual tokens
       and returns `(True, True)` if they are all valid, or (`False`, error) otherwise. It can be
@@ -1023,7 +1103,7 @@ class ParsedExpressionVerifier(object):
             return (False, "Not a linear expression")
 
 
-class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
+class LinearParsedExpressionValidator(ParsedExpressionValidator):
     """ Verify whether a sequence of tokens (`WcToken`s) describes a linear function of identifiers
 
     In particular, a valid linear expression must have the structure:
@@ -1071,7 +1151,7 @@ class LinearParsedExpressionVerifier(ParsedExpressionVerifier):
 
     def _make_dfsa_messages(self, tokens):
         """ Convert a sequence of `WcToken`s into a list of messages for transitions in
-        :obj:`LinearParsedExpressionVerifier.TRANSITIONS`
+        :obj:`LinearParsedExpressionValidator.TRANSITIONS`
 
         Args:
             tokens (:obj:`iterator` of `WcToken`): sequence of `WcToken`s

@@ -18,7 +18,7 @@ from wc_lang import (Compartment, ConcentrationUnit, SpeciesType, Species,
                      Parameter)
 from wc_lang.expression import (WcTokenCodes, WcToken, LexMatch,
                                 Expression, ParsedExpression, ParsedExpressionError,
-                                ParsedExpressionVerifier, LinearParsedExpressionVerifier)
+                                ParsedExpressionValidator, LinearParsedExpressionValidator)
 
 
 class TestWcLangExpression(unittest.TestCase):
@@ -518,14 +518,14 @@ class TestWcLangExpression(unittest.TestCase):
         pass
 
 
-class TestParsedExpressionVerifier(unittest.TestCase):
+class TestParsedExpressionValidator(unittest.TestCase):
 
     def test_expression_verifier(self):
 
         number_is_good_transitions = [   # (current state, message, next state)
             ('start', (WcTokenCodes.number, None), 'accept'),
         ]
-        expression_verifier = ParsedExpressionVerifier('start', 'accept', number_is_good_transitions)
+        expression_verifier = ParsedExpressionValidator('start', 'accept', number_is_good_transitions)
         number_is_good = [
             WcToken(WcTokenCodes.number, '3'),
         ]
@@ -555,7 +555,7 @@ class TestParsedExpressionVerifier(unittest.TestCase):
         ]
         valid_linear_expr = mock.Mock(_wc_tokens=wc_tokens)
 
-        linear_expression_verifier = LinearParsedExpressionVerifier()
+        linear_expression_verifier = LinearParsedExpressionValidator()
         valid, error = linear_expression_verifier.validate(valid_linear_expr)
         self.assertTrue(valid)
         self.assertTrue(error is None)
