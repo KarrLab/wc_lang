@@ -155,23 +155,12 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_disambiguated_id(self):
         self.do_disambiguated_id_error_test(
-            'NotFunction.foo()',
-            "contains '{}', which doesn't use 'Function' as a disambiguation model type")
-        self.do_disambiguated_id_error_test(
-            'Function.foo2()',
-            "contains '{}', which doesn't refer to a Function")
-
-        self.do_disambiguated_id_test('Function.fun_1()', Function, 'fun_1',
-                                      ParsedExpression.FUNC_TYPE_DISAMBIG_PATTERN)
-        self.do_disambiguated_id_test('Function.FUN_1()', Function, 'fun_1',
-                                      ParsedExpression.FUNC_TYPE_DISAMBIG_PATTERN, case_fold_match=True)
+            'Function.foo2',
+            "contains '{}', but 'foo2' is not the id of a 'Function'")
 
         self.do_disambiguated_id_error_test(
-            'NotFunction.foo()',
-            "contains '{}', which doesn't use 'Function' as a disambiguation model type")
-        self.do_disambiguated_id_error_test(
-            'Function.fun_1',
-            "contains '{}', which uses 'Function' as a disambiguation model type but doesn't use Function syntax")
+            'NotFunction.foo',
+            "contains '{}', but the disambiguation model type 'NotFunction' cannot be referenced by ")
         self.do_disambiguated_id_error_test(
             'NoSuchModel.fun_1',
             "contains '{}', but the disambiguation model type 'NoSuchModel' cannot be referenced by "
@@ -341,7 +330,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs)
 
         # test _get_func_call_id
-        expr = 'log(3) + fun_2() - Function.Observable()'
+        expr = 'log(3) + fun_2 - Function.Observable'
         expected_wc_tokens = [
             WcToken(code=WcTokenCodes.math_func_id, token_string='log'),
             WcToken(WcTokenCodes.op, '('),
@@ -350,10 +339,8 @@ class TestWcLangExpression(unittest.TestCase):
             WcToken(WcTokenCodes.op, '+'),
             WcToken(WcTokenCodes.wc_obj_id, 'fun_2', Function, 'fun_2',
                     self.objects_hard[Function]['fun_2']),
-            WcToken(WcTokenCodes.op, '('),
-            WcToken(WcTokenCodes.op, ')'),
             WcToken(WcTokenCodes.op, '-'),
-            WcToken(WcTokenCodes.wc_obj_id, 'Function.Observable()', Function, 'Observable',
+            WcToken(WcTokenCodes.wc_obj_id, 'Function.Observable', Function, 'Observable',
                     self.objects_hard[Function]['Observable'])
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard,
@@ -394,7 +381,7 @@ class TestWcLangExpression(unittest.TestCase):
             Parameter: {'Function': Parameter(value=1.)},
             Function: {'fun_2': Function()}
         }
-        expr = 'Function.fun_2()'
+        expr = 'Function.fun_2'
         expected_wc_tokens = [
             WcToken(WcTokenCodes.wc_obj_id, expr, Function, 'fun_2',
                     test_objects[Function]['fun_2'])
@@ -418,6 +405,7 @@ class TestWcLangExpression(unittest.TestCase):
         for expected_error in expected_errors:
             expected_errors_found[expected_error] = False
         for error in errors:
+            print(error)
             for expected_error in expected_errors:
                 if re.match(expected_error, error):
                     if expected_errors_found[expected_error]:
@@ -437,20 +425,19 @@ class TestWcLangExpression(unittest.TestCase):
             [["contains multiple model object id matches: 'Observable' as a Function id, 'Observable' as a Parameter id"],
              ["contains '{}', but '{}'".format(bad_id, bad_id.split('.')[1]), "is not the id of a"]])
         bad_id = 'no_such_function'
-        bad_fn_name = bad_id+'()'
+        bad_fn_name = bad_id
         self.do_tokenize_error_test(
             bad_fn_name,
-            [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
-             ["contains the func name '{}', but it isn't in ".format(bad_id), "Meta.valid_functions"]])
+            [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)]])
         bad_id = 'Function'
-        bad_fn_name = bad_id+'.no_such_function2()'
+        bad_fn_name = bad_id+'.no_such_function2'
         self.do_tokenize_error_test(
             bad_fn_name,
             [["contains the identifier(s) '{}', which aren't the id(s) of an object".format(bad_id)],
-             ["contains '{}', which doesn't refer to a Function".format(bad_fn_name)]])
+             ["contains '{}', but '{}'".format(bad_fn_name, bad_fn_name.split('.')[1]), "is not the id of a"]])
 
     def test_str(self):
-        expr = 'fun_1() + Parameter.param_id'
+        expr = 'fun_1 + Parameter.param_id'
         wc_lang_expr = self.make_wc_lang_expr(expr)
         self.assertIn(expr, str(wc_lang_expr))
         self.assertIn('errors: []', str(wc_lang_expr))
@@ -482,15 +469,15 @@ class TestWcLangExpression(unittest.TestCase):
 
         self.do_test_eval('param_id', RateLaw, RateLawExpression, related_obj_val, 1.)
         self.do_test_eval('obs_id', RateLaw, RateLawExpression, related_obj_val, related_obj_val)
-        self.do_test_eval('fun_2()', RateLaw, RateLawExpression, related_obj_val, related_obj_val)
+        self.do_test_eval('fun_2', RateLaw, RateLawExpression, related_obj_val, related_obj_val)
 
         # test combination of WcTokenCodes
         expected_val = 4 * 1. + pow(2, related_obj_val) + related_obj_val
-        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', RateLaw, RateLawExpression,
+        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2', RateLaw, RateLawExpression,
                           related_obj_val, expected_val)
 
         # test different model classes
-        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2()', Function, FunctionExpression,
+        self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2', Function, FunctionExpression,
                           related_obj_val, expected_val)
 
         # test different exceptions

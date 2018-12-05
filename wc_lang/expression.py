@@ -383,8 +383,6 @@ class ParsedExpression(object):
         _compiled_namespace_with_units (:obj:`dict`): compiled namespace with units for evaluation by `eval`
     """
 
-    # Function.identifier()
-    FUNC_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME, token.LPAR, token.RPAR)
     # ModelType.model_id
     MODEL_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME)
     FUNC_PATTERN = (token.NAME, token.LPAR)
@@ -513,9 +511,8 @@ class ParsedExpression(object):
     def _get_disambiguated_id(self, idx, case_fold_match=False):
         """ Try to parse a disambiguated `wc_lang` id from `self._py_tokens` at `idx`
 
-        Look for a disambugated id (either a Function written as `Function.identifier()`, or a
-        Model written as `ModelType.model_id`). If tokens do not match, return `None`. If tokens match,
-        but their values are wrong, return an error `str`.
+        Look for a disambugated id (a Model written as `ModelType.model_id`). If tokens do not match,
+        return `None`. If tokens match, but their values are wrong, return an error `str`.
         If a disambugated id is found, return a `LexMatch` describing it.
 
         Args:
@@ -530,34 +527,12 @@ class ParsedExpression(object):
                 but their values are wrong, return an error `str`.
                 If a disambugated id is found, return a `LexMatch` describing it.
         """
-        func_match = self._match_tokens(self.FUNC_TYPE_DISAMBIG_PATTERN, idx)
-        if func_match:
-            possible_macro_id = self._py_tokens[idx+2].string
-            if case_fold_match:
-                possible_macro_id = possible_macro_id.casefold()
-            # the disambiguation model type must be Function
-            if self._py_tokens[idx].string != wc_lang.core.Function.__name__:
-                return ("'{}', a {}.{}, contains '{}', which doesn't use 'Function' as a disambiguation "
-                        "model type".format(self.expression, self.model_cls.__name__, self.attr, func_match))
-            # the identifier must be in the Function objects
-            if wc_lang.core.Function not in self.valid_models or possible_macro_id not in self._objs[wc_lang.core.Function]:
-                return "'{}', a {}.{}, contains '{}', which doesn't refer to a Function".format(
-                    self.expression, self.model_cls.__name__, self.attr, func_match)
-            return LexMatch([WcToken(WcTokenCodes.wc_obj_id, func_match, wc_lang.core.Function,
-                                     possible_macro_id, self._objs[wc_lang.core.Function][possible_macro_id])],
-                            len(self.FUNC_TYPE_DISAMBIG_PATTERN))
-
         disambig_model_match = self._match_tokens(self.MODEL_TYPE_DISAMBIG_PATTERN, idx)
         if disambig_model_match:
             disambig_model_type = self._py_tokens[idx].string
             possible_model_id = self._py_tokens[idx+2].string
             if case_fold_match:
                 possible_model_id = possible_model_id.casefold()
-            # the disambiguation model type cannot be Function
-            if disambig_model_type == wc_lang.core.Function.__name__:
-                return ("'{}', a {}.{}, contains '{}', which uses 'Function' as a disambiguation "
-                        "model type but doesn't use Function syntax".format(self.expression, self.model_cls.__name__,
-                                                                            self.attr, disambig_model_match))
 
             # the disambiguation model type must be in self.valid_models
             model_type = self._get_model_type(disambig_model_type)
@@ -978,9 +953,6 @@ class ParsedExpression(object):
                     val = 'observable_counts["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Function:
                     val = 'function_values["{}"]'.format(wc_token.model.id)
-                    # skip past the following ( ) tokens -- they're just syntactic sugar for Functions
-                    if idx + 1 < len(self._wc_tokens) and self._wc_tokens[idx+1].token_string == '(':
-                        idx += 2
                 elif wc_token.model_type == wc_lang.core.Parameter:
                     val = 'parameter_values["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Reaction:

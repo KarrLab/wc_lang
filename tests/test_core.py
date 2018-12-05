@@ -1777,7 +1777,7 @@ class TestCore(unittest.TestCase):
             ('1 * Observable.duped_id', 1,
                 {'observables': [id_map['Observable.duped_id']]},
                 None),
-            ('a + f()', 2,
+            ('a + f', 2,
                 {'functions': [id_map['Function.f']]},
                 None),
             ('log(a)', math.log(1), {}, None),
@@ -1788,7 +1788,7 @@ class TestCore(unittest.TestCase):
                 {'parameters': [id_map['Parameter.duped_id']],
                  'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']]},
                 None),
-            ('ddd * Function.duped_id()', 1,
+            ('ddd * Function.duped_id', 1,
                 {'observables': [id_map['Observable.ddd']],
                  'functions':[id_map['Function.duped_id']]},
                 None),
@@ -1832,7 +1832,7 @@ class TestCore(unittest.TestCase):
     def test_stop_condition_expression_deserialize_errors(self):
         _, objects, _ = self.make_objects()
 
-        expr = '(ccc > 10 and ddd < 5) or (a + f() * g())'
+        expr = '(ccc > 10 and ddd < 5) or (a + f * g)'
         self.do_test_expr_deserialize_error(StopConditionExpression, StopCondition, objects, expr,
                                             "contains the identifier(s) 'and', which aren't the id(s) of an object")
 
@@ -1907,7 +1907,7 @@ class TestCore(unittest.TestCase):
         for expr, expected_test_val, expected_attrs in [
             ('ccc > 10', False, {'observables': [id_map['Observable.ccc']]}),
             ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),
-            ('ccc + ddd - a + f() * g() + 10 > 0', True, some_used_objs)
+            ('ccc + ddd - a + f * g + 10 > 0', True, some_used_objs)
         ]:
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
                                           objects, expr, expected_test_val, expected_attrs)
@@ -2523,12 +2523,29 @@ class UnitsTestCase(unittest.TestCase):
         objs[Function]['func'] = func
         func2 = Function(
             id='func_2',
-            expression=FunctionExpression.deserialize('func() + p_1 / p_2 * st_1[c_1]', objs)[0],
             units='molecule')
+        func2.expression, error = FunctionExpression.deserialize('func + p_1 / p_2 * st_1[c_1]', objs)
+        self.assertEqual(error, None, str(error))
         rv = func2.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(func2.expression._parsed_expression.test_eval(
             species_counts=2., with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
+
+        func2 = Function(
+            id='func_2',
+            units='molecule')
+        func2.expression, error = FunctionExpression.deserialize('func() + p_1 / p_2 * st_1[c_1]', objs)
+        self.assertEqual(error, None, str(error))
+        rv = func2.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        func2 = Function(
+            id='func_2',
+            units='molecule')
+        func2.expression, error = FunctionExpression.deserialize('func( ) + p_1 / p_2 * st_1[c_1]', objs)
+        self.assertEqual(error, None, str(error))
+        rv = func2.validate()
+        self.assertNotEqual(rv, None, str(rv))
 
     def test_rate_law_value(self):
         self.assertTrue(hasattr(RateLaw, 'units'))
@@ -2580,9 +2597,9 @@ class UnitsTestCase(unittest.TestCase):
         self.assertNotEqual(rv, None, str(rv))
 
         l = RateLaw(id='rxn_1-forward',
-                     reaction=Reaction(id='rxn_1'),
-                     direction=RateLawDirection.forward,
-                     units=ReactionRateUnit['reaction s^-1'])
+                    reaction=Reaction(id='rxn_1'),
+                    direction=RateLawDirection.forward,
+                    units=ReactionRateUnit['reaction s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * p_2 * st_1[c_1] / c_1', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])
@@ -2591,9 +2608,9 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(rv, None, str(rv))
 
         l = RateLaw(id='rxn_1-forward',
-                     reaction=Reaction(id='rxn_1'),
-                     direction=RateLawDirection.forward,
-                     units=ReactionRateUnit['reaction s^-1'])
+                    reaction=Reaction(id='rxn_1'),
+                    direction=RateLawDirection.forward,
+                    units=ReactionRateUnit['reaction s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * p_3 * c_1 / st_1[c_1]', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])

@@ -2155,7 +2155,7 @@ class FunctionExpression(obj_model.Model, Expression):
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
     species = ManyToManyAttribute(Species, related_name='function_expressions')
-    observables = ManyToManyAttribute(Observable, related_name='function_expressions')    
+    observables = ManyToManyAttribute(Observable, related_name='function_expressions')
     functions = ManyToManyAttribute('Function', related_name='function_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='function_expressions')
 
@@ -2298,8 +2298,8 @@ class StopConditionExpression(obj_model.Model, Expression):
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='stop_condition_expressions')
     species = ManyToManyAttribute(Species, related_name='stop_condition_expressions')
-    observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')    
-    functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')    
+    observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')
+    functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='stop_condition_expressions')
 
     class Meta(obj_model.Model.Meta):
@@ -2838,7 +2838,7 @@ class RateLawExpression(obj_model.Model, Expression):
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
-    species = ManyToManyAttribute(Species, related_name='rate_law_expressions')    
+    species = ManyToManyAttribute(Species, related_name='rate_law_expressions')
     observables = ManyToManyAttribute('Observable', related_name='rate_law_expressions')
     functions = ManyToManyAttribute('Function', related_name='rate_law_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='rate_law_expressions')
