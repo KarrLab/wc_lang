@@ -132,7 +132,7 @@ class TestSimpleModel(unittest.TestCase):
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=3))
-        k_cat_0 = mdl.parameters.create(id='k_cat_0', value=2, units='reaction s^-1')
+        k_cat_0 = mdl.parameters.create(id='k_cat_0', value=2, units='s^-1')
         k_m_0 = mdl.parameters.create(id='k_m_0', value=1, units='molecule')
         expression, _ = RateLawExpression.deserialize('k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].id), {
             Species: {
@@ -148,14 +148,14 @@ class TestSimpleModel(unittest.TestCase):
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
-            units=ReactionRateUnit['reaction s^-1'])
+            units=ReactionRateUnit['s^-1'])
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(
             id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
-        k_cat_1 = mdl.parameters.create(id='k_cat_1', value=2, units='reaction s^-1')
+        k_cat_1 = mdl.parameters.create(id='k_cat_1', value=2, units='s^-1')
         k_m_1 = mdl.parameters.create(id='k_m_1', value=1, units='molecule')
         expression, _ = RateLawExpression.deserialize('k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].id), {
             Species: {
@@ -171,14 +171,14 @@ class TestSimpleModel(unittest.TestCase):
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
-            units=ReactionRateUnit['reaction s^-1'])
+            units=ReactionRateUnit['s^-1'])
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(
             id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[7], coefficient=1))
-        k_cat_2 = mdl.parameters.create(id='k_cat_2', value=2, units='reaction s^-1')
+        k_cat_2 = mdl.parameters.create(id='k_cat_2', value=2, units='s^-1')
         k_m_2 = mdl.parameters.create(id='k_m_2', value=1, units='molecule')
         expression, _ = RateLawExpression.deserialize('k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].id), {
             Species: {
@@ -194,7 +194,7 @@ class TestSimpleModel(unittest.TestCase):
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
-            units=ReactionRateUnit['reaction s^-1'])
+            units=ReactionRateUnit['s^-1'])
 
         submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
         submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])

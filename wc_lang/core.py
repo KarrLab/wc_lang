@@ -78,6 +78,12 @@ import wc_lang.config.core
 config = wc_lang.config.core.get_config()['wc_lang']
 
 
+class CellMassUnit(int, Enum):
+    """ Cell mass units """
+    g = 1
+    gDCW = 2
+
+
 class TimeUnit(int, Enum):
     """ Time units """
     s = 1
@@ -181,9 +187,9 @@ class ObservableCoefficientUnit(int, Enum):
     dimensionless = 1
 
 
-MoleculeCountUnit = Enum('MoleculeCountUnit', type=int, names=[
-    ('molecule', 1),
-])
+class MoleculeCountUnit(int, Enum):
+    """ Units of molecule counts """
+    molecule = 1
 
 
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
@@ -245,9 +251,10 @@ ConcentrationUnit.Meta = {
     #},
 }
 
-ReactionParticipantUnit = Enum('ReactionParticipantUnit', type=int, names=[
-    ('molecule reaction^-1', 1),
-])
+
+class ReactionParticipantUnit(int, Enum):
+    """ Units of reaction participants """
+    dimensionless = 1
 
 
 class RateLawDirection(int, CaseInsensitiveEnum):
@@ -274,29 +281,30 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
 ])
 
 ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
-    ('reaction s^-1', 1),
-    ('M reaction s^-1', 2),
+    ('s^-1', 1),
+    ('M s^-1', 2),
 ])
 
 ReactionFluxUnit = Enum('ReactionFluxUnit', type=int, names=[
-    ('mol reaction gCell^-1 s^-1', 1),
+    ('M s^-1', 1),
 ])
 
 DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[
-    ('gsCellCycle gCell^-1 s^-1', 1),
+    ('dimensionless', 1),
 ])
 
 DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
-    ('dimensionless', 1),
-    ('gsCellCycle mol^-1 reaction^-1', 2),
+    ('s', 1),
+    ('s M^-1', 2),
 ])
 
 DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
-    ('mol gsCellCycle^-1', 1),
+    ('M s^-1', 1),
+    ('mol gDCW^-1 s^-1', 2),
 ])
 
 DfbaNetFluxUnit = Enum('DfbaNetFluxUnit', type=int, names=[
-    ('gsCellCycle gCell^-1 s^-1', 1),
+    ('s^-1', 1),
 ])
 
 
@@ -799,6 +807,7 @@ class Model(obj_model.Model):
     author = LongStringAttribute()
     author_organization = LongStringAttribute()
     author_email = LongStringAttribute()
+    cell_mass_units = EnumAttribute(CellMassUnit, default=CellMassUnit.g)
     time_units = EnumAttribute(TimeUnit, default=TimeUnit.s)
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='model')
     comments = LongStringAttribute()
@@ -810,7 +819,7 @@ class Model(obj_model.Model):
                            'url', 'branch', 'revision',
                            'wc_lang_version',
                            'author', 'author_organization', 'author_email',
-                           'time_units',
+                           'cell_mass_units', 'time_units',
                            'db_refs', 'comments',
                            'created', 'updated')
         tabular_orientation = TabularOrientation.column
@@ -1553,7 +1562,7 @@ class DfbaObjective(obj_model.Model):
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
-    units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['gsCellCycle gCell^-1 s^-1'])
+    units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['dimensionless'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = LongStringAttribute()
@@ -2749,7 +2758,7 @@ class RateLaw(obj_model.Model):
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
     expression = RateLawExpressionAttribute(related_name='rate_laws')
-    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['reaction s^-1'])
+    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
@@ -2919,7 +2928,7 @@ class DfbaNetComponent(obj_model.Model):
     species = ManyToOneAttribute(Species, related_name='dfba_net_components',
                                  verbose_related_name='dFBA net components')
     value = FloatAttribute()
-    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['mol gsCellCycle^-1'])
+    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
                                                    verbose_related_name='dFBA net components')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
@@ -2954,6 +2963,7 @@ class DfbaNetComponent(obj_model.Model):
 
         * Check if the identifier is equal to
           `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+        * Units consistent with units of cell mass
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2965,9 +2975,18 @@ class DfbaNetComponent(obj_model.Model):
         else:
             errors = []
 
+        # id
         if self.id != self.gen_id(self.dfba_net_reaction.id, self.species.id):
             errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
                 self.gen_id(self.dfba_net_reaction.id, self.species.id))]))
+
+        # units consistent with units of cell mass
+        if self.dfba_net_reaction and self.dfba_net_reaction.model and \
+                (self.units == DfbaNetComponentUnit['M s^-1'] and self.dfba_net_reaction.model.cell_mass_units != CellMassUnit.g) or \
+                (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and self.dfba_net_reaction.model.cell_mass_units != CellMassUnit.gDCW):
+            errors.append(InvalidAttribute(self.Meta.attributes['units'],
+                                           ['Units {} are not consistent with cell mass units {}'.format(
+                                            self.units.name, self.dfba_net_reaction.model.cell_mass_units.name)]))
 
         if errors:
             return InvalidObject(self, errors)
@@ -2997,7 +3016,7 @@ class DfbaNetReaction(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
-    units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'])
+    units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
                                                    verbose_related_name='dFBA net reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_reactions',

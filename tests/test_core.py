@@ -787,14 +787,14 @@ class TestCore(unittest.TestCase):
                 'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
             },
             Parameter: {
-                'k_cat': Parameter(id='k_cat', value=1, units='reaction molecule^-1 s^-1'),
+                'k_cat': Parameter(id='k_cat', value=1, units='molecule^-1 s^-1'),
             },
         })
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
             expression=expression,
-            units=ReactionRateUnit['reaction s^-1'],
+            units=ReactionRateUnit['s^-1'],
         )
         error = rate_law.validate()
         self.assertEqual(error, None, str(error))
@@ -805,13 +805,13 @@ class TestCore(unittest.TestCase):
         expression = 'p_0 * spec_0[c_0]'
         expression, _ = RateLawExpression.deserialize(expression, {
             Species: {'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])},
-            Parameter: {'p_0': Parameter(id='p_0', value=1, units='reaction molecule^-1 s^-1')},
+            Parameter: {'p_0': Parameter(id='p_0', value=1, units='molecule^-1 s^-1')},
         })
         rate_law = RateLaw(
             id='rxn-forward',
             reaction=Reaction(id='rxn'),
             expression=expression,
-            units=ReactionRateUnit['reaction s^-1'],
+            units=ReactionRateUnit['s^-1'],
         )
         error = rate_law.validate()
         self.assertEqual(error, None, str(error))
@@ -830,7 +830,7 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_2'),
         ]
         parameters = [
-            Parameter(id='p_0', value=1., units='reaction molecule^-1 s^-1'),
+            Parameter(id='p_0', value=1., units='molecule^-1 s^-1'),
             Parameter(id='p_1', value=1.),
             Parameter(id='k_m', value=1.),
         ]
@@ -1548,7 +1548,7 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.flux_min = 100
         self.rxn_2.flux_max = 200
-        self.rxn_2.flux_units = ReactionFluxUnit['mol reaction gCell^-1 s^-1']
+        self.rxn_2.flux_units = ReactionFluxUnit['M s^-1']
         self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
@@ -2093,7 +2093,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=-1., flux_max=1.,
-                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2101,7 +2101,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=0., flux_max=1.,
-                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2109,7 +2109,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=1., flux_max=-1.,
-                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -2126,7 +2126,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=-1., flux_max=-1.5,
-                       flux_units=ReactionFluxUnit['mol reaction gCell^-1 s^-1'],
+                       flux_units=ReactionFluxUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -2564,9 +2564,9 @@ class UnitsTestCase(unittest.TestCase):
             Function: {
             },
             Parameter: {
-                'p_1': Parameter(id='p_1', value=1.5, units='reaction molecule^-1 s^-1'),
-                'p_2': Parameter(id='p_2', value=1.5, units='reaction molecule^-1 l s^-1'),
-                'p_3': Parameter(id='p_3', value=1.5, units='reaction molecule l^-1 s^-1'),
+                'p_1': Parameter(id='p_1', value=1.5, units='molecule^-1 s^-1'),
+                'p_2': Parameter(id='p_2', value=1.5, units='molecule^-1 l s^-1'),
+                'p_3': Parameter(id='p_3', value=1.5, units='molecule l^-1 s^-1'),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
@@ -2581,7 +2581,7 @@ class UnitsTestCase(unittest.TestCase):
         rl = RateLaw(id='rxn_1-forward',
                      reaction=Reaction(id='rxn_1'),
                      direction=RateLawDirection.forward,
-                     units=ReactionRateUnit['reaction s^-1'])
+                     units=ReactionRateUnit['s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * p_1 * func_1', objs)
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2591,7 +2591,7 @@ class UnitsTestCase(unittest.TestCase):
         rl = RateLaw(id='rxn_1-forward',
                      reaction=Reaction(id='rxn_1'),
                      direction=RateLawDirection.forward,
-                     units=ReactionRateUnit['reaction s^-1'])
+                     units=ReactionRateUnit['s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * func_1', objs)
         rv = rl.validate()
         self.assertNotEqual(rv, None, str(rv))
@@ -2599,7 +2599,7 @@ class UnitsTestCase(unittest.TestCase):
         l = RateLaw(id='rxn_1-forward',
                     reaction=Reaction(id='rxn_1'),
                     direction=RateLawDirection.forward,
-                    units=ReactionRateUnit['reaction s^-1'])
+                    units=ReactionRateUnit['s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * p_2 * st_1[c_1] / c_1', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])
@@ -2610,7 +2610,7 @@ class UnitsTestCase(unittest.TestCase):
         l = RateLaw(id='rxn_1-forward',
                     reaction=Reaction(id='rxn_1'),
                     direction=RateLawDirection.forward,
-                    units=ReactionRateUnit['reaction s^-1'])
+                    units=ReactionRateUnit['s^-1'])
         rl.expression, _ = RateLawExpression.deserialize('4 * p_3 * c_1 / st_1[c_1]', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])
@@ -2621,33 +2621,34 @@ class UnitsTestCase(unittest.TestCase):
     def test_reaction_flux(self):
         self.assertEqual(Reaction.flux_units.enum_class, ReactionFluxUnit)
         self.assertEqual(len(ReactionFluxUnit), 1)
-        self.assertIn('mol reaction gCell^-1 s^-1', ReactionFluxUnit.__members__)
+        self.assertIn('M s^-1', ReactionFluxUnit.__members__)
 
     def test_dfba_obj_value(self):
         self.assertEqual(DfbaObjective.units.enum_class, DfbaObjectiveUnit)
         self.assertEqual(len(DfbaObjectiveUnit), 1)
-        self.assertIn('gsCellCycle gCell^-1 s^-1', DfbaObjectiveUnit.__members__)
+        self.assertIn('dimensionless', DfbaObjectiveUnit.__members__)
 
-        obj_units = unit_registry.parse_expression(DfbaObjectiveUnit['gsCellCycle gCell^-1 s^-1'].name)
+        obj_units = unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name)
 
-        rxn_units = unit_registry.parse_expression(ReactionFluxUnit['mol reaction gCell^-1 s^-1'].name)
-        rxn_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['gsCellCycle mol^-1 reaction^-1'].name)
+        rxn_units = unit_registry.parse_expression(ReactionFluxUnit['M s^-1'].name)
+        rxn_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s M^-1'].name)
 
-        net_units = unit_registry.parse_expression(DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'].name)
-        net_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['dimensionless'].name)
+        net_units = unit_registry.parse_expression(DfbaNetFluxUnit['s^-1'].name)
+        net_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s'].name)
 
         self.assertEqual(rxn_coeff * rxn_units, obj_units)
         self.assertEqual(net_coeff * net_units, obj_units)
 
     def test_dfba_net_component_value(self):
         self.assertEqual(DfbaNetComponent.units.enum_class, DfbaNetComponentUnit)
-        self.assertEqual(len(DfbaNetComponentUnit), 1)
-        self.assertIn('mol gsCellCycle^-1', DfbaNetComponentUnit.__members__)
+        self.assertEqual(len(DfbaNetComponentUnit), 2)
+        self.assertIn('M s^-1', DfbaNetComponentUnit.__members__)
+        self.assertIn('mol gDCW^-1 s^-1', DfbaNetComponentUnit.__members__)
 
     def test_dfba_net_reaction_flux_value(self):
         self.assertEqual(DfbaNetReaction.units.enum_class, DfbaNetFluxUnit)
         self.assertEqual(len(DfbaNetFluxUnit), 1)
-        self.assertIn('gsCellCycle gCell^-1 s^-1', DfbaNetFluxUnit.__members__)
+        self.assertIn('s^-1', DfbaNetFluxUnit.__members__)
 
     def test_stop_condition_value(self):
         self.assertEqual(StopCondition.units.enum_class, StopConditionUnit)
@@ -2668,7 +2669,7 @@ class UnitsTestCase(unittest.TestCase):
             Function: {
             },
             Parameter: {
-                'p_1': Parameter(id='p_1', value=1.5, units='reaction molecule^-1 s^-1'),
+                'p_1': Parameter(id='p_1', value=1.5, units='molecule^-1 s^-1'),
                 'p_2': Parameter(id='p_2', value=1.5, units='molecule'),
                 'p_3': Parameter(id='p_3', value=1.5, units='dimensionless'),
                 'p_4': Parameter(id='p_4', value=2.5, units='dimensionless'),

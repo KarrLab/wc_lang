@@ -795,9 +795,9 @@ class ParsedExpression(object):
         Args:
             species_counts (:obj:`float`, optional): species counts to use to evaluate expression
             compartment_volumes (:obj:`float`, optional): compartment volumes (L) to use to evaluate expression
-            reaction_fluxes (:obj:`float`, optional): reaction fluxes (mol reaction gCell^-1 s^-1) to use
+            reaction_fluxes (:obj:`float`, optional): reaction fluxes (M s^-1) to use
                 to use to evaluate expression
-            dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (gsCellCycle gCell^-1 s^-1)
+            dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (s^-1)
                 to use to evaluate expression
             with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
 
@@ -832,10 +832,10 @@ class ParsedExpression(object):
             compartment_volumes (:obj:`dict` of :str`, :obj:`float`):
                 dictionary that maps ids of :obj:`wc_lang.core.Compartment` to their volumes (L)
             reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`):
-                dictionary that maps ids of :obj:`wc_lang.core.Reaction` to their fluxes (mol reaction gCell^-1 s^-1)
+                dictionary that maps ids of :obj:`wc_lang.core.Reaction` to their fluxes (M s^-1)
             dfba_net_reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`)
                 dictionary that maps ids of :obj:`wc_lang.core.DfbaNetReaction` to their fluxes
-                (gsCellCycle gCell^-1 s^-1)
+                (s^-1)
             with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
 
         Returns:
@@ -883,7 +883,7 @@ class ParsedExpression(object):
             for obj in self.related_objects.get(wc_lang.core.Reaction, {}).values():
                 namespace['reaction_fluxes'][obj.id] = reaction_fluxes[obj.id] * \
                     unit_registry.parse_expression(
-                        wc_lang.core.ReactionFluxUnit['mol reaction gCell^-1 s^-1'].name)
+                        wc_lang.core.ReactionFluxUnit['M s^-1'].name)
 
         namespace['dfba_net_reaction_fluxes'] = dfba_net_reaction_fluxes
         if with_units:
@@ -891,7 +891,7 @@ class ParsedExpression(object):
             for obj in self.related_objects.get(wc_lang.core.DfbaNetReaction, {}).values():
                 namespace['dfba_net_reaction_fluxes'][obj.id] = dfba_net_reaction_fluxes[obj.id] * \
                     unit_registry.parse_expression(
-                        wc_lang.core.DfbaNetFluxUnit['gsCellCycle gCell^-1 s^-1'].name)
+                        wc_lang.core.DfbaNetFluxUnit['s^-1'].name)
 
         namespace['observable_counts'] = {}
         for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():
