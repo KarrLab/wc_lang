@@ -65,7 +65,7 @@ class TestUtil(unittest.TestCase):
         rxn_0.participants.create(species=species[2], coefficient=1)
         expression = RateLawExpression(
             expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].get_primary_attribute()),
-            modifiers=species[5:6])
+            species=species[5:6])
         expression.parameters.create(id='k_cat_0', value=2, model=mdl)
         expression.parameters.create(id='k_m_0', value=1, model=mdl)
         rate_law_0 = rxn_0.rate_laws.create(expression=expression, model=mdl)
@@ -76,7 +76,7 @@ class TestUtil(unittest.TestCase):
         rxn_1.participants.create(species=species[3], coefficient=2)
         expression = RateLawExpression(
             expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].get_primary_attribute()),
-            modifiers=species[6:7])
+            species=species[6:7])
         expression.parameters.create(id='k_cat_1', value=2, model=mdl)
         expression.parameters.create(id='k_m_1', value=1, model=mdl)
         rate_law_1 = rxn_1.rate_laws.create(expression=expression, model=mdl)
@@ -87,7 +87,7 @@ class TestUtil(unittest.TestCase):
         rxn_2.participants.create(species=species[4], coefficient=1)
         expression = RateLawExpression(
             expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].get_primary_attribute()),
-            modifiers=species[7:8])
+            species=species[7:8])
         expression.parameters.create(id='k_cat_2', value=2, model=mdl)
         expression.parameters.create(id='k_m_2', value=1, model=mdl)
         rate_law_2 = rxn_2.rate_laws.create(expression=expression, model=mdl)

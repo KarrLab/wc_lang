@@ -62,9 +62,9 @@ class RoundTripTestCase(unittest.TestCase):
         rxn.participants.extend(rxn_species_coeffs)
         rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                                   direction=RateLawDirection.forward,
-                                  units=ReactionRateUnit['reaction cell^-1 s^-1'],
+                                  units=ReactionRateUnit['reaction s^-1'],
                                   model=model)
-        param_1 = model.parameters.create(id='param_1', value=1., units='reaction cell^-1 s^-1')
+        param_1 = model.parameters.create(id='param_1', value=1., units='reaction s^-1')
         rl.expression, error = RateLawExpression.deserialize('param_1', {Parameter: {'param_1': param_1}})
         self.assertEqual(error, None)
 
@@ -113,7 +113,7 @@ class RoundTripTestCase(unittest.TestCase):
         observable_2 = Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
         param_1 = model.parameters.create(id='param_1', value=1., units='dimensionless')
-        param_2 = model.parameters.create(id='param_2', value=1., units='reaction cell^-1 s^-1')
+        param_2 = model.parameters.create(id='param_2', value=1., units='reaction s^-1')
         objects = {
             Parameter: {
                 'param_1': param_1,
@@ -130,7 +130,7 @@ class RoundTripTestCase(unittest.TestCase):
         rxn.participants.extend(rxn_species_coeffs)
         rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
                                   direction=RateLawDirection.forward,
-                                  units=ReactionRateUnit['reaction cell^-1 s^-1'],
+                                  units=ReactionRateUnit['reaction s^-1'],
                                   model=model)
         rl.expression, error = RateLawExpression.deserialize('param_2', objects)
         self.assertEqual(error, None)

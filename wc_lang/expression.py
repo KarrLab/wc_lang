@@ -900,7 +900,7 @@ class ParsedExpression(object):
             for obj in self.related_objects.get(wc_lang.core.Species, {}).values():
                 namespace['species_counts'][obj.id] = species_counts[obj.id] * \
                     unit_registry.parse_expression(
-                        wc_lang.core.MoleculeCountUnit['molecule cell^-1'].name)
+                        wc_lang.core.MoleculeCountUnit['molecule'].name)
 
         namespace['reaction_fluxes'] = reaction_fluxes
         if with_units:
@@ -924,7 +924,7 @@ class ParsedExpression(object):
                 species_counts, compartment_volumes)
             if with_units:
                 namespace['observable_counts'][obs.id] = val * unit_registry.parse_expression(
-                    wc_lang.core.MoleculeCountUnit['molecule cell^-1'].name)
+                    wc_lang.core.MoleculeCountUnit['molecule'].name)
 
         namespace['function_values'] = {}
         for func in self.related_objects.get(wc_lang.core.Function, {}).values():

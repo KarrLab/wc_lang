@@ -182,12 +182,12 @@ class ObservableCoefficientUnit(int, Enum):
 
 
 MoleculeCountUnit = Enum('MoleculeCountUnit', type=int, names=[
-    ('molecule cell^-1', 1),
+    ('molecule', 1),
 ])
 
 
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
-    ('molecule cell^-1', 1),
+    ('molecule', 1),
     ('M', 2),
     ('mM', 3),
     ('uM', 4),
@@ -198,8 +198,8 @@ ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
     # ('mol dm^-2', 9),
 ])
 ConcentrationUnit.Meta = {
-    ConcentrationUnit['molecule cell^-1']: {
-        'xml_id': 'molecule_per_cell',
+    ConcentrationUnit['molecule']: {
+        'xml_id': 'molecule',
         'substance_units': {'kind': 'item', 'exponent': 1, 'scale': 0},
         'volume_units': {'kind': 'item', 'exponent': 1, 'scale': 0},
     },
@@ -274,7 +274,7 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
 ])
 
 ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
-    ('reaction cell^-1 s^-1', 1),
+    ('reaction s^-1', 1),
     ('M reaction s^-1', 2),
 ])
 
@@ -1272,7 +1272,7 @@ class Submodel(obj_model.Model):
         for function in self.get_functions():
             species.extend(function.expression.species)
         for rate_law in self.get_rate_laws():
-            species.extend(rate_law.expression.modifiers)
+            species.extend(rate_law.expression.species)
         return det_dedupe(species)
 
     def get_observables(self):
@@ -1704,6 +1704,9 @@ class Compartment(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of :obj:`Species`): species in this compartment
+        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1821,6 +1824,7 @@ class Species(obj_model.Model):
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
     """
@@ -1829,7 +1833,7 @@ class Species(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='species')
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
     compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
-    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule cell^-1'])
+    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species')
     evidence = ManyToManyAttribute('Evidence', related_name='species')
     comments = LongStringAttribute()
@@ -2119,7 +2123,7 @@ class Observable(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
     expression = ExpressionAttribute('ObservableExpression', related_name='observable')
-    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule cell^-1'])
+    units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
     comments = LongStringAttribute()
@@ -2143,15 +2147,17 @@ class FunctionExpression(obj_model.Model, Expression):
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
         functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
+        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
         function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    species = ManyToManyAttribute(Species, related_name='function_expressions')
-    observables = ManyToManyAttribute(Observable, related_name='function_expressions')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
+    species = ManyToManyAttribute(Species, related_name='function_expressions')
+    observables = ManyToManyAttribute(Observable, related_name='function_expressions')    
     functions = ManyToManyAttribute('Function', related_name='function_expressions')
+    compartments = ManyToManyAttribute(Compartment, related_name='function_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -2283,15 +2289,18 @@ class StopConditionExpression(obj_model.Model, Expression):
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
+        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
         stop_condition (:obj:`StopCondition`): stop condition
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')
     parameters = ManyToManyAttribute('Parameter', related_name='stop_condition_expressions')
-    functions = ManyToManyAttribute('Function', related_name='stop_condition_expressions')
+    species = ManyToManyAttribute(Species, related_name='stop_condition_expressions')
+    observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')    
+    functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')    
+    compartments = ManyToManyAttribute(Compartment, related_name='stop_condition_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -2303,7 +2312,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         """
         tabular_orientation = TabularOrientation.inline
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Observable', 'Function', 'Compartment')
+        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2545,7 +2554,7 @@ class Reaction(obj_model.Model):
 
         for rate_law in self.rate_laws:
             if rate_law.expression:
-                species.extend(rate_law.expression.modifiers.get(__type=__type, **kwargs))
+                species.extend(rate_law.expression.species.get(__type=__type, **kwargs))
 
         return det_dedupe(species)
 
@@ -2740,7 +2749,7 @@ class RateLaw(obj_model.Model):
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
     expression = RateLawExpressionAttribute(related_name='rate_laws')
-    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['reaction cell^-1 s^-1'])
+    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['reaction s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
@@ -2820,17 +2829,19 @@ class RateLawExpression(obj_model.Model, Expression):
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
-        modifiers (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
+        species (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
+        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
         rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    modifiers = ManyToManyAttribute(Species, related_name='rate_law_expressions')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
+    species = ManyToManyAttribute(Species, related_name='rate_law_expressions')    
     observables = ManyToManyAttribute('Observable', related_name='rate_law_expressions')
     functions = ManyToManyAttribute('Function', related_name='rate_law_expressions')
+    compartments = ManyToManyAttribute(Compartment, related_name='rate_law_expressions')
 
     class Meta(obj_model.Model.Meta):
         """
@@ -2840,7 +2851,7 @@ class RateLawExpression(obj_model.Model, Expression):
             valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
                 `RateLawExpression` is allowed to reference in its `expression`
         """
-        attribute_order = ('expression', 'modifiers', 'parameters')
+        attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('expression',)
         valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
@@ -2871,8 +2882,8 @@ class RateLawExpression(obj_model.Model, Expression):
     def validate(self):
         """ Determine whether a `RateLawExpression` is valid
 
-        * Check that all of the modifiers and parameters contribute to the expression
-        * Check that the modifiers and parameters encompass of the named entities in the expression
+        * Check that all of the species and parameters contribute to the expression
+        * Check that the species and parameters encompass of the named entities in the expression
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
