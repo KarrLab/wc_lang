@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, SpeciesTypeType,
-                     Species, SpeciesCoefficient, SubmodelAlgorithm,
+                     Species, SpeciesCoefficient, SubmodelAlgorithm, Reaction,
                      DfbaObjective, DfbaObjectiveExpression, DfbaNetReaction)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
 import unittest
@@ -74,15 +74,21 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
 
         dfba_obj_2 = mdl.dfba_objs.create(id='dfba_obj_2', submodel=submdl_2,
                                           expression=DfbaObjectiveExpression.deserialize(
-                                              'dfba_net_rxn_2_0 + dfba_net_rxn_2_1', {
+                                              'rxn_2_0 + 2 * rxn_2_1 + 3 * dfba_net_rxn_2_0 + dfba_net_rxn_2_1', {
+                                                  Reaction: {
+                                                      'rxn_2_0': rxn_2_0,
+                                                      'rxn_2_1': rxn_2_1,
+                                                  },
                                                   DfbaNetReaction: {
                                                       'dfba_net_rxn_2_0': dfba_net_rxn_2_0,
                                                       'dfba_net_rxn_2_1': dfba_net_rxn_2_1,
-                                                  }
+                                                  },
                                               })[0])
         dfba_obj_3 = mdl.dfba_objs.create(id='dfba_obj_3', submodel=submdl_3,
                                           expression=DfbaObjectiveExpression.deserialize(
                                               'dfba_net_rxn_3_0 + dfba_net_rxn_3_1', {
+                                                  Reaction: {
+                                                  },
                                                   DfbaNetReaction: {
                                                       'dfba_net_rxn_3_0': dfba_net_rxn_3_0,
                                                       'dfba_net_rxn_3_1': dfba_net_rxn_3_1,
@@ -95,18 +101,18 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
 
         mdl.evidences.create(id='evidence_0', submodels=[submdl_0, submdl_1])
         mdl.evidences.create(id='evidence_1', submodels=[submdl_0, submdl_2])
-        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_2])
-        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_3])
+        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2])
+        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3])
 
         mdl.references.create(id='ref_0', submodels=[submdl_0])
         mdl.references.create(id='ref_1', submodels=[submdl_1])
-        mdl.references.create(id='ref_2', submodels=[submdl_2])
-        mdl.references.create(id='ref_2', submodels=[submdl_3])
+        mdl.references.create(id='ref_2', submodels=[submdl_2], dfba_objs=[dfba_obj_2])
+        mdl.references.create(id='ref_2', submodels=[submdl_3], dfba_objs=[dfba_obj_3])
 
         submdl_0.db_refs.create(id='xref_0')
         submdl_1.db_refs.create(id='xref_1')
-        submdl_2.db_refs.create(id='xref_2')
-        submdl_3.db_refs.create(id='xref_3')
+        submdl_2.db_refs.create(id='xref_2', dfba_objs=[dfba_obj_2])
+        submdl_3.db_refs.create(id='xref_3', dfba_objs=[dfba_obj_3])
 
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
@@ -146,7 +152,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(merged_submdl_ssa.dfba_obj, None)
         self.assertEqual(merged_submdl_fba.dfba_obj.id, DfbaObjective.gen_id(merged_submdl_fba.id))
 
-        self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.reactions), 0)
+        self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.reactions),
+                         len(submdl_2.reactions) + len(submdl_3.reactions))
         self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.dfba_net_reactions),
                          len(submdl_2.dfba_net_reactions) + len(submdl_3.dfba_net_reactions))
 

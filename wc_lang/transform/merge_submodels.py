@@ -35,11 +35,15 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
 
         # group submodels by algorithms
         def key_func(submodel):
-            return submodel.algorithm.value
+            if submodel.dfba_obj:
+                dfba_obj_units = submodel.dfba_obj.units
+            else:
+                dfba_obj_units = None
+            return (submodel.algorithm, dfba_obj_units)
         sorted_submodels = sorted(model.submodels, key=key_func)
         grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
-        for algorithm, group in grouped_submodels:
+        for (algorithm, dfba_obj_units), group in grouped_submodels:
             submodels = tuple(group)
 
             # calculate id, name
@@ -47,17 +51,13 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=SubmodelAlgorithm(algorithm))
+            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=algorithm)
 
             if algorithm == SubmodelAlgorithm.dFBA:
-                dfba_obj_units = list(set(submodel.dfba_obj.units for submodel in submodels if submodel.dfba_obj))
-                if len(dfba_obj_units) > 1:
-                    raise Exception('Objectives of dFBA submodels must have the same units')
-
                 merged_dfba_obj = merged_submodel.dfba_obj = model.dfba_objs.create(
                     id=DfbaObjective.gen_id(merged_submodel.id),
                     name='dFBA objective ({})'.format(', '.join(submodel.name for submodel in submodels)),
-                    units=dfba_obj_units[0])
+                    units=dfba_obj_units)
 
                 merged_dfba_expression = []
                 objs_for_merged_dfba_expression = {
