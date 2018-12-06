@@ -6,12 +6,13 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 
 # API
 from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit, DensityUnit,
-                   SubmodelAlgorithm, SpeciesTypeType, MoleculeCountUnit, ConcentrationUnit,
+                   SubmodelAlgorithm, SpeciesTypeType, MoleculeCountUnit, 
+                   RandomDistribution, ConcentrationUnit,
                    ReactionParticipantUnit, RateLawDirection, RateLawType, ReactionRateUnit, ReactionFluxUnit,
                    DfbaObjectiveUnit, DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaNetComponentUnit,
                    ParameterType, EvidenceType, ReferenceType,
                    Model, Taxon, Submodel, Compartment,
-                   SpeciesType, Species, Concentration, DfbaObjective, DfbaObjectiveExpression,
+                   SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
                    Function, FunctionExpression,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,

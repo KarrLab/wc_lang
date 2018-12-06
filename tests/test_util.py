@@ -8,7 +8,7 @@
 
 from wc_lang.core import (Model, Taxon, Submodel, SubmodelAlgorithm,
                           Compartment,
-                          SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, Concentration,
+                          SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, DistributionInitConcentration,
                           Reaction, RateLaw, RateLawExpression, Parameter,
                           DfbaNetComponent, DfbaNetReaction,
                           DfbaObjective, DfbaObjectiveExpression,
@@ -36,7 +36,6 @@ class TestUtil(unittest.TestCase):
 
         self.species_types = species_types = []
         self.species = species = []
-        self.concentrations = concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
                 i), name='species type {}'.format(i), type=SpeciesTypeType.metabolite)
@@ -50,9 +49,8 @@ class TestUtil(unittest.TestCase):
             spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, mean=1)
+            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=1)
             conc.model = mdl
-            concentrations.append(conc)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm.ssa)
@@ -128,7 +126,7 @@ class TestUtil(unittest.TestCase):
     def test_get_models(self):
         non_inline_models = set([
             Model, Taxon,
-            Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
+            Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
             DfbaObjective,
             Reaction, RateLaw, DfbaNetComponent, DfbaNetReaction, Parameter, Function,
             StopCondition, Evidence, Reference,

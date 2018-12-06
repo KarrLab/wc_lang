@@ -24,7 +24,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
     """
 
     class Meta(object):
-        id = 'CreateImplicitZeroConcentrations'
+        id = 'CreateImplicitDfbaExchangeReactions'
         label = 'Create implicit exchange reactions for dFBA submodels'
 
     def run(self, model):

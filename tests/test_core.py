@@ -31,7 +31,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
-                          SubmodelAlgorithm, Concentration, DfbaNetComponent, DfbaNetReaction,
+                          SubmodelAlgorithm, DistributionInitConcentration, DfbaNetComponent, DfbaNetReaction,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject)
 from wc_lang.io import Reader
@@ -55,7 +55,7 @@ class TestCore(unittest.TestCase):
 
         self.species_types = species_types = []
         self.species = species = []
-        self.concentrations = concentrations = []
+        self.distribution_init_concentrations = distribution_init_concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
@@ -75,9 +75,9 @@ class TestCore(unittest.TestCase):
             spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(id=Concentration.gen_id(spec.id), species=spec, mean=3 * i)
+            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=3 * i)
             conc.model = mdl
-            concentrations.append(conc)
+            distribution_init_concentrations.append(conc)
 
         self.dfba_net_reaction = dfba_net_reaction = DfbaNetReaction(
             id='dfba_net_reaction_1',
@@ -368,9 +368,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(mdl.get_species(__type=Species)), set(self.species))
         self.assertEqual(set(mdl.get_species(__type=Submodel)), set())
 
-        self.assertEqual(set(mdl.get_concentrations()), set(self.concentrations))
-        self.assertEqual(set(mdl.get_concentrations(__type=Concentration)), set(self.concentrations))
-        self.assertEqual(set(mdl.get_concentrations(__type=Submodel)), set())
+        self.assertEqual(set(mdl.get_distribution_init_concentrations()), set(self.distribution_init_concentrations))
+        self.assertEqual(set(mdl.get_distribution_init_concentrations(__type=DistributionInitConcentration)), set(self.distribution_init_concentrations))
+        self.assertEqual(set(mdl.get_distribution_init_concentrations(__type=Submodel)), set())
 
         self.assertEqual(set(mdl.get_reactions()), set(self.reactions))
         self.assertEqual(set(mdl.get_reactions(__type=Reaction)), set(self.reactions))
@@ -432,10 +432,10 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Species.get(ids, self.species), self.species[4:] + [None])
 
     def test_concentration_serialize(self):
-        self.assertEqual(self.concentrations[0].serialize(), 'conc-spec_type_0[comp_0]')
-        self.assertEqual(self.concentrations[1].serialize(), 'conc-spec_type_1[comp_0]')
-        self.assertEqual(self.concentrations[2].serialize(), 'conc-spec_type_2[comp_0]')
-        self.assertEqual(self.concentrations[3].serialize(), 'conc-spec_type_3[comp_1]')
+        self.assertEqual(self.distribution_init_concentrations[0].serialize(), 'conc-spec_type_0[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[1].serialize(), 'conc-spec_type_1[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[2].serialize(), 'conc-spec_type_2[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[3].serialize(), 'conc-spec_type_3[comp_1]')
 
     def test_reaction_participant_serialize(self):
         self.assertEqual(set([part.serialize() for part in self.rxn_0.participants]), set([
@@ -1544,7 +1544,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
             self.assertEqual(sbml_species.getName(), species.species_type.name)
             self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
-            self.assertEqual(sbml_species.getInitialConcentration(), species.concentration.mean)
+            self.assertEqual(sbml_species.getInitialConcentration(), species.distribution_init_concentration.mean)
 
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.flux_min = 100

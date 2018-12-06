@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Compartment, Concentration, Function, FunctionExpression, Parameter,
+from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
                      Reaction, RateLawDirection, RateLawExpression, ReactionFluxUnit, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
@@ -134,16 +134,16 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_1 = st_2.species.create(compartment=c_1)
         st_2_c_2 = st_2.species.create(compartment=c_2)
 
-        st_1_c_1.concentration = Concentration(id=Concentration.gen_id(st_1_c_1.id), units='u')
-        st_1_c_2.concentration = Concentration(id=Concentration.gen_id(st_1_c_2.id), units='v')
-        st_2_c_1.concentration = Concentration(id=Concentration.gen_id(st_2_c_1.id), units='w')
-        st_2_c_2.concentration = Concentration(id=Concentration.gen_id(st_2_c_2.id), units='x')
+        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_1_c_1.id), units='u')
+        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_1_c_2.id), units='v')
+        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_2_c_1.id), units='w')
+        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_2_c_2.id), units='x')
 
-        ChangeValueTransform(Species, 'st_1[c_1]', ['concentration', 'units'], 'a').run(model)
-        self.assertEqual(st_1_c_1.concentration.units, 'a')
-        self.assertEqual(st_1_c_2.concentration.units, 'v')
-        self.assertEqual(st_2_c_1.concentration.units, 'w')
-        self.assertEqual(st_2_c_2.concentration.units, 'x')
+        ChangeValueTransform(Species, 'st_1[c_1]', ['distribution_init_concentration', 'units'], 'a').run(model)
+        self.assertEqual(st_1_c_1.distribution_init_concentration.units, 'a')
+        self.assertEqual(st_1_c_2.distribution_init_concentration.units, 'v')
+        self.assertEqual(st_2_c_1.distribution_init_concentration.units, 'w')
+        self.assertEqual(st_2_c_2.distribution_init_concentration.units, 'x')
 
     def test_species_concentration_value(self):
         model = Model()
@@ -156,19 +156,19 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_1 = st_2.species.create(compartment=c_1)
         st_2_c_2 = st_2.species.create(compartment=c_2)
 
-        st_1_c_1.concentration = Concentration(id=Concentration.gen_id(st_1_c_1.id), mean=1, std=2)
-        st_1_c_2.concentration = Concentration(id=Concentration.gen_id(st_1_c_2.id), mean=2, std=2)
-        st_2_c_1.concentration = Concentration(id=Concentration.gen_id(st_2_c_1.id), mean=3, std=2)
-        st_2_c_2.concentration = Concentration(id=Concentration.gen_id(st_2_c_2.id), mean=4, std=2)
+        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_1_c_1.id), mean=1, std=2)
+        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_1_c_2.id), mean=2, std=2)
+        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_2_c_1.id), mean=3, std=2)
+        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(st_2_c_2.id), mean=4, std=2)
 
-        ChangeValueTransform(Species, 'st_2[c_1]', ['concentration', 'mean'], 0).run(model)
-        self.assertEqual(st_1_c_1.concentration.mean, 1)
-        self.assertEqual(st_1_c_2.concentration.mean, 2)
-        self.assertEqual(st_2_c_1.concentration.mean, 0)
-        self.assertEqual(st_2_c_2.concentration.mean, 4)
+        ChangeValueTransform(Species, 'st_2[c_1]', ['distribution_init_concentration', 'mean'], 0).run(model)
+        self.assertEqual(st_1_c_1.distribution_init_concentration.mean, 1)
+        self.assertEqual(st_1_c_2.distribution_init_concentration.mean, 2)
+        self.assertEqual(st_2_c_1.distribution_init_concentration.mean, 0)
+        self.assertEqual(st_2_c_2.distribution_init_concentration.mean, 4)
 
-        ChangeValueTransform(Species, 'st_2[c_1]', ['concentration', 'std'], 0).run(model)
-        self.assertEqual(st_1_c_1.concentration.std, 2)
-        self.assertEqual(st_1_c_2.concentration.std, 2)
-        self.assertEqual(st_2_c_1.concentration.std, 0)
-        self.assertEqual(st_2_c_2.concentration.std, 2)
+        ChangeValueTransform(Species, 'st_2[c_1]', ['distribution_init_concentration', 'std'], 0).run(model)
+        self.assertEqual(st_1_c_1.distribution_init_concentration.std, 2)
+        self.assertEqual(st_1_c_2.distribution_init_concentration.std, 2)
+        self.assertEqual(st_2_c_1.distribution_init_concentration.std, 0)
+        self.assertEqual(st_2_c_2.distribution_init_concentration.std, 2)

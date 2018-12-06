@@ -78,7 +78,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             wc_lang_species = get_component_by_id(all_wc_lang_species, wc_lang_id)
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
-            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.mean)
+            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.distribution_init_concentration.mean)
             # not checking: comments
 
         if isinstance(element, libsbmlReaction):

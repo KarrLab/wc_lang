@@ -26,7 +26,7 @@ class Writer(object):
     model_order = [
         core.Model, core.Taxon,
         core.Submodel, core.Compartment, core.SpeciesType, core.Species,
-        core.Concentration, core.Observable, core.Function,
+        core.DistributionInitConcentration, core.Observable, core.Function,
         core.Reaction, core.RateLaw,
         core.DfbaObjective, core.DfbaNetReaction, core.DfbaNetComponent,
         core.Parameter, core.StopCondition,

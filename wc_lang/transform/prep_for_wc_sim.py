@@ -8,7 +8,7 @@
 """
 
 from wc_lang.transform.core import Transform
-from wc_lang.transform import create_implicit_zero_concentrations
+from wc_lang.transform import create_implicit_distribution_zero_init_concentrations
 from wc_lang.transform import create_implicit_dfba_ex_rxns
 from wc_lang.transform import set_finite_dfba_flux_bounds
 
@@ -17,14 +17,15 @@ class PrepareForWcSimTransform(Transform):
     """ Prepare a model for simulation by making implicit information in the model
     explicit.
 
-    * Create explicit zero mean concentrations for species that don't have explicit
-      mean concentrations (i.e. implicit zero concentrations)
+    * Create explicit distributions of initial zero concentrations for species
+      that don't have explicit distributions of initial concentrations (i.e.
+      implicit distributions of initial zero concentrations)
     * Create implicit exchange reactions for dFBA submodels
     * Clip the flux bounds for the reactions in dFBA submodels to the default
       flux range
     """
     TRANSFORMS = (
-        create_implicit_zero_concentrations.CreateImplicitZeroConcentrationsTransform,
+        create_implicit_distribution_zero_init_concentrations.CreateImplicitDistributionZeroInitConcentrationsTransform,
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform,
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform,
     )

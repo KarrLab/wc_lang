@@ -24,23 +24,23 @@ import wc_lang
 wc_lang to SBML mapping to support FBA modeling
 Individual wc_lang submodels that use dFBA are mapped to individual SBML documents and files.
 
-WC                      SBML                                                Status
------                   -----                                               ------
-Model                   Model                                               Ignored
-Taxon                   None, perhaps make SBML annotations                 Ignored
-Submodel                Model                                               Implemented
-DfbaObjective           Objective                                           Mostly Implemented
-Compartment             Compartment                                         Implemented
-SpeciesType             SpeciesType aren't defined                          NA
-Species                 Species                                             Implemented
-Concentration       Mean concentrations are incorporated in Species     NA
-Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
-SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
-RateLaw                 KineticLaw                                          Ignored
+WC                              SBML                                                                  Status
+-----                           -----                                                                 ------
+Model                           Model                                                                 Ignored
+Taxon                           None, perhaps make SBML annotations                                   Ignored
+Submodel                        Model                                                                 Implemented
+DfbaObjective                   Objective                                                             Mostly Implemented
+Compartment                     Compartment                                                           Implemented
+SpeciesType                     SpeciesType aren't defined                                            NA
+Species                         Species                                                               Implemented
+DistributionInitConcentration   Distributions of initial concentrations are incorporated in Species   NA
+Reaction                        Reaction, with FbcReactionPlugin for DFBA submodels                   Implemented
+SpeciesCoefficient              SpeciesReference in a Reaction                                        Implemented
+RateLaw                         KineticLaw                                                            Ignored
 RateLawExpression
 DfbaNetComponent
-DfbaNetReaction                                                             TBD
-Parameter               Parameter                                           Implemented
+DfbaNetReaction                 TBD
+Parameter                       Parameter                                                             Implemented
 Reference
 DatabaseReference
 

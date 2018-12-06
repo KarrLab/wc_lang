@@ -9,7 +9,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`Compartment`
 * :obj:`SpeciesType`
 * :obj:`Species`
-* :obj:`Concentration`
+* :obj:`DistributionInitConcentration`
 * :obj:`Reaction`
 * :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
@@ -184,6 +184,45 @@ class ObservableCoefficientUnit(int, Enum):
 class MoleculeCountUnit(int, Enum):
     """ Units of molecule counts """
     molecule = 1
+
+
+RandomDistribution = CaseInsensitiveEnum('RandomDistribution', type=int, names=[
+    #('beta', 1),
+    #('binomial', 2),
+    #('chisquare', 3),
+    #('dirichlet', 4),
+    #('exponential', 5),
+    #('f', 6),
+    #('gamma', 7),
+    #('geometric', 8),
+    #('gumbel', 9),
+    #('hypergeometric', 10),
+    #('laplace', 11),
+    #('logisitic', 12),
+    #('lognormal', 13),
+    #('logseries', 14),
+    #('multinomial', 15),
+    #('multivariate-normal', 16),
+    #('negative-binomial', 17),
+    #('noncentral-chisquare', 18),
+    #('noncentral-f', 19),
+    ('normal', 20),
+    #('pareto', 21),
+    #('poisson', 22),
+    #('power', 23),
+    #('rayleigh', 24),
+    #('standard-cauchy', 25),
+    #('standard-exponential', 26),
+    #('standard-gamma', 27),
+    #('standard-normal', 28),
+    #('standard-t', 29),
+    #('triangular', 30),
+    #('uniform', 31),
+    #('vonmises', 32),
+    #('wald', 33),
+    #('weibull', 34),
+    #('zipf', 35),
+])
 
 
 ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
@@ -786,7 +825,9 @@ class Model(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+            distributions of initial concentrations of species at the beginning of
+            each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -968,8 +1009,9 @@ class Model(obj_model.Model):
 
         return self.species.get(__type=__type, **kwargs)
 
-    def get_concentrations(self, __type=None, **kwargs):
-        """ Get all mean concentrations from species types
+    def get_distribution_init_concentrations(self, __type=None, **kwargs):
+        """ Get all initial distributions of concentrations of species at the
+        beginning of each cell cycle
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
@@ -977,12 +1019,13 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of :obj:`Concentration`: mean concentrations
+            :obj:`list` of :obj:`DistributionInitConcentration`: initial distributions
+                of concentrations of species at the beginning of each cell cycle
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        return self.concentrations.get(__type=__type, **kwargs)
+        return self.distribution_init_concentrations.get(__type=__type, **kwargs)
 
     def get_observables(self, __type=None, **kwargs):
         """ Get all observables
@@ -1142,7 +1185,7 @@ class Model(obj_model.Model):
         else:
             type_names = [
                 'submodel', 'compartment', 'species_type', 'species',
-                'concentration', 'observable', 'function',
+                'distribution_init_concentration', 'observable', 'function',
                 'dfba_obj', 'reaction', 'rate_law', 'dfba_net_reaction',
                 'parameter', 'stop_condition', 'reference',
             ]
@@ -1781,7 +1824,9 @@ class SpeciesType(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+            distribution of initial concentrations of species at the beginning of
+            each cell cycle
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1829,7 +1874,8 @@ class Species(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        concentration (:obj:`Concentration`): mean concentration
+        distribution_init_concentration (:obj:`DistributionInitConcentration`): 
+            distribution of initial concentration
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
@@ -1963,26 +2009,30 @@ class Species(obj_model.Model):
         # set Compartment, which must already be in the SBML document
         wrap_libsbml(sbml_species.setCompartment, self.compartment.id)
 
-        # set the Initial Concentration
-        wrap_libsbml(sbml_species.setInitialConcentration, self.concentration.mean)
+        # set the initial concentration
+        wrap_libsbml(sbml_species.setInitialConcentration, self.distribution_init_concentration.mean)
 
         # set units
-        unit_xml_id = ConcentrationUnit.Meta[self.concentration.units]['xml_id']
+        unit_xml_id = ConcentrationUnit.Meta[self.distribution_init_concentration.units]['xml_id']
         wrap_libsbml(sbml_species.setSubstanceUnits, unit_xml_id)
 
         return sbml_species
 
 
-class Concentration(obj_model.Model):
-    """ Species mean concentration
+class DistributionInitConcentration(obj_model.Model):
+    """ Distribution of the initial concentration of a species
+    at the beginning of each cell cycle
 
     Attributes:
         id (:obj:`str`): identifier equal to `conc-{species.id}`
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`Species`): species
-        mean (:obj:`float`): mean concentration in a population of single cells
-        std (:obj:`float`): standard deviation of the concentration in a population of single cells
+        distribution (:obj:`RandomDistribution`): distribution
+        mean (:obj:`float`): mean concentration in a population of single cells at the
+            beginning of each cell cycle
+        std (:obj:`float`): standard deviation of the concentration in a population of 
+            single cells at the beginning of each cell cycle
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -1991,21 +2041,23 @@ class Concentration(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='concentrations')
-    species = OneToOneAttribute(Species, related_name='concentration')
+    model = ManyToOneAttribute(Model, related_name='distribution_init_concentrations')
+    species = OneToOneAttribute(Species, related_name='distribution_init_concentration')
+    distribution = EnumAttribute(RandomDistribution, default=RandomDistribution.normal)
     mean = FloatAttribute(min=0)
     std = FloatAttribute(min=0, verbose_name='Standard deviation')
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='concentrations')
-    evidence = ManyToManyAttribute('Evidence', related_name='concentrations')
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='distribution_init_concentrations')
+    evidence = ManyToManyAttribute('Evidence', related_name='distribution_init_concentrations')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='concentrations')
+    references = ManyToManyAttribute('Reference', related_name='distribution_init_concentrations')
 
     class Meta(obj_model.Model.Meta):
         # unique_together = (('species', ), )
-        attribute_order = ('id', 'name', 'species', 'mean', 'std', 'units',
+        attribute_order = ('id', 'name', 'species',
+                           'distribution', 'mean', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-
+        verbose_name = 'Distribution of initial concentrations of species'
         frozen_columns = 1
 
     @staticmethod
@@ -2021,7 +2073,8 @@ class Concentration(obj_model.Model):
         return 'conc-{}'.format(species_id)
 
     def validate(self):
-        """ Check that the mean concentration is valid
+        """ Check that the distribution of initial concentrations 
+        at the beginning of each cell cycle is valid
 
         * Validate that identifier is equal to `conc-{species.id}]`
 
@@ -2029,7 +2082,7 @@ class Concentration(obj_model.Model):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        invalid_obj = super(Concentration, self).validate()
+        invalid_obj = super(DistributionInitConcentration, self).validate()
         if invalid_obj:
             errors = invalid_obj.attributes
         else:
@@ -3190,7 +3243,9 @@ class Evidence(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+            distributions of initial concentrations of species at the beginning of each
+            cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -3257,7 +3312,9 @@ class Reference(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+            distributions of initial concentrations of species at the beginning of
+            each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -3308,7 +3365,9 @@ class DatabaseReference(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        concentrations (:obj:`list` of :obj:`Concentration`): mean concentrations
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+            distributions of initial concentrations of species at the beginning of
+            each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives

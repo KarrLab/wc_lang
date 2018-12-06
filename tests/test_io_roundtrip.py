@@ -16,7 +16,7 @@ import tempfile
 import unittest
 
 from wc_lang.core import (ReactionRateUnit, Model, SpeciesCoefficient, Expression, Species, Observable, Function,
-                          Concentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
+                          DistributionInitConcentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
 
@@ -45,9 +45,9 @@ class RoundTripTestCase(unittest.TestCase):
                                         id='', model=model)
         submdl = model.submodels.create(id='submodel_1')
 
-        # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species_1.concentration = Concentration(
-            id=Concentration.gen_id(species_1.id),
+        # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
+        species_1.distribution_init_concentration = DistributionInitConcentration(
+            id=DistributionInitConcentration.gen_id(species_1.id),
             model=model,
             mean=1, units=ConcentrationUnit.M)
         objects = {Species: {}}
@@ -101,9 +101,9 @@ class RoundTripTestCase(unittest.TestCase):
                                         model=model)
         submdl = model.submodels.create(id='submodel_1')
 
-        # create a Concentration so that Species are provided to ExpressionAttribute.deserialize()
-        species_1.concentration = Concentration(
-            id=Concentration.gen_id(species_1.id),
+        # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
+        species_1.distribution_init_concentration = DistributionInitConcentration(
+            id=DistributionInitConcentration.gen_id(species_1.id),
             model=model,
             mean=1, units=ConcentrationUnit.M)
         objects = {Species: {}}

@@ -15,7 +15,7 @@ from wc_lang import (ReactionRateUnit,
                      StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
-                     SubmodelAlgorithm, Concentration, ConcentrationUnit,
+                     SubmodelAlgorithm, DistributionInitConcentration, ConcentrationUnit,
                      DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -54,7 +54,6 @@ class TestSimpleModel(unittest.TestCase):
 
         self.species_types = species_types = []
         self.species = species = []
-        self.concentrations = concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
@@ -74,10 +73,9 @@ class TestSimpleModel(unittest.TestCase):
             spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(id=Concentration.gen_id(spec.id),
+            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id),
                                  model=mdl,
                                  species=spec, mean=3 * i, units=ConcentrationUnit.M)
-            concentrations.append(conc)
 
         species_coefficients = {}
 
@@ -343,6 +341,9 @@ class TestExampleModel(unittest.TestCase):
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
+        print(copy.keys())
+        print('\n\n')
+        print(original.keys())
         for sheet in original.keys():
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
                 self.assertEqual(copy_row, original_row,
