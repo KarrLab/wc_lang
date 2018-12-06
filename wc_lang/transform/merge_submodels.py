@@ -7,7 +7,9 @@
 """
 
 from .core import Transform
-from wc_lang import Model, Submodel, SubmodelAlgorithm
+from wc_lang.core import (Model, Submodel, SubmodelAlgorithm, Reaction,
+                          DfbaObjective, DfbaObjectiveExpression, DfbaNetReaction,
+                          Evidence, DatabaseReference, Reference)
 import copy
 import itertools
 
@@ -22,6 +24,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
     def run(self, model):
         """ Merge groups of algorithmically-like submodels into individual submodels
 
+        * dFBA objectives are merged by summing
+
         Args:
             model (:obj:`Model`): model definition
 
@@ -30,7 +34,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
         """
 
         # group submodels by algorithms
-        def key_func(submodel): return submodel.algorithm.value
+        def key_func(submodel):
+            return submodel.algorithm.value
         sorted_submodels = sorted(model.submodels, key=key_func)
         grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
@@ -44,27 +49,96 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             # instantiate merged submodel
             merged_submodel = Submodel(model=model, id=id, name=name, algorithm=SubmodelAlgorithm(algorithm))
 
-            # removed submodel from model; merge reactions, parameters, database references, references
+            if algorithm == SubmodelAlgorithm.dFBA:
+                dfba_obj_units = list(set(submodel.dfba_obj.units for submodel in submodels if submodel.dfba_obj))
+                if len(dfba_obj_units) > 1:
+                    raise Exception('Objectives of dFBA submodels must have the same units')
+
+                merged_dfba_obj = merged_submodel.dfba_obj = model.dfba_objs.create(
+                    id=DfbaObjective.gen_id(merged_submodel.id),
+                    name='dFBA objective ({})'.format(', '.join(submodel.name for submodel in submodels)),
+                    units=dfba_obj_units[0])
+
+                merged_dfba_expression = []
+                objs_for_merged_dfba_expression = {
+                    Reaction: {},
+                    DfbaNetReaction: {},
+                }
+
+            # removed submodel from model
+            # merge submodels
+            # - model
+            # - database references
+            # - evidence
+            # - references
+            # - reactions
+            # - dfba_obj
+            # - dfba_net_reactions
             for submodel in submodels:
+                # assert that all types of related objects will be merged
+                assert set(attr.related_class for attr in Submodel.Meta.local_attributes.values() if attr.related_class) == set(
+                    [Model, Evidence, DatabaseReference, Reference, Reaction,
+                     DfbaObjective, DfbaNetReaction])
+
                 model.submodels.remove(submodel)
 
+                for evidence in list(submodel.evidence):
+                    submodel.evidence.remove(evidence)
+                    merged_submodel.evidence.append(evidence)
+
+                for db_ref in list(submodel.db_refs):
+                    submodel.db_refs.remove(db_ref)
+                    merged_submodel.db_refs.append(db_ref)
+
+                for ref in list(submodel.references):
+                    submodel.references.remove(ref)
+                    merged_submodel.references.append(ref)
+
+                for rxn in list(submodel.reactions):
+                    submodel.reactions.remove(rxn)
+                    merged_submodel.reactions.append(rxn)
+
                 if submodel.dfba_obj:
-                    dfba_obj = copy.copy(submodel.dfba_obj)
-                    dfba_obj.submodel = merged_submodel
+                    # assert that all types of related objects will be merged
+                    assert set(attr.related_class for attr in DfbaObjective.Meta.local_attributes.values() if attr.related_class) == set(
+                        [Model, Submodel, Evidence, DatabaseReference, Reference, DfbaObjectiveExpression])
 
-                for dfba_net_rxn in copy.copy(submodel.dfba_net_reactions):
-                    dfba_net_rxn.submodel = merged_submodel
+                    model.dfba_objs.remove(submodel.dfba_obj)
 
-                for rxn in copy.copy(submodel.reactions):
-                    rxn.submodel = merged_submodel
+                    for evidence in list(submodel.dfba_obj.evidence):
+                        submodel.dfba_obj.evidence.remove(evidence)
+                        merged_submodel.dfba_obj.evidence.append(evidence)
 
-                for db_ref in copy.copy(submodel.db_refs):
-                    db_ref.submodels.remove(submodel)
-                    db_ref.submodels.append(merged_submodel)
+                    for db_ref in list(submodel.dfba_obj.db_refs):
+                        submodel.dfba_obj.db_refs.remove(db_ref)
+                        merged_submodel.dfba_obj.db_refs.append(db_ref)
 
-                for ref in copy.copy(submodel.references):
-                    ref.submodels.remove(submodel)
-                    ref.submodels.append(merged_submodel)
+                    for ref in list(submodel.dfba_obj.references):
+                        submodel.dfba_obj.references.remove(ref)
+                        merged_submodel.dfba_obj.references.append(ref)
+
+                    if submodel.dfba_obj.expression:
+                        assert set(attr.related_class for attr in DfbaObjectiveExpression.Meta.local_attributes.values()
+                                   if attr.related_class) == set([DfbaObjective, Reaction, DfbaNetReaction])
+
+                        if submodel.dfba_obj.expression.expression:
+                            merged_dfba_expression.append(submodel.dfba_obj.expression.expression)
+                        for rxn in list(submodel.dfba_obj.expression.reactions):
+                            submodel.dfba_obj.expression.reactions.remove(rxn)
+                            objs_for_merged_dfba_expression[Reaction][rxn.id] = rxn
+                        for dfba_net_rxn in list(submodel.dfba_obj.expression.dfba_net_reactions):
+                            submodel.dfba_obj.expression.dfba_net_reactions.remove(dfba_net_rxn)
+                            objs_for_merged_dfba_expression[DfbaNetReaction][dfba_net_rxn.id] = dfba_net_rxn
+
+                for dfba_net_rxn in list(submodel.dfba_net_reactions):
+                    submodel.dfba_net_reactions.remove(dfba_net_rxn)
+                    merged_submodel.dfba_net_reactions.append(dfba_net_rxn)
+
+            if algorithm == SubmodelAlgorithm.dFBA:
+                merged_dfba_obj.expression, error = DfbaObjectiveExpression.deserialize(
+                    ' + '.join(merged_dfba_expression),
+                    objs_for_merged_dfba_expression)
+                assert error is None
 
         # return merged model
         return model

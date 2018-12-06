@@ -830,12 +830,12 @@ class Model(obj_model.Model):
             each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references
     """
     id = SlugAttribute()
@@ -1239,11 +1239,10 @@ class Submodel(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
+        reactions (:obj:`list` of :obj:`Reaction`): reactions
         dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
             if not initialized, then `dfba_net_reaction` is used as the objective function
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): the growth reaction for a dFBA submodel
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1381,7 +1380,8 @@ class Submodel(obj_model.Model):
         """
         reactions = list(self.reactions)
         for dfba_obj in self.get_dfba_objs():
-            reactions.extend(dfba_obj.expression.reactions)
+            if dfba_obj.expression:
+                reactions.extend(dfba_obj.expression.reactions)
         return det_dedupe(reactions)
 
     def get_rate_laws(self):
@@ -1403,7 +1403,8 @@ class Submodel(obj_model.Model):
         """
         rxns = list(self.dfba_net_reactions)
         for dfba_obj in self.get_dfba_objs():
-            rxns.extend(dfba_obj.expression.dfba_net_reactions)
+            if dfba_obj.expression:
+                rxns.extend(dfba_obj.expression.dfba_net_reactions)
         return det_dedupe(rxns)
 
     def get_parameters(self):
@@ -2180,7 +2181,7 @@ class Observable(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
-    expression = ExpressionAttribute('ObservableExpression', related_name='observable')
+    expression = ExpressionAttribute(ObservableExpression, related_name='observable')
     units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
@@ -2285,7 +2286,7 @@ class Function(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='functions')
-    expression = ExpressionAttribute('FunctionExpression', related_name='function')
+    expression = ExpressionAttribute(FunctionExpression, related_name='function')
     units = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
@@ -2429,7 +2430,7 @@ class StopCondition(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
-    expression = ExpressionAttribute('StopConditionExpression', related_name='stop_condition')
+    expression = ExpressionAttribute(StopConditionExpression, related_name='stop_condition')
     units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
@@ -2499,7 +2500,7 @@ class Reaction(obj_model.Model):
     Related attributes:
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
             rate law, and rate_laws[0] is the backward rate law
-        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
+        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2897,8 +2898,8 @@ class RateLawExpression(obj_model.Model, Expression):
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
     species = ManyToManyAttribute(Species, related_name='rate_law_expressions')
-    observables = ManyToManyAttribute('Observable', related_name='rate_law_expressions')
-    functions = ManyToManyAttribute('Function', related_name='rate_law_expressions')
+    observables = ManyToManyAttribute(Observable, related_name='rate_law_expressions')
+    functions = ManyToManyAttribute(Function, related_name='rate_law_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='rate_law_expressions')
 
     class Meta(obj_model.Model.Meta):
@@ -3068,7 +3069,7 @@ class DfbaNetReaction(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
-    submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
+    submodel = ManyToOneAttribute(Submodel, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['s^-1'])
     cell_size_units = EnumAttribute(DfbaCellSizeUnit, default=DfbaCellSizeUnit.l)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
@@ -3244,13 +3245,13 @@ class Evidence(obj_model.Model):
             cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
         dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dFBA net components
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
         reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
             supports (e.g. averages supported by this and other evidence)
     """
@@ -3313,12 +3314,12 @@ class Reference(obj_model.Model):
             each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3366,13 +3367,13 @@ class DatabaseReference(obj_model.Model):
             each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
         functions (:obj:`list` of :obj:`Function`): functions
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
         dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dFBA net components
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references
     """
 

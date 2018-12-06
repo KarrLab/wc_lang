@@ -18,7 +18,7 @@ from .core import (TimeUnit, TaxonRank, CompartmentType, VolumeUnit, DensityUnit
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaNetComponent, DfbaNetReaction, Parameter,
                    StopCondition, StopConditionExpression, StopConditionUnit,
-                   DatabaseReference, Reference)
+                   Evidence, DatabaseReference, Reference)
 from . import config
 from . import expression
 from . import io
