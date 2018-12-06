@@ -18,7 +18,8 @@ from obj_model.core import InvalidAttribute
 from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           MoleculeCountUnit,
                           ReactionRateUnit, ReactionFluxUnit, DfbaNetFluxUnit,
-                          DfbaObjectiveUnit, DfbaObjectiveCoefficientUnit,
+                          DfbaObjectiveUnit, DfbaCellSizeUnit,
+                          DfbaObjectiveCoefficientUnit,
                           DfbaNetComponentUnit, StopConditionUnit,
                           Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
@@ -2644,6 +2645,17 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(len(DfbaNetComponentUnit), 2)
         self.assertIn('M s^-1', DfbaNetComponentUnit.__members__)
         self.assertIn('mol gDCW^-1 s^-1', DfbaNetComponentUnit.__members__)
+
+        time_unit = unit_registry.parse_expression(TimeUnit['s'].name)
+        mol_unit = unit_registry.parse_expression('mol')
+
+        coeff_unit = unit_registry.parse_expression(DfbaNetComponentUnit['M s^-1'].name)
+        cell_size_unit = unit_registry.parse_expression(DfbaCellSizeUnit['l'].name)
+        self.assertEqual(coeff_unit * cell_size_unit * time_unit, mol_unit)
+
+        coeff_unit = unit_registry.parse_expression(DfbaNetComponentUnit['mol gDCW^-1 s^-1'].name)
+        cell_size_unit = unit_registry.parse_expression(DfbaCellSizeUnit['gDCW'].name)
+        self.assertEqual(coeff_unit * cell_size_unit * time_unit, mol_unit)
 
     def test_dfba_net_reaction_flux_value(self):
         self.assertEqual(DfbaNetReaction.units.enum_class, DfbaNetFluxUnit)

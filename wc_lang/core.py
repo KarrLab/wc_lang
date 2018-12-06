@@ -78,12 +78,6 @@ import wc_lang.config.core
 config = wc_lang.config.core.get_config()['wc_lang']
 
 
-class CellMassUnit(int, Enum):
-    """ Cell mass units """
-    g = 1
-    gDCW = 2
-
-
 class TimeUnit(int, Enum):
     """ Time units """
     s = 1
@@ -292,6 +286,13 @@ ReactionFluxUnit = Enum('ReactionFluxUnit', type=int, names=[
 DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[
     ('dimensionless', 1),
 ])
+
+
+class DfbaCellSizeUnit(int, Enum):
+    """ dFBA cell size units """
+    l = 1
+    gDCW = 2
+
 
 DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
     ('s', 1),
@@ -807,7 +808,6 @@ class Model(obj_model.Model):
     author = LongStringAttribute()
     author_organization = LongStringAttribute()
     author_email = LongStringAttribute()
-    cell_mass_units = EnumAttribute(CellMassUnit, default=CellMassUnit.g)
     time_units = EnumAttribute(TimeUnit, default=TimeUnit.s)
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='model')
     comments = LongStringAttribute()
@@ -819,7 +819,7 @@ class Model(obj_model.Model):
                            'url', 'branch', 'revision',
                            'wc_lang_version',
                            'author', 'author_organization', 'author_email',
-                           'cell_mass_units', 'time_units',
+                           'time_units',
                            'db_refs', 'comments',
                            'created', 'updated')
         tabular_orientation = TabularOrientation.column
@@ -2963,7 +2963,7 @@ class DfbaNetComponent(obj_model.Model):
 
         * Check if the identifier is equal to
           `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
-        * Units consistent with units of cell mass
+        * Units consistent with units of cell size
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2980,13 +2980,16 @@ class DfbaNetComponent(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
                 self.gen_id(self.dfba_net_reaction.id, self.species.id))]))
 
-        # units consistent with units of cell mass
-        if self.dfba_net_reaction and self.dfba_net_reaction.model and \
-                (self.units == DfbaNetComponentUnit['M s^-1'] and self.dfba_net_reaction.model.cell_mass_units != CellMassUnit.g) or \
-                (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and self.dfba_net_reaction.model.cell_mass_units != CellMassUnit.gDCW):
-            errors.append(InvalidAttribute(self.Meta.attributes['units'],
-                                           ['Units {} are not consistent with cell mass units {}'.format(
-                                            self.units.name, self.dfba_net_reaction.model.cell_mass_units.name)]))
+        # units consistent with units of cell size
+        if self.dfba_net_reaction and \
+                (self.units == DfbaNetComponentUnit['M s^-1'] and
+                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.l) or \
+                (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and
+                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.gDCW):
+            errors.append(InvalidAttribute(
+                self.Meta.attributes['units'],
+                ['Units {} are not consistent with cell size units {}'.format(
+                    self.units.name, self.dfba_net_reaction.cell_size_units.name)]))
 
         if errors:
             return InvalidObject(self, errors)
@@ -3003,6 +3006,7 @@ class DfbaNetReaction(obj_model.Model):
         model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that uses this reaction
         units (:obj:`DfbaNetFluxUnit`): flux units
+        cell_size_units (:obj:`DfbaCellSizeUnit`): cell size units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -3017,6 +3021,7 @@ class DfbaNetReaction(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     submodel = ManyToOneAttribute('Submodel', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['s^-1'])
+    cell_size_units = EnumAttribute(DfbaCellSizeUnit, default=DfbaCellSizeUnit.l)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
                                                    verbose_related_name='dFBA net reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_reactions',
@@ -3025,7 +3030,7 @@ class DfbaNetReaction(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'submodel', 'units',
+        attribute_order = ('id', 'name', 'submodel', 'units', 'cell_size_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA net reaction'
