@@ -48,8 +48,8 @@ class TestSimpleModel(unittest.TestCase):
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
-        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0', volume_mean=1.25)
-        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1', volume_mean=2.5)
+        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0')
+        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1')
         self.compartments = compartments = [comp_0, comp_1]
 
         self.species_types = species_types = []

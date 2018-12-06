@@ -825,7 +825,7 @@ class Model(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
             distributions of initial concentrations of species at the beginning of
             each cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
@@ -1743,12 +1743,10 @@ class Compartment(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         type (:obj:`CompartmentType`): type
-        volume_mean (:obj:`float`): mean volume of a population of single cells
-        volume_std (:obj:`float`): standard deviation of the volume of a population of single cells
-        volume_units (:obj:`VolumeUnit`): units of mean volume
-        density_mean (:obj:`float`): mean density of a population of single cells
-        density_std (:obj:`float`): standard deviation of the density of a population of single cells
-        density_units (:obj:`DensityUnit`): units of mean density
+        density (:obj:`float`): density of a cell
+        density_units (:obj:`DensityUnit`): units of density
+        volume (:obj:`str`): volume
+        volume_units (:obj:`VolumeUnit`): units of volume
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1764,12 +1762,10 @@ class Compartment(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
-    volume_mean = FloatAttribute(min=0, verbose_name='Volume mean')
-    volume_std = FloatAttribute(min=0, verbose_name='Volume standard deviation')
-    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
-    density_mean = FloatAttribute(min=0, verbose_name='Density mean')
-    density_std = FloatAttribute(min=0, verbose_name='Density standard deviation')
+    density = FloatAttribute(min=0)
     density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
+    volume = RegexAttribute(pattern=re.escape('mass * density'), default='mass * density')
+    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
@@ -1777,8 +1773,8 @@ class Compartment(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'type',
-                           'volume_mean', 'volume_std', 'volume_units',
-                           'density_mean', 'density_std', 'density_units',
+                           'density', 'density_units',
+                           'volume', 'volume_units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1798,7 +1794,7 @@ class Compartment(obj_model.Model):
         wrap_libsbml(sbml_compartment.setIdAttribute, self.id)
         wrap_libsbml(sbml_compartment.setName, self.name)
         wrap_libsbml(sbml_compartment.setSpatialDimensions, 3)
-        wrap_libsbml(sbml_compartment.setSize, self.volume_mean)
+        wrap_libsbml(sbml_compartment.setSize, 1.0)  # todo: set based on calculated concentrations and density
         wrap_libsbml(sbml_compartment.setConstant, False)
         if self.comments:
             wrap_libsbml(sbml_compartment.setNotes, self.comments, True)
@@ -1824,7 +1820,7 @@ class SpeciesType(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
             distribution of initial concentrations of species at the beginning of
             each cell cycle
     """
@@ -1874,7 +1870,7 @@ class Species(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        distribution_init_concentration (:obj:`DistributionInitConcentration`): 
+        distribution_init_concentration (:obj:`DistributionInitConcentration`):
             distribution of initial concentration
         species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
@@ -2031,7 +2027,7 @@ class DistributionInitConcentration(obj_model.Model):
         distribution (:obj:`RandomDistribution`): distribution
         mean (:obj:`float`): mean concentration in a population of single cells at the
             beginning of each cell cycle
-        std (:obj:`float`): standard deviation of the concentration in a population of 
+        std (:obj:`float`): standard deviation of the concentration in a population of
             single cells at the beginning of each cell cycle
         units (:obj:`ConcentrationUnit`): units; default units is `M`
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
@@ -2073,7 +2069,7 @@ class DistributionInitConcentration(obj_model.Model):
         return 'conc-{}'.format(species_id)
 
     def validate(self):
-        """ Check that the distribution of initial concentrations 
+        """ Check that the distribution of initial concentrations
         at the beginning of each cell cycle is valid
 
         * Validate that identifier is equal to `conc-{species.id}]`
@@ -3243,7 +3239,7 @@ class Evidence(obj_model.Model):
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
         species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): 
+        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
             distributions of initial concentrations of species at the beginning of each
             cell cycle
         observables (:obj:`list` of :obj:`Observable`): observables
