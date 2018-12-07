@@ -931,8 +931,9 @@ class Model(obj_model.Model):
             # find cyclic dependencies
             digraph = networkx.DiGraph()
             for model in models:
-                for other_model in getattr(model.expression, self_ref_attr_name):
-                    digraph.add_edge(model.id, other_model.id)
+                if model.expression:
+                    for other_model in getattr(model.expression, self_ref_attr_name):
+                        digraph.add_edge(model.id, other_model.id)
             cycles = list(networkx.simple_cycles(digraph))
             if cycles:
                 cyclic_deps[model_type] = {
@@ -1059,17 +1060,6 @@ class Model(obj_model.Model):
 
         return self.functions.get(__type=__type, **kwargs)
 
-    def get_dfba_objs(self, __type=None, **kwargs):
-        """ Get all dFBA objectives
-
-        Returns:
-            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives
-        """
-        if '__type' in kwargs:
-            __type = kwargs.pop('__type')
-
-        return self.dfba_objs.get(__type=__type, **kwargs)
-
     def get_reactions(self, __type=None, **kwargs):
         """ Get all reactions from submodels
 
@@ -1101,6 +1091,17 @@ class Model(obj_model.Model):
             __type = kwargs.pop('__type')
 
         return self.rate_laws.get(__type=__type, **kwargs)
+
+    def get_dfba_objs(self, __type=None, **kwargs):
+        """ Get all dFBA objectives
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.dfba_objs.get(__type=__type, **kwargs)
 
     def get_dfba_net_reactions(self, __type=None, **kwargs):
         """ Get all dFBA net reactions used by submodels
@@ -1150,6 +1151,17 @@ class Model(obj_model.Model):
 
         return self.stop_conditions.get(__type=__type, **kwargs)
 
+    def get_evidence(self, __type=None, **kwargs):
+        """ Get all evidence for model
+
+        Returns:
+            :obj:`list` of :obj:`Evidence`: evidence for model
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.evidences.get(__type=__type, **kwargs)
+
     def get_references(self, __type=None, **kwargs):
         """ Get all references from model and children
 
@@ -1181,18 +1193,18 @@ class Model(obj_model.Model):
             __type = kwargs.pop('__type')
 
         if __type:
-            type_names = [stringcase.snakecase(__type.__name__)]
+            type_names = [stringcase.snakecase(__type.__name__) + 's']
         else:
             type_names = [
-                'submodel', 'compartment', 'species_type', 'species',
-                'distribution_init_concentration', 'observable', 'function',
-                'dfba_obj', 'reaction', 'rate_law', 'dfba_net_reaction',
-                'parameter', 'stop_condition', 'reference',
+                'submodels', 'compartments', 'species_types', 'species',
+                'distribution_init_concentrations', 'observables', 'functions',
+                'dfba_objs', 'reactions', 'rate_laws', 'dfba_net_reactions',
+                'stop_conditions', 'parameters', 'evidence', 'references',
             ]
 
         components = []
         for type_name in type_names:
-            get_func = getattr(self, 'get_' + type_name + 's')
+            get_func = getattr(self, 'get_' + type_name)
             components.extend(get_func(__type=__type, **kwargs))
 
         return components
@@ -1295,7 +1307,7 @@ class Submodel(obj_model.Model):
             compartments.append(species.compartment)
         return det_dedupe(compartments)
 
-    def get_specices_types(self):
+    def get_species_types(self):
         """ Get species types in submodel
 
         Returns:
@@ -1362,16 +1374,6 @@ class Submodel(obj_model.Model):
             funcs_to_flats.extend(funcs_to_flat.expression.functions)
         return det_dedupe(funcs)
 
-    def get_dfba_objs(self):
-        """ Get dFBA objectives in submodel
-
-        Returns:
-            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives in submodel
-        """
-        if self.dfba_obj:
-            return [self.dfba_obj]
-        return []
-
     def get_reactions(self):
         """ Get reactions in submodel
 
@@ -1394,6 +1396,16 @@ class Submodel(obj_model.Model):
         for reaction in self.get_reactions():
             rate_laws.extend(reaction.rate_laws)
         return det_dedupe(rate_laws)
+
+    def get_dfba_objs(self):
+        """ Get dFBA objectives in submodel
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives in submodel
+        """
+        if self.dfba_obj:
+            return [self.dfba_obj]
+        return []
 
     def get_dfba_net_reactions(self):
         """ Get dFBA net reactions in submodel
@@ -1420,6 +1432,31 @@ class Submodel(obj_model.Model):
             parameters.extend(function.expression.parameters)
         return det_dedupe(parameters)
 
+    def get_evidence(self):
+        """ Get evidence of submodel
+
+        Returns:
+            :obj:`list` of :obj:`Evidence`: evidence for submodel
+        """
+        types = [
+            'compartments',
+            'species_types',
+            'species',
+            'observables',
+            'functions',
+            'dfba_objs',
+            'reactions',
+            'rate_laws',
+            'dfba_net_reactions',
+            'parameters',
+        ]
+        evidence = list(self.evidence)
+        for type in types:
+            get_func = getattr(self, 'get_' + type)
+            for obj in get_func():
+                evidence.extend(obj.evidence)
+        return det_dedupe(evidence)
+
     def get_references(self):
         """ Get references of submodel
 
@@ -1427,23 +1464,24 @@ class Submodel(obj_model.Model):
             :obj:`list` of :obj:`Reference`: references in submodel
         """
         types = [
-            'compartment',
-            'species_type',
-            'specie',
-            'observable',
-            'function',
-            'dfba_obj',
-            'reaction',
-            'rate_law',
-            'dfba_net_reaction',
-            'parameter',
+            'compartments',
+            'species_types',
+            'species',
+            'observables',
+            'functions',
+            'dfba_objs',
+            'reactions',
+            'rate_laws',
+            'dfba_net_reactions',
+            'parameters',
+            'evidence',
         ]
-        references = []
+        references = list(self.references)
         for type in types:
-            get_func = getattr(self, 'get_' + type + 's')
+            get_func = getattr(self, 'get_' + type)
             for obj in get_func():
                 references.extend(obj.references)
-        return references
+        return det_dedupe(references)
 
     def get_components(self):
         """ Get components of submodel
@@ -1456,11 +1494,12 @@ class Submodel(obj_model.Model):
             self.get_species() + \
             self.get_observables() + \
             self.get_functions() + \
-            self.get_dfba_objs() + \
             self.get_reactions() + \
             self.get_rate_laws() + \
+            self.get_dfba_objs() + \
             self.get_dfba_net_reactions() + \
             self.get_parameters() + \
+            self.get_evidence() + \
             self.get_references()
 
     def add_to_sbml_doc(self, sbml_document):
@@ -1712,6 +1751,8 @@ class DfbaObjective(obj_model.Model):
             __type = kwargs.pop('__type')
 
         products = []
+
+        # products of reactions
         for reaction in self.expression.reactions:
             if reaction.reversible:
                 for part in reaction.participants:
@@ -1719,20 +1760,17 @@ class DfbaObjective(obj_model.Model):
                         products.append(part.species)
             else:
                 for part in reaction.participants:
-                    if 0 < part.coefficient:
+                    if part.coefficient > 0:
                         if part.species.has_attr_vals(__type=__type, **kwargs):
                             products.append(part.species)
 
-        tmp_species_ids = []
+        # products of dFBA net reactions
         for dfba_net_reaction in self.expression.dfba_net_reactions:
             for dfba_net_comp in dfba_net_reaction.dfba_net_components:
-                if 0 < dfba_net_comp.value:
-                    tmp_species_ids.append(dfba_net_comp.species.id)
-        with self.submodel as submodel:
-            tmp_species = Species.get(tmp_species_ids, self.submodel.get_species())
-            for tmp_specie_id, tmp_specie in zip(tmp_species_ids, tmp_species):
-                if tmp_specie.has_attr_vals(__type=__type, **kwargs):
-                    products.append(tmp_specie)
+                if dfba_net_comp.value > 0 and dfba_net_comp.species.has_attr_vals(__type=__type, **kwargs):
+                    products.append(dfba_net_comp.species)
+
+        # return unique list
         return det_dedupe(products)
 
 
@@ -2039,7 +2077,7 @@ class DistributionInitConcentration(obj_model.Model):
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='distribution_init_concentrations')
-    species = OneToOneAttribute(Species, related_name='distribution_init_concentration')
+    species = OneToOneAttribute(Species, min_related=1, related_name='distribution_init_concentration')
     distribution = EnumAttribute(RandomDistribution, default=RandomDistribution.normal)
     mean = FloatAttribute(min=0)
     std = FloatAttribute(min=0, verbose_name='Standard deviation')
@@ -2085,7 +2123,7 @@ class DistributionInitConcentration(obj_model.Model):
         else:
             errors = []
 
-        if self.id != self.gen_id(self.species.id):
+        if self.species and self.id != self.gen_id(self.species.id):
             errors.append(InvalidAttribute(self.Meta.attributes['id'],
                                            ['Id must be {}'.format(self.gen_id(self.species.id))]))
 
@@ -2556,8 +2594,7 @@ class Reaction(obj_model.Model):
                 rl_errors.append('Reversible reaction in {} submodel must have a backward rate law'.format(
                     self.submodel.algorithm.name))
         if not self.reversible and rev_rl:
-            rl_errors.append('Irreversible reaction in {} submodel cannot have a backward rate law'.format(
-                self.submodel.algorithm.name))
+            rl_errors.append('Irreversible reaction cannot have a backward rate law')
 
         if rl_errors:
             errors.append(InvalidAttribute(self.Meta.related_attributes['rate_laws'], rl_errors))
@@ -2972,10 +3009,10 @@ class DfbaNetComponent(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', related_name='dfba_net_components',
+    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', min_related=1, related_name='dfba_net_components',
                                            verbose_name='dFBA net reaction',
                                            verbose_related_name='dFBA net components')
-    species = ManyToOneAttribute(Species, related_name='dfba_net_components',
+    species = ManyToOneAttribute(Species, min_related=1, related_name='dfba_net_components',
                                  verbose_related_name='dFBA net components')
     value = FloatAttribute()
     units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
@@ -3026,16 +3063,16 @@ class DfbaNetComponent(obj_model.Model):
             errors = []
 
         # id
-        if self.id != self.gen_id(self.dfba_net_reaction.id, self.species.id):
+        if self.dfba_net_reaction and self.species and self.id != self.gen_id(self.dfba_net_reaction.id, self.species.id):
             errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
                 self.gen_id(self.dfba_net_reaction.id, self.species.id))]))
 
         # units consistent with units of cell size
         if self.dfba_net_reaction and \
-                (self.units == DfbaNetComponentUnit['M s^-1'] and
-                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.l) or \
-                (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and
-                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.gDCW):
+                ((self.units == DfbaNetComponentUnit['M s^-1'] and
+                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.l) or
+                 (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and
+                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.gDCW)):
             errors.append(InvalidAttribute(
                 self.Meta.attributes['units'],
                 ['Units {} are not consistent with cell size units {}'.format(

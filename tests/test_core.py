@@ -32,6 +32,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
                           SubmodelAlgorithm, DistributionInitConcentration, DfbaNetComponent, DfbaNetReaction,
+                          Evidence,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject)
 from wc_lang.io import Reader
@@ -76,6 +77,32 @@ class TestCore(unittest.TestCase):
             conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=3 * i)
             conc.model = mdl
             distribution_init_concentrations.append(conc)
+
+        objects = {
+            Species: {
+                'spec_type_0[comp_0]': species[0],
+                'spec_type_1[comp_0]': species[1],
+                'spec_type_2[comp_0]': species[2],
+                'spec_type_3[comp_1]': species[3],
+            },
+        }
+        obs_0 = mdl.observables.create(id='obs_0')
+        obs_1 = mdl.observables.create(id='obs_1')
+        obs_0.expression, _ = ObservableExpression.deserialize('spec_type_0[comp_0] + spec_type_1[comp_0]', objects)
+        obs_1.expression, _ = ObservableExpression.deserialize('spec_type_1[comp_0] + spec_type_2[comp_1]', objects)
+
+        objects = {
+            Species: {
+                'spec_type_0[comp_0]': species[0],
+                'spec_type_1[comp_0]': species[1],
+                'spec_type_2[comp_0]': species[2],
+                'spec_type_3[comp_1]': species[3],
+            },
+        }
+        func_0 = mdl.functions.create(id='func_0')
+        func_1 = mdl.functions.create(id='func_1')
+        func_0.expression, _ = FunctionExpression.deserialize('spec_type_0[comp_0] + spec_type_1[comp_0]', objects)
+        func_1.expression, _ = FunctionExpression.deserialize('spec_type_1[comp_0] + spec_type_2[comp_1]', objects)
 
         self.dfba_net_reaction = dfba_net_reaction = DfbaNetReaction(
             id='dfba_net_reaction_1',
@@ -174,6 +201,12 @@ class TestCore(unittest.TestCase):
         of.expression.reactions.append(rxn_1)
         of.expression.reactions.append(rxn_2)
         dfba_net_reaction.dfba_obj_expression = of.expression
+
+        stop_cond_1 = mdl.stop_conditions.create(id='stop_cond_1')
+        stop_cond_1.expression, _ = StopConditionExpression.deserialize('2 > 1', {})
+
+        mdl.evidences.create(id='ev_0', submodels=[submdl_0])
+        mdl.evidences.create(id='ev_2', submodels=[submdl_2])
 
         self.references = references = []
         self.db_refs = db_refs = []
@@ -321,7 +354,93 @@ class TestCore(unittest.TestCase):
         self.assertEqual(TaxonRank.__getattr__('class'), TaxonRank['classis'])
 
     def test_model_get_species(self):
-        self.assertEqual(set(self.model.get_species()), set(self.species))
+        model = self.model
+        self.assertEqual(set(model.get_species()), set(self.species))
+        self.assertNotEqual(set(model.get_species()), set())
+        self.assertEqual(set(model.get_species(__type=Species)), set(self.species))
+        self.assertEqual(model.get_species(__type=Model), [])
+
+    def test_model_get_distribution_init_concentrations(self):
+        model = self.model
+        self.assertEqual(set(model.get_distribution_init_concentrations()), set(model.distribution_init_concentrations))
+        self.assertNotEqual(set(model.get_distribution_init_concentrations()), set())
+        self.assertEqual(set(model.get_distribution_init_concentrations(__type=DistributionInitConcentration)),
+                         set(model.distribution_init_concentrations))
+        self.assertEqual(model.get_distribution_init_concentrations(__type=Model), [])
+
+    def test_model_get_observables(self):
+        model = self.model
+        self.assertEqual(set(model.get_observables()), set(model.observables))
+        self.assertNotEqual(set(model.get_observables()), set())
+        self.assertEqual(set(model.get_observables(__type=Observable)), set(model.observables))
+        self.assertEqual(model.get_observables(__type=Model), [])
+
+    def test_model_get_functions(self):
+        model = self.model
+        self.assertEqual(set(model.get_functions()), set(model.functions))
+        self.assertNotEqual(set(model.get_functions()), set())
+        self.assertEqual(set(model.get_functions(__type=Function)), set(model.functions))
+        self.assertEqual(model.get_functions(__type=Model), [])
+
+    def test_model_get_rate_laws(self):
+        model = self.model
+        self.assertEqual(set(model.get_rate_laws()), set(model.rate_laws))
+        self.assertNotEqual(set(model.get_rate_laws()), set())
+        self.assertEqual(set(model.get_rate_laws(__type=RateLaw)), set(model.rate_laws))
+        self.assertEqual(model.get_rate_laws(__type=Model), [])
+
+    def test_model_get_dfba_objs(self):
+        model = self.model
+        self.assertEqual(set(model.get_dfba_objs()), set(model.dfba_objs))
+        self.assertNotEqual(set(model.get_dfba_objs()), set())
+        self.assertEqual(set(model.get_dfba_objs(__type=DfbaObjective)), set(model.dfba_objs))
+        self.assertEqual(model.get_dfba_objs(__type=Model), [])
+
+    def test_model_get_dfba_net_reactions(self):
+        model = self.model
+        self.assertEqual(set(model.get_dfba_net_reactions()), set(model.dfba_net_reactions))
+        self.assertNotEqual(set(model.get_dfba_net_reactions()), set())
+        self.assertEqual(set(model.get_dfba_net_reactions(__type=DfbaNetReaction)), set(model.dfba_net_reactions))
+        self.assertEqual(model.get_dfba_net_reactions(__type=Model), [])
+
+    def test_model_get_stop_conditions(self):
+        model = self.model
+        self.assertEqual(set(model.get_stop_conditions()), set(model.stop_conditions))
+        self.assertNotEqual(set(model.get_stop_conditions()), set())
+        self.assertEqual(set(model.get_stop_conditions(__type=StopCondition)), set(model.stop_conditions))
+        self.assertEqual(model.get_stop_conditions(__type=Model), [])
+
+    def test_model_get_evidence(self):
+        model = self.model
+        self.assertEqual(set(model.get_evidence()), set(model.evidences))
+        self.assertNotEqual(set(model.get_evidence()), set())
+        self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidences))
+        self.assertEqual(model.get_evidence(__type=Model), [])
+
+    def test_submodel_validate(self):
+        submdl = Submodel(id='submodel')
+        self.assertEqual(submdl.validate(), None)
+
+        submdl = Submodel(id='sub-model')
+        self.assertNotEqual(submdl.validate(), None)
+
+    def test_submodel_get_compartments(self):
+        compartments = self.compartments
+        self.assertEqual(self.submdl_0.get_compartments(), compartments[0:1])
+        self.assertEqual(self.submdl_1.get_compartments(), compartments)
+        self.assertEqual(self.submdl_2.get_compartments(), compartments)
+
+    def test_submodel_get_species_types(self):
+        species_types = self.species_types
+        self.assertEqual(set(self.submdl_0.get_species_types()), set([
+            species_types[0], species_types[1], species_types[2], species_types[5],
+        ]))
+        self.assertEqual(set(self.submdl_1.get_species_types()), set([
+            species_types[0], species_types[1], species_types[3], species_types[6],
+        ]))
+        self.assertEqual(set(self.submdl_2.get_species_types()), set([
+            species_types[0], species_types[1], species_types[3], species_types[4], species_types[6], species_types[7],
+        ]))
 
     def test_submodel_get_species(self):
         species = self.species
@@ -335,6 +454,25 @@ class TestCore(unittest.TestCase):
             species[0], species[1], species[3], species[4], species[6], species[7],
         ]))
 
+    def test_submodel_get_evidence(self):
+        species = self.species
+        ev = species[2].evidence.create()
+        self.assertEqual(set(self.submdl_0.get_evidence()), set([ev]) | set(self.model.evidences[0:1]))
+        self.assertEqual(self.submdl_1.get_evidence(), [])
+        self.assertEqual(set(self.submdl_2.get_evidence()), set(self.model.evidences[1:2]))
+
+    def test_submodel_get_references(self):
+        species = self.species
+        species[2].references = self.references[0:1]
+        self.assertEqual(self.submdl_0.get_references(), self.references[0:1])
+        self.assertEqual(self.submdl_1.get_references(), [])
+        self.assertEqual(self.submdl_2.get_references(), self.references[0:2])
+
+    def test_submodel_get_components(self):
+        self.assertIn(self.submdl_0.reactions[0], self.submdl_0.get_components())
+        self.assertIn(self.submdl_1.reactions[0], self.submdl_1.get_components())
+        self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_components())
+
     def test_reaction_get_species(self):
         species = self.species
         self.assertEqual(set(self.rxn_0.get_species()), set([
@@ -346,6 +484,11 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(self.rxn_2.get_species()), set([
             species[0], species[1], species[4], species[7],
         ]))
+
+        self.assertEqual(set(self.rxn_0.get_species(__type=Species)), set([
+            species[0], species[1], species[2], species[5],
+        ]))
+        self.assertEqual(self.rxn_0.get_species(__type=Model), [])
 
     def test_get_components(self):
         mdl = self.model
@@ -405,6 +548,7 @@ class TestCore(unittest.TestCase):
     def test_get_components(self):
         model = self.model
 
+        self.assertEqual(model.get_components(id='comp_0'), [self.comp_0])
         self.assertEqual(model.get_components(__type=Compartment, id='comp_0'), [self.comp_0])
         self.assertEqual(model.get_components(__type=SpeciesType, id='spec_type_1'), [self.species_types[1]])
         self.assertEqual(model.get_components(__type=Submodel, id='submodel_1'), [self.submdl_1])
@@ -430,11 +574,21 @@ class TestCore(unittest.TestCase):
         ids.append('X')
         self.assertEqual(Species.get(ids, self.species), self.species[4:] + [None])
 
-    def test_concentration_serialize(self):
+    def test_distribution_init_concentration_serialize(self):
         self.assertEqual(self.distribution_init_concentrations[0].serialize(), 'conc-spec_type_0[comp_0]')
         self.assertEqual(self.distribution_init_concentrations[1].serialize(), 'conc-spec_type_1[comp_0]')
         self.assertEqual(self.distribution_init_concentrations[2].serialize(), 'conc-spec_type_2[comp_0]')
         self.assertEqual(self.distribution_init_concentrations[3].serialize(), 'conc-spec_type_3[comp_1]')
+
+    def test_distribution_init_concentration_validate(self):
+        conc = DistributionInitConcentration(id='conc-species_0', species=Species(id='species_0'), mean=1.)
+        self.assertEqual(conc.validate(), None)
+
+        conc = DistributionInitConcentration(id='conc-species_0', species=Species(id='species_0'), mean=-1.)
+        self.assertNotEqual(conc.validate(), None)
+
+        conc = DistributionInitConcentration(id='conc-species-0', species=Species(id='species_0'), mean=1.)
+        self.assertNotEqual(conc.validate(), None)
 
     def test_reaction_participant_serialize(self):
         self.assertEqual(set([part.serialize() for part in self.rxn_0.participants]), set([
@@ -612,6 +766,29 @@ class TestCore(unittest.TestCase):
         self.assertEqual(rv, None, str(rv))
 
         wc_lang.core.config['validation']['validate_element_charge_balance'] = validate_element_charge_balance
+
+    def test_reaction_validate(self):
+        c = Compartment()
+        d = Compartment()
+        st = SpeciesType(empirical_formula='CHO', charge=1)
+        spec_c = Species(species_type=st, compartment=c)
+        spec_d = Species(species_type=st, compartment=d)
+        rxn = Reaction(id='rxn', reversible=True, flux_min=-1., flux_max=1.,
+                       flux_units=ReactionFluxUnit['M s^-1'],
+                       participants=[
+                           SpeciesCoefficient(species=spec_c, coefficient=-1.),
+                           SpeciesCoefficient(species=spec_d, coefficient=1.),
+                       ],
+                       rate_laws=[
+                           RateLaw(direction=RateLawDirection.forward),
+                           RateLaw(direction=RateLawDirection.backward),
+                       ])
+        rv = rxn.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        rxn.flux_units = None
+        rv = rxn.validate()
+        self.assertNotEqual(rv, None, str(rv))
 
     def test_rate_gen_id(self):
         self.assertEqual(self.rate_laws[0].id, 'rxn_0-forward')
@@ -818,6 +995,43 @@ class TestCore(unittest.TestCase):
         error = rate_law.expression.validate()
         self.assertEqual(error, None, str(error))
 
+        # positive example
+        expression, _ = RateLawExpression.deserialize('p', {
+            Parameter: {'p': Parameter(id='p', value=1., units='s^-1')},
+        })
+        rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
+            expression=expression,
+            units=ReactionRateUnit['s^-1'],
+        )
+        error = rate_law.validate()
+        self.assertEqual(error, None, str(error))
+
+        # invalid id
+        rate_law.id = 'a' * 1000
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        rate_law.id = 'rxn-backward'
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        rate_law.id = 'rxn-forward'
+        rate_law.expression._parsed_expression._compiled_expression_with_units = 'p'
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        rate_law.id = 'rxn-forward'
+        rate_law.expression._parsed_expression._compiled_expression_with_units = 'True'
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        rate_law.id = 'rxn-forward'
+        rate_law.expression = None
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
     def test_rate_law_expression_validate(self):
         species_types = [
             SpeciesType(id='spec_0'),
@@ -984,6 +1198,27 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.db_refs[0].serialize(), '{}: {}'.format('x', 'y'))
         self.assertEqual(self.db_refs[1].serialize(), '{}: {}'.format('x', 'yy'))
         self.assertEqual(self.db_refs[2].serialize(), '{}: {}'.format('x', 'yyy'))
+
+    def test_database_reference_deserialize(self):
+        objs = {
+            DatabaseReference: {
+            }
+        }
+        db_refs, errors = Model.Meta.attributes['db_refs'].deserialize('db_1: id_1, db_2: id_2', objs)
+        self.assertEqual(len(db_refs), 2)
+        self.assertEqual(errors, None)
+        self.assertEqual(len(objs[DatabaseReference]), 2)
+
+        db_refs, errors = Submodel.Meta.attributes['db_refs'].deserialize('db_2: id_2, db_3: id_3, db_4: id_4', objs)
+        self.assertEqual(len(db_refs), 3)
+        self.assertEqual(errors, None)
+        self.assertEqual(len(objs[DatabaseReference]), 4)
+
+        db_refs, errors = Model.Meta.attributes['db_refs'].deserialize('db_1', objs)
+        self.assertNotEqual(errors, None)
+
+        db_refs, errors = Submodel.Meta.attributes['db_refs'].deserialize('db_1', objs)
+        self.assertNotEqual(errors, None)
 
     def test_ReactionParticipantAttribute_serialize(self):
         attr = ReactionParticipantAttribute()
@@ -1398,7 +1633,7 @@ class TestCore(unittest.TestCase):
             dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
-        self.assertTrue(isinstance(rv, InvalidObject))
+        self.assertIsInstance(rv, InvalidObject)
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
         value = "2*dfba_net_reaction_1 - reaction_1"
@@ -1409,7 +1644,7 @@ class TestCore(unittest.TestCase):
             dfba_net_reactions=[objs[DfbaNetReaction]['dfba_net_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
-        self.assertTrue(isinstance(rv, InvalidObject))
+        self.assertIsInstance(rv, InvalidObject)
         self.assertRegex(rv.attributes[0].messages[0], "Python syntax error")
 
         value = "2*dfba_net_reaction_1 -  3*reaction_1"
@@ -1509,9 +1744,49 @@ class TestCore(unittest.TestCase):
         of_expr.reactions.append(objs[Reaction]['reaction_0'])
         self.assertNotEqual(of_expr.validate(), None)
 
+        dfba_net_rxn_1 = DfbaNetReaction(id='dfba_net_rxn_1')
+        value = "dfba_net_rxn_1"
+        of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value,
+                                                                         {DfbaNetReaction: {'dfba_net_rxn_1': dfba_net_rxn_1}})
+        of_expr.dfba_obj = DfbaObjective()
+        of_expr.dfba_obj.submodel = Submodel(dfba_net_reactions=[dfba_net_rxn_1])
+        self.assertEqual(invalid_attribute, None)
+        rv = of_expr.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        of_expr.reactions = [dfba_net_rxn_1]
+        rv = of_expr.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+    def test_dfba_net_component_validate(self):
+        dfba_net_reaction = DfbaNetReaction(id='dfba_net_reaction', cell_size_units=DfbaCellSizeUnit.l)
+        species = Species(id='species')
+        comp = DfbaNetComponent(id=DfbaNetComponent.gen_id('dfba_net_reaction', 'species'),
+                                dfba_net_reaction=dfba_net_reaction,
+                                species=species)
+        rv = comp.validate()
+        self.assertEqual(rv, None, str(rv))
+
+        comp.id = 'a' * 1000
+        rv = comp.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        comp.id = 'dfba-net-comp-' + 'dfba_net_reaction' + '_' + 'species'
+        rv = comp.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
+        comp.id = 'dfba-net-comp-' + 'dfba_net_reaction' + '-' + 'species'
+        comp.units = DfbaNetComponentUnit['mol gDCW^-1 s^-1']
+        rv = comp.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
     def test_validate(self):
         invalid = self.model.validate()
         self.assertEqual(invalid, None, str(invalid))
+
+        self.model.id = 'invalid-id'
+        invalid = self.model.validate()
+        self.assertNotEqual(invalid, None, str(invalid))
 
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
@@ -1647,12 +1922,15 @@ class TestCore(unittest.TestCase):
         species_type_0 = model.species_types.create(id='spec_0')
         species_type_1 = model.species_types.create(id='spec_1')
         species_type_2 = model.species_types.create(id='spec_2')
+        species_type_3 = model.species_types.create(id='spec_3')
         compartment_0 = model.compartments.create(id='c_0')
         compartment_1 = model.compartments.create(id='c_1')
         compartment_2 = model.compartments.create(id='c_2')
+        compartment_3 = model.compartments.create(id='c_3')
         species_0 = Species(id='spec_0[c_0]', species_type=species_type_0, compartment=compartment_0)
         species_1 = Species(id='spec_1[c_1]', species_type=species_type_1, compartment=compartment_1)
         species_2 = Species(id='spec_2[c_2]', species_type=species_type_2, compartment=compartment_2)
+        species_3 = Species(id='spec_3[c_3]', species_type=species_type_3, compartment=compartment_3)
 
         obj_func = submodel.dfba_obj = DfbaObjective(
             expression=DfbaObjectiveExpression(
@@ -1661,18 +1939,32 @@ class TestCore(unittest.TestCase):
                         reversible=True,
                         participants=[SpeciesCoefficient(species=species_0)],
                     ),
+                    Reaction(
+                        reversible=False,
+                        participants=[
+                            SpeciesCoefficient(species=species_1, coefficient=-1),
+                            SpeciesCoefficient(species=species_2, coefficient=1),
+                        ],
+                    ),
                 ],
                 dfba_net_reactions=[
                     DfbaNetReaction(
                         id='dfba_net_rxn',
-                        dfba_net_components=[DfbaNetComponent(
-                            id=DfbaNetComponent.gen_id('dfba_net_rxn', 'spec_1[c_1]'),
-                            value=-1, species=species_1)],
+                        dfba_net_components=[
+                            DfbaNetComponent(
+                                id=DfbaNetComponent.gen_id('dfba_net_rxn_1', 'spec_1[c_1]'),
+                                value=-1, species=species_1),
+                            DfbaNetComponent(
+                                id=DfbaNetComponent.gen_id('dfba_net_rxn_2', 'spec_3[c_3]'),
+                                value=1, species=species_3),
+                        ],
                     ),
                 ],
             ),
         )
-        self.assertEqual(obj_func.get_products(), [species_0])
+        self.assertEqual(set(obj_func.get_products()), set([species_0, species_2, species_3]))
+        self.assertEqual(set(obj_func.get_products(__type=Species)), set([species_0, species_2, species_3]))
+        self.assertEqual(obj_func.get_products(__type=Model), [])
 
     def make_objects(self):
         model = Model()
@@ -1712,10 +2004,10 @@ class TestCore(unittest.TestCase):
         model, objects, id_map = self.make_objects()
         expr = 'ccc + 2 * ddd'
         fun_obj = Expression.make_obj(model, Function, 'fun_id', expr, objects)
-        self.assertTrue(isinstance(fun_obj, Function))
+        self.assertIsInstance(fun_obj, Function)
         self.assertEqual(fun_obj.id, 'fun_id')
         self.assertEqual(fun_obj.model, model)
-        self.assertTrue(isinstance(fun_obj.expression, FunctionExpression))
+        self.assertIsInstance(fun_obj.expression, FunctionExpression)
         self.assertTrue(fun_obj in model.functions)
         fun_expr = fun_obj.expression
         self.assertEqual(fun_expr.expression, expr)
@@ -1727,11 +2019,21 @@ class TestCore(unittest.TestCase):
         expr = 'ccc + 2 * x'
         expr_model_obj, error = Expression.make_expression_obj(Function, expr, objects)
         self.assertTrue(expr_model_obj is None)
-        self.assertTrue(isinstance(error, InvalidAttribute))
+        self.assertIsInstance(error, InvalidAttribute)
 
         fun_obj = Expression.make_obj(model, Function, 'fun_id', '', objects,
                                       allow_invalid_objects=True)
-        self.assertFalse(isinstance(fun_obj, Function))
+        self.assertNotIsInstance(fun_obj, Function)
+
+    def test_make_obj_error(self):
+        model, objects, id_map = self.make_objects()
+
+        obs = Expression.make_obj(model, Observable, 'obs_id', 'ccc + ddd', objects)
+        self.assertIsInstance(obs, Observable)
+
+        error = Expression.make_obj(model, Observable, 'obs_id', 'ccc * ddd', objects)
+        self.assertNotIsInstance(error, Observable)
+        self.assertIsInstance(error, InvalidObject)
 
     def do_test_valid_expression(self, expression_class, parent_class, objects, expr, expected_val,
                                  expected_related_objs=None, expected_error=None):
@@ -1815,7 +2117,7 @@ class TestCore(unittest.TestCase):
         """
         func_expr, error = expression_class.deserialize(expr, objects)
         self.assertEqual(func_expr, None)
-        self.assertTrue(isinstance(error, InvalidAttribute))
+        self.assertIsInstance(error, InvalidAttribute)
         self.assertIn(error_msg_substr, error.messages[0])
 
     def test_function_expression_deserialize_errors(self):
@@ -1849,7 +2151,7 @@ class TestCore(unittest.TestCase):
         func_expr, error = expression_class.deserialize(expr, objects)
         self.assertEqual(error, None)
         invalid_obj = func_expr.validate()
-        self.assertTrue(isinstance(invalid_obj, InvalidObject))
+        self.assertIsInstance(invalid_obj, InvalidObject)
         self.assertIn(error_msg_substr, invalid_obj.attributes[0].messages[0])
 
     def test_invalid_function_expressions(self):
@@ -1871,6 +2173,17 @@ class TestCore(unittest.TestCase):
         expr = 'ccc + ddd'
         func_expr, _ = FunctionExpression.deserialize(expr, objects)
         func.expression = func_expr
+
+    def test_function_validate(self):
+        func = Function(id='func_0')
+        func_expr, _ = FunctionExpression.deserialize('1', {})
+        func.expression = func_expr
+        self.assertEqual(func.validate(), None)
+
+        func = Function(id='func-0')
+        func_expr, _ = FunctionExpression.deserialize('1', {})
+        func.expression = func_expr
+        self.assertNotEqual(func.validate(), None)
 
     def test_function_deserialize_invalid_ids(self):
 
@@ -1968,6 +2281,22 @@ class TestCore(unittest.TestCase):
         stop_condition_expr, _ = StopConditionExpression.deserialize(expr, objects)
         self.assertEqual(stop_condition_expr, None)
 
+    def test_stop_condition_validate(self):
+        stop_cond = StopCondition(id='stop_cond_0', units=StopConditionUnit['dimensionless'])
+        stop_cond_expr, _ = StopConditionExpression.deserialize('2 > 1', {})
+        stop_cond.expression = stop_cond_expr
+        self.assertEqual(stop_cond.validate(), None)
+
+        stop_cond = StopCondition(id='stop_cond-0', units=StopConditionUnit['dimensionless'])
+        stop_cond_expr, _ = StopConditionExpression.deserialize('2 > 1', {})
+        stop_cond.expression = stop_cond_expr
+        self.assertNotEqual(stop_cond.validate(), None)
+
+        stop_cond = StopCondition(id='stop_cond_0', units='s')
+        stop_cond_expr, _ = StopConditionExpression.deserialize('2 > 1', {})
+        stop_cond.expression = stop_cond_expr
+        self.assertNotEqual(stop_cond.validate(), None)
+
     def test_valid_observable_expressions(self):
         _, objects, id_map = self.make_objects()
 
@@ -2027,6 +2356,11 @@ class TestCore(unittest.TestCase):
         expr = '2'
         obs_expr, _ = ObservableExpression.deserialize(expr, objects)
         self.assertNotEqual(obs_expr.validate(), None)
+
+        self.assertEqual(Observable.Meta.attributes['expression'].serialize(None), '')
+        self.assertEqual(Observable.Meta.attributes['expression'].serialize(''), '')
+        self.assertEqual(Observable.Meta.attributes['expression'].deserialize(None, objects), (None, None))
+        self.assertEqual(Observable.Meta.attributes['expression'].deserialize('', objects), (None, None))
 
     def test_valid_model_types(self):
         for model_type in [RateLawExpression, FunctionExpression, StopConditionExpression,
@@ -2638,6 +2972,36 @@ class UnitsTestCase(unittest.TestCase):
 
         self.assertEqual(rxn_coeff * rxn_units, obj_units)
         self.assertEqual(net_coeff * net_units, obj_units)
+
+        submodel = Submodel(id='submdl')
+        rxn_1 = Reaction(id='rxn_1', submodel=submodel)
+        dfba_net_rxn_1 = DfbaNetReaction(id='dfba_net_rxn_1', submodel=submodel)
+        objs = {
+            Reaction: {
+                'rxn_1': rxn_1,
+            },
+            DfbaNetReaction: {
+                'dfba_net_rxn_1': dfba_net_rxn_1,
+            },
+        }
+
+        dfba_obj = DfbaObjective(id=DfbaObjective.gen_id(submodel.id), submodel=submodel)
+        dfba_obj.expression, error = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_net_rxn_1', objs)
+        self.assertEqual(error, None)
+        rv = dfba_obj.validate()
+        self.assertEqual(rv, None, str(rv))
+        self.assertEqual(dfba_obj.expression._parsed_expression.test_eval(
+            reaction_fluxes=2.1, dfba_net_reaction_fluxes=3., with_units=False),
+            (2.1 + 3.))
+
+        dfba_obj.expression._parsed_expression._compiled_expression_with_units = ' + '.join([
+            'unit_registry.parse_expression("s M^-1") * reaction_fluxes["rxn_1"]',
+            'unit_registry.parse_expression("s") * dfba_net_reaction_fluxes["dfba_net_rxn_1"]',
+        ])
+        dfba_obj.expression._parsed_expression._compiled_namespace_with_units['unit_registry'] = unit_registry
+        self.assertEqual(dfba_obj.expression._parsed_expression.test_eval(
+            reaction_fluxes=2.1, dfba_net_reaction_fluxes=3., with_units=True),
+            (2.1 + 3.) * unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name))
 
     def test_dfba_net_component_value(self):
         self.assertEqual(DfbaNetComponent.units.enum_class, DfbaNetComponentUnit)

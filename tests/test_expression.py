@@ -82,40 +82,52 @@ class TestWcLangExpression(unittest.TestCase):
     def esc_re_center(re_list):
         return '.*' + '.*'.join([re.escape(an_re) for an_re in re_list]) + '.*'
 
-    def make_wc_lang_expr(self, expr, obj_type=RateLawExpression):
+    def make_parsed_expr(self, expr, obj_type=RateLawExpression):
         objects = self.objects.copy()
         return ParsedExpression(obj_type, 'expr_attr', expr, objects)
 
-    def test_wc_lang_expression(self):
+    def test_parsed_expression(self):
         expr = '3 + 5 * 6'
-        wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', ' ' + expr + ' ', self.objects)
-        self.assertEqual(expr, wc_lang_expr.expression)
+        parsed_expr = ParsedExpression(RateLawExpression, 'attr', ' ' + expr + ' ', self.objects)
+        self.assertEqual(expr, parsed_expr.expression)
         n = 5
-        wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', ' + ' * n, self.objects)
-        self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr._py_tokens])
-        wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', '', {})
-        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
-        wc_lang_expr = ParsedExpression(RateLawExpression, 'attr', '', {Function: {}, Parameter: {}})
-        self.assertEqual(wc_lang_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
+        parsed_expr = ParsedExpression(RateLawExpression, 'attr', ' + ' * n, self.objects)
+        self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in parsed_expr._py_tokens])
+        parsed_expr = ParsedExpression(RateLawExpression, 'attr', '', {})
+        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
+        parsed_expr = ParsedExpression(RateLawExpression, 'attr', '', {Function: {}, Parameter: {}})
+        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
                 ParsedExpressionError,
                 "parsing '{}'.*creates a Python syntax error.*".format(re.escape(expr))):
-            self.make_wc_lang_expr(expr)
+            self.make_parsed_expr(expr)
         with self.assertRaisesRegex(
                 ParsedExpressionError,
                 "model_cls 'Species' doesn't have a 'Meta.valid_models' attribute"):
             ParsedExpression(Species, 'attr', '', {})
 
+    def test_parsed_expression_compile_error(self):
+        expr = '3 + 5 * 6'
+        parsed_expr = ParsedExpression(RateLawExpression, 'attr', ' ' + expr + ' ', self.objects)
+        parsed_expr.tokenize()
+        self.assertEqual(parsed_expr.errors, [])
+
+        parsed_expr._compile()
+
+        parsed_expr._wc_tokens = None
+        with self.assertRaisesRegex(ParsedExpressionError, 'not been successfully tokenized'):
+            parsed_expr._compile()
+
     def test_get_model_type(self):
-        wc_lang_expr = ParsedExpression(RateLawExpression, None, 'expr', self.objects)
-        self.assertEqual(None, wc_lang_expr._get_model_type('NoSuchType'))
-        self.assertEqual(Parameter, wc_lang_expr._get_model_type('Parameter'))
-        self.assertEqual(Observable, wc_lang_expr._get_model_type('Observable'))
+        parsed_expr = ParsedExpression(RateLawExpression, None, 'expr', self.objects)
+        self.assertEqual(None, parsed_expr._get_model_type('NoSuchType'))
+        self.assertEqual(Parameter, parsed_expr._get_model_type('Parameter'))
+        self.assertEqual(Observable, parsed_expr._get_model_type('Observable'))
 
     def do_match_tokens_test(self, expr, pattern, expected, idx=0):
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        self.assertEqual(wc_lang_expr._match_tokens(pattern, idx), expected)
+        parsed_expr = self.make_parsed_expr(expr)
+        self.assertEqual(parsed_expr._match_tokens(pattern, idx), expected)
 
     def test_match_tokens(self):
         self.do_match_tokens_test('', [], False)
@@ -136,14 +148,14 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_match_tokens_test('sp1 [ c1 ] ', species_pattern, False)
 
     def do_disambiguated_id_error_test(self, expr, expected):
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        result = wc_lang_expr._get_disambiguated_id(0)
+        parsed_expr = self.make_parsed_expr(expr)
+        result = parsed_expr._get_disambiguated_id(0)
         self.assertTrue(isinstance(result, str))
         self.assertIn(expected.format(expr), result)
 
     def do_disambiguated_id_test(self, expr, disambig_type, id, pattern, case_fold_match=False):
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        lex_match = wc_lang_expr._get_disambiguated_id(0, case_fold_match=case_fold_match)
+        parsed_expr = self.make_parsed_expr(expr)
+        lex_match = parsed_expr._get_disambiguated_id(0, case_fold_match=case_fold_match)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(pattern))
         self.assertEqual(len(lex_match.wc_tokens), 1)
@@ -175,12 +187,12 @@ class TestWcLangExpression(unittest.TestCase):
                                       ParsedExpression.MODEL_TYPE_DISAMBIG_PATTERN, case_fold_match=True)
 
         # do not find a match
-        wc_lang_expr = self.make_wc_lang_expr('3 * 2')
-        self.assertEqual(wc_lang_expr._get_disambiguated_id(0), None)
+        parsed_expr = self.make_parsed_expr('3 * 2')
+        self.assertEqual(parsed_expr._get_disambiguated_id(0), None)
 
     def do_related_object_id_error_test(self, expr, expected_error):
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        result = wc_lang_expr._get_related_obj_id(0)
+        parsed_expr = self.make_parsed_expr(expr)
+        result = parsed_expr._get_related_obj_id(0)
         self.assertTrue(isinstance(result, str))
         self.assertRegex(result, self.esc_re_center(expected_error))
 
@@ -197,8 +209,8 @@ class TestWcLangExpression(unittest.TestCase):
 
     def do_related_object_id_test(self, expr, expected_token_string, expected_related_type,
                                   expected_id, pattern, case_fold_match=False):
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        lex_match = wc_lang_expr._get_related_obj_id(0, case_fold_match=case_fold_match)
+        parsed_expr = self.make_parsed_expr(expr)
+        lex_match = parsed_expr._get_related_obj_id(0, case_fold_match=case_fold_match)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(pattern))
         self.assertEqual(len(lex_match.wc_tokens), 1)
@@ -220,12 +232,12 @@ class TestWcLangExpression(unittest.TestCase):
                                        case_fold_match=True)
 
         # no token matches
-        wc_lang_expr = self.make_wc_lang_expr("3 * 4")
-        self.assertEqual(wc_lang_expr._get_related_obj_id(0), None)
+        parsed_expr = self.make_parsed_expr("3 * 4")
+        self.assertEqual(parsed_expr._get_related_obj_id(0), None)
 
     def do_fun_call_error_test(self, expr, expected_error, obj_type=RateLawExpression):
-        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
-        result = wc_lang_expr._get_func_call_id(0)
+        parsed_expr = self.make_parsed_expr(expr, obj_type=obj_type)
+        result = parsed_expr._get_func_call_id(0)
         self.assertTrue(isinstance(result, str))
         self.assertRegex(result, self.esc_re_center(expected_error))
 
@@ -243,17 +255,17 @@ class TestWcLangExpression(unittest.TestCase):
                                     obj_type=TestModelExpression)
 
     def test_fun_call_id(self):
-        wc_lang_expr = self.make_wc_lang_expr('log(3)')
-        lex_match = wc_lang_expr._get_func_call_id(0)
+        parsed_expr = self.make_parsed_expr('log(3)')
+        lex_match = parsed_expr._get_func_call_id(0)
         self.assertTrue(isinstance(lex_match, LexMatch))
-        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.FUNC_PATTERN))
+        self.assertEqual(lex_match.num_py_tokens, len(parsed_expr.FUNC_PATTERN))
         self.assertEqual(len(lex_match.wc_tokens), 2)
         self.assertEqual(lex_match.wc_tokens[0], WcToken(WcTokenCodes.math_func_id, 'log'))
         self.assertEqual(lex_match.wc_tokens[1], WcToken(WcTokenCodes.op, '('))
 
         # no token match
-        wc_lang_expr = self.make_wc_lang_expr('no_fun + 3')
-        self.assertEqual(wc_lang_expr._get_func_call_id(0), None)
+        parsed_expr = self.make_parsed_expr('no_fun + 3')
+        self.assertEqual(parsed_expr._get_func_call_id(0), None)
 
     def test_bad_tokens(self):
         rv, _, errors = ParsedExpression(RateLawExpression, 'test', '+= *= @= : {}', {}).tokenize()
@@ -272,9 +284,9 @@ class TestWcLangExpression(unittest.TestCase):
                             test_objects=None, case_fold_match=False):
         if test_objects is None:
             test_objects = self.objects_hard
-        wc_lang_expr = ParsedExpression(model_type, 'attr', expr, test_objects)
-        wc_tokens, related_objects, _ = wc_lang_expr.tokenize(case_fold_match=case_fold_match)
-        self.assertEqual(wc_lang_expr.errors, [])
+        parsed_expr = ParsedExpression(model_type, 'attr', expr, test_objects)
+        wc_tokens, related_objects, _ = parsed_expr.tokenize(case_fold_match=case_fold_match)
+        self.assertEqual(parsed_expr.errors, [])
         self.assertEqual(wc_tokens, expected_wc_tokens)
         for obj_types in test_objects:
             if obj_types in expected_related_objs.keys():
@@ -393,8 +405,8 @@ class TestWcLangExpression(unittest.TestCase):
     def do_tokenize_error_test(self, expr, expected_errors, model_type=RateLawExpression, test_objects=None):
         if test_objects is None:
             test_objects = self.objects_hard
-        wc_lang_expr = ParsedExpression(model_type, 'attr', expr, test_objects)
-        sb_none, _, errors = wc_lang_expr.tokenize()
+        parsed_expr = ParsedExpression(model_type, 'attr', expr, test_objects)
+        sb_none, _, errors = parsed_expr.tokenize()
         self.assertEqual(sb_none, None)
         # expected_errors is a list of lists of strings that should match the actual errors
         expected_errors = [self.esc_re_center(ee) for ee in expected_errors]
@@ -438,14 +450,14 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_str(self):
         expr = 'fun_1 + Parameter.param_id'
-        wc_lang_expr = self.make_wc_lang_expr(expr)
-        self.assertIn(expr, str(wc_lang_expr))
-        self.assertIn('errors: []', str(wc_lang_expr))
-        self.assertIn('wc_tokens: []', str(wc_lang_expr))
-        wc_lang_expr.tokenize()
-        self.assertIn(expr, str(wc_lang_expr))
-        self.assertIn('errors: []', str(wc_lang_expr))
-        self.assertIn('wc_tokens: [WcToken', str(wc_lang_expr))
+        parsed_expr = self.make_parsed_expr(expr)
+        self.assertIn(expr, str(parsed_expr))
+        self.assertIn('errors: []', str(parsed_expr))
+        self.assertIn('wc_tokens: []', str(parsed_expr))
+        parsed_expr.tokenize()
+        self.assertIn(expr, str(parsed_expr))
+        self.assertIn('errors: []', str(parsed_expr))
+        self.assertIn('wc_tokens: [WcToken', str(parsed_expr))
 
     def test_model_class_lacks_meta(self):
         class Foo(object):
@@ -459,9 +471,9 @@ class TestWcLangExpression(unittest.TestCase):
 
     def do_test_eval(self, expr, parent_type, obj_type, related_obj_val, expected_val):
         obj, _ = Expression.deserialize(obj_type, expr, self.objects.copy())
-        wc_lang_expr = obj._parsed_expression
+        parsed_expr = obj._parsed_expression
         parent = parent_type(expression=obj)
-        evaled_val = wc_lang_expr.test_eval(species_counts=related_obj_val)
+        evaled_val = parsed_expr.test_eval(species_counts=related_obj_val)
         self.assertEqual(expected_val, evaled_val)
 
     def test_test_eval(self):
@@ -483,23 +495,23 @@ class TestWcLangExpression(unittest.TestCase):
         # test different exceptions
         # syntax error
         model_type = RateLawExpression
-        wc_lang_expr = self.make_wc_lang_expr('4 *', obj_type=model_type)
-        wc_lang_expr.tokenize()
-        model = model_type(expression=wc_lang_expr)
+        parsed_expr = self.make_parsed_expr('4 *', obj_type=model_type)
+        parsed_expr.tokenize()
+        model = model_type(expression=parsed_expr)
         with self.assertRaisesRegex(ParsedExpressionError,
                                     "SyntaxError: cannot eval expression .* in {}".format(
                 model_type.__name__)):
-            wc_lang_expr.test_eval()
+            parsed_expr.test_eval()
 
         # expression that could not be serialized
         expr = 'foo(6)'
-        wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=model_type)
-        wc_lang_expr.tokenize()
-        model = model_type(expression=wc_lang_expr)
+        parsed_expr = self.make_parsed_expr(expr, obj_type=model_type)
+        parsed_expr.tokenize()
+        model = model_type(expression=parsed_expr)
         with self.assertRaisesRegex(ParsedExpressionError,
                                     re.escape("Cannot evaluate '{}', as it not been "
                                               "successfully compiled".format(expr))):
-            wc_lang_expr.test_eval()
+            parsed_expr.test_eval()
 
     def test_eval(self):
         pass

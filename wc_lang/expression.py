@@ -63,9 +63,6 @@ class Expression(object):
         _parsed_expression (:obj:`ParsedExpression`): parsed expression
     """
 
-    def __init__(self):
-        self.__reset_tokenization()
-
     def serialize(self):
         """ Generate string representation
 
