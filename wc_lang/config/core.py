@@ -26,8 +26,8 @@ def get_config(extra=None):
         default=pkg_resources.resource_filename('wc_lang', 'config/core.default.cfg'),
         schema=pkg_resources.resource_filename('wc_lang', 'config/core.schema.cfg'),
         user=(
-            'wc_lang.core.cfg',
-            os.path.expanduser('~/.wc/wc_lang.core.cfg'),
+            'wc_lang.cfg',
+            os.path.expanduser('~/.wc/wc_lang.cfg'),
         ),
     )
 
