@@ -595,7 +595,6 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
             for part in value:
                 try:
-                    print(part.species.species_type.empirical_formula)
                     empirical_formula = EmpiricalFormula(part.species.species_type.empirical_formula)
                 except ValueError as error:
                     errors.append('Invalid empirical formula for {}: {}'.format(part.species.species_type.id,
