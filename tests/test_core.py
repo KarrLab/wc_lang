@@ -31,7 +31,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
-                          SubmodelAlgorithm, DistributionInitConcentration, DfbaNetComponent, DfbaNetReaction,
+                          SubmodelAlgorithm, DistributionInitConcentration, DfbaNetSpecies, DfbaNetReaction,
                           Evidence,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject)
@@ -112,14 +112,14 @@ class TestCore(unittest.TestCase):
             "American people themselves")
         DfbaNetReaction.get_manager().insert_all_new()
 
-        dfba_net_components = []
+        dfba_net_species = []
         for i in range(2):
-            dfba_net_components.append(
-                dfba_net_reaction.dfba_net_components.create(
-                    id=DfbaNetComponent.gen_id(dfba_net_reaction.id, species[i].id),
+            dfba_net_species.append(
+                dfba_net_reaction.dfba_net_species.create(
+                    id=DfbaNetSpecies.gen_id(dfba_net_reaction.id, species[i].id),
                     value=2 * (float(i) - 0.5),  # create a reactant and a product
                     species=species[i]))
-        self.dfba_net_components = dfba_net_components
+        self.dfba_net_species = dfba_net_species
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
             id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
@@ -310,14 +310,14 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
-        # dFBA net components
-        for i in range(len(self.dfba_net_components)):
+        # dFBA net species
+        for i in range(len(self.dfba_net_species)):
             # submodels
-            self.assertEqual(self.dfba_net_components[i].dfba_net_reaction, self.dfba_net_reaction)
+            self.assertEqual(self.dfba_net_species[i].dfba_net_reaction, self.dfba_net_reaction)
             # self.assertEqual(self.dfba_net_reaction.submodels[0], self.submodels[2])
             # species types
-            self.assertEqual(self.dfba_net_components[i].species, self.species[i])
-            self.assertEqual(self.dfba_net_components[i], self.species[i].dfba_net_components[0])
+            self.assertEqual(self.dfba_net_species[i].species, self.species[i])
+            self.assertEqual(self.dfba_net_species[i], self.species[i].dfba_net_species[0])
 
         # parameters
         for reference, parameter in zip(self.references, self.parameters):
@@ -575,19 +575,19 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Species.get(ids, self.species), self.species[4:] + [None])
 
     def test_distribution_init_concentration_serialize(self):
-        self.assertEqual(self.distribution_init_concentrations[0].serialize(), 'conc-spec_type_0[comp_0]')
-        self.assertEqual(self.distribution_init_concentrations[1].serialize(), 'conc-spec_type_1[comp_0]')
-        self.assertEqual(self.distribution_init_concentrations[2].serialize(), 'conc-spec_type_2[comp_0]')
-        self.assertEqual(self.distribution_init_concentrations[3].serialize(), 'conc-spec_type_3[comp_1]')
+        self.assertEqual(self.distribution_init_concentrations[0].serialize(), 'dist-init-conc-spec_type_0[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[1].serialize(), 'dist-init-conc-spec_type_1[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[2].serialize(), 'dist-init-conc-spec_type_2[comp_0]')
+        self.assertEqual(self.distribution_init_concentrations[3].serialize(), 'dist-init-conc-spec_type_3[comp_1]')
 
     def test_distribution_init_concentration_validate(self):
-        conc = DistributionInitConcentration(id='conc-species_0', species=Species(id='species_0'), mean=1.)
+        conc = DistributionInitConcentration(id='dist-init-conc-species_0', species=Species(id='species_0'), mean=1.)
         self.assertEqual(conc.validate(), None)
 
-        conc = DistributionInitConcentration(id='conc-species_0', species=Species(id='species_0'), mean=-1.)
+        conc = DistributionInitConcentration(id='dist-init-conc-species_0', species=Species(id='species_0'), mean=-1.)
         self.assertNotEqual(conc.validate(), None)
 
-        conc = DistributionInitConcentration(id='conc-species-0', species=Species(id='species_0'), mean=1.)
+        conc = DistributionInitConcentration(id='dist-init-conc-species-0', species=Species(id='species_0'), mean=1.)
         self.assertNotEqual(conc.validate(), None)
 
     def test_reaction_participant_serialize(self):
@@ -760,6 +760,22 @@ class TestCore(unittest.TestCase):
         rv = rxn.validate()
         self.assertRegex(str(rv), 'element imbalanced')
         self.assertRegex(str(rv), 'charge imbalanced')
+
+        st_1.empirical_formula = 'CH1N2OP2'
+        st_1.charge = None
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-2.)
+        rxn.participants.create(species=s_2, coefficient=1.)
+        rv = rxn.validate()
+        self.assertRegex(str(rv), 'Charge must be defined ')
+
+        st_1.empirical_formula = '1'
+        st_1.charge = 1
+        rxn = Reaction(id='rxn')
+        rxn.participants.create(species=s_1, coefficient=-2.)
+        rxn.participants.create(species=s_2, coefficient=1.)
+        rv = rxn.validate()
+        self.assertRegex(str(rv), 'Invalid empirical formula ')
 
         wc_lang.core.config['validation']['validate_element_charge_balance'] = False
         rv = rxn.validate()
@@ -1758,12 +1774,12 @@ class TestCore(unittest.TestCase):
         rv = of_expr.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-    def test_dfba_net_component_validate(self):
+    def test_dfba_net_species_validate(self):
         dfba_net_reaction = DfbaNetReaction(id='dfba_net_reaction', cell_size_units=DfbaCellSizeUnit.l)
         species = Species(id='species')
-        comp = DfbaNetComponent(id=DfbaNetComponent.gen_id('dfba_net_reaction', 'species'),
-                                dfba_net_reaction=dfba_net_reaction,
-                                species=species)
+        comp = DfbaNetSpecies(id=DfbaNetSpecies.gen_id('dfba_net_reaction', 'species'),
+                              dfba_net_reaction=dfba_net_reaction,
+                              species=species)
         rv = comp.validate()
         self.assertEqual(rv, None, str(rv))
 
@@ -1771,11 +1787,11 @@ class TestCore(unittest.TestCase):
         rv = comp.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-        comp.id = 'dfba-net-comp-' + 'dfba_net_reaction' + '_' + 'species'
+        comp.id = 'dfba-net-species-' + 'dfba_net_reaction' + '_' + 'species'
         rv = comp.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-        comp.id = 'dfba-net-comp-' + 'dfba_net_reaction' + '-' + 'species'
+        comp.id = 'dfba-net-species-' + 'dfba_net_reaction' + '-' + 'species'
         comp.units = DfbaNetComponentUnit['mol gDCW^-1 s^-1']
         rv = comp.validate()
         self.assertNotEqual(rv, None, str(rv))
@@ -1859,7 +1875,7 @@ class TestCore(unittest.TestCase):
                          float('inf'))
         self.assertEqual(len(sbml_dfba_net_reaction.getListOfReactants()) +
                          len(sbml_dfba_net_reaction.getListOfProducts()),
-                         len(self.dfba_net_reaction.dfba_net_components))
+                         len(self.dfba_net_reaction.dfba_net_species))
 
         # Write parameters to the SBML document
         param = self.model.parameters.create(
@@ -1950,12 +1966,12 @@ class TestCore(unittest.TestCase):
                 dfba_net_reactions=[
                     DfbaNetReaction(
                         id='dfba_net_rxn',
-                        dfba_net_components=[
-                            DfbaNetComponent(
-                                id=DfbaNetComponent.gen_id('dfba_net_rxn_1', 'spec_1[c_1]'),
+                        dfba_net_species=[
+                            DfbaNetSpecies(
+                                id=DfbaNetSpecies.gen_id('dfba_net_rxn_1', 'spec_1[c_1]'),
                                 value=-1, species=species_1),
-                            DfbaNetComponent(
-                                id=DfbaNetComponent.gen_id('dfba_net_rxn_2', 'spec_3[c_3]'),
+                            DfbaNetSpecies(
+                                id=DfbaNetSpecies.gen_id('dfba_net_rxn_2', 'spec_3[c_3]'),
                                 value=1, species=species_3),
                         ],
                     ),
@@ -3003,8 +3019,8 @@ class UnitsTestCase(unittest.TestCase):
             reaction_fluxes=2.1, dfba_net_reaction_fluxes=3., with_units=True),
             (2.1 + 3.) * unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name))
 
-    def test_dfba_net_component_value(self):
-        self.assertEqual(DfbaNetComponent.units.enum_class, DfbaNetComponentUnit)
+    def test_dfba_net_specices_value(self):
+        self.assertEqual(DfbaNetSpecies.units.enum_class, DfbaNetComponentUnit)
         self.assertEqual(len(DfbaNetComponentUnit), 2)
         self.assertIn('M s^-1', DfbaNetComponentUnit.__members__)
         self.assertIn('mol gDCW^-1 s^-1', DfbaNetComponentUnit.__members__)

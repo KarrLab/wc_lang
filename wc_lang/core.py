@@ -14,7 +14,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
 * :obj:`RateLawExpression`
-* :obj:`DfbaNetComponent`
+* :obj:`DfbaNetSpecies`
 * :obj:`DfbaNetReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
@@ -591,14 +591,29 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         if config['validation']['validate_element_charge_balance']:
             delta_formula = EmpiricalFormula()
             delta_charge = 0.
-            for part in value:
-                delta_formula += EmpiricalFormula(part.species.species_type.empirical_formula) * part.coefficient
-                delta_charge += part.species.species_type.charge * part.coefficient
             errors = []
-            if delta_formula:
-                errors.append('Reaction is element imbalanced: {}'.format(delta_formula))
-            if delta_charge != 0.:
-                errors.append('Reaction is charge imbalanced: {}'.format(delta_charge))
+
+            for part in value:
+                try:
+                    print(part.species.species_type.empirical_formula)
+                    empirical_formula = EmpiricalFormula(part.species.species_type.empirical_formula)
+                except ValueError as error:
+                    errors.append('Invalid empirical formula for {}: {}'.format(part.species.species_type.id,
+                                                                                part.species.species_type.empirical_formula))
+                else:
+                    delta_formula += empirical_formula * part.coefficient
+
+                if part.species.species_type.charge is None:
+                    errors.append('Charge must be defined for {}'.format(part.species.species_type.id))
+                else:
+                    delta_charge += part.species.species_type.charge * part.coefficient
+
+            if not errors:
+                if delta_formula:
+                    errors.append('Reaction is element imbalanced: {}'.format(delta_formula))
+                if delta_charge != 0.:
+                    errors.append('Reaction is charge imbalanced: {}'.format(delta_charge))
+
             if errors:
                 return InvalidAttribute(self, errors)
 
@@ -1328,8 +1343,8 @@ class Submodel(obj_model.Model):
         for reaction in self.get_reactions():
             species.extend(reaction.get_species())
         for dfba_net_reaction in self.get_dfba_net_reactions():
-            for dfba_net_comp in dfba_net_reaction.dfba_net_components:
-                species.append(dfba_net_comp.species)
+            for dfba_net_species in dfba_net_reaction.dfba_net_species:
+                species.append(dfba_net_species.species)
         for observable in self.get_observables():
             species.extend(observable.expression.species)
         for function in self.get_functions():
@@ -1766,9 +1781,9 @@ class DfbaObjective(obj_model.Model):
 
         # products of dFBA net reactions
         for dfba_net_reaction in self.expression.dfba_net_reactions:
-            for dfba_net_comp in dfba_net_reaction.dfba_net_components:
-                if dfba_net_comp.value > 0 and dfba_net_comp.species.has_attr_vals(__type=__type, **kwargs):
-                    products.append(dfba_net_comp.species)
+            for dfba_net_species in dfba_net_reaction.dfba_net_species:
+                if dfba_net_species.value > 0 and dfba_net_species.species.has_attr_vals(__type=__type, **kwargs):
+                    products.append(dfba_net_species.species)
 
         # return unique list
         return det_dedupe(products)
@@ -1916,7 +1931,7 @@ class Species(obj_model.Model):
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
+        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
@@ -2059,7 +2074,7 @@ class DistributionInitConcentration(obj_model.Model):
     at the beginning of each cell cycle
 
     Attributes:
-        id (:obj:`str`): identifier equal to `conc-{species.id}`
+        id (:obj:`str`): identifier equal to `dist-init-conc-{species.id}`
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`Species`): species
@@ -2092,7 +2107,7 @@ class DistributionInitConcentration(obj_model.Model):
         attribute_order = ('id', 'name', 'species',
                            'distribution', 'mean', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        verbose_name = 'Distribution of initial concentrations of species'
+        verbose_name = 'Initial species concentration'
         frozen_columns = 1
 
     @staticmethod
@@ -2105,13 +2120,13 @@ class DistributionInitConcentration(obj_model.Model):
         Returns:
             :obj:`str`: string representation
         """
-        return 'conc-{}'.format(species_id)
+        return 'dist-init-conc-{}'.format(species_id)
 
     def validate(self):
         """ Check that the distribution of initial concentrations
         at the beginning of each cell cycle is valid
 
-        * Validate that identifier is equal to `conc-{species.id}]`
+        * Validate that identifier is equal to `dist-init-conc-{species.id}]`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2265,7 +2280,7 @@ class FunctionExpression(obj_model.Model, Expression):
                 `Function` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
@@ -2408,7 +2423,7 @@ class StopConditionExpression(obj_model.Model, Expression):
                 `StopCondition` is allowed to reference in its `expression`
         """
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
@@ -2950,7 +2965,7 @@ class RateLawExpression(obj_model.Model, Expression):
         attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('expression',)
-        valid_functions = (ceil, floor, exp, pow, log, log10, min, max)
+        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
@@ -2988,17 +3003,17 @@ class RateLawExpression(obj_model.Model, Expression):
         return Expression.validate(self, self.rate_laws[0])
 
 
-class DfbaNetComponent(obj_model.Model):
-    """ DfbaNetComponent
+class DfbaNetSpecies(obj_model.Model):
+    """ DfbaNetSpecies
 
-    A dFBA net reaction contains a list of DfbaNetComponent instances. Distinct DfbaNetComponents
+    A dFBA net reaction contains a list of DfbaNetSpecies instances. Distinct DfbaNetComponents
     enable separate comments and references for each one.
 
     Attributes:
-        id (:obj:`str`): unique identifier per DfbaNetComponent equal to
-            `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+        id (:obj:`str`): unique identifier per DfbaNetSpecies equal to
+            `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
         name (:obj:`str`): name
-        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net component
+        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net species
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
         units (:obj:`DfbaNetComponentUnit`): units of the value
@@ -3009,32 +3024,33 @@ class DfbaNetComponent(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', min_related=1, related_name='dfba_net_components',
+    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', min_related=1, related_name='dfba_net_species',
                                            verbose_name='dFBA net reaction',
-                                           verbose_related_name='dFBA net components')
-    species = ManyToOneAttribute(Species, min_related=1, related_name='dfba_net_components',
-                                 verbose_related_name='dFBA net components')
+                                           verbose_related_name='dFBA net species')
+    species = ManyToOneAttribute(Species, min_related=1, related_name='dfba_net_species',
+                                 verbose_related_name='dFBA net species')
     value = FloatAttribute()
     units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_components',
-                                                   verbose_related_name='dFBA net components')
-    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_components',
-                                   verbose_related_name='dFBA net components')
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_species',
+                                                   verbose_related_name='dFBA net species')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_species',
+                                   verbose_related_name='dFBA net species')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='dfba_net_components',
-                                     verbose_related_name='dFBA net components')
+    references = ManyToManyAttribute('Reference', related_name='dfba_net_species',
+                                     verbose_related_name='dFBA net species')
 
     class Meta(obj_model.Model.Meta):
         # unique_together = (('dfba_net_reaction', 'species'), )
         attribute_order = ('id', 'name', 'dfba_net_reaction',
                            'species', 'value', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        verbose_name = 'dFBA net component'
+        verbose_name = 'dFBA net species'
+        verbose_name_plural = 'dFBA net species'
 
     @staticmethod
     def gen_id(dfba_net_rxn_id, species_id):
         """ Generate identifier equal to
-        `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+        `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
 
         Args:
             dfba_net_rxn_id (:obj:`str`): dFBA net reaction id
@@ -3043,20 +3059,20 @@ class DfbaNetComponent(obj_model.Model):
         Returns:
             :obj:`str`: identifier
         """
-        return 'dfba-net-comp-{}-{}'.format(dfba_net_rxn_id, species_id)
+        return 'dfba-net-species-{}-{}'.format(dfba_net_rxn_id, species_id)
 
     def validate(self):
         """ Validate that the dFBA objective is valid
 
         * Check if the identifier is equal to
-          `dfba-net-comp-{dfba_net_reaction.id}-{species.id}`
+          `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
         * Units consistent with units of cell size
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        invalid_obj = super(DfbaNetComponent, self).validate()
+        invalid_obj = super(DfbaNetSpecies, self).validate()
         if invalid_obj:
             errors = invalid_obj.attributes
         else:
@@ -3101,7 +3117,7 @@ class DfbaNetReaction(obj_model.Model):
 
     Related attributes:
         dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
-        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): the components of this dFBA net reaction
+        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): the components of this dFBA net reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3152,14 +3168,14 @@ class DfbaNetReaction(obj_model.Model):
             wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 
         # write dFBA net reaction participants to SBML document
-        for dfba_net_comp in self.dfba_net_components:
-            if dfba_net_comp.value < 0:
+        for dfba_net_species in self.dfba_net_species:
+            if dfba_net_species.value < 0:
                 species_reference = wrap_libsbml(sbml_reaction.createReactant)
-                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_comp.value)
-            elif 0 < dfba_net_comp.value:
+                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_species.value)
+            elif 0 < dfba_net_species.value:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
-                wrap_libsbml(species_reference.setStoichiometry, dfba_net_comp.value)
-            id = dfba_net_comp.species.gen_sbml_id()
+                wrap_libsbml(species_reference.setStoichiometry, dfba_net_species.value)
+            id = dfba_net_species.species.gen_sbml_id()
             wrap_libsbml(species_reference.setSpecies, id)
             wrap_libsbml(species_reference.setConstant, True)
 
@@ -3286,7 +3302,7 @@ class Evidence(obj_model.Model):
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
-        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dFBA net components
+        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
@@ -3354,7 +3370,7 @@ class Reference(obj_model.Model):
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dfba net components
+        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
@@ -3408,7 +3424,7 @@ class DatabaseReference(obj_model.Model):
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
-        dfba_net_components (:obj:`list` of :obj:`DfbaNetComponent`): dFBA net components
+        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references

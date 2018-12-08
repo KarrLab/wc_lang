@@ -10,7 +10,7 @@
 from wc_lang import (ReactionRateUnit,
                      Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
-                     DfbaNetComponent, DfbaNetReaction,
+                     DfbaNetSpecies, DfbaNetReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopConditionExpression,
                      Observable, ObservableExpression,

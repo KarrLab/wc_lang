@@ -38,7 +38,7 @@ Reaction                        Reaction, with FbcReactionPlugin for DFBA submod
 SpeciesCoefficient              SpeciesReference in a Reaction                                        Implemented
 RateLaw                         KineticLaw                                                            Ignored
 RateLawExpression
-DfbaNetComponent
+DfbaNetSpecies
 DfbaNetReaction                 TBD
 Parameter                       Parameter                                                             Implemented
 Reference

@@ -28,7 +28,7 @@ class Writer(object):
         core.Submodel, core.Compartment, core.SpeciesType, core.Species,
         core.DistributionInitConcentration, core.Observable, core.Function,
         core.Reaction, core.RateLaw,
-        core.DfbaObjective, core.DfbaNetReaction, core.DfbaNetComponent,
+        core.DfbaObjective, core.DfbaNetReaction, core.DfbaNetSpecies,
         core.Parameter, core.StopCondition,
         core.Evidence, core.Reference,
     ]
