@@ -13,8 +13,10 @@ import pytest
 import re
 import unittest
 import wc_lang
+import wc_lang.config.core
 from libsbml import SBMLDocument
 from obj_model.core import InvalidAttribute
+from test.support import EnvironmentVarGuard
 from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           MoleculeCountUnit,
                           ReactionRateUnit, ReactionFluxUnit, DfbaNetFluxUnit,
@@ -725,63 +727,63 @@ class TestCore(unittest.TestCase):
         s_4 = Species(species_type=st_4, compartment=c)
         s_5 = Species(species_type=st_5, compartment=c)
 
-        validate_element_charge_balance = wc_lang.core.config['validation']['validate_element_charge_balance']
-        wc_lang.core.config['validation']['validate_element_charge_balance'] = True
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__validation__DOT__validate_element_charge_balance', '1')
+        with env:
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-2.)
+            rxn.participants.create(species=s_2, coefficient=1.)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-2.)
-        rxn.participants.create(species=s_2, coefficient=1.)
-        rv = rxn.validate()
-        self.assertEqual(rv, None, str(rv))
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-3.)
+            rxn.participants.create(species=s_3, coefficient=1.)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-3.)
-        rxn.participants.create(species=s_3, coefficient=1.)
-        rv = rxn.validate()
-        self.assertEqual(rv, None, str(rv))
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-1.)
+            rxn.participants.create(species=s_2, coefficient=-1.)
+            rxn.participants.create(species=s_3, coefficient=1.)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-1.)
-        rxn.participants.create(species=s_2, coefficient=-1.)
-        rxn.participants.create(species=s_3, coefficient=1.)
-        rv = rxn.validate()
-        self.assertEqual(rv, None, str(rv))
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-1.)
+            rxn.participants.create(species=s_4, coefficient=1.)
+            rxn.participants.create(species=s_5, coefficient=1.)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-1.)
-        rxn.participants.create(species=s_4, coefficient=1.)
-        rxn.participants.create(species=s_5, coefficient=1.)
-        rv = rxn.validate()
-        self.assertEqual(rv, None, str(rv))
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_4, coefficient=1.)
+            rxn.participants.create(species=s_5, coefficient=1.)
+            rv = rxn.validate()
+            self.assertRegex(str(rv), 'element imbalanced')
+            self.assertRegex(str(rv), 'charge imbalanced')
 
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_4, coefficient=1.)
-        rxn.participants.create(species=s_5, coefficient=1.)
-        rv = rxn.validate()
-        self.assertRegex(str(rv), 'element imbalanced')
-        self.assertRegex(str(rv), 'charge imbalanced')
+            st_1.empirical_formula = 'CH1N2OP2'
+            st_1.charge = None
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-2.)
+            rxn.participants.create(species=s_2, coefficient=1.)
+            rv = rxn.validate()
+            self.assertRegex(str(rv), 'Charge must be defined ')
 
-        st_1.empirical_formula = 'CH1N2OP2'
-        st_1.charge = None
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-2.)
-        rxn.participants.create(species=s_2, coefficient=1.)
-        rv = rxn.validate()
-        self.assertRegex(str(rv), 'Charge must be defined ')
+            st_1.empirical_formula = '1'
+            st_1.charge = 1
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-2.)
+            rxn.participants.create(species=s_2, coefficient=1.)
+            rv = rxn.validate()
+            self.assertRegex(str(rv), 'Invalid empirical formula ')
 
-        st_1.empirical_formula = '1'
-        st_1.charge = 1
-        rxn = Reaction(id='rxn')
-        rxn.participants.create(species=s_1, coefficient=-2.)
-        rxn.participants.create(species=s_2, coefficient=1.)
-        rv = rxn.validate()
-        self.assertRegex(str(rv), 'Invalid empirical formula ')
-
-        wc_lang.core.config['validation']['validate_element_charge_balance'] = False
-        rv = rxn.validate()
-        self.assertEqual(rv, None, str(rv))
-
-        wc_lang.core.config['validation']['validate_element_charge_balance'] = validate_element_charge_balance
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__validation__DOT__validate_element_charge_balance', '0')
+        with env:
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
     def test_reaction_validate(self):
         c = Compartment()

@@ -7,6 +7,7 @@
 :License: MIT
 """
 
+from test.support import EnvironmentVarGuard
 from wc_lang import Model, SubmodelAlgorithm, ReactionFluxUnit
 from wc_lang.transform.set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
 import mock
@@ -35,13 +36,11 @@ class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
                                        flux_min=-1e1, flux_max=1e1, flux_units=ReactionFluxUnit['M s^-1'])
 
         transform = SetFiniteDfbaFluxBoundsTransform()
-        with mock.patch('wc_lang.transform.set_finite_dfba_flux_bounds.config', {
-            'dfba': {
-                'flux_min_bound_reversible': -2e2,
-                'flux_min_bound_irreversible': 0.,
-                'flux_max_bound': 1e2,
-            },
-        }):
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__dfba__DOT__flux_min_bound_reversible', '-2e2')
+        env.set('CONFIG__DOT__wc_lang__DOT__dfba__DOT__flux_min_bound_irreversible', '0.')
+        env.set('CONFIG__DOT__wc_lang__DOT__dfba__DOT__flux_max_bound', '1e2')
+        with env:
             transform.run(model)
 
         self.assertEqual(rxn_1.flux_min, -2e2)

@@ -18,6 +18,7 @@ from wc_utils.util.string import indent_forest
 import obj_model
 import os
 import wc_lang
+import wc_lang.config.core
 
 
 class Writer(object):
@@ -91,20 +92,11 @@ class Writer(object):
 class Reader(object):
     """ Read model from file(s) """
 
-    def run(self, path, strict=True):
+    def run(self, path):
         """ Read model from file(s)
 
         Args:
             path (:obj:`str`): path to file(s)
-            strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
-                :obj:`obj_model` serialization format:
-
-                * The worksheets are in the expected order
-                * There are no missing worksheets
-                * There are no extra worksheets
-                * The columns are in the expected order
-                * There are no missing columns
-                * There are no extra columns
 
         Returns:
             :obj:`core.Model`: model
@@ -112,6 +104,8 @@ class Reader(object):
         Raises:
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
+        config = wc_lang.config.core.get_config()
+
         Writer.validate_implicit_relationships()
 
         # read objects from file
@@ -121,7 +115,7 @@ class Reader(object):
         kwargs = {}
         if isinstance(reader, obj_model.io.WorkbookReader):
             kwargs['include_all_attributes'] = False
-            if not strict:
+            if not config['wc_lang']['io']['strict']:
                 kwargs['ignore_missing_sheets'] = True
                 kwargs['ignore_extra_sheets'] = True
                 kwargs['ignore_sheet_order'] = True
@@ -166,7 +160,7 @@ class Reader(object):
         return model
 
 
-def convert(source, destination, strict=True):
+def convert(source, destination):
     """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated (.tsv) file formats
 
     Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
@@ -176,17 +170,8 @@ def convert(source, destination, strict=True):
     Args:
         source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
-        strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
-                :obj:`obj_model` serialization format:
-
-                * The worksheets are in the expected order
-                * There are no missing worksheets
-                * There are no extra worksheets
-                * The columns are in the expected order
-                * There are no missing columns
-                * There are no extra columns
     """
-    model = Reader().run(source, strict=strict)
+    model = Reader().run(source)
     Writer().run(model, destination, set_repo_metadata_from_path=False)
 
 

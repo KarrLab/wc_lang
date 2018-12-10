@@ -11,7 +11,6 @@ from .core import Transform
 from math import isnan
 from wc_lang.core import SubmodelAlgorithm, ReactionFluxUnit
 import wc_lang.config.core
-config = wc_lang.config.core.get_config()['wc_lang']
 
 
 class SetFiniteDfbaFluxBoundsTransform(Transform):
@@ -48,6 +47,7 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
         Returns:
             :obj:`Model`: same model, but transformed
         """
+        config = wc_lang.config.core.get_config()['wc_lang']
         flux_min_bound_reversible = config['dfba']['flux_min_bound_reversible']
         flux_min_bound_irreversible = config['dfba']['flux_min_bound_irreversible']
         flux_max_bound = config['dfba']['flux_max_bound']

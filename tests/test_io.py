@@ -7,6 +7,7 @@
 :License: MIT
 """
 
+from test.support import EnvironmentVarGuard
 from wc_lang import (ReactionRateUnit,
                      Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
@@ -272,7 +273,11 @@ class TestSimpleModel(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
-        model = Reader().run(filename, strict=False)
+        
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
+        with env:
+            model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
         self.assertTrue(model.is_equal(self.model))
@@ -309,7 +314,10 @@ class TestSimpleModel(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
-        convert(filename_xls1, filename_csv, strict=False)
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
+        with env:
+            convert(filename_xls1, filename_csv)
 
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))

@@ -75,7 +75,6 @@ warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 
 # configuration
 import wc_lang.config.core
-config = wc_lang.config.core.get_config()['wc_lang']
 
 
 class TimeUnit(int, Enum):
@@ -588,7 +587,9 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             return InvalidAttribute(self, ['LHS and RHS must be different'])
 
         # check element and charge balance
-        if config['validation']['validate_element_charge_balance']:
+        validate_element_charge_balance = wc_lang.config.core.get_config()[
+            'wc_lang']['validation']['validate_element_charge_balance']
+        if validate_element_charge_balance:
             delta_formula = EmpiricalFormula()
             delta_charge = 0.
             errors = []
