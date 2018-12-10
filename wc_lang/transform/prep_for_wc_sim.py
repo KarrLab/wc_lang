@@ -1,4 +1,4 @@
-""" Prepare a model for simulation.
+""" Prepare a model for simulation by wc_sim.
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
@@ -7,10 +7,11 @@
 :License: MIT
 """
 
-from wc_lang.transform.core import Transform
-from wc_lang.transform import create_implicit_distribution_zero_init_concentrations
-from wc_lang.transform import create_implicit_dfba_ex_rxns
-from wc_lang.transform import set_finite_dfba_flux_bounds
+from .core import Transform
+from . import create_implicit_distribution_zero_init_concentrations
+from . import create_implicit_dfba_ex_rxns
+from . import set_finite_dfba_flux_bounds
+from . import split_reversible_reactions
 
 
 class PrepareForWcSimTransform(Transform):
@@ -23,11 +24,13 @@ class PrepareForWcSimTransform(Transform):
     * Create implicit exchange reactions for dFBA submodels
     * Clip the flux bounds for the reactions in dFBA submodels to the default
       flux range
+    * Split reversible reactions into separate forward and reverse reactions
     """
     TRANSFORMS = (
         create_implicit_distribution_zero_init_concentrations.CreateImplicitDistributionZeroInitConcentrationsTransform,
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform,
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform,
+        split_reversible_reactions.SplitReversibleReactionsTransform,
     )
 
     class Meta(object):
