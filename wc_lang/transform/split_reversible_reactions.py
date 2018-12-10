@@ -54,7 +54,12 @@ class SplitReversibleReactionsTransform(Transform):
                     # copy participants and negate for backward reaction
                     for part in rxn.participants:
                         rxn_for.participants.append(part)
-                        rxn_bck.participants.create(species=part.species, coefficient=-1 * part.coefficient)
+
+                        part_back = part.species.species_coefficients.get_one(coefficient=-1 * part.coefficient)
+                        if part_back:
+                            rxn_bck.participants.append(part_back)
+                        else:
+                            rxn_bck.participants.create(species=part.species, coefficient=-1 * part.coefficient)
 
                     rxn.participants = []
 
@@ -73,14 +78,8 @@ class SplitReversibleReactionsTransform(Transform):
 
                     # database references
                     for x_ref in rxn.db_refs:
-                        rxn_for.db_refs.create(
-                            database=x_ref.database,
-                            id=x_ref.id)
-
-                        rxn_bck.db_refs.create(
-                            database=x_ref.database,
-                            id=x_ref.id)
-
                         rxn.db_refs.remove(x_ref)
+                        rxn_for.db_refs.append(x_ref)
+                        rxn_bck.db_refs.append(x_ref)
 
         return model
