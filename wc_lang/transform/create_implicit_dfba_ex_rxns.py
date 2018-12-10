@@ -53,5 +53,10 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                                                           species.compartment.name),
                             model=model,
                             reversible=True)
-                        rxn.participants.create(species=species, coefficient=1.)
+
+                        part = species.species_coefficients.get_one(coefficient=1.)
+                        if part:
+                            rxn.participants.append(part)
+                        else:
+                            rxn.participants.create(species=species, coefficient=1.)
         return model
