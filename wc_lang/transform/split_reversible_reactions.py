@@ -65,9 +65,11 @@ class SplitReversibleReactionsTransform(Transform):
                     if law_for:
                         law_for.reaction = rxn_for
                         law_for.direction = RateLawDirection.forward
+                        law_for.id = law_for.gen_id(law_for.reaction.id, law_for.direction.name)
                     if law_bck:
                         law_bck.reaction = rxn_bck
                         law_bck.direction = RateLawDirection.forward
+                        law_bck.id = law_bck.gen_id(law_bck.reaction.id, law_bck.direction.name)
 
                     # database references
                     for x_ref in rxn.db_refs:
