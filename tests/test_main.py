@@ -61,7 +61,7 @@ class TestCli(unittest.TestCase):
         filename = path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
-        with self.assertRaisesRegex(ValueError, '^Model is invalid: '):
+        with self.assertRaisesRegex(SystemExit, '^Model is invalid: '):
             with __main__.App(argv=['validate', filename]) as app:
                 app.run()
 
@@ -120,7 +120,7 @@ class TestCli(unittest.TestCase):
         Writer().run(model, source, set_repo_metadata_from_path=False)
 
         dest = path.join(self.tempdir, 'dest.xlsx')
-        with self.assertRaisesRegex(ValueError, 'Please select at least one transform'):
+        with self.assertRaisesRegex(SystemExit, 'Please select at least one transform'):
             with __main__.App(argv=['transform', source, dest]) as app:
                 app.run()
 

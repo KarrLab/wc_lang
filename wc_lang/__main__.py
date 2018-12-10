@@ -10,6 +10,7 @@ from wc_lang import transform
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import cement
+import sys
 import wc_lang
 
 
@@ -47,7 +48,7 @@ class ValidateController(cement.Controller):
             Reader().run(args.path)  # reader already does validation
             print('Model is valid')
         except ValueError as exception:
-            raise ValueError('Model is invalid: ' + str(exception))
+            raise SystemExit('Model is invalid: ' + str(exception))
 
 
 class DifferenceController(cement.Controller):
@@ -110,7 +111,7 @@ class TransformController(cement.Controller):
         args = self.app.pargs
 
         if not args.transforms:
-            raise ValueError('Please select at least one transform')
+            raise SystemExit('Please select at least one transform')
 
         # read model
         model = Reader().run(args.source)
