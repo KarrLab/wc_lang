@@ -559,9 +559,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_components(__type=Reference, id='ref_1'), [self.references[1]])
         self.assertEqual(model.get_components(__type=Reaction, id='rxn_3'), [])
 
-    def test_species_type_is_carbon_containing(self):
-        self.assertFalse(self.species_types[0].is_carbon_containing())
-        self.assertTrue(self.species_types[1].is_carbon_containing())
+    def test_species_type_has_carbon(self):
+        self.assertFalse(self.species_types[0].has_carbon())
+        self.assertTrue(self.species_types[1].has_carbon())
 
     def test_species_gen_id(self):
         self.assertEqual(Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
