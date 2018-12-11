@@ -36,7 +36,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           SubmodelAlgorithm, DistributionInitConcentration, DfbaNetSpecies, DfbaNetReaction,
                           Evidence,
                           ReactionParticipantAttribute, Expression,
-                          InvalidObject)
+                          InvalidObject, Validator)
 from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
                                create_sbml_doc_w_fbc, get_SBML_compatibility_method)
@@ -3112,3 +3112,12 @@ class UnitsTestCase(unittest.TestCase):
 
     def test_parameter_value(self):
         self.assertTrue(hasattr(Parameter, 'units'))
+
+
+class ValidatorTestCase(unittest.TestCase):
+    def test(self):
+        model = Model(id='model', name='test model', version='0.0.1', wc_lang_version='0.0.1')
+        self.assertEqual(Validator().run(model), None)
+
+        model.id = ''
+        self.assertNotEqual(Validator().run(model), None)
