@@ -292,9 +292,6 @@ class TestExampleModel(unittest.TestCase):
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
                 self.assertEqual(copy_row, original_row, 
                     msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
-            print(sheet)
-            print(copy[sheet])
-            print(original[sheet])
             self.assertEqual(copy[sheet], original[sheet], msg='{} sheets are not equal'.format(sheet))
 
         self.assertEqual(copy, original)
