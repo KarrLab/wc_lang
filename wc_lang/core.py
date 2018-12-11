@@ -1907,7 +1907,7 @@ class SpeciesType(obj_model.Model):
 
         indexed_attrs_tuples = (('id',), )
 
-    def is_carbon_containing(self):
+    def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
 
         Returns:

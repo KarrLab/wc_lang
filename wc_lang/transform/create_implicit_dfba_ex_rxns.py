@@ -8,7 +8,7 @@
 """
 
 from .core import Transform
-from wc_lang.core import SubmodelAlgorithm
+from wc_lang.core import SubmodelAlgorithm, ReactionFluxUnit
 import wc_lang.config.core
 
 
@@ -39,19 +39,22 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ext_comp = model.compartments.get_one(id=config['EXTRACELLULAR_COMPARTMENT_ID'])
         rxn_id_template = config['dfba']['exchange_reaction_id_template']
         rxn_name_template = config['dfba']['exchange_reaction_name_template']
+        ex_flux_bound_carbon = config['dfba']['ex_flux_bound_carbon']
+        ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
 
         for submodel in model.submodels:
             if submodel.algorithm == SubmodelAlgorithm.dfba:
                 for species in submodel.get_species():
                     if species.compartment == ext_comp:
+
                         rxn = submodel.reactions.create(
+                            model=model,
                             id=rxn_id_template.format(submodel.id,
                                                       species.species_type.id,
                                                       species.compartment.id),
                             name=rxn_name_template.format(submodel.name,
                                                           species.species_type.name,
                                                           species.compartment.name),
-                            model=model,
                             reversible=True)
 
                         part = species.species_coefficients.get_one(coefficient=1.)
@@ -59,4 +62,13 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                             rxn.participants.append(part)
                         else:
                             rxn.participants.create(species=species, coefficient=1.)
+
+                        if species.species_type.has_carbon():
+                            rxn.flux_min = -ex_flux_bound_carbon
+                            rxn.flux_max = ex_flux_bound_carbon
+                        else:
+                            rxn.flux_min = -ex_flux_bound_no_carbon
+                            rxn.flux_max = ex_flux_bound_no_carbon
+                        rxn.flux_units = ReactionFluxUnit['M s^-1']
+
         return model
