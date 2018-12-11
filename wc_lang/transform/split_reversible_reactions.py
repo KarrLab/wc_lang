@@ -31,6 +31,7 @@ class SplitReversibleReactionsTransform(Transform):
             for rxn in submodel.reactions:
                 if rxn.reversible:
                     # remove reversible reaction
+                    model.reactions.remove(rxn)
                     submodel.reactions.remove(rxn)
 
                     # create separate forward and reverse reactions
