@@ -2376,14 +2376,14 @@ class Function(obj_model.Model):
 
         # check that units are valid
         if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
-            exp_units = unit_registry.parse_expression(self.units).units
+            exp_units = unit_registry.parse_expression(self.units).to_base_units().units
             try:
                 calc = self.expression._parsed_expression.test_eval(with_units=True)
             except ParsedExpressionError as error:
                 errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
             else:
                 if hasattr(calc, 'units'):
-                    calc_units = calc.units
+                    calc_units = calc.to_base_units().units
                 else:
                     calc_units = unit_registry.parse_expression('dimensionless')
 
@@ -2917,14 +2917,14 @@ class RateLaw(obj_model.Model):
 
         # check that units are valid
         if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
-            exp_units = unit_registry.parse_expression(self.units.name).units
+            exp_units = unit_registry.parse_expression(self.units.name).to_base_units().units
             try:
                 calc = self.expression._parsed_expression.test_eval(with_units=True)
             except ParsedExpressionError as error:
                 errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
             else:
                 if hasattr(calc, 'units'):
-                    calc_units = calc.units
+                    calc_units = calc.to_base_units().units
                 else:
                     calc_units = unit_registry.parse_expression('dimensionless')
 
