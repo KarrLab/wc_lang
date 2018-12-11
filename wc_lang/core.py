@@ -1796,11 +1796,14 @@ class Compartment(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        type (:obj:`CompartmentType`): type
-        density (:obj:`float`): density of a cell
-        density_units (:obj:`DensityUnit`): units of density
-        volume (:obj:`str`): volume
+        type (:obj:`CompartmentType`): type        
+        volume (:obj:`str`): expression to calculate the volume at each simulated timepoint
+        mean_init_volume (:obj:`float`): mean initial volume
+        std_init_volume (:obj:`float`): standard  deviation of the mean initial volume
         volume_units (:obj:`VolumeUnit`): units of volume
+        density (:obj:`str`): expression to calculate the density during the initialization of
+            each simulation
+        density_units (:obj:`DensityUnit`): units of density
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1816,10 +1819,15 @@ class Compartment(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
     type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
-    density = FloatAttribute(min=0)
-    density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
     volume = RegexAttribute(pattern=re.escape('mass * density'), default='mass * density')
+    distribution_init_volume = EnumAttribute(RandomDistribution, default=RandomDistribution.normal,
+                                             verbose_name='Initial volume, distribution')
+    mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, mean')
+    std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, standard deviation')
     volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
+    density = RegexAttribute(pattern=re.escape('init_mass / init_volume'), 
+        default='init_mass / init_volume')
+    density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
@@ -1827,8 +1835,8 @@ class Compartment(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'type',
+                           'volume', 'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'volume_units',
                            'density', 'density_units',
-                           'volume', 'volume_units',
                            'db_refs', 'evidence', 'comments', 'references')
 
     def add_to_sbml_doc(self, sbml_document):
@@ -3476,3 +3484,17 @@ class DatabaseReference(obj_model.Model):
             objects[DatabaseReference][serialized_val] = db_ref
 
         return (db_ref, None)
+
+
+class Validator(obj_model.Validator):
+    def run(self, model, get_related=True):
+        """ Validate a list of objects and return their errors
+
+        Args:
+            model (:obj:`Model`): model
+            get_related (:obj:`bool`, optional): if true, get all related objects
+
+        Returns:
+            :obj:`InvalidObjectSet` or `None`: list of invalid objects/models and their errors
+        """
+        return super(Validator, self).run(model, get_related=get_related)

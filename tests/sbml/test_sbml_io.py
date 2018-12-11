@@ -27,6 +27,7 @@ from obj_model.utils import get_component_by_id
 from wc_lang import (SubmodelAlgorithm, Model, DfbaObjective,
                      Species, DfbaNetReaction, Parameter)
 from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
+from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
@@ -123,7 +124,9 @@ class TestSbml(unittest.TestCase):
         self.dirname = tempfile.mkdtemp()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-        PrepareForWcSimTransform().run(self.model)
+        transform = PrepareForWcSimTransform()
+        transform.transforms.remove(SplitReversibleReactionsTransform)
+        transform.run(self.model)
 
     def tearDown(self):
         shutil.rmtree(self.dirname)

@@ -25,8 +25,11 @@ class PrepareForWcSimTransform(Transform):
     * Clip the flux bounds for the reactions in dFBA submodels to the default
       flux range
     * Split reversible reactions into separate forward and reverse reactions
+
+    Attributes:
+        transforms (:obj:`list` of :obj:`Transform`): list of transforms
     """
-    TRANSFORMS = (
+    DEFAULT_TRANSFORMS = (
         create_implicit_distribution_zero_init_concentrations.CreateImplicitDistributionZeroInitConcentrationsTransform,
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform,
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform,
@@ -38,6 +41,13 @@ class PrepareForWcSimTransform(Transform):
         label = ('Prepare model for simulation by making implicit '
                  'information in the model explicit')
 
+    def __init__(self, transforms=None):
+        """
+        Args:
+            transforms (:obj:`list` of :obj:`Transform`, optional): list of transforms
+        """
+        self.transforms = transforms or list(self.DEFAULT_TRANSFORMS)
+
     def run(self, model):
         """ Transform model
 
@@ -47,5 +57,5 @@ class PrepareForWcSimTransform(Transform):
         Returns:
             :obj:`Model`: same model, but transformed
         """
-        for transform in self.TRANSFORMS:
+        for transform in self.transforms:
             transform().run(model)
