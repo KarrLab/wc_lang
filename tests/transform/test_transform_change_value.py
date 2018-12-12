@@ -191,3 +191,46 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         self.assertEqual(st_1_c_2.distribution_init_concentration.std, 2)
         self.assertEqual(st_2_c_1.distribution_init_concentration.std, 0)
         self.assertEqual(st_2_c_2.distribution_init_concentration.std, 2)
+
+    def test_attr_path_to_from_str(self):
+        t1 = ChangeValueTransform('species', 0)
+        t2 = ChangeValueTransform(None, 0)
+        t2.attr_path = ChangeValueTransform.attr_path_from_str(t1.attr_path_to_str())
+        self.assertEqual(t1.attr_path, t2.attr_path)
+
+        t1 = ChangeValueTransform(['species'], 0)
+        t2 = ChangeValueTransform(None, 0)
+        t2.attr_path = ChangeValueTransform.attr_path_from_str(t1.attr_path_to_str())
+        self.assertEqual(t1.attr_path, t2.attr_path)
+
+        t1 = ChangeValueTransform(['species', 'reactions'], 0)
+        t2 = ChangeValueTransform(None, 0)
+        t2.attr_path = ChangeValueTransform.attr_path_from_str(t1.attr_path_to_str())
+        self.assertEqual(t1.attr_path, t2.attr_path)
+
+        t1 = ChangeValueTransform([['species', {'id': 'st_1[c_1]'}],
+                                   'distribution_init_concentration',
+                                   'std'], 0)
+        t2 = ChangeValueTransform(None, 0)
+        t2.attr_path = ChangeValueTransform.attr_path_from_str(t1.attr_path_to_str())
+        self.assertEqual(t1.attr_path, t2.attr_path)
+
+        t1 = ChangeValueTransform(['rate_laws', {'direction': RateLawDirection.forward}], 0)
+        t2 = ChangeValueTransform(None, 0)
+        t2.attr_path = ChangeValueTransform.attr_path_from_str(t1.attr_path_to_str())
+        self.assertEqual(t1.attr_path, t2.attr_path)
+
+    def test___eq__(self):
+        t1 = ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
+                                   'distribution_init_concentration',
+                                   'std'), 0)
+        t2 = ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
+                                   'distribution_init_concentration',
+                                   'std'), 0)
+        self.assertEqual(t1, t2)
+
+        t2.value = 1.
+        self.assertNotEqual(t1, t2)
+
+        self.assertNotEqual(t1, 1.)
+        self.assertNotEqual(1., t1)

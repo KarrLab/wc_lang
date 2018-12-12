@@ -8,13 +8,14 @@
 
 from .core import Transform
 from wc_lang.core import Model
+import json
 
 
 class ChangeValueTransform(Transform):
     """ Change a value of an attribute of a model
 
     Attributes:
-        attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that 
+        attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that
             represents the path to an attribute or nested attribute of a model
 
             Examples:
@@ -22,7 +23,7 @@ class ChangeValueTransform(Transform):
             * model.name --> 'name'
             * model.reactions.get_one(id='rxn_1').reversible --> (('reactions', {'id': 'rxn_1'}), 'reversible')
             * model.parameters.get_one(id='param_1').value --> (('parameters', {'id': 'param_1'}), 'value')
-            * model \ 
+            * model \
                 .reactions.get_one(id='rxn_1') \
                 .rate_laws.get_one(direction=RateLawDirection.forward) \
                 .expression \
@@ -45,7 +46,7 @@ class ChangeValueTransform(Transform):
     def __init__(self, attr_path, value):
         """
         Args:
-            attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that 
+            attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that
                 represents the path to an attribute or nested attribute of a model
             value (:obj:`object`): new value
         """
@@ -63,3 +64,36 @@ class ChangeValueTransform(Transform):
         """
         model.set_nested_attr(self.attr_path, self.value)
         return model
+
+    def attr_path_to_str(self):
+        """ Generate a string representation of `attr_path`
+
+        Returns:
+            :obj:`str`: string representation of `attr_path`R
+        """
+        return json.dumps(self.attr_path)
+
+    @staticmethod
+    def attr_path_from_str(str):
+        """ Generate `attr_path` from its string representation
+        Args:
+            str (:obj:`str`): string representation of `attr_path`
+
+        Returns:
+            :obj:`Object`: `attr_path`
+        """
+        return json.loads(str)
+
+    def __eq__(self, other):
+        """ Compare two :obj:`ChangeValueTransform` objects
+
+        Args:
+            other (:obj:`Object`): other object
+
+        Returns:
+            :obj:`bool`: true if :obj:`ChangeValueTransform` objects are semantically equal
+        """
+        if other.__class__ is not self.__class__:
+            return False
+
+        return self.attr_path == other.attr_path and self.value == other.value
