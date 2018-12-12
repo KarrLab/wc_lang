@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
-                     Reaction, RateLawDirection, RateLawExpression, ReactionFluxUnit, Species)
+                     Reaction, RateLawDirection, RateLaw, RateLawExpression, ReactionFluxUnit, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
 
@@ -18,7 +18,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         c = model.compartments.create(id='c', density=1.)
         e = model.compartments.create(id='e', density=1.)
-        ChangeValueTransform(Compartment, 'c', ['density'], 2.).run(model)
+        ChangeValueTransform((('compartments', {'id': 'c'}), 'density'), 2.).run(model)
 
         self.assertEqual(c.density, 2.)
         self.assertEqual(e.density, 1.)
@@ -27,7 +27,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         f = model.functions.create(id='f', expression=FunctionExpression(expression='x'))
         g = model.functions.create(id='g', expression=FunctionExpression(expression='y'))
-        ChangeValueTransform(Function, 'g', ['expression', 'expression'], 'z').run(model)
+        ChangeValueTransform((('functions', {'id': 'g'}), 'expression', 'expression'), 'z').run(model)
 
         self.assertEqual(f.expression.expression, 'x')
         self.assertEqual(g.expression.expression, 'z')
@@ -36,7 +36,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         p_1 = model.parameters.create(id='p_1', units='M')
         p_2 = model.parameters.create(id='p_2', units='L')
-        ChangeValueTransform(Parameter, 'p_1', ['units'], 'm^2').run(model)
+        ChangeValueTransform((('parameters', {'id': 'p_1'}), 'units'), 'm^2').run(model)
 
         self.assertEqual(p_1.units, 'm^2')
         self.assertEqual(p_2.units, 'L')
@@ -45,7 +45,7 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         p_1 = model.parameters.create(id='p_1', value=1)
         p_2 = model.parameters.create(id='p_2', value=3)
-        ChangeValueTransform(Parameter, 'p_1', ['value'], 2).run(model)
+        ChangeValueTransform((('parameters', {'id': 'p_1'}), 'value'), 2).run(model)
 
         self.assertEqual(p_1.value, 2)
         self.assertEqual(p_2.value, 3)
@@ -54,11 +54,11 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = s_1.reactions.create(id='r_1_1', reversible=False)
-        r_1_2 = s_1.reactions.create(id='r_1_2', reversible=False)
-        r_2_1 = s_2.reactions.create(id='r_2_1', reversible=True)
-        r_2_2 = s_2.reactions.create(id='r_2_2', reversible=True)
-        ChangeValueTransform(Reaction, 'r_2_1', ['reversible'], False).run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', reversible=False)
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', reversible=False)
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', reversible=True)
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', reversible=True)
+        ChangeValueTransform((('reactions', {'id': 'r_2_1'}), 'reversible'), False).run(model)
 
         self.assertEqual(r_1_1.reversible, False)
         self.assertEqual(r_1_2.reversible, False)
@@ -69,11 +69,11 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = s_1.reactions.create(id='r_1_1', flux_min=1, flux_units=ReactionFluxUnit['M s^-1'])
-        r_1_2 = s_1.reactions.create(id='r_1_2', flux_min=2, flux_units=ReactionFluxUnit['M s^-1'])
-        r_2_1 = s_2.reactions.create(id='r_2_1', flux_min=3, flux_units=ReactionFluxUnit['M s^-1'])
-        r_2_2 = s_2.reactions.create(id='r_2_2', flux_min=4, flux_units=ReactionFluxUnit['M s^-1'])
-        ChangeValueTransform(Reaction, 'r_1_2', ['flux_min'], 0).run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_units=ReactionFluxUnit['M s^-1'])
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_units=ReactionFluxUnit['M s^-1'])
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_units=ReactionFluxUnit['M s^-1'])
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_units=ReactionFluxUnit['M s^-1'])
+        ChangeValueTransform((('reactions', {'id': 'r_1_2'}), 'flux_min'), 0).run(model)
 
         self.assertEqual(r_1_1.flux_min, 1)
         self.assertEqual(r_1_2.flux_min, 0)
@@ -84,11 +84,11 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = s_1.reactions.create(id='r_1_1', flux_max=1)
-        r_1_2 = s_1.reactions.create(id='r_1_2', flux_max=2)
-        r_2_1 = s_2.reactions.create(id='r_2_1', flux_max=3)
-        r_2_2 = s_2.reactions.create(id='r_2_2', flux_max=4)
-        ChangeValueTransform(Reaction, 'r_2_2', ['flux_max'], 0).run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_max=1)
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_max=2)
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_max=3)
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_max=4)
+        ChangeValueTransform((('reactions', {'id': 'r_2_2'}), 'flux_max'), 0).run(model)
 
         self.assertEqual(r_1_1.flux_max, 1)
         self.assertEqual(r_1_2.flux_max, 2)
@@ -98,10 +98,13 @@ class ChangeValueTransformTestCase(unittest.TestCase):
     def test_reaction_expression(self):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
-        r_1_1 = s_1.reactions.create(id='r_1_1')
-        rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='x'))
-        rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='y'))
-        ChangeValueTransform(Reaction, 'r_1_1', ['rate_laws', 'forward', 'expression', 'expression'], 'z').run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1')
+        rl_f = model.rate_laws.create(reaction=r_1_1, direction=RateLawDirection.forward, expression=RateLawExpression(expression='x'))
+        rl_b = model.rate_laws.create(reaction=r_1_1, direction=RateLawDirection.backward, expression=RateLawExpression(expression='y'))
+        ChangeValueTransform((('reactions', {'id': 'r_1_1'}),
+                              ('rate_laws', {'direction': RateLawDirection.forward}),
+                              'expression',
+                              'expression'), 'z').run(model)
 
         self.assertEqual(rl_f.expression.expression, 'z')
         self.assertEqual(rl_b.expression.expression, 'y')
@@ -109,16 +112,18 @@ class ChangeValueTransformTestCase(unittest.TestCase):
     def test_reaction_k_cat(self):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
-        r_1_1 = s_1.reactions.create(id='r_1_1')
-        k_cat_f = Parameter(id='k_cat_f', value=1, model=model)
-        k_cat_b = Parameter(id='k_cat_b', value=2, model=model)
-        rl_f = r_1_1.rate_laws.create(direction=RateLawDirection.forward,
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1')
+        k_cat_f = model.parameters.create(id='k_cat_f', value=1)
+        k_cat_b = model.parameters.create(id='k_cat_b', value=2)
+        rl_f = model.rate_laws.create(id=RateLaw.gen_id(r_1_1.id, RateLawDirection.forward.name),
+                                      reaction=r_1_1, direction=RateLawDirection.forward,
                                       expression=RateLawExpression(
                                           parameters=[k_cat_f]))
-        rl_b = r_1_1.rate_laws.create(direction=RateLawDirection.backward,
+        rl_b = model.rate_laws.create(id=RateLaw.gen_id(r_1_1.id, RateLawDirection.backward.name),
+                                      reaction=r_1_1, direction=RateLawDirection.backward,
                                       expression=RateLawExpression(
                                           parameters=[k_cat_b]))
-        ChangeValueTransform(Parameter, 'k_cat_b', ['value'], 0).run(model)
+        ChangeValueTransform((('parameters', {'id': 'k_cat_b'}), 'value'), 0).run(model)
 
         self.assertEqual(k_cat_f.value, 1)
         self.assertEqual(k_cat_b.value, 0)
@@ -129,10 +134,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2 = model.species_types.create(id='st_2')
         c_1 = model.compartments.create(id='c_1')
         c_2 = model.compartments.create(id='c_2')
-        st_1_c_1 = st_1.species.create(compartment=c_1)
-        st_1_c_2 = st_1.species.create(compartment=c_2)
-        st_2_c_1 = st_2.species.create(compartment=c_1)
-        st_2_c_2 = st_2.species.create(compartment=c_2)
+        st_1_c_1 = model.species.create(id=Species.gen_id(st_1.id, c_1.id), species_type=st_1, compartment=c_1)
+        st_1_c_2 = model.species.create(id=Species.gen_id(st_1.id, c_2.id), species_type=st_1, compartment=c_2)
+        st_2_c_1 = model.species.create(id=Species.gen_id(st_2.id, c_1.id), species_type=st_2, compartment=c_1)
+        st_2_c_2 = model.species.create(id=Species.gen_id(st_2.id, c_2.id), species_type=st_2, compartment=c_2)
 
         st_1_c_1.distribution_init_concentration = DistributionInitConcentration(
             id=DistributionInitConcentration.gen_id(st_1_c_1.id), units='u')
@@ -143,7 +148,9 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_2.distribution_init_concentration = DistributionInitConcentration(
             id=DistributionInitConcentration.gen_id(st_2_c_2.id), units='x')
 
-        ChangeValueTransform(Species, 'st_1[c_1]', ['distribution_init_concentration', 'units'], 'a').run(model)
+        ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
+                              'distribution_init_concentration',
+                              'units'), 'a').run(model)
         self.assertEqual(st_1_c_1.distribution_init_concentration.units, 'a')
         self.assertEqual(st_1_c_2.distribution_init_concentration.units, 'v')
         self.assertEqual(st_2_c_1.distribution_init_concentration.units, 'w')
@@ -155,10 +162,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2 = model.species_types.create(id='st_2')
         c_1 = model.compartments.create(id='c_1')
         c_2 = model.compartments.create(id='c_2')
-        st_1_c_1 = st_1.species.create(compartment=c_1)
-        st_1_c_2 = st_1.species.create(compartment=c_2)
-        st_2_c_1 = st_2.species.create(compartment=c_1)
-        st_2_c_2 = st_2.species.create(compartment=c_2)
+        st_1_c_1 = model.species.create(id=Species.gen_id(st_1.id, c_1.id), species_type=st_1, compartment=c_1)
+        st_1_c_2 = model.species.create(id=Species.gen_id(st_1.id, c_2.id), species_type=st_1, compartment=c_2)
+        st_2_c_1 = model.species.create(id=Species.gen_id(st_2.id, c_1.id), species_type=st_2, compartment=c_1)
+        st_2_c_2 = model.species.create(id=Species.gen_id(st_2.id, c_2.id), species_type=st_2, compartment=c_2)
 
         st_1_c_1.distribution_init_concentration = DistributionInitConcentration(
             id=DistributionInitConcentration.gen_id(st_1_c_1.id), mean=1, std=2)
@@ -169,13 +176,17 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_2.distribution_init_concentration = DistributionInitConcentration(
             id=DistributionInitConcentration.gen_id(st_2_c_2.id), mean=4, std=2)
 
-        ChangeValueTransform(Species, 'st_2[c_1]', ['distribution_init_concentration', 'mean'], 0).run(model)
+        ChangeValueTransform((('species', {'id': st_2_c_1.id}),
+                              'distribution_init_concentration',
+                              'mean'), 0).run(model)
         self.assertEqual(st_1_c_1.distribution_init_concentration.mean, 1)
         self.assertEqual(st_1_c_2.distribution_init_concentration.mean, 2)
         self.assertEqual(st_2_c_1.distribution_init_concentration.mean, 0)
         self.assertEqual(st_2_c_2.distribution_init_concentration.mean, 4)
 
-        ChangeValueTransform(Species, 'st_2[c_1]', ['distribution_init_concentration', 'std'], 0).run(model)
+        ChangeValueTransform((('species', {'id': st_2_c_1.id}),
+                              'distribution_init_concentration',
+                              'std'), 0).run(model)
         self.assertEqual(st_1_c_1.distribution_init_concentration.std, 2)
         self.assertEqual(st_1_c_2.distribution_init_concentration.std, 2)
         self.assertEqual(st_2_c_1.distribution_init_concentration.std, 0)

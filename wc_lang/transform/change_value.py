@@ -7,101 +7,59 @@
 """
 
 from .core import Transform
-from wc_lang import Compartment, Function, Parameter, RateLawDirection, Reaction, Species
-import copy
-import itertools
+from wc_lang.core import Model
 
 
 class ChangeValueTransform(Transform):
     """ Change a value of an attribute of a model
 
     Attributes:
-        target_type (:obj:`type`): type of the target to change, E.g.
-            :obj:`wc_lang.Compartment`, :obj:`wc_lang.Function`
-        target_id (:obj:`str`): id of the target to change
-        target_attr (:obj:`list`): list of names of the nested attribute to change
+        attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that 
+            represents the path to an attribute or nested attribute of a model
+
+            Examples:
+
+            * model.name --> 'name'
+            * model.reactions.get_one(id='rxn_1').reversible --> (('reactions', {'id': 'rxn_1'}), 'reversible')
+            * model.parameters.get_one(id='param_1').value --> (('parameters', {'id': 'param_1'}), 'value')
+            * model \ 
+                .reactions.get_one(id='rxn_1') \
+                .rate_laws.get_one(direction=RateLawDirection.forward) \
+                .expression \
+                .parameters.get_one(id='param_1') \
+                .value
+              --> (
+                    ('reactions', {'id': 'rxn_1'},
+                    ('rate_laws', {'direction': RateLawDirection.forward}),
+                    'expression',
+                    ('parameters', {'id': 'param_1'}),
+                    'value',
+                  )
         value (:obj:`object`): new value
-
-    Supports the following combinations of :obj:`target_type`, :obj:`target_id` and :obj:`target_attr`
-
-        +-------------+-----------------------------------+-------------------------------------------------------------+
-        | target_type | target_id                         | target_attr                                                 |
-        +=============+===================================+=============================================================+
-        | Compartment | Compartment.id                    | ['density']                                             |
-        +-------------+-----------------------------------+-------------------------------------------------------------+
-        | Function    | Function.id                       | ['expression', 'expression']                                |
-        +-------------+-----------------------------------+-------------------------------------------------------------+
-        | Parameter   | Parameter.id                      | ['value']                                                   |
-        | Parameter   | Parameter.id                      | ['units']                                                   |
-        +-------------+-----------------------------------+-------------------------------------------------------------+
-        | Reaction    | Reaction.id                       | ['reversible']                                              |
-        | Reaction    | Reaction.id                       | ['flux_min']                                                |
-        | Reaction    | Reaction.id                       | ['flux_max']                                                |
-        | Reaction    | Reaction.id                       | ['flux_units']                                              |
-        | Reaction    | Reaction.id                       | ['rate_laws', RateLawDirection, 'expression', 'expression'] |
-        +-------------+-----------------------------------+-------------------------------------------------------------+
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'mean']                                   |
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'std']                                    |
-        | Species     | SpeciesType.id [ Compartment.id ] | ['concentration', 'units']                                  |
-        +-------------+-----------------------------------+-------------------------------------------------------------+
     """
 
     class Meta(object):
         id = 'ChangeValue'
         label = 'Change a value of an attribute of a model'
 
-    def __init__(self, target_type, target_id, target_attr, value):
+    def __init__(self, attr_path, value):
         """
         Args:
-            target_type (:obj:`type`): type of the target to change, E.g.
-                :obj:`wc_lang.Compartment`, :obj:`wc_lang.Function`
-            target_id (:obj:`str`): id of the target to change
-            target_attr (:obj:`list`): list of names of the nested attribute to change
+            attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that 
+                represents the path to an attribute or nested attribute of a model
             value (:obj:`object`): new value
         """
-        self.target_type = target_type
-        self.target_id = target_id
-        self.target_attr = target_attr
+        self.attr_path = attr_path
         self.value = value
 
     def run(self, model):
         """ Change a value of an attribute of a model
 
         Args:
-            model (:obj:`Model`): model definition
+            model (:obj:`Model`): model
 
         Returns:
             :obj:`Model`: same model, but with a different value of an attribute
         """
-        # get object with id :obj:`target_id` of type :obj:`target_type`
-
-        if self.target_type in [Reaction]:
-            for submodel in model.submodels:
-                target_obj = submodel.reactions.get_one(id=self.target_id)
-                if target_obj:
-                    break
-        elif self.target_type in [Species]:
-            species_type_id, _, compartment_id = self.target_id[0:-1].partition('[')
-            species_type = model.species_types.get_one(id=species_type_id)
-            compartment = model.compartments.get_one(id=compartment_id)
-            target_obj = species_type.species.get_one(compartment=compartment)
-        else:
-            target_objs = getattr(model, self.target_type.Meta.attributes['model'].related_name)
-            target_obj = target_objs.get_one(id=self.target_id)
-
-        # get attribute with path :obj:`target_attr`
-        if self.target_type == Reaction and self.target_attr[0] == 'rate_laws':
-            target_attr = target_obj.rate_laws.get_one(direction=RateLawDirection[self.target_attr[1]])
-            attr_names = self.target_attr[2:-1]
-        else:
-            target_attr = target_obj
-            attr_names = self.target_attr[0:-1]
-
-        for attr_name in attr_names:
-            target_attr = getattr(target_attr, attr_name)
-
-        # change value
-        setattr(target_attr, self.target_attr[-1], self.value)
-
-        # return model
+        model.set_nested_attr(self.attr_path, self.value)
         return model
