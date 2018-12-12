@@ -43,12 +43,12 @@ class ChangeValueTransform(Transform):
         id = 'ChangeValue'
         label = 'Change a value of an attribute of a model'
 
-    def __init__(self, attr_path, value):
+    def __init__(self, attr_path=None, value=None):
         """
         Args:
-            attr_path (:obj:`list` of :obj:`list` of :obj:`str`): list that
+            attr_path (:obj:`list` of :obj:`list` of :obj:`str`, optional): list that
                 represents the path to an attribute or nested attribute of a model
-            value (:obj:`object`): new value
+            value (:obj:`object`, optional): new value
         """
         self.attr_path = attr_path
         self.value = value
