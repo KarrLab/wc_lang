@@ -273,7 +273,7 @@ class TestSimpleModel(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
-        
+
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
         with env:

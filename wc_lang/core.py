@@ -1796,7 +1796,7 @@ class Compartment(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        type (:obj:`CompartmentType`): type        
+        type (:obj:`CompartmentType`): type
         volume (:obj:`str`): expression to calculate the volume at each simulated timepoint
         mean_init_volume (:obj:`float`): mean initial volume
         std_init_volume (:obj:`float`): standard  deviation of the mean initial volume
@@ -1825,7 +1825,7 @@ class Compartment(obj_model.Model):
     mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, mean')
     std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, standard deviation')
     volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
-    density = RegexAttribute(pattern=re.escape('init_mass / init_volume'), 
+    density = RegexAttribute(pattern=re.escape('init_mass / init_volume'),
         default='init_mass / init_volume')
     density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
