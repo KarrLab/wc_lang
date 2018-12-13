@@ -75,8 +75,8 @@ class TestSimpleModel(unittest.TestCase):
             species.append(spec)
 
             conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id),
-                                 model=mdl,
-                                 species=spec, mean=3 * i, units=ConcentrationUnit.M)
+                                                 model=mdl,
+                                                 species=spec, mean=3 * i, units=ConcentrationUnit.M)
 
         species_coefficients = {}
 
