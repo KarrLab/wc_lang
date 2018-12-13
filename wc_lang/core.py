@@ -1826,7 +1826,7 @@ class Compartment(obj_model.Model):
     std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, standard deviation')
     volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
     density = RegexAttribute(pattern=re.escape('init_mass / init_volume'),
-        default='init_mass / init_volume')
+                             default='init_mass / init_volume')
     density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
@@ -2676,6 +2676,38 @@ class Reaction(obj_model.Model):
                 species.extend(rate_law.expression.species.get(__type=__type, **kwargs))
 
         return det_dedupe(species)
+
+    def get_reactants(self):
+        """ Get the species consumed by the reaction
+
+        Returns:
+            :obj:`list` of :obj:`Species`: reactant species
+        """
+        species = []
+        for part in self.participants:
+            if part.coefficient < 0:
+                species.append(part.species)
+        return det_dedupe(species)
+
+    def get_products(self):
+        """ Get the species produced by the reaction
+
+        Returns:
+            :obj:`list` of :obj:`Species`: product species
+        """
+        species = []
+        for part in self.participants:
+            if part.coefficient > 0:
+                species.append(part.species)
+        return det_dedupe(species)
+
+    def get_modifiers(self, direction=RateLawDirection.forward):
+        """ Get species in the expression that are not reactants in the reaction
+
+        Returns:
+            :obj:`list` of :obj:`Species`: species in the expression that are not reactants in the reaction            
+        """
+        return list(set(self.rate_laws.get_one(direction=direction).expression.species) - set(self.get_reactants()))
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Reaction to a libsbml SBML document.

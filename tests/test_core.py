@@ -2387,6 +2387,55 @@ class TestCore(unittest.TestCase):
             for valid_model_type in model_type.Meta.valid_models:
                 self.assertTrue(hasattr(wc_lang.core, valid_model_type))
 
+    def test_reaction_get_reactants(self):
+        rxn = Reaction()
+        species_1 = Species()
+        species_2 = Species()
+        species_3 = Species()
+        species_4 = Species()
+        species_5 = Species()
+        rxn.participants.append(SpeciesCoefficient(coefficient=1., species=species_1))
+        rxn.participants.append(SpeciesCoefficient(coefficient=2, species=species_2))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-1., species=species_3))
+        rxn.participants.append(SpeciesCoefficient(coefficient=0, species=species_4))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-2, species=species_5))
+
+        self.assertEqual(rxn.get_reactants(), [species_3, species_5])
+
+    def test_reaction_get_products(self):
+        rxn = Reaction()
+        species_1 = Species()
+        species_2 = Species()
+        species_3 = Species()
+        species_4 = Species()
+        species_5 = Species()
+        rxn.participants.append(SpeciesCoefficient(coefficient=1., species=species_1))
+        rxn.participants.append(SpeciesCoefficient(coefficient=2, species=species_2))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-1., species=species_3))
+        rxn.participants.append(SpeciesCoefficient(coefficient=0, species=species_4))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-2, species=species_5))
+
+        self.assertEqual(rxn.get_products(), [species_1, species_2])
+
+    def test_reaction_get_modifiers(self):
+        rxn = Reaction()
+        species_1 = Species()
+        species_2 = Species()
+        species_3 = Species()
+        species_4 = Species()
+        species_5 = Species()
+        species_6 = Species()
+        rxn.participants.append(SpeciesCoefficient(coefficient=1., species=species_1))
+        rxn.participants.append(SpeciesCoefficient(coefficient=2, species=species_2))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-1., species=species_3))
+        rxn.participants.append(SpeciesCoefficient(coefficient=0, species=species_4))
+        rxn.participants.append(SpeciesCoefficient(coefficient=-2, species=species_5))
+
+        rl = rxn.rate_laws.create()
+        rl.expression = RateLawExpression()
+        rl.expression.species = [species_3, species_6, species_1, species_5]
+        self.assertEqual(set(rxn.get_modifiers()), set([species_6, species_1]))
+
 
 class TestCoreFromFile(unittest.TestCase):
 
