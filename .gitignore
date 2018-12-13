@@ -35,3 +35,6 @@ README.rst
 
 # mac DS files
 .DS_Store
+
+# pytest config files
+pytest.ini
