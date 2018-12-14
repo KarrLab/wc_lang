@@ -418,27 +418,29 @@ class WcLangExpression(object):
                 or `objects` includes model types that `model_class` should not reference
         """
 
-        # Two categories of wc_lang model classes are needed, 1) the REQUIRED_MODELS used by
-        # WcLangExpression code and 2) model types that can be referenced by model_class. Ensure that these
-        # are provided in objects or given_model_types so their properties can be obtained.
-        provided_model_types = set([model_type for model_type in objects.keys()])
-        if given_model_types:
-            provided_model_types = provided_model_types.union([model_type for model_type in given_model_types])
-        needed_models = self.REQUIRED_MODELS + getattr(model_class, 'valid_used_models', [])
-        missing_models = set(needed_models).difference([mt.__name__ for mt in provided_model_types])
-        if missing_models:
-            raise WcLangExpressionError("model_class '{}': missing these needed models: {}".format(
-                model_class.__name__, missing_models))
-
-        self.model_types = {model_type.__name__: model_type for model_type in provided_model_types}
-        self.objects = objects
-
         if not issubclass(model_class, obj_model.Model):
             raise WcLangExpressionError("model_class '{}' is not a subclass of obj_model.Model".format(
                 model_class.__name__))
         if not hasattr(model_class.Meta, 'valid_used_models'):
             raise WcLangExpressionError("model_class '{}' doesn't have a 'Meta.valid_used_models' attribute".format(
                 model_class.__name__))
+
+        # Two categories of wc_lang model classes are needed, 1) the REQUIRED_MODELS used by
+        # WcLangExpression code and 2) model types that can be referenced by model_class. Ensure that these
+        # are provided in objects or given_model_types so their properties can be obtained.
+        provided_model_types = set([model_type for model_type in objects.keys()])
+        if given_model_types:
+            provided_model_types = provided_model_types.union([model_type for model_type in given_model_types])
+        needed_models = self.REQUIRED_MODELS + list(getattr(model_class.Meta, 'valid_used_models', []))
+        missing_models = set(needed_models).difference([mt.__name__ for mt in provided_model_types])
+        if missing_models:
+            raise WcLangExpressionError(
+                "model_class '{}': these needed models not in 'objects' or 'given_model_types': {}".format(
+                model_class.__name__, missing_models))
+
+        self.model_types = {model_type.__name__: model_type for model_type in provided_model_types}
+        self.objects = objects
+
         self.valid_used_models = set()
         for valid_model_type_name in model_class.Meta.valid_used_models:
             valid_model_type = self.get_wc_lang_model_type(valid_model_type_name)
@@ -634,13 +636,15 @@ class WcLangExpression(object):
             match_string = self.match_tokens(token_pattern, idx)
             if match_string:
                 token_matches.add(match_string)
-                # is match_string the ID of an instance in self.objects?
-                if case_fold_match:
-                    if match_string.casefold() in self.objects[model_type]:
-                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
-                else:
-                    if match_string in self.objects[model_type]:
-                        id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                # skip model types that aren't in self.objects
+                if model_type in self.objects:
+                    # is match_string the ID of an instance in self.objects?
+                    if case_fold_match:
+                        if match_string.casefold() in self.objects[model_type]:
+                            id_matches.add(IdMatch(model_type, token_pattern, match_string))
+                    else:
+                        if match_string in self.objects[model_type]:
+                            id_matches.add(IdMatch(model_type, token_pattern, match_string))
 
         if not id_matches:
             if token_matches:

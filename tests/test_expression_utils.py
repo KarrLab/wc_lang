@@ -142,8 +142,8 @@ class TestWcLangExpression(unittest.TestCase):
                 "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
             WcLangExpression(Species, 'attr', '', self.objects)
         with self.assertRaisesRegex(WcLangExpressionError,
-            "model_class 'Species': missing these needed models: "):
-            WcLangExpression(Species, 'attr', '', {})
+            "model_class 'FunctionExpression': these needed models not in 'objects' or 'given_model_types': .+"):
+            WcLangExpression(FunctionExpression, 'attr', '', {})
 
     def test_get_wc_lang_model_type(self):
         wc_lang_expr = WcLangExpression(RateLawEquation, None, '', self.objects)
@@ -277,6 +277,19 @@ class TestWcLangExpression(unittest.TestCase):
         # no related_object_id matches
         wc_lang_expr = self.make_wc_lang_expr("3 * 4")
         self.assertEqual(wc_lang_expr.related_object_id(0), None)
+
+    def test_related_object_id_objects_missing_valid_used_models(self):
+        # test related_object_id() when some self.valid_used_models aren't in self.objects
+        del self.objects[Parameter]
+        wc_lang_expr = WcLangExpression(FunctionExpression, 'attr', 'obs_id * 2', self.objects,
+            given_model_types=[Parameter])
+        lex_match = wc_lang_expr.related_object_id(0)
+        self.assertTrue(isinstance(lex_match, LexMatch))
+        wc_lang_token = lex_match.wc_lang_tokens[0]
+        expected_id = 'obs_id'
+        self.assertEqual(wc_lang_token,
+                         WcLangToken(TokCodes.wc_lang_obj_id, expected_id,
+                                     Observable, expected_id, wc_lang_token.model))
 
     def do_fun_call_error_test(self, expr, expected_error, obj_type=RateLawEquation):
         wc_lang_expr = self.make_wc_lang_expr(expr, obj_type=obj_type)
