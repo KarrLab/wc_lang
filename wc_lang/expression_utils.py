@@ -400,7 +400,7 @@ class WcLangExpression(object):
     # These wc_lang models are needed by WcLangExpression, and must be provided in its constructor.
     REQUIRED_MODELS = ['Function']
 
-    def __init__(self, model_class, attribute, expression, objects, model_types=None):
+    def __init__(self, model_class, attribute, expression, objects, given_model_types=None):
         """ Create an instance of WcLangExpression
 
         Args:
@@ -409,8 +409,8 @@ class WcLangExpression(object):
             expression (:obj:`str`): the expression defined in the wc_lang Model
             objects (:obj:`dict`): dict of wc_lang Models that might be referenced in expression; maps
                 model type to a dict mapping ids to Model instances
-            model_types (:obj:`dict`): wc_lang Model types that are needed by WcLangExpression code or can
-                be used in expressions; a map from model name to wc_lang Model type
+            given_model_types (:obj:`list`): wc_lang Model types that are needed by WcLangExpression
+                code or can be used in expressions
 
         Raises:
             :obj:`WcLangExpressionError`: if `model_class` is not a subclass of `obj_model.Model`,
@@ -420,10 +420,10 @@ class WcLangExpression(object):
 
         # Two categories of wc_lang model classes are needed, 1) the REQUIRED_MODELS used by
         # WcLangExpression code and 2) model types that can be referenced by model_class. Ensure that these
-        # are provided in objects or model_types so their properties can be obtained.
+        # are provided in objects or given_model_types so their properties can be obtained.
         provided_model_types = set([model_type for model_type in objects.keys()])
-        if model_types:
-            provided_model_types = provided_model_types.union([model_type for model_type in model_types])
+        if given_model_types:
+            provided_model_types = provided_model_types.union([model_type for model_type in given_model_types])
         needed_models = self.REQUIRED_MODELS + getattr(model_class, 'valid_used_models', [])
         missing_models = set(needed_models).difference([mt.__name__ for mt in provided_model_types])
         if missing_models:

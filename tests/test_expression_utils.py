@@ -328,7 +328,7 @@ class TestWcLangExpression(unittest.TestCase):
         if test_objects is None:
             test_objects = self.objects_hard
         wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects,
-            model_types=self.model_types)
+            given_model_types=self.model_types)
         wc_tokens, related_objects = wc_lang_expr.tokenize(case_fold_match=case_fold_match)
         self.assertEqual(wc_lang_expr.errors, [])
         self.assertEqual(wc_tokens, expected_wc_tokens)
