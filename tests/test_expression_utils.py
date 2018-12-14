@@ -87,7 +87,9 @@ class TestWcLangExpression(unittest.TestCase):
             Function: {
                 'fun_1': Function(id='fun_1'),
                 'fun_2': Function(id='fun_2'),
-            }
+            },
+            BiomassReaction: {},
+            Reaction: {}
         }
 
         # more complex objects
@@ -107,8 +109,11 @@ class TestWcLangExpression(unittest.TestCase):
             Function: {
                 'Observable': Function(),
                 'fun_2': Function(),
-            }
+            },
+            BiomassReaction: {},
+            Reaction: {}
         }
+        self.model_types = [BiomassReaction, Function, Observable, Parameter, Reaction, Species]
 
     @staticmethod
     def esc_re_center(re_list):
@@ -125,9 +130,7 @@ class TestWcLangExpression(unittest.TestCase):
         n = 5
         wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in wc_lang_expr.tokens])
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {})
-        self.assertEqual(wc_lang_expr.valid_functions, set())
-        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', {Function: {}, Parameter: {}})
+        wc_lang_expr = WcLangExpression(RateLawEquation, 'attr', '', self.objects)
         self.assertEqual(wc_lang_expr.valid_functions, set(FunctionExpression.Meta.valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
@@ -137,13 +140,23 @@ class TestWcLangExpression(unittest.TestCase):
         with self.assertRaisesRegex(
                 WcLangExpressionError,
                 "model_class 'Species' doesn't have a 'Meta.valid_used_models' attribute"):
+            WcLangExpression(Species, 'attr', '', self.objects)
+        with self.assertRaisesRegex(WcLangExpressionError,
+            "model_class 'Species': missing these needed models: "):
             WcLangExpression(Species, 'attr', '', {})
 
     def test_get_wc_lang_model_type(self):
+        wc_lang_expr = WcLangExpression(RateLawEquation, None, '', self.objects)
+        del wc_lang_expr.model_types['Species']
+        with self.assertRaisesRegex(WcLangExpressionError,
+            "wc_lang model type 'Species' not found"):
+            wc_lang_expr.get_wc_lang_model_type('Species')
+
+    def test_get_used_model_type(self):
         wc_lang_expr = WcLangExpression(RateLawEquation, None, 'expr', self.objects)
-        self.assertEqual(None, wc_lang_expr.get_wc_lang_model_type('NoSuchType'))
-        self.assertEqual(Parameter, wc_lang_expr.get_wc_lang_model_type('Parameter'))
-        self.assertEqual(Observable, wc_lang_expr.get_wc_lang_model_type('Observable'))
+        self.assertEqual(None, wc_lang_expr.get_used_model_type('NoSuchType'))
+        self.assertEqual(Parameter, wc_lang_expr.get_used_model_type('Parameter'))
+        self.assertEqual(Observable, wc_lang_expr.get_used_model_type('Observable'))
 
     def do_match_tokens_test(self, expr, pattern, expected, idx=0):
         wc_lang_expr = self.make_wc_lang_expr(expr)
@@ -194,9 +207,9 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', which doesn't refer to a Function in 'objects'")
 
         self.do_disambiguated_id_test('Function.fun_1()', Function, 'fun_1',
-                                      WcLangExpression.fun_type_disambig_patttern)
+                                      WcLangExpression.FUN_TYPE_DISAMBIG_PATTTERN)
         self.do_disambiguated_id_test('Function.FUN_1()', Function, 'fun_1',
-                                      WcLangExpression.fun_type_disambig_patttern, case_fold_match=True)
+                                      WcLangExpression.FUN_TYPE_DISAMBIG_PATTTERN, case_fold_match=True)
 
         self.do_disambiguated_id_error_test(
             'NotFunction.foo()',
@@ -213,9 +226,9 @@ class TestWcLangExpression(unittest.TestCase):
             "contains '{}', but 'fun_1' is not the id of a 'Parameter'")
 
         self.do_disambiguated_id_test('Observable.test_id', Observable, 'test_id',
-                                      WcLangExpression.model_type_disambig_pattern)
+                                      WcLangExpression.MODEL_TYPE_DISAMBIG_PATTERN)
         self.do_disambiguated_id_test('Observable.TEST_ID', Observable, 'test_id',
-                                      WcLangExpression.model_type_disambig_pattern, case_fold_match=True)
+                                      WcLangExpression.MODEL_TYPE_DISAMBIG_PATTERN, case_fold_match=True)
 
         # do not find a match
         wc_lang_expr = self.make_wc_lang_expr('3 * 2')
@@ -233,7 +246,6 @@ class TestWcLangExpression(unittest.TestCase):
             ["contains the identifier(s)", "which aren't the id(s) of an object"])
 
     def test_related_object_id_mult_matches_error(self):
-        del self.objects[Species]
         self.do_related_object_id_error_test(
             'test_id',
             ["multiple model object id matches: 'test_id' as a Observable id, 'test_id' as a Parameter id"])
@@ -262,7 +274,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_related_object_id_test('PARAM_ID', 'PARAM_ID', Parameter, 'param_id', (token.NAME, ),
                                        case_fold_match=True)
 
-        # no token matches
+        # no related_object_id matches
         wc_lang_expr = self.make_wc_lang_expr("3 * 4")
         self.assertEqual(wc_lang_expr.related_object_id(0), None)
 
@@ -289,7 +301,7 @@ class TestWcLangExpression(unittest.TestCase):
         wc_lang_expr = self.make_wc_lang_expr('log(3)')
         lex_match = wc_lang_expr.fun_call_id(0)
         self.assertTrue(isinstance(lex_match, LexMatch))
-        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.function_pattern))
+        self.assertEqual(lex_match.num_py_tokens, len(wc_lang_expr.FUNCTION_PATTERN))
         self.assertEqual(len(lex_match.wc_lang_tokens), 2)
         self.assertEqual(lex_match.wc_lang_tokens[0], WcLangToken(TokCodes.math_fun_id, 'log'))
         self.assertEqual(lex_match.wc_lang_tokens[1], WcLangToken(TokCodes.op, '('))
@@ -299,14 +311,14 @@ class TestWcLangExpression(unittest.TestCase):
         self.assertEqual(wc_lang_expr.fun_call_id(0), None)
 
     def test_bad_tokens(self):
-        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', {}).tokenize()
+        rv, errors = WcLangExpression(RateLawEquation, 'test', '+= *= @= : {}', self.objects).tokenize()
         self.assertEqual(rv, None)
         for bad_tok in ['+=', '*=', '@=', ':', '{', '}']:
             self.assertRegex(errors[0], r'.*contains bad token\(s\):.*' + re.escape(bad_tok) + '.*')
         # test bad tokens that don't have string values
         rv, errors = WcLangExpression(RateLawEquation, 'test', """
  3
- +1""", {}).tokenize()
+ +1""", self.objects).tokenize()
         self.assertEqual(rv, None)
         self.assertRegex(errors[0], re.escape("contains bad token(s)"))
 
@@ -315,17 +327,20 @@ class TestWcLangExpression(unittest.TestCase):
                             test_objects=None, case_fold_match=False):
         if test_objects is None:
             test_objects = self.objects_hard
-        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects)
+        wc_lang_expr = WcLangExpression(model_type, 'attr', expr, test_objects,
+            model_types=self.model_types)
         wc_tokens, related_objects = wc_lang_expr.tokenize(case_fold_match=case_fold_match)
         self.assertEqual(wc_lang_expr.errors, [])
         self.assertEqual(wc_tokens, expected_wc_tokens)
-        for obj_types in test_objects:
-            if obj_types in expected_related_objs.keys():
-                self.assertEqual(related_objects[obj_types], expected_related_objs[obj_types])
-            else:
-                self.assertEqual(related_objects[obj_types], {})
+        for obj_type in test_objects:
+            if obj_type in related_objects:
+                if obj_type in expected_related_objs.keys():
+                    self.assertEqual(related_objects[obj_type], expected_related_objs[obj_type])
+                else:
+                    self.assertEqual(related_objects[obj_type], {})
 
     def extract_from_objects(self, objects, type_id_pairs):
+        # return a dict that contains the (obj_type, id) pairs found in `type_id_pairs`
         d = {}
         for obj_type, id in type_id_pairs:
             if obj_type not in d:
@@ -410,7 +425,9 @@ class TestWcLangExpression(unittest.TestCase):
         # test related_object_id and disambiguated_id'
         test_objects = {
             Parameter: {'Observable': Parameter()},
-            Observable: {'test_id': Observable()}
+            Observable: {'test_id': Observable()},
+            Species: {},
+            Function: {}
         }
         expr = 'Observable.test_id'
         expected_wc_tokens = [
@@ -424,7 +441,9 @@ class TestWcLangExpression(unittest.TestCase):
         # test related_object_id and fun_call_id'
         test_objects = {
             Parameter: {'Function': Parameter()},
-            Function: {'fun_2': Function()}
+            Function: {'fun_2': Function()},
+            Observable: {},
+            Species: {}
         }
         expr = 'Function.fun_2()'
         expected_wc_tokens = [
