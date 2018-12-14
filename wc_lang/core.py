@@ -1580,7 +1580,9 @@ class ExpressionMethods(object):
             used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
-            analyzed_expr = WcLangExpression(model_class, expr_field, value, objects)
+            given_model_types = [BiomassReaction, Function, Observable, Parameter, Reaction, Species]
+            analyzed_expr = WcLangExpression(model_class, expr_field, value, objects,
+                given_model_types=given_model_types)
         except WcLangExpressionError as e:
             return (None, InvalidAttribute(attribute, [str(e)]))
         rv = analyzed_expr.tokenize()
