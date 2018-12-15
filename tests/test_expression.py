@@ -496,12 +496,8 @@ class TestWcLangExpression(unittest.TestCase):
         # syntax error
         model_type = RateLawExpression
         parsed_expr = self.make_parsed_expr('4 *', obj_type=model_type)
-        parsed_expr.tokenize()
-        model = model_type(expression=parsed_expr)
-        with self.assertRaisesRegex(ParsedExpressionError,
-                                    "SyntaxError: cannot eval expression .* in {}".format(
-                model_type.__name__)):
-            parsed_expr.test_eval()
+        with self.assertRaisesRegex(SyntaxError, "unexpected EOF"):
+            parsed_expr.tokenize()
 
         # expression that could not be serialized
         expr = 'foo(6)'

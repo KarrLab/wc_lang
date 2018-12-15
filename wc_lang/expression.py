@@ -970,7 +970,7 @@ class ParsedExpression(object):
                 compiled_tokens.append(wc_token.token_string)
             idx += 1
 
-        compiled_expression = ' '.join(compiled_tokens)
+        compiled_expression = compile(' '.join(compiled_tokens), '<ParsedExpression>', 'eval')
 
         compiled_namespace = {func.__name__: func for func in self.valid_functions}
         if with_units:

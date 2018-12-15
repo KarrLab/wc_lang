@@ -973,7 +973,8 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             expression=expression
         )
-        self.assertNotEqual(rate_law.expression.validate(), None)
+        with self.assertRaises(SyntaxError):
+            rate_law.expression.validate()
 
         # No error
         expression = 'k_cat * spec_0[c_0]'
@@ -2175,9 +2176,10 @@ class TestCore(unittest.TestCase):
     def test_invalid_function_expressions(self):
         _, objects, _ = self.make_objects()
 
-        bad_expr = '1 +'
-        self.do_test_invalid_expression(FunctionExpression, Function, objects, bad_expr,
-                                        "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
+        with self.assertRaises(SyntaxError):
+            bad_expr = '1 +'
+            self.do_test_invalid_expression(FunctionExpression, Function, objects, bad_expr,
+                                            "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
 
     def test_function(self):
         model, objects, _ = self.make_objects()
