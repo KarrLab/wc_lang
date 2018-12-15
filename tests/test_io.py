@@ -20,6 +20,7 @@ from wc_lang import (ReactionRateUnit,
                      DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
+from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
 import os
@@ -61,7 +62,7 @@ class TestSimpleModel(unittest.TestCase):
                 name='species type {}'.format(i),
                 type=SpeciesTypeType.metabolite,
                 structure='C' * (i + 1),
-                empirical_formula='C' + str(i + 1),
+                empirical_formula=EmpiricalFormula('C' + str(i + 1)),
                 molecular_weight=12 * (i + 1),
                 charge=i + 1)
             species_types.append(spec_type)

@@ -55,12 +55,13 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
                        InvalidObject, InvalidAttribute, TabularOrientation)
 import obj_model
+import obj_model.extra_attributes
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                create_sbml_parameter)
 from wc_lang.expression import Expression, ParsedExpression, ParsedExpressionError
+from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
-from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.units import unit_registry
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
@@ -595,13 +596,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             errors = []
 
             for part in value:
-                try:
-                    empirical_formula = EmpiricalFormula(part.species.species_type.empirical_formula)
-                except ValueError as error:
-                    errors.append('Invalid empirical formula for {}: {}'.format(part.species.species_type.id,
-                                                                                part.species.species_type.empirical_formula))
-                else:
-                    delta_formula += empirical_formula * part.coefficient
+                if part.species.species_type.empirical_formula:
+                    delta_formula += part.species.species_type.empirical_formula * part.coefficient
 
                 if part.species.species_type.charge is None:
                     errors.append('Charge must be defined for {}'.format(part.species.species_type.id))
@@ -1871,7 +1867,7 @@ class SpeciesType(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         structure (:obj:`str`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)
-        empirical_formula (:obj:`str`): empirical formula
+        empirical_formula (:obj:`EmpiricalFormula`): empirical formula
         molecular_weight (:obj:`float`): molecular weight
         charge (:obj:`int`): charge
         type (:obj:`SpeciesTypeType`): type
@@ -1890,7 +1886,7 @@ class SpeciesType(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
-    empirical_formula = RegexAttribute(pattern=r'^([A-Z][a-z]?\d*)*$')
+    empirical_formula = obj_model.extra_attributes.EmpiricalFormulaAttribute()
     molecular_weight = PositiveFloatAttribute()
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
@@ -1913,7 +1909,7 @@ class SpeciesType(obj_model.Model):
         Returns:
             :obj:`bool`: `True` is species contains at least one carbon atom.
         """
-        return re.match('C[1-9]', self.empirical_formula) is not None
+        return self.empirical_formula and self.empirical_formula['C'] > 0
 
 
 class Species(obj_model.Model):

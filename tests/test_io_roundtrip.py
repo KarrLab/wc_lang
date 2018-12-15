@@ -19,6 +19,7 @@ from wc_lang.core import (ReactionRateUnit, Model, SpeciesCoefficient, Expressio
                           DistributionInitConcentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
+from wc_utils.util.chem import EmpiricalFormula
 
 
 class RoundTripTestCase(unittest.TestCase):
@@ -33,11 +34,11 @@ class RoundTripTestCase(unittest.TestCase):
         comp = model.compartments.create(id='compartment_1')
         species_type_1 = model.species_types.create(
             id='species_type_1',
-            empirical_formula='CHO',
+            empirical_formula=EmpiricalFormula('CHO'),
             charge=1)
         species_type_2 = model.species_types.create(
             id='species_type_2',
-            empirical_formula='C2H2O2',
+            empirical_formula=EmpiricalFormula('C2H2O2'),
             charge=2)
         species_1 = comp.species.create(species_type=species_type_1,
                                         id='', model=model)
@@ -87,11 +88,11 @@ class RoundTripTestCase(unittest.TestCase):
         comp = model.compartments.create(id='compartment_1')
         species_type_1 = model.species_types.create(
             id='species_type_1',
-            empirical_formula='CHO',
+            empirical_formula=EmpiricalFormula('CHO'),
             charge=1)
         species_type_2 = model.species_types.create(
             id='species_type_2',
-            empirical_formula='C3H3O3',
+            empirical_formula=EmpiricalFormula('C3H3O3'),
             charge=3)
         species_1 = comp.species.create(species_type=species_type_1,
                                         id=Species.gen_id(species_type_1.id, comp.id),
