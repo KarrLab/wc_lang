@@ -29,6 +29,8 @@ replace MakeModels
 '''
 build
 wc_lang:
+    optimization: remove WcLangExpression.objects after tokenizing, as no longer needed
+    document WcLangExpression syntax
     test WcLangExpression without accessing wc_lang.core
     right template for wc_sim_test
     use WcLangExpression to deserialize and validate all wc_lang expressions:
@@ -479,6 +481,53 @@ class WcLangExpression(object):
 
         self.errors = []
         self.wc_tokens = []
+
+    def _get_trailing_whitespace(self, idx):
+        """ Get the number of trailing spaces following a Python token
+
+        Args:
+            idx (:obj:`int`): index of the token in `self.tokens`
+        """
+        if len(self.tokens)-1 <= idx:
+            return 0
+        # get distance between the next token's scol and ecol of the token at idx
+        # assumes that an expression uses only one line
+        return self.tokens[idx+1].start[1] - self.tokens[idx].end[1]
+
+    def recreate_whitespace(self, expr):
+        """ Insert the whitespace in this object's `expression` into an expression with the same token count
+
+        Used to migrate an expression to a different set of model type names.
+
+        Args:
+            expr (:obj:`str`): a syntactically correct Python expression
+
+        Returns:
+            :obj:`str`: `expr` with the whitespace in this instance's `expression` inserted between
+                its Python tokens
+
+        Raises:
+            :obj:`WcLangExpressionError`: if tokenizing `expr` raises an exception,
+                or if `expr` doesn't have the same number of Python tokens as `self.expression`
+        """
+        try:
+            g = tokenize.tokenize(BytesIO(expr.encode('utf-8')).readline)
+            # strip the leading ENCODING and trailing ENDMARKER tokens
+            tokens = list(g)[1:-1]
+        except tokenize.TokenError as e:
+            raise WcLangExpressionError("parsing '{}' creates a Python syntax error: '{}'".format(
+                expr, str(e)))
+        if len(tokens) != len(self.tokens):
+            raise WcLangExpressionError("can't recreate whitespace in '{}', as it has {} instead "
+                "of {} tokens expected".format(expr, len(tokens), len(self.tokens)))
+
+        expanded_expr = []
+        for i in range(len(tokens)):
+            token = tokens[i]
+            expanded_expr.append(token.string)
+            ws = ' '*self._get_trailing_whitespace(i)
+            expanded_expr.append(ws)
+        return ''.join(expanded_expr)
 
     def get_wc_lang_model_type(self, model_type_name):
         """ Get the `wc_lang` model type corresponding to `model_type_name`
