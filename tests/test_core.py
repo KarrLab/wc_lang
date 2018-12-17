@@ -561,6 +561,17 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_components(__type=Reference, id='ref_1'), [self.references[1]])
         self.assertEqual(model.get_components(__type=Reaction, id='rxn_3'), [])
 
+    def test_validate_acyclic_compartments(self):
+        model = Model(id='model', version='0.0.1')
+        e = model.compartments.create(id='e')
+        c = model.compartments.create(id='c', parent_compartment=e)
+        m = model.compartments.create(id='m', parent_compartment=c)
+
+        self.assertEqual(model.validate(), None)
+
+        e.parent_compartment = m
+        self.assertNotEqual(model.validate(), None)
+
     def test_get_root_cellular_compartments(self):
         model = Model()
         extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular)

@@ -908,6 +908,7 @@ class Model(obj_model.Model):
     def validate(self):
         """ Determine if the model is valid
 
+        * Network of compartments is rooted and acyclic
         * Networks of observables and functions are acyclic
 
         Returns:
@@ -920,6 +921,16 @@ class Model(obj_model.Model):
         else:
             errors = []
 
+        # Network of compartments is rooted and acyclic
+        digraph = networkx.DiGraph()
+        for comp in self.compartments:
+            for sub_comp in comp.sub_compartments:
+                digraph.add_edge(comp.id, sub_comp.id)
+        if list(networkx.simple_cycles(digraph)):
+            errors.append(InvalidAttribute(self.Meta.related_attributes['compartments'],
+                                           ['Compartment parent/child relations cannot be cyclic']))
+
+        # Networks of observables and functions are acyclic
         cyclic_deps = self._get_cyclic_deps()
         for model_type, metadata in cyclic_deps.items():
             errors.append(InvalidAttribute(metadata['attribute'], [
