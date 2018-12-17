@@ -9,11 +9,15 @@
 
 from wc_lang import Model, SubmodelAlgorithm
 from wc_lang.transform import CreateImplicitDfbaExchangeReactionsTransform
+from wc_utils.util.chem import EmpiricalFormula
 import unittest
+import wc_lang.config.core
 
 
 class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
     def test(self):
+        config = wc_lang.config.core.get_config()['wc_lang']['dfba']
+
         model = Model()
         submodel = model.submodels.create(id='submdl', name='submodel', algorithm=SubmodelAlgorithm.dfba)
 
@@ -23,9 +27,9 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
             model.compartments.create(id='e', name='extracellular space'),
         ]
         sts = [
-            model.species_types.create(id='st_1', name='species type 1'),
-            model.species_types.create(id='st_2', name='species type 2'),
-            model.species_types.create(id='st_3', name='species type 3'),
+            model.species_types.create(id='st_1', name='species type 1', empirical_formula=EmpiricalFormula('C')),
+            model.species_types.create(id='st_2', name='species type 2', empirical_formula=EmpiricalFormula('H')),
+            model.species_types.create(id='st_3', name='species type 3', empirical_formula=EmpiricalFormula('O')),
         ]
         specs = []
         for st in sts:
@@ -63,3 +67,9 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(rxn.participants[0].species, specs[0][2])
         self.assertEqual(rxn.participants[0].coefficient, 1.)
         self.assertEqual(rxn.reversible, True)
+        self.assertEqual(rxn.flux_min, -config['ex_flux_bound_carbon'])
+        self.assertEqual(rxn.flux_max, config['ex_flux_bound_carbon'])
+
+        rxn = model.reactions.get_one(id='__dfba_ex_submdl_st_2_e')
+        self.assertEqual(rxn.flux_min, -config['ex_flux_bound_no_carbon'])
+        self.assertEqual(rxn.flux_max, config['ex_flux_bound_no_carbon'])
