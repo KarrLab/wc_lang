@@ -888,7 +888,7 @@ class ParsedExpression(object):
             for obj in self.related_objects.get(wc_lang.core.DfbaNetReaction, {}).values():
                 namespace['dfba_net_reaction_fluxes'][obj.id] = dfba_net_reaction_fluxes[obj.id] * \
                     unit_registry.parse_expression(
-                        wc_lang.core.DfbaNetFluxUnit['s^-1'].name)
+                        wc_lang.core.ReactionRateUnit['s^-1'].name)
 
         namespace['observable_counts'] = {}
         for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():

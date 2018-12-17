@@ -355,10 +355,6 @@ DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
     ('mol gDCW^-1 s^-1', 2),
 ])
 
-DfbaNetFluxUnit = Enum('DfbaNetFluxUnit', type=int, names=[
-    ('s^-1', 1),
-])
-
 
 class ParameterType(int, Enum):
     """ SBO parameter types """
@@ -1682,6 +1678,7 @@ class DfbaObjective(obj_model.Model):
         submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
         expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
         units (:obj:`DfbaObjectiveUnit`): units
+        reaction_rate_units (:obj:`ReactionRateUnit`): reaction rate units
         coefficient_units (:obj:`DfbaObjectiveCoefficientUnit`): coefficient units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -1695,6 +1692,7 @@ class DfbaObjective(obj_model.Model):
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['dimensionless'])
+    reaction_rate_units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     coefficient_units = EnumAttribute(DfbaObjectiveCoefficientUnit, default=DfbaObjectiveCoefficientUnit['s'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
@@ -1703,7 +1701,7 @@ class DfbaObjective(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'coefficient_units',
+        attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'reaction_rate_units', 'coefficient_units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = DfbaObjectiveExpression
 
@@ -1737,7 +1735,6 @@ class DfbaObjective(obj_model.Model):
         if self.submodel and self.id != self.gen_id(self.submodel.id):
             errors.append(InvalidAttribute(self.Meta.attributes['id'],
                                            ['Id must be {}'.format(self.gen_id(self.submodel.id))]))
-
         if errors:
             return InvalidObject(self, errors)
         return None
@@ -3223,7 +3220,7 @@ class DfbaNetReaction(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         submodel (:obj:`Submodel`): submodel that uses this reaction
-        units (:obj:`DfbaNetFluxUnit`): flux units
+        units (:obj:`ReactionRateUnit`): rate units
         cell_size_units (:obj:`DfbaCellSizeUnit`): cell size units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -3238,7 +3235,7 @@ class DfbaNetReaction(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
     submodel = ManyToOneAttribute(Submodel, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
-    units = EnumAttribute(DfbaNetFluxUnit, default=DfbaNetFluxUnit['s^-1'])
+    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     cell_size_units = EnumAttribute(DfbaCellSizeUnit, default=DfbaCellSizeUnit.l)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
                                                    verbose_related_name='dFBA net reactions')

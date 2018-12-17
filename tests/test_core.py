@@ -19,7 +19,7 @@ from obj_model.core import InvalidAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           MoleculeCountUnit,
-                          ReactionRateUnit, ReactionFluxBoundUnit, DfbaNetFluxUnit,
+                          ReactionRateUnit, ReactionFluxBoundUnit,
                           DfbaObjectiveUnit, DfbaCellSizeUnit,
                           DfbaObjectiveCoefficientUnit,
                           DfbaNetComponentUnit, StopConditionUnit,
@@ -3127,12 +3127,18 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(len(DfbaObjectiveUnit), 1)
         self.assertIn('dimensionless', DfbaObjectiveUnit.__members__)
 
+        self.assertEqual(DfbaObjective.reaction_rate_units.enum_class, ReactionRateUnit)
+        self.assertEqual(DfbaObjective.coefficient_units.enum_class, DfbaObjectiveCoefficientUnit)
+        self.assertEqual(len(ReactionRateUnit), 1)
+        self.assertEqual(len(DfbaObjectiveCoefficientUnit), 1)
+        self.assertIn('s^-1', ReactionRateUnit.__members__)
+        self.assertIn('s', DfbaObjectiveCoefficientUnit.__members__)
+
         obj_units = unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name)
+        rate_units = unit_registry.parse_expression(ReactionRateUnit['s^-1'].name)
+        coeff_units = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s'].name)
 
-        net_units = unit_registry.parse_expression(DfbaNetFluxUnit['s^-1'].name)
-        net_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s'].name)
-
-        self.assertEqual(net_coeff * net_units, obj_units)
+        self.assertEqual(rate_units * coeff_units, obj_units)
 
         submodel = Submodel(id='submdl')
         rxn_1 = Reaction(id='rxn_1', submodel=submodel)
@@ -3182,9 +3188,9 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(coeff_unit * cell_size_unit * time_unit, mol_unit)
 
     def test_dfba_net_reaction_flux_value(self):
-        self.assertEqual(DfbaNetReaction.units.enum_class, DfbaNetFluxUnit)
-        self.assertEqual(len(DfbaNetFluxUnit), 1)
-        self.assertIn('s^-1', DfbaNetFluxUnit.__members__)
+        self.assertEqual(DfbaNetReaction.units.enum_class, ReactionRateUnit)
+        self.assertEqual(len(ReactionRateUnit), 1)
+        self.assertIn('s^-1', ReactionRateUnit.__members__)
 
     def test_stop_condition_value(self):
         self.assertEqual(StopCondition.units.enum_class, StopConditionUnit)
