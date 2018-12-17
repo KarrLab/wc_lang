@@ -26,6 +26,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, Compartment,
+                          CompartmentPhysicalType, CompartmentBiologicalType, CompartmentGeometry,
                           SpeciesType, SpeciesTypeType, Species,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
@@ -548,7 +549,7 @@ class TestCore(unittest.TestCase):
         ]))
         self.assertEqual(set(self.dfba_obj.get_products(__type=Reaction)), set())
 
-    def test_get_components(self):
+    def test_get_components_2(self):
         model = self.model
 
         self.assertEqual(model.get_components(id='comp_0'), [self.comp_0])
@@ -559,6 +560,93 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_components(__type=Parameter, id='param_2'), [self.parameters[2]])
         self.assertEqual(model.get_components(__type=Reference, id='ref_1'), [self.references[1]])
         self.assertEqual(model.get_components(__type=Reaction, id='rxn_3'), [])
+
+    def test_get_root_cellular_compartments(self):
+        model = Model()
+        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular)
+        cytosol = model.compartments.create(
+            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+        nucleus_dna = model.compartments.create(
+            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus)
+        mitochondria = model.compartments.create(
+            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+        mitochondria_dna = model.compartments.create(
+            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria)
+
+        self.assertEqual(set(model.get_root_compartments()), set([extracellular, cytosol]))
+        self.assertEqual(model.get_root_compartments(biological_type=CompartmentBiologicalType.cellular), [cytosol])
+        self.assertEqual(model.get_root_compartments(biological_type=CompartmentBiologicalType.extracellular), [extracellular])
+
+    def test_get_sub_compartments(self):
+        model = Model()
+        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular)
+        cytosol = model.compartments.create(
+            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+        nucleus_dna = model.compartments.create(
+            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus)
+        mitochondria = model.compartments.create(
+            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+        mitochondria_dna = model.compartments.create(
+            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria)
+
+        self.assertEqual(extracellular.get_sub_compartments(), [
+            cytosol,
+        ])
+        self.assertEqual(len(extracellular.get_sub_compartments(nested=True)), 5)
+        self.assertEqual(set(extracellular.get_sub_compartments(nested=True)), set([
+            cytosol,
+            nucleus,
+            nucleus_dna,
+            mitochondria,
+            mitochondria_dna,
+        ]))
+
+        self.assertEqual(set(cytosol.get_sub_compartments()), set([
+            nucleus,
+            mitochondria,
+        ]))
+        self.assertEqual(len(cytosol.get_sub_compartments(nested=True)), 4)
+        self.assertEqual(set(cytosol.get_sub_compartments(nested=True)), set([
+            nucleus,
+            nucleus_dna,
+            mitochondria,
+            mitochondria_dna,
+        ]))
+
+        self.assertEqual(nucleus.get_sub_compartments(), [
+            nucleus_dna,
+        ])
+        self.assertEqual(len(nucleus.get_sub_compartments(nested=True)), 1)
+        self.assertEqual(nucleus.get_sub_compartments(nested=True), [
+            nucleus_dna,
+        ])
+
+    def test_get_tot_mean_init_volume(self):
+        model = Model()
+        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular,
+                                                  mean_init_volume=1.)
+        cytosol = model.compartments.create(
+            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular,
+            mean_init_volume=2.)
+        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol,
+                                            mean_init_volume=3.)
+        nucleus_dna = model.compartments.create(
+            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus,
+            mean_init_volume=4.)
+        mitochondria = model.compartments.create(
+            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol,
+            mean_init_volume=5.)
+        mitochondria_dna = model.compartments.create(
+            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria,
+            mean_init_volume=6.)
+        self.assertEqual(extracellular.get_tot_mean_init_volume(), 21.)
+        self.assertEqual(cytosol.get_tot_mean_init_volume(), 20.)
+        self.assertEqual(nucleus.get_tot_mean_init_volume(), 7.)
+        self.assertEqual(nucleus_dna.get_tot_mean_init_volume(), 4.)
+        self.assertEqual(mitochondria.get_tot_mean_init_volume(), 11.)
+        self.assertEqual(mitochondria_dna.get_tot_mean_init_volume(), 6.)
 
     def test_species_type_has_carbon(self):
         'C' in self.species_types[0].empirical_formula

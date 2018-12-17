@@ -140,12 +140,26 @@ class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
     variety = 10
 
 
-class CompartmentType(int, CaseInsensitiveEnum):
-    """ Compartment types """
-    abstract = 1
-    # physical_1d = 2
-    # physical_2d = 2
-    physical_3d = 3
+class CompartmentBiologicalType(int, CaseInsensitiveEnum):
+    """ Compartment biological type """
+    cellular = 1
+    extracellular = 2
+    other = 3
+
+
+class CompartmentPhysicalType(int, CaseInsensitiveEnum):
+    """ Compartment physical type """
+    fluid = 1
+    membrane = 2
+    other = 3
+
+
+CompartmentGeometry = CaseInsensitiveEnum('CompartmentGeometry', type=int, names=[
+    ('none', 0),
+    # ('1d', 1),
+    # ('2d', 2),
+    ('3d', 3),
+])
 
 
 VolumeUnit = Enum('VolumeUnit', type=int, names=[
@@ -989,6 +1003,20 @@ class Model(obj_model.Model):
 
         return self.compartments.get(__type=__type, **kwargs)
 
+    def get_root_compartments(self, __type=None, **kwargs):
+        """ Get the root compartments (compartments that either have no parent compartment or whose
+        parent compartment is not cellular)
+
+        Returns:
+            :obj:`list` of :obj:`Compartment`: root compartments
+        """
+        roots = []
+        for comp in self.get_compartments(__type=__type, **kwargs):
+            if comp.parent_compartment is None \
+                    or comp.parent_compartment.biological_type != CompartmentBiologicalType.cellular:
+                roots.append(comp)
+        return roots
+
     def get_species_types(self, __type=None, **kwargs):
         """ Get all species types
 
@@ -1792,7 +1820,10 @@ class Compartment(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        type (:obj:`CompartmentType`): type
+        biological_type (:obj:`CompartmentBiologicalType`): biological type
+        physical_type (:obj:`CompartmentPhysicalType`): physical type
+        geometry (:obj:`CompartmentGeometry`): geometry
+        parent_compartment (:obj:`Compartment`): parent compartment
         volume (:obj:`str`): expression to calculate the volume at each simulated timepoint
         mean_init_volume (:obj:`float`): mean initial volume
         std_init_volume (:obj:`float`): standard  deviation of the mean initial volume
@@ -1806,6 +1837,7 @@ class Compartment(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
+        sub_compartments (:obj:`list` of :obj:`Compartment`): compartments contained in this compartment
         species (:obj:`list` of :obj:`Species`): species in this compartment
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
@@ -1814,7 +1846,10 @@ class Compartment(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
-    type = EnumAttribute(CompartmentType, default=CompartmentType.physical_3d)
+    biological_type = EnumAttribute(CompartmentBiologicalType, default=CompartmentBiologicalType.cellular)
+    physical_type = EnumAttribute(CompartmentPhysicalType, default=CompartmentPhysicalType.fluid)
+    geometry = EnumAttribute(CompartmentGeometry, default=CompartmentGeometry['3d'])
+    parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
     volume = RegexAttribute(pattern=re.escape('mass * density'), default='mass * density')
     distribution_init_volume = EnumAttribute(RandomDistribution, default=RandomDistribution.normal,
                                              verbose_name='Initial volume, distribution')
@@ -1830,10 +1865,43 @@ class Compartment(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'type',
+        attribute_order = ('id', 'name',
+                           'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'volume', 'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'volume_units',
                            'density', 'density_units',
                            'db_refs', 'evidence', 'comments', 'references')
+
+    def get_sub_compartments(self, nested=False):
+        """ Get sub-compartments, optionally including all nested sub-compartments
+
+        Returns:
+            :obj:`list` of :obj:`Compartment`: list of sub-compartments
+        """
+        if nested and self.sub_compartments:
+            nested_compartments = list(self.sub_compartments)
+            to_expand = list(self.sub_compartments)
+            while to_expand:
+                comp = to_expand.pop()
+                for sub_comp in comp.sub_compartments:
+                    if sub_comp not in nested_compartments:
+                        nested_compartments.append(sub_comp)
+                        to_expand.append(sub_comp)
+            return nested_compartments
+        else:
+            return self.sub_compartments
+
+    def get_tot_mean_init_volume(self):
+        """ Get total mean initial volume of compartment and nested
+        sub-compartments
+
+        Returns:
+            :obj:`float`: total mean initial volume of compartment and nested
+                sub-compartments
+        """
+        tot = self.mean_init_volume
+        for comp in self.get_sub_compartments(nested=True):
+            tot += comp.mean_init_volume
+        return tot
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Compartment to a libsbml SBML document.
@@ -2701,7 +2769,7 @@ class Reaction(obj_model.Model):
         """ Get species in the expression that are not reactants in the reaction
 
         Returns:
-            :obj:`list` of :obj:`Species`: species in the expression that are not reactants in the reaction            
+            :obj:`list` of :obj:`Species`: species in the expression that are not reactants in the reaction
         """
         return list(set(self.rate_laws.get_one(direction=direction).expression.species) - set(self.get_reactants()))
 
