@@ -880,7 +880,7 @@ class ParsedExpression(object):
             for obj in self.related_objects.get(wc_lang.core.Reaction, {}).values():
                 namespace['reaction_fluxes'][obj.id] = reaction_fluxes[obj.id] * \
                     unit_registry.parse_expression(
-                        wc_lang.core.ReactionFluxUnit['M s^-1'].name)
+                        wc_lang.core.ReactionFluxBoundUnit['M s^-1'].name)
 
         namespace['dfba_net_reaction_fluxes'] = dfba_net_reaction_fluxes
         if with_units:

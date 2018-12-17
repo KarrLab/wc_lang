@@ -19,7 +19,7 @@ from obj_model.core import InvalidAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           MoleculeCountUnit,
-                          ReactionRateUnit, ReactionFluxUnit, DfbaNetFluxUnit,
+                          ReactionRateUnit, ReactionFluxBoundUnit, DfbaNetFluxUnit,
                           DfbaObjectiveUnit, DfbaCellSizeUnit,
                           DfbaObjectiveCoefficientUnit,
                           DfbaNetComponentUnit, StopConditionUnit,
@@ -888,7 +888,7 @@ class TestCore(unittest.TestCase):
         spec_c = Species(species_type=st, compartment=c)
         spec_d = Species(species_type=st, compartment=d)
         rxn = Reaction(id='rxn', reversible=True, flux_min=-1., flux_max=1.,
-                       flux_units=ReactionFluxUnit['M s^-1'],
+                       flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
                        participants=[
                            SpeciesCoefficient(species=spec_c, coefficient=-1.),
                            SpeciesCoefficient(species=spec_d, coefficient=1.),
@@ -900,7 +900,7 @@ class TestCore(unittest.TestCase):
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
-        rxn.flux_units = None
+        rxn.flux_bound_units = None
         rv = rxn.validate()
         self.assertNotEqual(rv, None, str(rv))
 
@@ -1938,7 +1938,7 @@ class TestCore(unittest.TestCase):
         # Write reactions used by the submodel to an SBML document
         self.rxn_2.flux_min = 100
         self.rxn_2.flux_max = 200
-        self.rxn_2.flux_units = ReactionFluxUnit['M s^-1']
+        self.rxn_2.flux_bound_units = ReactionFluxBoundUnit['M s^-1']
         self.rxn_2.comments = 'comments'
         sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
@@ -2592,7 +2592,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=-1., flux_max=1.,
-                       flux_units=ReactionFluxUnit['M s^-1'],
+                       flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2600,7 +2600,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=0., flux_max=1.,
-                       flux_units=ReactionFluxUnit['M s^-1'],
+                       flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
                        participants=participants)
         rv = rxn.validate()
@@ -2608,7 +2608,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=1., flux_max=-1.,
-                       flux_units=ReactionFluxUnit['M s^-1'],
+                       flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -2625,7 +2625,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=-1., flux_max=-1.5,
-                       flux_units=ReactionFluxUnit['M s^-1'],
+                       flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
                        submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
                        participants=participants,
                        rate_laws=[
@@ -3118,9 +3118,9 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(rv, None, str(rv))
 
     def test_reaction_flux(self):
-        self.assertEqual(Reaction.flux_units.enum_class, ReactionFluxUnit)
-        self.assertEqual(len(ReactionFluxUnit), 1)
-        self.assertIn('M s^-1', ReactionFluxUnit.__members__)
+        self.assertEqual(Reaction.flux_bound_units.enum_class, ReactionFluxBoundUnit)
+        self.assertEqual(len(ReactionFluxBoundUnit), 1)
+        self.assertIn('M s^-1', ReactionFluxBoundUnit.__members__)
 
     def test_dfba_obj_value(self):
         self.assertEqual(DfbaObjective.units.enum_class, DfbaObjectiveUnit)
@@ -3129,13 +3129,9 @@ class UnitsTestCase(unittest.TestCase):
 
         obj_units = unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name)
 
-        rxn_units = unit_registry.parse_expression(ReactionFluxUnit['M s^-1'].name)
-        rxn_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s M^-1'].name)
-
         net_units = unit_registry.parse_expression(DfbaNetFluxUnit['s^-1'].name)
         net_coeff = unit_registry.parse_expression(DfbaObjectiveCoefficientUnit['s'].name)
 
-        self.assertEqual(rxn_coeff * rxn_units, obj_units)
         self.assertEqual(net_coeff * net_units, obj_units)
 
         submodel = Submodel(id='submdl')

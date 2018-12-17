@@ -329,10 +329,9 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
 
 ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
     ('s^-1', 1),
-    ('M s^-1', 2),
 ])
 
-ReactionFluxUnit = Enum('ReactionFluxUnit', type=int, names=[
+ReactionFluxBoundUnit = Enum('ReactionFluxBoundUnit', type=int, names=[
     ('M s^-1', 1),
 ])
 
@@ -349,7 +348,6 @@ class DfbaCellSizeUnit(int, Enum):
 
 DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
     ('s', 1),
-    ('s M^-1', 2),
 ])
 
 DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
@@ -1684,6 +1682,7 @@ class DfbaObjective(obj_model.Model):
         submodel (:obj:`Submodel`): the `Submodel` which uses this `DfbaObjective`
         expression (:obj:`DfbaObjectiveExpression`): mathematical expression of the objective function
         units (:obj:`DfbaObjectiveUnit`): units
+        coefficient_units (:obj:`DfbaObjectiveCoefficientUnit`): coefficient units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1696,6 +1695,7 @@ class DfbaObjective(obj_model.Model):
     expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
                                      min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['dimensionless'])
+    coefficient_units = EnumAttribute(DfbaObjectiveCoefficientUnit, default=DfbaObjectiveCoefficientUnit['s'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = LongStringAttribute()
@@ -1703,7 +1703,7 @@ class DfbaObjective(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', 'expression', 'units',
+        attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'coefficient_units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = DfbaObjectiveExpression
 
@@ -2627,7 +2627,7 @@ class Reaction(obj_model.Model):
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
         flux_min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         flux_max (:obj:`float`): maximum flux bound for solving an FBA model
-        flux_units (:obj:`ReactionFluxUnit`): units for the minimum and maximum fluxes
+        flux_bound_units (:obj:`ReactionFluxBoundUnit`): units for the minimum and maximum fluxes
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -2646,7 +2646,7 @@ class Reaction(obj_model.Model):
     reversible = BooleanAttribute()
     flux_min = FloatAttribute(nan=True)
     flux_max = FloatAttribute(min=0, nan=True)
-    flux_units = EnumAttribute(ReactionFluxUnit, default=None, none=True)
+    flux_bound_units = EnumAttribute(ReactionFluxBoundUnit, default=None, none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     comments = LongStringAttribute()
@@ -2655,7 +2655,7 @@ class Reaction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
-                           'flux_min', 'flux_max', 'flux_units',
+                           'flux_min', 'flux_max', 'flux_bound_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
 
@@ -2698,8 +2698,8 @@ class Reaction(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.related_attributes['rate_laws'], rl_errors))
 
         # check min, max fluxes
-        if (not isnan(self.flux_min) or not isnan(self.flux_max)) and self.flux_units is None:
-            errors.append(InvalidAttribute(self.Meta.attributes['flux_units'],
+        if (not isnan(self.flux_min) or not isnan(self.flux_max)) and self.flux_bound_units is None:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_bound_units'],
                                            ['Units must be defined for the flux bounds']))
 
         if self.submodel and self.submodel.algorithm is not SubmodelAlgorithm.dfba:

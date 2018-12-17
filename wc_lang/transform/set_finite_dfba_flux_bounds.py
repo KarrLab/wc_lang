@@ -9,7 +9,7 @@
 
 from .core import Transform
 from math import isnan
-from wc_lang.core import SubmodelAlgorithm, ReactionFluxUnit
+from wc_lang.core import SubmodelAlgorithm, ReactionFluxBoundUnit
 import wc_lang.config.core
 
 
@@ -71,5 +71,5 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
                     else:
                         rxn.flux_max = min(rxn.flux_max, flux_max)
 
-                    rxn.flux_units = ReactionFluxUnit['M s^-1']
+                    rxn.flux_bound_units = ReactionFluxBoundUnit['M s^-1']
         return model

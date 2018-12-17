@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
-                     Reaction, RateLawDirection, RateLaw, RateLawExpression, ReactionFluxUnit, Species)
+                     Reaction, RateLawDirection, RateLaw, RateLawExpression, ReactionFluxBoundUnit, Species)
 from wc_lang.transform import ChangeValueTransform
 import unittest
 
@@ -69,10 +69,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_units=ReactionFluxUnit['M s^-1'])
-        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_units=ReactionFluxUnit['M s^-1'])
-        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_units=ReactionFluxUnit['M s^-1'])
-        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_units=ReactionFluxUnit['M s^-1'])
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
         ChangeValueTransform((('reactions', {'id': 'r_1_2'}), 'flux_min'), 0).run(model)
 
         self.assertEqual(r_1_1.flux_min, 1)

@@ -8,7 +8,7 @@
 """
 
 from .core import Transform
-from wc_lang.core import SubmodelAlgorithm, ReactionFluxUnit
+from wc_lang.core import SubmodelAlgorithm, ReactionFluxBoundUnit
 import wc_lang.config.core
 
 
@@ -69,6 +69,6 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                         else:
                             rxn.flux_min = -ex_flux_bound_no_carbon
                             rxn.flux_max = ex_flux_bound_no_carbon
-                        rxn.flux_units = ReactionFluxUnit['M s^-1']
+                        rxn.flux_bound_units = ReactionFluxBoundUnit['M s^-1']
 
         return model
