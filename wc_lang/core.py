@@ -162,6 +162,11 @@ CompartmentGeometry = CaseInsensitiveEnum('CompartmentGeometry', type=int, names
 ])
 
 
+class MassUnit(int, Enum):
+    """ Mass units """
+    g = 1
+
+
 VolumeUnit = Enum('VolumeUnit', type=int, names=[
     ('l', 1),
     # ('dm^2', 2),
@@ -169,7 +174,7 @@ VolumeUnit = Enum('VolumeUnit', type=int, names=[
 
 
 DensityUnit = Enum('DensityUnit', type=int, names=[
-    ('g ml^-1', 1),
+    ('g l^-1', 1),
     # ('g dm^-2', 2),
 ])
 
@@ -1832,13 +1837,12 @@ class Compartment(obj_model.Model):
         physical_type (:obj:`CompartmentPhysicalType`): physical type
         geometry (:obj:`CompartmentGeometry`): geometry
         parent_compartment (:obj:`Compartment`): parent compartment
-        volume (:obj:`str`): expression to calculate the volume at each simulated timepoint
+        mass_units (:obj:`MassUnit`): mass units
         mean_init_volume (:obj:`float`): mean initial volume
         std_init_volume (:obj:`float`): standard  deviation of the mean initial volume
-        volume_units (:obj:`VolumeUnit`): units of volume
-        density (:obj:`str`): expression to calculate the density during the initialization of
+        init_volume_units (:obj:`VolumeUnit`): units of volume
+        init_density (:obj:`Parameter`): function that calculates the density during the initialization of
             each simulation
-        density_units (:obj:`DensityUnit`): units of density
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -1858,15 +1862,13 @@ class Compartment(obj_model.Model):
     physical_type = EnumAttribute(CompartmentPhysicalType, default=CompartmentPhysicalType.fluid)
     geometry = EnumAttribute(CompartmentGeometry, default=CompartmentGeometry['3d'])
     parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
-    volume = RegexAttribute(pattern=re.escape('mass * density'), default='mass * density')
     distribution_init_volume = EnumAttribute(RandomDistribution, default=RandomDistribution.normal,
-                                             verbose_name='Initial volume, distribution')
-    mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, mean')
-    std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume, standard deviation')
-    volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l)
-    density = RegexAttribute(pattern=re.escape('init_mass / init_volume'),
-                             default='init_mass / init_volume')
-    density_units = EnumAttribute(DensityUnit, default=DensityUnit['g ml^-1'])
+                                             verbose_name='Initial volume distribution')
+    mass_units = EnumAttribute(MassUnit, default=MassUnit.g)
+    mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
+    std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume standard deviation')
+    init_volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l, verbose_name='Initial volume units')
+    init_density = OneToOneAttribute('Parameter', related_name='density_compartments', verbose_name='Initial density')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     comments = LongStringAttribute()
@@ -1875,9 +1877,38 @@ class Compartment(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
-                           'volume', 'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'volume_units',
-                           'density', 'density_units',
+                           'mass_units',
+                           'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units',
+                           'init_density',
                            'db_refs', 'evidence', 'comments', 'references')
+
+    def validate(self):
+        """ Check that the compartment is valid
+
+        * Check that the units of density are `g l^-1`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(Compartment, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.geometry == CompartmentGeometry['3d']:
+            if not self.init_density:
+                errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
+                                               ['Initial density must be defined for 3D compartments']))
+            elif unit_registry.parse_expression(self.init_density.units).to_base_units().units != \
+                    unit_registry.parse_expression(DensityUnit['g l^-1'].name).to_base_units().units:
+                errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
+                                               ['Initial density of 3D compartment must have units `{}`'.format(DensityUnit['g l^-1'].name)]))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
     def get_sub_compartments(self, nested=False):
         """ Get sub-compartments, optionally including all nested sub-compartments
@@ -2343,6 +2374,7 @@ class FunctionExpression(obj_model.Model, Expression):
 
     Related attributes:
         function (:obj:`Function`): function
+        density_compartments (:obj:`Compartment`): compartments whose density is represented by the function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')

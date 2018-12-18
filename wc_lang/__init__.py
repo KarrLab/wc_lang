@@ -7,7 +7,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # API
 from .core import (TimeUnit, TaxonRank,
                    CompartmentBiologicalType, CompartmentPhysicalType, CompartmentGeometry,
-                   VolumeUnit, DensityUnit,
+                   MassUnit, VolumeUnit, DensityUnit,
                    SubmodelAlgorithm, SpeciesTypeType, MoleculeCountUnit,
                    RandomDistribution, ConcentrationUnit,
                    ReactionParticipantUnit, RateLawDirection, RateLawType, ReactionRateUnit, ReactionFluxBoundUnit,

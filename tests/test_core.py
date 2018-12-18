@@ -477,6 +477,19 @@ class TestCore(unittest.TestCase):
         self.assertIn(self.submdl_1.reactions[0], self.submdl_1.get_components())
         self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_components())
 
+    def test_compartment_validate(self):
+        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'], init_density=Parameter(units='g l^-1'))
+        self.assertEqual(comp.validate(), None)
+
+        comp = Compartment(id='', geometry=CompartmentGeometry['3d'], init_density=Parameter(units='g l^-1'))
+        self.assertNotEqual(comp.validate(), None)
+
+        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'])
+        self.assertNotEqual(comp.validate(), None)
+
+        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'], init_density=Parameter(units=''))
+        self.assertNotEqual(comp.validate(), None)
+
     def test_reaction_get_species(self):
         species = self.species
         self.assertEqual(set(self.rxn_0.get_species()), set([
@@ -2851,15 +2864,14 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(len(TimeUnit), 1)
         self.assertIn('s', TimeUnit.__members__)
 
-    def test_compartment_volume(self):
-        self.assertEqual(Compartment.volume_units.enum_class, VolumeUnit)
+    def test_compartment_init_volume(self):
+        self.assertEqual(Compartment.init_volume_units.enum_class, VolumeUnit)
         self.assertEqual(len(VolumeUnit), 1)
         self.assertIn('l', VolumeUnit.__members__)
 
-    def test_compartment_density(self):
-        self.assertEqual(Compartment.density_units.enum_class, DensityUnit)
+    def test_compartment_init_density(self):
         self.assertEqual(len(DensityUnit), 1)
-        self.assertIn('g ml^-1', DensityUnit.__members__)
+        self.assertIn('g l^-1', DensityUnit.__members__)
 
     def test_species_count(self):
         self.assertEqual(Species.units.enum_class, MoleculeCountUnit)
@@ -2934,28 +2946,28 @@ class UnitsTestCase(unittest.TestCase):
         function = Function(
             id='func',
             expression=FunctionExpression.deserialize('2 * st_1[c_1] / c_1', objs)[0],
-            units='molecule l^-1')
+            units='molecule g^-1')
         self.assertEqual(function.expression.species, [objs[Species]['st_1[c_1]']])
         self.assertEqual(function.expression.compartments, [objs[Compartment]['c_1']])
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2., compartment_volumes=3.), 4./3.)
+            species_counts=2., compartment_masses=3.), 4./3.)
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=3., compartment_volumes=3.), 6./3.)
+            species_counts=3., compartment_masses=3.), 6./3.)
 
         function = Function(
             id='func',
             expression=FunctionExpression.deserialize('2 * st_1[c_1] / Compartment.c_1', objs)[0],
-            units='molecule l^-1')
+            units='molecule g^-1')
         self.assertEqual(function.expression.species, [objs[Species]['st_1[c_1]']])
         self.assertEqual(function.expression.compartments, [objs[Compartment]['c_1']])
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2., compartment_volumes=3.), 4./3.)
+            species_counts=2., compartment_masses=3.), 4./3.)
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=3., compartment_volumes=3.), 6./3.)
+            species_counts=3., compartment_masses=3.), 6./3.)
 
         # with parameters
         function = Function(
@@ -3064,8 +3076,8 @@ class UnitsTestCase(unittest.TestCase):
             },
             Parameter: {
                 'p_1': Parameter(id='p_1', value=1.5, units='molecule^-1 s^-1'),
-                'p_2': Parameter(id='p_2', value=1.5, units='molecule^-1 l s^-1'),
-                'p_3': Parameter(id='p_3', value=1.5, units='molecule l^-1 s^-1'),
+                'p_2': Parameter(id='p_2', value=1.5, units='molecule^-1 g s^-1'),
+                'p_3': Parameter(id='p_3', value=1.5, units='molecule g^-1 s^-1'),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
@@ -3215,7 +3227,7 @@ class UnitsTestCase(unittest.TestCase):
                 'p_2': Parameter(id='p_2', value=1.5, units='molecule'),
                 'p_3': Parameter(id='p_3', value=1.5, units='dimensionless'),
                 'p_4': Parameter(id='p_4', value=2.5, units='dimensionless'),
-                'p_5': Parameter(id='p_5', value=1.0, units='M'),
+                'p_5': Parameter(id='p_5', value=1.0, units='molecule g^-1'),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
@@ -3255,9 +3267,9 @@ class UnitsTestCase(unittest.TestCase):
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertTrue(cond.expression._parsed_expression.test_eval(
-            species_counts=2 * 6.022e23, compartment_volumes=1., with_units=True))
+            species_counts=2, compartment_masses=1., with_units=True))
         self.assertFalse(cond.expression._parsed_expression.test_eval(
-            species_counts=0.5 * 6.022e23, compartment_volumes=1., with_units=True))
+            species_counts=0.5, compartment_masses=1., with_units=True))
 
     def test_parameter_value(self):
         self.assertTrue(hasattr(Parameter, 'units'))

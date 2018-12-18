@@ -54,6 +54,11 @@ class TestSimpleModel(unittest.TestCase):
         self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1')
         self.compartments = compartments = [comp_0, comp_1]
 
+        density_comp_0 = mdl.parameters.create(id='density_comp_0', value=1100, units='g l^-1')
+        density_comp_1 = mdl.parameters.create(id='density_comp_1', value=1000, units='g l^-1')
+        compartments[0].init_density = density_comp_0
+        compartments[1].init_density = density_comp_1
+
         self.species_types = species_types = []
         self.species = species = []
         for i in range(8):

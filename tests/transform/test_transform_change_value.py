@@ -16,12 +16,12 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
     def test_compartment_density(self):
         model = Model()
-        c = model.compartments.create(id='c', density=1.)
-        e = model.compartments.create(id='e', density=1.)
-        ChangeValueTransform((('compartments', {'id': 'c'}), 'density'), 2.).run(model)
+        c = model.compartments.create(id='c', mean_init_volume=1.)
+        e = model.compartments.create(id='e', mean_init_volume=1.)
+        ChangeValueTransform((('compartments', {'id': 'c'}), 'mean_init_volume'), 2.).run(model)
 
-        self.assertEqual(c.density, 2.)
-        self.assertEqual(e.density, 1.)
+        self.assertEqual(c.mean_init_volume, 2.)
+        self.assertEqual(e.mean_init_volume, 1.)
 
     def test_function_expression(self):
         model = Model()

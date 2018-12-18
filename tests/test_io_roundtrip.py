@@ -32,6 +32,7 @@ class RoundTripTestCase(unittest.TestCase):
     def test_write_error(self):
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
+        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units='g l^-1')
         species_type_1 = model.species_types.create(
             id='species_type_1',
             empirical_formula=EmpiricalFormula('CHO'),
@@ -86,6 +87,7 @@ class RoundTripTestCase(unittest.TestCase):
         """
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
+        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units='g l^-1')
         species_type_1 = model.species_types.create(
             id='species_type_1',
             empirical_formula=EmpiricalFormula('CHO'),

@@ -782,7 +782,7 @@ class ParsedExpression(object):
         self._compiled_expression_with_units, self._compiled_namespace_with_units = self._compile(with_units=True)
         return (self._wc_tokens, self.related_objects, None)
 
-    def test_eval(self, species_counts=1., compartment_volumes=1.,
+    def test_eval(self, species_counts=1., compartment_masses=1.,
                   reaction_fluxes=1., dfba_net_reaction_fluxes=1.,
                   with_units=False):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
@@ -791,7 +791,7 @@ class ParsedExpression(object):
 
         Args:
             species_counts (:obj:`float`, optional): species counts to use to evaluate expression
-            compartment_volumes (:obj:`float`, optional): compartment volumes (L) to use to evaluate expression
+            compartment_masses (:obj:`float`, optional): compartment masses (g) to use to evaluate expression
             reaction_fluxes (:obj:`float`, optional): reaction fluxes (M s^-1) to use
                 to use to evaluate expression
             dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (s^-1)
@@ -805,12 +805,12 @@ class ParsedExpression(object):
             :obj:`ParsedExpressionError`: if the expression evaluation fails
         """
         return self.eval(species_counts=collections.defaultdict(lambda: species_counts),
-                         compartment_volumes=collections.defaultdict(lambda: compartment_volumes),
+                         compartment_masses=collections.defaultdict(lambda: compartment_masses),
                          reaction_fluxes=collections.defaultdict(lambda: reaction_fluxes),
                          dfba_net_reaction_fluxes=collections.defaultdict(lambda: dfba_net_reaction_fluxes),
                          with_units=with_units)
 
-    def eval(self, species_counts=None, compartment_volumes=None,
+    def eval(self, species_counts=None, compartment_masses=None,
              reaction_fluxes=None, dfba_net_reaction_fluxes=None,
              with_units=False):
         """ Evaluate the expression
@@ -826,8 +826,8 @@ class ParsedExpression(object):
         Args:
             species_counts (:obj:`dict` of :object:`str`, :obj:`float`):
                 dictionary that maps ids of :obj:`wc_lang.core.Species` to their counts
-            compartment_volumes (:obj:`dict` of :str`, :obj:`float`):
-                dictionary that maps ids of :obj:`wc_lang.core.Compartment` to their volumes (L)
+            compartment_masses (:obj:`dict` of :str`, :obj:`float`):
+                dictionary that maps ids of :obj:`wc_lang.core.Compartment` to their masses (g)
             reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`):
                 dictionary that maps ids of :obj:`wc_lang.core.Reaction` to their fluxes (M s^-1)
             dfba_net_reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`)
@@ -859,12 +859,12 @@ class ParsedExpression(object):
                 namespace['parameter_values'][obj.id] = obj.value * \
                     unit_registry.parse_expression(obj.units)
 
-        namespace['compartment_volumes'] = compartment_volumes
+        namespace['compartment_masses'] = compartment_masses
         if with_units:
-            namespace['compartment_volumes'] = copy.copy(namespace['compartment_volumes'])
+            namespace['compartment_masses'] = copy.copy(namespace['compartment_masses'])
             for obj in self.related_objects.get(wc_lang.core.Compartment, {}).values():
-                namespace['compartment_volumes'][obj.id] = compartment_volumes[obj.id] * \
-                    unit_registry.parse_expression(wc_lang.core.VolumeUnit.l.name)
+                namespace['compartment_masses'][obj.id] = compartment_masses[obj.id] * \
+                    unit_registry.parse_expression(wc_lang.core.MassUnit.g.name)
 
         namespace['species_counts'] = species_counts
         if with_units:
@@ -893,7 +893,7 @@ class ParsedExpression(object):
         namespace['observable_counts'] = {}
         for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():
             val = namespace['observable_counts'][obs.id] = obs.expression._parsed_expression.eval(
-                species_counts, compartment_volumes)
+                species_counts, compartment_masses)
             if with_units:
                 namespace['observable_counts'][obs.id] = val * unit_registry.parse_expression(
                     wc_lang.core.MoleculeCountUnit['molecule'].name)
@@ -901,7 +901,7 @@ class ParsedExpression(object):
         namespace['function_values'] = {}
         for func in self.related_objects.get(wc_lang.core.Function, {}).values():
             val = namespace['function_values'][func.id] = func.expression._parsed_expression.eval(
-                species_counts, compartment_volumes)
+                species_counts, compartment_masses)
             if with_units:
                 namespace['function_values'][func.id] = float(val) * \
                     unit_registry.parse_expression(func.units)
@@ -943,7 +943,7 @@ class ParsedExpression(object):
             wc_token = self._wc_tokens[idx]
             if wc_token.code == WcTokenCodes.wc_obj_id:
                 if wc_token.model_type == wc_lang.core.Compartment:
-                    val = 'compartment_volumes["{}"]'.format(wc_token.model.id)
+                    val = 'compartment_masses["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Species:
                     val = 'species_counts["{}"]'.format(wc_token.model.id)
                 elif wc_token.model_type == wc_lang.core.Observable:
