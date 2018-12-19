@@ -59,7 +59,7 @@ import collections
 import datetime
 import networkx
 import obj_model
-import obj_model.extra_attributes
+import obj_model.chem
 import pkg_resources
 import re
 import six
@@ -1916,7 +1916,7 @@ class SpeciesType(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
-    empirical_formula = obj_model.extra_attributes.EmpiricalFormulaAttribute()
+    empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
     molecular_weight = PositiveFloatAttribute()
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
