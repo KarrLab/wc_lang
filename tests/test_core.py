@@ -2336,9 +2336,9 @@ class TestCore(unittest.TestCase):
         value = "pow( st_1[c], 2 )"
         of_expr, invalid_attribute = FunctionExpression.deserialize(value, objs)
         self.assertEqual(of_expr, None, str())
-        self.assertIn("WcToken `pow` is ambiguous",
+        self.assertIn("ObjModelToken `pow` is ambiguous",
                       invalid_attribute.messages[0])
-        self.assertIn("WcToken matches a Parameter and a function",
+        self.assertIn("ObjModelToken matches a Parameter and a function",
                       invalid_attribute.messages[0])
 
     def test_valid_stop_conditions(self):

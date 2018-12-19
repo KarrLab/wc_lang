@@ -16,7 +16,7 @@ from wc_lang import (Compartment, ConcentrationUnit, SpeciesType, Species,
                      Function, FunctionExpression,
                      RateLaw, RateLawExpression,
                      Parameter)
-from obj_model.expression import (WcTokenCodes, WcToken, LexMatch,
+from obj_model.expression import (ObjModelTokenCodes, ObjModelToken, LexMatch,
                                   Expression, ParsedExpression, ParsedExpressionError,
                                   ParsedExpressionValidator, LinearParsedExpressionValidator)
 
@@ -115,7 +115,7 @@ class TestWcLangExpression(unittest.TestCase):
 
         parsed_expr._compile()
 
-        parsed_expr._wc_tokens = None
+        parsed_expr._obj_model_tokens = None
         with self.assertRaisesRegex(ParsedExpressionError, 'not been successfully tokenized'):
             parsed_expr._compile()
 
@@ -158,12 +158,12 @@ class TestWcLangExpression(unittest.TestCase):
         lex_match = parsed_expr._get_disambiguated_id(0, case_fold_match=case_fold_match)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(pattern))
-        self.assertEqual(len(lex_match.wc_tokens), 1)
-        wc_token = lex_match.wc_tokens[0]
-        self.assertEqual(wc_token,
-                         # note: wc_token.model is cheating
-                         WcToken(WcTokenCodes.wc_obj_id, expr, disambig_type,
-                                 id, wc_token.model))
+        self.assertEqual(len(lex_match.obj_model_tokens), 1)
+        obj_model_token = lex_match.obj_model_tokens[0]
+        self.assertEqual(obj_model_token,
+                         # note: obj_model_token.model is cheating
+                         ObjModelToken(ObjModelTokenCodes.obj_id, expr, disambig_type,
+                                       id, obj_model_token.model))
 
     def test_disambiguated_id(self):
         self.do_disambiguated_id_error_test(
@@ -213,14 +213,14 @@ class TestWcLangExpression(unittest.TestCase):
         lex_match = parsed_expr._get_related_obj_id(0, case_fold_match=case_fold_match)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(pattern))
-        self.assertEqual(len(lex_match.wc_tokens), 1)
-        wc_token = lex_match.wc_tokens[0]
+        self.assertEqual(len(lex_match.obj_model_tokens), 1)
+        obj_model_token = lex_match.obj_model_tokens[0]
 
-        self.assertEqual(wc_token,
-                         # note: wc_token.model is cheating
-                         WcToken(WcTokenCodes.wc_obj_id, expected_token_string,
-                                 expected_related_type,
-                                 expected_id, wc_token.model))
+        self.assertEqual(obj_model_token,
+                         # note: obj_model_token.model is cheating
+                         ObjModelToken(ObjModelTokenCodes.obj_id, expected_token_string,
+                                       expected_related_type,
+                                       expected_id, obj_model_token.model))
 
     def test_related_object_id_matches(self):
         self.do_related_object_id_test('test_id[c] + 3*x', 'test_id[c]', Species, 'test_id[c]',
@@ -259,9 +259,9 @@ class TestWcLangExpression(unittest.TestCase):
         lex_match = parsed_expr._get_func_call_id(0)
         self.assertTrue(isinstance(lex_match, LexMatch))
         self.assertEqual(lex_match.num_py_tokens, len(parsed_expr.FUNC_PATTERN))
-        self.assertEqual(len(lex_match.wc_tokens), 2)
-        self.assertEqual(lex_match.wc_tokens[0], WcToken(WcTokenCodes.math_func_id, 'log'))
-        self.assertEqual(lex_match.wc_tokens[1], WcToken(WcTokenCodes.op, '('))
+        self.assertEqual(len(lex_match.obj_model_tokens), 2)
+        self.assertEqual(lex_match.obj_model_tokens[0], ObjModelToken(ObjModelTokenCodes.math_func_id, 'log'))
+        self.assertEqual(lex_match.obj_model_tokens[1], ObjModelToken(ObjModelTokenCodes.op, '('))
 
         # no token match
         parsed_expr = self.make_parsed_expr('no_fun + 3')
@@ -285,9 +285,9 @@ class TestWcLangExpression(unittest.TestCase):
         if test_objects is None:
             test_objects = self.objects_hard
         parsed_expr = ParsedExpression(model_type, 'attr', expr, test_objects)
-        wc_tokens, related_objects, _ = parsed_expr.tokenize(case_fold_match=case_fold_match)
+        obj_model_tokens, related_objects, _ = parsed_expr.tokenize(case_fold_match=case_fold_match)
         self.assertEqual(parsed_expr.errors, [])
-        self.assertEqual(wc_tokens, expected_wc_tokens)
+        self.assertEqual(obj_model_tokens, expected_wc_tokens)
         for obj_types in test_objects:
             if obj_types in expected_related_objs.keys():
                 self.assertEqual(related_objects[obj_types], expected_related_objs[obj_types])
@@ -305,15 +305,15 @@ class TestWcLangExpression(unittest.TestCase):
     def test_non_identifier_tokens(self):
         expr = ' 7 * ( 5 - 3 ) / 2'
         expected_wc_tokens = [
-            WcToken(code=WcTokenCodes.number, token_string='7'),
-            WcToken(code=WcTokenCodes.op, token_string='*'),
-            WcToken(code=WcTokenCodes.op, token_string='('),
-            WcToken(code=WcTokenCodes.number, token_string='5'),
-            WcToken(code=WcTokenCodes.op, token_string='-'),
-            WcToken(code=WcTokenCodes.number, token_string='3'),
-            WcToken(code=WcTokenCodes.op, token_string=')'),
-            WcToken(code=WcTokenCodes.op, token_string='/'),
-            WcToken(code=WcTokenCodes.number, token_string='2'),
+            ObjModelToken(code=ObjModelTokenCodes.number, token_string='7'),
+            ObjModelToken(code=ObjModelTokenCodes.op, token_string='*'),
+            ObjModelToken(code=ObjModelTokenCodes.op, token_string='('),
+            ObjModelToken(code=ObjModelTokenCodes.number, token_string='5'),
+            ObjModelToken(code=ObjModelTokenCodes.op, token_string='-'),
+            ObjModelToken(code=ObjModelTokenCodes.number, token_string='3'),
+            ObjModelToken(code=ObjModelTokenCodes.op, token_string=')'),
+            ObjModelToken(code=ObjModelTokenCodes.op, token_string='/'),
+            ObjModelToken(code=ObjModelTokenCodes.number, token_string='2'),
         ]
         self.do_tokenize_id_test(expr, expected_wc_tokens, {})
 
@@ -321,21 +321,21 @@ class TestWcLangExpression(unittest.TestCase):
         # test _get_related_obj_id
         expr = 'test_id'
         expected_wc_tokens = \
-            [WcToken(WcTokenCodes.wc_obj_id, expr, Observable,
-                     expr, self.objects_hard[Observable][expr])]
+            [ObjModelToken(ObjModelTokenCodes.obj_id, expr, Observable,
+                           expr, self.objects_hard[Observable][expr])]
         expected_related_objs = self.extract_from_objects(self.objects_hard, [(Observable, expr)])
         self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs)
 
         # test _get_disambiguated_id
         expr = 'Parameter.duped_id + 2*Observable.duped_id'
         expected_wc_tokens = [
-            WcToken(WcTokenCodes.wc_obj_id, 'Parameter.duped_id', Parameter, 'duped_id',
-                    self.objects_hard[Parameter]['duped_id']),
-            WcToken(WcTokenCodes.op, '+'),
-            WcToken(WcTokenCodes.number, '2'),
-            WcToken(WcTokenCodes.op, '*'),
-            WcToken(WcTokenCodes.wc_obj_id, 'Observable.duped_id', Observable, 'duped_id',
-                    self.objects_hard[Observable]['duped_id']),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'Parameter.duped_id', Parameter, 'duped_id',
+                          self.objects_hard[Parameter]['duped_id']),
+            ObjModelToken(ObjModelTokenCodes.op, '+'),
+            ObjModelToken(ObjModelTokenCodes.number, '2'),
+            ObjModelToken(ObjModelTokenCodes.op, '*'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'Observable.duped_id', Observable, 'duped_id',
+                          self.objects_hard[Observable]['duped_id']),
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard, [(Parameter, 'duped_id'),
                                                                               (Observable, 'duped_id')])
@@ -344,16 +344,16 @@ class TestWcLangExpression(unittest.TestCase):
         # test _get_func_call_id
         expr = 'log(3) + fun_2 - Function.Observable'
         expected_wc_tokens = [
-            WcToken(code=WcTokenCodes.math_func_id, token_string='log'),
-            WcToken(WcTokenCodes.op, '('),
-            WcToken(WcTokenCodes.number, '3'),
-            WcToken(WcTokenCodes.op, ')'),
-            WcToken(WcTokenCodes.op, '+'),
-            WcToken(WcTokenCodes.wc_obj_id, 'fun_2', Function, 'fun_2',
-                    self.objects_hard[Function]['fun_2']),
-            WcToken(WcTokenCodes.op, '-'),
-            WcToken(WcTokenCodes.wc_obj_id, 'Function.Observable', Function, 'Observable',
-                    self.objects_hard[Function]['Observable'])
+            ObjModelToken(code=ObjModelTokenCodes.math_func_id, token_string='log'),
+            ObjModelToken(ObjModelTokenCodes.op, '('),
+            ObjModelToken(ObjModelTokenCodes.number, '3'),
+            ObjModelToken(ObjModelTokenCodes.op, ')'),
+            ObjModelToken(ObjModelTokenCodes.op, '+'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'fun_2', Function, 'fun_2',
+                          self.objects_hard[Function]['fun_2']),
+            ObjModelToken(ObjModelTokenCodes.op, '-'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'Function.Observable', Function, 'Observable',
+                          self.objects_hard[Function]['Observable'])
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard,
                                                           [(Function, 'fun_2'), (Function, 'Observable')])
@@ -362,11 +362,11 @@ class TestWcLangExpression(unittest.TestCase):
         # test case_fold_match=True for _get_related_obj_id and _get_disambiguated_id
         expr = 'TEST_ID - Parameter.DUPED_ID'
         expected_wc_tokens = [
-            WcToken(WcTokenCodes.wc_obj_id, 'TEST_ID', Observable, 'test_id',
-                    self.objects_hard[Observable]['test_id']),
-            WcToken(WcTokenCodes.op, '-'),
-            WcToken(WcTokenCodes.wc_obj_id, 'Parameter.DUPED_ID', Parameter, 'duped_id',
-                    self.objects_hard[Parameter]['duped_id']),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'TEST_ID', Observable, 'test_id',
+                          self.objects_hard[Observable]['test_id']),
+            ObjModelToken(ObjModelTokenCodes.op, '-'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'Parameter.DUPED_ID', Parameter, 'duped_id',
+                          self.objects_hard[Parameter]['duped_id']),
         ]
         expected_related_objs = self.extract_from_objects(self.objects_hard, [(Parameter, 'duped_id'),
                                                                               (Observable, 'test_id')])
@@ -381,8 +381,8 @@ class TestWcLangExpression(unittest.TestCase):
         }
         expr = 'Observable.test_id'
         expected_wc_tokens = [
-            WcToken(WcTokenCodes.wc_obj_id, expr, Observable, 'test_id',
-                    test_objects[Observable]['test_id'])
+            ObjModelToken(ObjModelTokenCodes.obj_id, expr, Observable, 'test_id',
+                          test_objects[Observable]['test_id'])
         ]
         expected_related_objs = self.extract_from_objects(test_objects, [(Observable, 'test_id')])
         self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs,
@@ -395,8 +395,8 @@ class TestWcLangExpression(unittest.TestCase):
         }
         expr = 'Function.fun_2'
         expected_wc_tokens = [
-            WcToken(WcTokenCodes.wc_obj_id, expr, Function, 'fun_2',
-                    test_objects[Function]['fun_2'])
+            ObjModelToken(ObjModelTokenCodes.obj_id, expr, Function, 'fun_2',
+                          test_objects[Function]['fun_2'])
         ]
         expected_related_objs = self.extract_from_objects(test_objects, [(Function, 'fun_2')])
         self.do_tokenize_id_test(expr, expected_wc_tokens, expected_related_objs,
@@ -453,11 +453,11 @@ class TestWcLangExpression(unittest.TestCase):
         parsed_expr = self.make_parsed_expr(expr)
         self.assertIn(expr, str(parsed_expr))
         self.assertIn('errors: []', str(parsed_expr))
-        self.assertIn('wc_tokens: []', str(parsed_expr))
+        self.assertIn('obj_model_tokens: []', str(parsed_expr))
         parsed_expr.tokenize()
         self.assertIn(expr, str(parsed_expr))
         self.assertIn('errors: []', str(parsed_expr))
-        self.assertIn('wc_tokens: [WcToken', str(parsed_expr))
+        self.assertIn('obj_model_tokens: [ObjModelToken', str(parsed_expr))
 
     def test_model_class_lacks_meta(self):
         class Foo(object):
@@ -483,7 +483,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_test_eval('obs_id', RateLaw, RateLawExpression, related_obj_val, related_obj_val)
         self.do_test_eval('fun_2', RateLaw, RateLawExpression, related_obj_val, related_obj_val)
 
-        # test combination of WcTokenCodes
+        # test combination of ObjModelTokenCodes
         expected_val = 4 * 1. + pow(2, related_obj_val) + related_obj_val
         self.do_test_eval('4 * param_id + pow(2, obs_id) + fun_2', RateLaw, RateLawExpression,
                           related_obj_val, expected_val)
@@ -518,63 +518,63 @@ class TestParsedExpressionValidator(unittest.TestCase):
     def test_expression_verifier(self):
 
         number_is_good_transitions = [   # (current state, message, next state)
-            ('start', (WcTokenCodes.number, None), 'accept'),
+            ('start', (ObjModelTokenCodes.number, None), 'accept'),
         ]
         expression_verifier = ParsedExpressionValidator('start', 'accept', number_is_good_transitions)
         number_is_good = [
-            WcToken(WcTokenCodes.number, '3'),
+            ObjModelToken(ObjModelTokenCodes.number, '3'),
         ]
-        valid, error = expression_verifier.validate(mock.Mock(_wc_tokens=number_is_good))
+        valid, error = expression_verifier.validate(mock.Mock(_obj_model_tokens=number_is_good))
         self.assertTrue(valid)
         self.assertTrue(error is None)
         # an empty expression is invalid
-        valid, error = expression_verifier.validate(mock.Mock(_wc_tokens=[]))
+        valid, error = expression_verifier.validate(mock.Mock(_obj_model_tokens=[]))
         self.assertFalse(valid)
 
     def test_linear_expression_verifier(self):
 
-        wc_tokens = [   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
-            WcToken(WcTokenCodes.wc_obj_id, 'id0'),
-            WcToken(WcTokenCodes.op, '-'),
-            WcToken(WcTokenCodes.number, '3'),
-            WcToken(WcTokenCodes.op, '*'),
-            WcToken(WcTokenCodes.wc_obj_id, 'id1'),
-            WcToken(WcTokenCodes.op, '-'),
-            WcToken(WcTokenCodes.number, '3.5'),
-            WcToken(WcTokenCodes.op, '*'),
-            WcToken(WcTokenCodes.wc_obj_id, 'id1'),
-            WcToken(WcTokenCodes.op, '+'),
-            WcToken(WcTokenCodes.number, '3.14e+2'),
-            WcToken(WcTokenCodes.op, '*'),
-            WcToken(WcTokenCodes.wc_obj_id, 'id3'),
+        obj_model_tokens = [   # id0 - 3*id1 - 3.5*id1 + 3.14e+2*id3
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'id0'),
+            ObjModelToken(ObjModelTokenCodes.op, '-'),
+            ObjModelToken(ObjModelTokenCodes.number, '3'),
+            ObjModelToken(ObjModelTokenCodes.op, '*'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'id1'),
+            ObjModelToken(ObjModelTokenCodes.op, '-'),
+            ObjModelToken(ObjModelTokenCodes.number, '3.5'),
+            ObjModelToken(ObjModelTokenCodes.op, '*'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'id1'),
+            ObjModelToken(ObjModelTokenCodes.op, '+'),
+            ObjModelToken(ObjModelTokenCodes.number, '3.14e+2'),
+            ObjModelToken(ObjModelTokenCodes.op, '*'),
+            ObjModelToken(ObjModelTokenCodes.obj_id, 'id3'),
         ]
-        valid_linear_expr = mock.Mock(_wc_tokens=wc_tokens)
+        valid_linear_expr = mock.Mock(_obj_model_tokens=obj_model_tokens)
 
         linear_expression_verifier = LinearParsedExpressionValidator()
         valid, error = linear_expression_verifier.validate(valid_linear_expr)
         self.assertTrue(valid)
         self.assertTrue(error is None)
-        # dropping any single token from wc_tokens produces an invalid expression
-        for i in range(len(wc_tokens)):
-            wc_tokens_without_i = wc_tokens[:i] + wc_tokens[i+1:]
-            valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=wc_tokens_without_i))
+        # dropping any single token from obj_model_tokens produces an invalid expression
+        for i in range(len(obj_model_tokens)):
+            wc_tokens_without_i = obj_model_tokens[:i] + obj_model_tokens[i+1:]
+            valid, error = linear_expression_verifier.validate(mock.Mock(_obj_model_tokens=wc_tokens_without_i))
             self.assertFalse(valid)
 
         # an empty expression is valid
-        valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=[]))
+        valid, error = linear_expression_verifier.validate(mock.Mock(_obj_model_tokens=[]))
         self.assertTrue(valid)
         self.assertTrue(error is None)
 
         invalid_wc_tokens = [
-            [WcToken(WcTokenCodes.math_func_id, 'log')],     # math functions not allowed
-            [WcToken(WcTokenCodes.number, '3j')],           # numbers must be floats
+            [ObjModelToken(ObjModelTokenCodes.math_func_id, 'log')],     # math functions not allowed
+            [ObjModelToken(ObjModelTokenCodes.number, '3j')],           # numbers must be floats
         ]
         for invalid_wc_token in invalid_wc_tokens:
-            valid, error = linear_expression_verifier.validate(mock.Mock(_wc_tokens=invalid_wc_token))
+            valid, error = linear_expression_verifier.validate(mock.Mock(_obj_model_tokens=invalid_wc_token))
             self.assertFalse(valid)
 
         invalid_wc_tokens = [
-            [WcToken(WcTokenCodes.other, ',')],             # other not allowed
+            [ObjModelToken(ObjModelTokenCodes.other, ',')],             # other not allowed
         ]
         for invalid_wc_token in invalid_wc_tokens:
             error = linear_expression_verifier._make_dfsa_messages(invalid_wc_token)

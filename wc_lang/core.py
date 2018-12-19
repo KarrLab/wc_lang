@@ -2303,7 +2303,6 @@ class FunctionExpression(obj_model.Model, Expression):
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
@@ -2440,7 +2439,6 @@ class StopConditionExpression(obj_model.Model, Expression):
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
@@ -2912,7 +2910,6 @@ class RateLawExpression(obj_model.Model, Expression):
         attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('expression',)
-        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
