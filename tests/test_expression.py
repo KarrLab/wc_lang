@@ -94,9 +94,9 @@ class TestWcLangExpression(unittest.TestCase):
         parsed_expr = ParsedExpression(RateLawExpression, 'attr', ' + ' * n, self.objects)
         self.assertEqual([token.PLUS] * n, [tok.exact_type for tok in parsed_expr._py_tokens])
         parsed_expr = ParsedExpression(RateLawExpression, 'attr', '', {})
-        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
+        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.expression_valid_functions))
         parsed_expr = ParsedExpression(RateLawExpression, 'attr', '', {Function: {}, Parameter: {}})
-        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.valid_functions))
+        self.assertEqual(parsed_expr.valid_functions, set(RateLawExpression.Meta.expression_valid_functions))
         expr = 'id1[id2'
         with self.assertRaisesRegex(
                 ParsedExpressionError,
@@ -104,7 +104,7 @@ class TestWcLangExpression(unittest.TestCase):
             self.make_parsed_expr(expr)
         with self.assertRaisesRegex(
                 ParsedExpressionError,
-                "model_cls 'Species' doesn't have a 'Meta.valid_models' attribute"):
+                "model_cls 'Species' doesn't have a 'Meta.expression_term_models' attribute"):
             ParsedExpression(Species, 'attr', '', {})
 
     def test_parsed_expression_compile_error(self):
@@ -141,7 +141,7 @@ class TestWcLangExpression(unittest.TestCase):
         self.do_match_tokens_test('7 ID3', single_name_pattern, 'ID3', idx=1)
         self.do_match_tokens_test('2+ 5', single_name_pattern, False, idx=1)
 
-        species_pattern = Species.Meta.token_pattern
+        species_pattern = Species.Meta.expression_term_token_pattern
         self.do_match_tokens_test('sp1[c1]+', species_pattern, 'sp1[c1]')
         self.do_match_tokens_test('sp1 +', species_pattern, False)
         # whitespace is not allowed between tokens in an ID
@@ -224,7 +224,7 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_related_object_id_matches(self):
         self.do_related_object_id_test('test_id[c] + 3*x', 'test_id[c]', Species, 'test_id[c]',
-                                       Species.Meta.token_pattern)
+                                       Species.Meta.expression_term_token_pattern)
         self.do_related_object_id_test('param_id', 'param_id', Parameter, 'param_id', (token.NAME, ))
         self.do_related_object_id_test('param_iD', 'param_iD', Parameter, 'param_id', (token.NAME, ),
                                        case_fold_match=True)
@@ -243,14 +243,14 @@ class TestWcLangExpression(unittest.TestCase):
 
     def test_fun_call_id_errors(self):
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
-                                               "but it isn't in {}.Meta.valid_functions".format(
+                                               "but it isn't in {}.Meta.expression_valid_functions".format(
                                                    RateLawExpression.__name__)])
 
         class TestModelExpression(obj_model.Model):
             class Meta(obj_model.Model.Meta):
-                valid_models = ('Function',)
+                expression_term_models = ('Function',)
         self.do_fun_call_error_test('foo(3)', ["contains the func name ",
-                                               "but {}.Meta doesn't define 'valid_functions'".format(
+                                               "but {}.Meta doesn't define 'expression_valid_functions'".format(
                                                    TestModelExpression.__name__)],
                                     obj_type=TestModelExpression)
 
@@ -466,7 +466,7 @@ class TestWcLangExpression(unittest.TestCase):
             Foo: {'foo_1': Foo(), 'foo_2': Foo()}
         }
         with self.assertRaisesRegex(ParsedExpressionError,
-                                    "model_cls 'Foo' is not a subclass of obj_model.Model"):
+                                    "model_cls 'Foo' is not a subclass of Model"):
             ParsedExpression(Foo, 'expr_attr', '', self.objects)
 
     def do_test_eval(self, expr, parent_type, obj_type, related_obj_val, expected_val):

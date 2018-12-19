@@ -30,7 +30,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           SpeciesType, SpeciesTypeType, Species,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
-                          RateLaw, RateLawExpression, RateLawExpressionAttribute, RateLawDirection,
+                          RateLaw, RateLawExpression, RateLawDirection,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
@@ -38,6 +38,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Evidence,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
+from wc_lang.expression import ExpressionManyToOneAttribute
 from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
                                create_sbml_doc_w_fbc, get_SBML_compatibility_method)
@@ -1547,12 +1548,12 @@ class TestCore(unittest.TestCase):
 
         self.assertNotEqual(attr.validate(None, []), None)
 
-    def test_RateLawExpressionAttribute_serialize(self):
+    def test_ExpressionManyToOneAttribute_serialize(self):
         rxn = self.rxn_0
         rate_law = rxn.rate_laws[0]
         expression = rate_law.expression
 
-        attr = RateLawExpressionAttribute()
+        attr = ExpressionManyToOneAttribute(RateLawExpression)
         self.assertEqual(attr.serialize(expression), expression.expression)
 
     def test_RateLawExpressionAttribute_deserialize(self):
@@ -1578,7 +1579,7 @@ class TestCore(unittest.TestCase):
             compartment=objs[Compartment]['c_0'])
 
         expression = 'k_cat * spec_0[c_0]'
-        attr = RateLawExpressionAttribute()
+        attr = ExpressionManyToOneAttribute(RateLawExpression)
         expression1, error = attr.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(expression1.expression, expression)
@@ -2491,12 +2492,12 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Observable.Meta.attributes['expression'].deserialize(None, objects), (None, None))
         self.assertEqual(Observable.Meta.attributes['expression'].deserialize('', objects), (None, None))
 
-    def test_valid_model_types(self):
+    def test_expression_term_model_types(self):
         for model_type in [RateLawExpression, FunctionExpression, StopConditionExpression,
                            DfbaObjectiveExpression, ObservableExpression]:
-            self.assertTrue(hasattr(model_type.Meta, 'valid_models'))
-            for valid_model_type in model_type.Meta.valid_models:
-                self.assertTrue(hasattr(wc_lang.core, valid_model_type))
+            self.assertTrue(hasattr(model_type.Meta, 'expression_term_models'))
+            for expression_term_model_type in model_type.Meta.expression_term_models:
+                self.assertTrue(hasattr(wc_lang.core, expression_term_model_type))
 
     def test_reaction_get_reactants(self):
         rxn = Reaction()

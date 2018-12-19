@@ -58,7 +58,10 @@ import obj_model
 import obj_model.extra_attributes
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                create_sbml_parameter)
-from wc_lang.expression import Expression, ParsedExpression, ParsedExpressionError
+from wc_lang.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
+                                ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
+                                ExpressionExpressionTermMeta, Expression,
+                                ParsedExpression, ParsedExpressionError)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
@@ -630,81 +633,6 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return None
 
 
-class RateLawExpressionAttribute(ManyToOneAttribute):
-    """ Rate law expression """
-
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
-        """
-        Args:
-            related_name (:obj:`str`, optional): name of related attribute on `related_class`
-            verbose_name (:obj:`str`, optional): verbose name
-            verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
-        """
-        super(RateLawExpressionAttribute, self).__init__('RateLawExpression',
-                                                         related_name=related_name, min_related=1, min_related_rev=1,
-                                                         verbose_name=verbose_name, verbose_related_name=verbose_related_name, help=help)
-
-    def serialize(self, rate_law_expression, encoded=None):
-        """ Serialize related object
-
-        Args:
-            rate_law_expression (:obj:`RateLawExpression`): the related `RateLawExpression`
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation of the rate law expression
-        """
-        return rate_law_expression.serialize()
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        return RateLawExpression.deserialize(value, objects)
-
-
-class ExpressionAttribute(OneToOneAttribute):
-    """ Expression attribute """
-
-    def serialize(self, expression, encoded=None):
-        """ Serialize related object
-
-        Args:
-            expression (:obj:`obj_model.Model`): the referenced Expression
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: simple Python representation
-        """
-        if expression:
-            return expression.serialize()
-        else:
-            return ''
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
-        """
-        if value:
-            return self.related_class.deserialize(value, objects)
-        return (None, None)
-
-
 class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
     def __init__(self, related_name='', verbose_name='Database references', verbose_related_name='', help=''):
         """
@@ -958,7 +886,7 @@ class Model(obj_model.Model):
             models = getattr(self, attr_name)
 
             # get name of self-referential attribute, if any
-            expression_type = model_type.Meta.expression_model
+            expression_type = model_type.Meta.expression_term_model
             for self_ref_attr_name, self_ref_attr in expression_type.Meta.attributes.items():
                 if isinstance(self_ref_attr, obj_model.RelatedAttribute) and self_ref_attr.related_class == model_type:
                     break
@@ -1594,17 +1522,10 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
     dfba_net_reactions = OneToManyAttribute('DfbaNetReaction', related_name='dfba_obj_expression',
                                             verbose_name='dFBA net reactions', verbose_related_name='dFBA objective expression')
 
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in this `Function`s `expression`
-            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `DfbaObjective` is allowed to reference in its `expression`
-        """
+    class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        valid_functions = ()
-        valid_models = ('Reaction', 'DfbaNetReaction')
+        expression_valid_functions = ()
+        expression_term_models = ('Reaction', 'DfbaNetReaction')
         verbose_name = 'dFBA objective expression'
 
     def validate(self):
@@ -1694,8 +1615,8 @@ class DfbaObjective(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='dfba_objs', verbose_related_name='dFBA objectives')
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
-    expression = ExpressionAttribute('DfbaObjectiveExpression', related_name='dfba_obj',
-                                     min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
+    expression = ExpressionOneToOneAttribute(DfbaObjectiveExpression, related_name='dfba_obj',
+                                             min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     units = EnumAttribute(DfbaObjectiveUnit, default=DfbaObjectiveUnit['dimensionless'])
     reaction_rate_units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     coefficient_units = EnumAttribute(DfbaObjectiveCoefficientUnit, default=DfbaObjectiveCoefficientUnit['s'])
@@ -1704,12 +1625,12 @@ class DfbaObjective(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_objs', verbose_related_name='dFBA objectives')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         verbose_name = 'dFBA objective'
         attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'reaction_rate_units', 'coefficient_units',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_model = DfbaObjectiveExpression
-        expression_units = 'units'
+        expression_term_model = DfbaObjectiveExpression
+        expression_term_units = 'units'
 
     @staticmethod
     def gen_id(submodel_id):
@@ -1875,14 +1796,14 @@ class Compartment(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'mass_units',
                            'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units',
                            'init_density',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_units = 'mass_units'
+        expression_term_units = 'mass_units'
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2058,14 +1979,14 @@ class Species(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='species')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'species_type', 'compartment', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         frozen_columns = 1
         # unique_together = (('species_type', 'compartment', ), )
         indexed_attrs_tuples = (('species_type', 'compartment'), )
-        token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
-        expression_units = 'units'
+        expression_term_token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
+        expression_term_units = 'units'
 
     @staticmethod
     def gen_id(species_type_id, compartment_id):
@@ -2281,16 +2202,9 @@ class ObservableExpression(obj_model.Model, Expression):
     species = ManyToManyAttribute(Species, related_name='observable_expressions')
     observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
 
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_Observables (:obj:`tuple` of `builtin_Observable_or_method`): tuple of Observables that
-                can be used in this `Observable`s `expression`
-            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `Observable` is allowed to reference in its `expression`
-        """
+    class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        valid_models = ('Species', 'Observable')
+        expression_term_models = ('Species', 'Observable')
 
     def serialize(self):
         """ Generate string representation
@@ -2349,18 +2263,18 @@ class Observable(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
-    expression = ExpressionAttribute(ObservableExpression, related_name='observable')
+    expression = ExpressionOneToOneAttribute(ObservableExpression, related_name='observable')
     units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='observables')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_model = ObservableExpression
-        expression_units = 'units'
+        expression_term_model = ObservableExpression
+        expression_term_units = 'units'
 
 
 class FunctionExpression(obj_model.Model, Expression):
@@ -2388,17 +2302,10 @@ class FunctionExpression(obj_model.Model, Expression):
     functions = ManyToManyAttribute('Function', related_name='function_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='function_expressions')
 
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in this `Function`s `expression`
-            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `Function` is allowed to reference in its `expression`
-        """
+    class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2456,18 +2363,18 @@ class Function(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='functions')
-    expression = ExpressionAttribute(FunctionExpression, related_name='function')
+    expression = ExpressionOneToOneAttribute(FunctionExpression, related_name='function')
     units = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_model = FunctionExpression
-        expression_units = 'units'
+        expression_term_model = FunctionExpression
+        expression_term_units = 'units'
 
     def validate(self):
         """ Check that the Function is valid
@@ -2532,17 +2439,10 @@ class StopConditionExpression(obj_model.Model, Expression):
     functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='stop_condition_expressions')
 
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in this `StopCondition`s `expression`
-            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `StopCondition` is allowed to reference in its `expression`
-        """
+    class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
-        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -2601,18 +2501,18 @@ class StopCondition(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
-    expression = ExpressionAttribute(StopConditionExpression, related_name='stop_condition')
+    expression = ExpressionOneToOneAttribute(StopConditionExpression, related_name='stop_condition')
     units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_model = StopConditionExpression
-        expression_units = 'units'
+        expression_term_model = StopConditionExpression
+        expression_term_units = 'units'
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -2689,13 +2589,13 @@ class Reaction(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
                            'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
-        expression_units = 'rate_units'
+        expression_term_units = 'rate_units'
 
     def validate(self):
         """ Check if the reaction is valid
@@ -3009,19 +2909,12 @@ class RateLawExpression(obj_model.Model, Expression):
     functions = ManyToManyAttribute(Function, related_name='rate_law_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='rate_law_expressions')
 
-    class Meta(obj_model.Model.Meta):
-        """
-        Attributes:
-            valid_functions (:obj:`tuple` of `builtin_function_or_method`): tuple of functions that
-                can be used in a `RateLawExpression`s `expression`
-            valid_models (:obj:`tuple` of `str`): names of `obj_model.Model`s in this module that a
-                `RateLawExpression` is allowed to reference in its `expression`
-        """
+    class Meta(obj_model.Model.Meta, Expression.Meta):
         attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.inline
         ordering = ('expression',)
-        valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
-        valid_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_valid_functions = (float, ceil, floor, exp, pow, log, log10, min, max)
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
 
     def serialize(self):
         """ Generate string representation
@@ -3081,20 +2974,20 @@ class RateLaw(obj_model.Model):
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = EnumAttribute(RateLawType, default=RateLawType.other)
-    expression = RateLawExpressionAttribute(related_name='rate_laws')
+    expression = ExpressionManyToOneAttribute(RateLawExpression, min_related=1, min_related_rev=1, related_name='rate_laws')
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
                            'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
-        expression_model = RateLawExpression
-        expression_units = 'units'
+        expression_term_model = RateLawExpression
+        expression_term_units = 'units'
 
     @staticmethod
     def gen_id(reaction_id, direction_name):
@@ -3132,6 +3025,10 @@ class RateLaw(obj_model.Model):
                 ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
 
         # check that units are valid
+        if self.expression and self.reaction and self.units != self.reaction.rate_units:
+            errors.append(InvalidAttribute(self.Meta.attributes['units'],
+                                           ['Units must the same as reaction rate units']))
+
         if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
             exp_units = unit_registry.parse_expression(self.units.name).to_base_units().units
             try:
@@ -3287,12 +3184,12 @@ class DfbaNetReaction(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel', 'units', 'cell_size_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA net reaction'
-        expression_units = 'units'
+        expression_term_units = 'units'
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add a DfbaNetReaction to a libsbml SBML document.
@@ -3386,12 +3283,12 @@ class Parameter(obj_model.Model):
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
-    class Meta(obj_model.Model.Meta):
+    class Meta(obj_model.Model.Meta, ExpressionStaticTermMeta):
         attribute_order = ('id', 'name', 'type',
                            'value', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        expression_value = 'value'
-        expression_units = 'units'
+        expression_term_value = 'value'
+        expression_term_units = 'units'
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Parameter to a libsbml SBML document.

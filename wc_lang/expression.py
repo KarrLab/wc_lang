@@ -1,4 +1,4 @@
-""" Utilities for processing mathematical expressions used by wc_lang models
+""" Utilities for processing mathematical expressions used by obj_model models
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
@@ -7,13 +7,13 @@
 :License: MIT
 """
 import collections
-import obj_model
 import token
 import tokenize
-import wc_lang.core
+import types
 from enum import Enum
 from io import BytesIO
-from obj_model import InvalidObject, InvalidAttribute
+from obj_model.core import (Model, RelatedAttribute, OneToOneAttribute, ManyToOneAttribute,
+                            InvalidObject, InvalidAttribute)
 from wc_utils.util.misc import DFSMAcceptor
 from wc_utils.util.units import unit_registry
 
@@ -54,12 +54,125 @@ LexMatch.wc_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
 
+class ExpressionManyToOneAttribute(ManyToOneAttribute):
+    """ Expresion many-to-one attribute """
+
+    def serialize(self, expression, encoded=None):
+        """ Serialize related object
+
+        Args:
+            expression (:obj:`Expression`): the related `Expression`
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
+
+        Returns:
+            :obj:`str`: simple Python representation of the rate law expression
+        """
+        return expression.serialize()
+
+    def deserialize(self, value, objects, decoded=None):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        return self.related_class.deserialize(value, objects)
+
+
+class ExpressionOneToOneAttribute(OneToOneAttribute):
+    """ Expression one-to-one attribute """
+
+    def serialize(self, expression, encoded=None):
+        """ Serialize related object
+
+        Args:
+            expression (:obj:`obj_model.Model`): the referenced Expression
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
+
+        Returns:
+            :obj:`str`: simple Python representation
+        """
+        if expression:
+            return expression.serialize()
+        else:
+            return ''
+
+    def deserialize(self, value, objects, decoded=None):
+        """ Deserialize value
+
+        Args:
+            value (:obj:`str`): String representation
+            objects (:obj:`dict`): dictionary of objects, grouped by model
+            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+
+        Returns:
+            :obj:`tuple` of `object`, `InvalidAttribute` or `None`: tuple of cleaned value and cleaning error
+        """
+        if value:
+            return self.related_class.deserialize(value, objects)
+        return (None, None)
+
+
+class ExpressionTermMeta(object):
+    """ Meta data for subclasses that can appear in expressions 
+
+    Attributes:
+        expression_term_token_pattern (:obj:`tuple`): token pattern for the name of the
+            term in expression
+        expression_term_units (:obj:`str`): name of attribute which describes the units
+            of the expression term
+    """
+    expression_term_token_pattern = (token.NAME, )
+    expression_term_units = None
+
+
+class ExpressionStaticTermMeta(ExpressionTermMeta):
+    """ Meta data for subclasses with static values that can appear in expressions
+
+    Attributes:
+        expression_term_value (:obj:`str`): name of attribute which encodes the value of
+            the term
+    """
+    expression_term_value = None
+
+
+class ExpressionDynamicTermMeta(ExpressionTermMeta):
+    """ Meta data for subclasses with dynamic values that can appear in expressions """
+    pass
+
+
+class ExpressionExpressionTermMeta(ExpressionTermMeta):
+    """ Meta data for subclasses with expressions that can appear in expressions
+
+    Attributes:
+        expression_term_model (:obj:`str`): name of attribute which encodes the expression for
+            the term
+    """
+    expression_term_model = None
+
+
 class Expression(object):
     """ Generic methods for mathematical expressions
 
     Attributes:
         _parsed_expression (:obj:`ParsedExpression`): parsed expression
     """
+
+    class Meta(object):
+        """ Meta data for subclasses of :obj:`Expression`
+
+        Attributes:
+            expression_term_models (:obj:`tuple` of :obj:`str`): names of classes
+                which can appear as terms in the expression
+            valid_functions (:obj:`tuple` of :obj:`types.FunctionType`): Python
+                functions which can appear in the expression
+        """
+        expression_term_models = ()
+        expression_valid_functions = ()
 
     def serialize(self):
         """ Generate string representation
@@ -80,10 +193,10 @@ class Expression(object):
             objects (:obj:`dict`): dictionary of objects which can be used in `expression`, grouped by model
 
         Returns:
-            :obj:`tuple`: on error return (`None`, `InvalidAttribute`),
+            :obj:`tuple`: on error return (:obj:`None`, :obj:`InvalidAttribute`),
                 otherwise return (object in this class with instantiated `_parsed_expression`, `None`)
         """
-        # objects must contain all objects types in valid_models
+        # objects must contain all objects types in expression_term_models
         value = value or ''
 
         expr_field = 'expression'
@@ -105,8 +218,8 @@ class Expression(object):
             objects[model_cls][value] = obj
 
             for attr_name, attr in model_cls.Meta.attributes.items():
-                if isinstance(attr, obj_model.RelatedAttribute) and \
-                        attr.related_class.__name__ in model_cls.Meta.valid_models:
+                if isinstance(attr, RelatedAttribute) and \
+                        attr.related_class.__name__ in model_cls.Meta.expression_term_models:
                     attr_value = list(used_objects.get(attr.related_class, {}).values())
                     setattr(obj, attr_name, attr_value)
         obj._parsed_expression = parsed_expression
@@ -122,7 +235,7 @@ class Expression(object):
         """ Set the linear coefficients for the related objects
 
         Args:
-            obj (:obj:`obj_model.Model`): expression object
+            obj (:obj:`Model`): expression object
         """
         model_cls = obj.__class__
         parsed_expr = obj._parsed_expression
@@ -136,8 +249,8 @@ class Expression(object):
 
         parsed_expr.lin_coeffs = lin_coeffs = {}
         for attr_name, attr in model_cls.Meta.attributes.items():
-            if isinstance(attr, obj_model.RelatedAttribute) and \
-                    attr.related_class.__name__ in model_cls.Meta.valid_models:
+            if isinstance(attr, RelatedAttribute) and \
+                    attr.related_class.__name__ in model_cls.Meta.expression_term_models:
                 lin_coeffs[attr.related_class] = {}
 
         for related_class, related_objs in parsed_expr.related_objects.items():
@@ -167,21 +280,21 @@ class Expression(object):
 
         Args:
             model_obj (:obj:`Expression`): expression object
-            parent_obj (:obj:`obj_model.Model`): parent of expression object
+            parent_obj (:obj:`Model`): parent of expression object
             return_type (:obj:`type`, optional): if provided, an expression's required return type
             check_linear (:obj:`bool`, optional): if :obj:`True`, validate that the expression is a
                 linear function
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
+                otherwise return a list of errors in an :obj:`InvalidObject` instance
         """
         model_cls = model_obj.__class__
 
         # generate _parsed_expression
         objs = {}
         for related_attr_name, related_attr in model_cls.Meta.attributes.items():
-            if isinstance(related_attr, obj_model.RelatedAttribute):
+            if isinstance(related_attr, RelatedAttribute):
                 objs[related_attr.related_class] = {
                     m.get_primary_attribute(): m for m in getattr(model_obj, related_attr_name)
                 }
@@ -205,7 +318,7 @@ class Expression(object):
         # check related objects matches the tokens of the _parsed_expression
         related_objs = {}
         for related_attr_name, related_attr in model_cls.Meta.attributes.items():
-            if isinstance(related_attr, obj_model.RelatedAttribute):
+            if isinstance(related_attr, RelatedAttribute):
                 related_model_objs = getattr(model_obj, related_attr_name)
                 if related_model_objs:
                     related_objs[related_attr.related_class] = set(related_model_objs)
@@ -255,17 +368,17 @@ class Expression(object):
         """ Make an expression object
 
         Args:
-            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
+            model_type (:obj:`type`): an :obj:`Model` that uses a mathemetical expression, like
                 `Function` and `Observable`
             expression (:obj:`str`): the expression used by the `model_type` being created
             objs (:obj:`dict` of `dict`): all objects that are referenced in `expression`
 
         Returns:
-            :obj:`tuple`: if successful, (`obj_model.Model`, `None`) containing a new instance of
-                `model_type`'s expression helper class; otherwise, (`None`, `InvalidAttribute`)
+            :obj:`tuple`: if successful, (:obj:`Model`, :obj:`None`) containing a new instance of
+                `model_type`'s expression helper class; otherwise, (:obj:`None`, :obj:`InvalidAttribute`)
                 reporting the error
         """
-        expr_model_type = model_type.Meta.expression_model
+        expr_model_type = model_type.Meta.expression_term_model
         return expr_model_type.deserialize(expression, objs)
 
     @classmethod
@@ -275,8 +388,8 @@ class Expression(object):
         For example, this uses `FunctionExpression` to make a `Function`.
 
         Args:
-            model (:obj:`obj_model.Model`): an instance of `obj_model.Model` which is the root model
-            model_type (:obj:`type`): a subclass of `obj_model.Model` that uses a mathemetical expression, like
+            model (:obj:`Model`): an instance of :obj:`Model` which is the root model
+            model_type (:obj:`type`): a subclass of :obj:`Model` that uses a mathemetical expression, like
                 `Function` and `Observable`
             id (:obj:`str`): the id of the `model_type` being created
             expression (:obj:`str`): the expression used by the `model_type` being created
@@ -285,8 +398,8 @@ class Expression(object):
                 the expression object does not validate
 
         Returns:
-            :obj:`obj_model.Model` or `InvalidAttribute`: a new instance of `model_type`, or,
-                if an error occurs, an `InvalidAttribute` reporting the error
+            :obj:`Model` or :obj:`InvalidAttribute`: a new instance of `model_type`, or,
+                if an error occurs, an :obj:`InvalidAttribute` reporting the error
         """
         expr_model_obj, error = cls.make_expression_obj(model_type, expression, objs)
         if error:
@@ -325,14 +438,14 @@ class ParsedExpression(object):
     * All Python identifiers must be the ID of an object in a whole-cell model, or components of
         an ID of an object in the model, or the name of a function in the `math` package. Objects in the model
         are provided in `_objs`, and the allowed subset of functions in `math` must be provided in an
-        iterator in the `valid_functions` attribute of the `Meta` class of a model whose whose expression
+        iterator in the `expression_valid_functions` attribute of the `Meta` class of a model whose whose expression
         is being processed.
     * Currently (July, 2018), identifiers may refer to `Species`s, `Parameter`s, `Observable`s, `Reaction`s,
         `Observable`'s and `DfbaNetReaction`s.
     * Cycles of references are illegal.
-    * An identifier must unambiguously refer to exactly one related `Model` in a model.
-    * Each `obj_model` `Model` that can be used in an expression must have an ID that is a simple Python identifier,
-        or define `token_pattern` as an attribute that describes the `Model`'s syntactic Python structure. See
+    * An identifier must unambiguously refer to exactly one related :obj:`Model` in a model.
+    * Each :obj:`Model` that can be used in an expression must have an ID that is a simple Python identifier,
+        or define `expression_term_token_pattern` as an attribute that describes the `Model`'s syntactic Python structure. See
         `Species` for an example.
     * Every expression must be computable at any time during a simulation. The evaluation of an expression
         always occurs at a precise simulation time, which is implied by the expression but not explicitly
@@ -347,14 +460,14 @@ class ParsedExpression(object):
         for the expression's use
 
     Attributes:
-        model_cls (:obj:`type`): the `obj_model` `Model` which has an expression
+        model_cls (:obj:`type`): the :obj:`Model` which has an expression
         attr (:obj:`str`): the attribute name of the expression in `model_cls`
         expression (:obj:`str`): the expression defined in the obj_model Model
         _py_tokens (:obj:`list` of :obj:`collections.namedtuple`): a list of Python tokens generated by `tokenize.tokenize()`
         _objs (:obj:`dict`): dict of obj_model Models that might be referenced in expression; maps
             model type to a dict mapping ids to Model instances
-        valid_models (:obj:`set`): obj_model Models that `model_cls` objects are allowed to use,
-            as indicated in `model_cls.Meta.valid_models`, intersected with `_objs.keys()`
+        expression_term_models (:obj:`set`): obj_model Models that `model_cls` objects are allowed to use,
+            as indicated in `model_cls.Meta.expression_term_models`, intersected with `_objs.keys()`
             might be referenced in expression; maps
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `_objs`
         related_objects (:obj:`dict`): models that are referenced in `expression`; maps model type to
@@ -392,35 +505,36 @@ class ParsedExpression(object):
         """ Create an instance of ParsedExpression
 
         Args:
-            model_cls (:obj:`type`): the `obj_model` `Model` which has an expression
+            model_cls (:obj:`type`): the :obj:`Model` which has an expression
             attr (:obj:`str`): the attribute name of the expression in `model_cls`
             expression (:obj:`str`): the expression defined in the obj_model Model
-            objs (:obj:`dict`): dictionary of model objects (instances of :obj:`obj_model.Model`) organized
+            objs (:obj:`dict`): dictionary of model objects (instances of :obj:`Model`) organized
                 by their type
 
         Raises:
-            :obj:`ParsedExpressionError`: if `model_cls` is not a subclass of `obj_model.Model`,
+            :obj:`ParsedExpressionError`: if `model_cls` is not a subclass of :obj:`Model`,
                 or lexical analysis of `expression` raises an exception,
                 or `objs` includes model types that `model_cls` should not reference
         """
-        if not issubclass(model_cls, obj_model.Model):
-            raise ParsedExpressionError("model_cls '{}' is not a subclass of obj_model.Model".format(
+        if not issubclass(model_cls, Model):
+            raise ParsedExpressionError("model_cls '{}' is not a subclass of Model".format(
                 model_cls.__name__))
-        if not hasattr(model_cls.Meta, 'valid_models'):
-            raise ParsedExpressionError("model_cls '{}' doesn't have a 'Meta.valid_models' attribute".format(
+        if not hasattr(model_cls.Meta, 'expression_term_models'):
+            raise ParsedExpressionError("model_cls '{}' doesn't have a 'Meta.expression_term_models' attribute".format(
                 model_cls.__name__))
-        self.valid_models = set()
-        for valid_model_type_name in model_cls.Meta.valid_models:
-            valid_model_type = getattr(wc_lang.core, valid_model_type_name)
-            if valid_model_type in objs:
-                self.valid_models.add(valid_model_type)
-        for obj_type in self.valid_models:
-            if not issubclass(obj_type, obj_model.Model):   # pragma    no cover
-                raise ParsedExpressionError("objs entry '{}' is not a subclass of obj_model.Model".format(
+        self.term_models = set()
+        for expression_term_model_type_name in model_cls.Meta.expression_term_models:
+            for attr in model_cls.Meta.attributes.values():
+                if isinstance(attr, RelatedAttribute) \
+                        and attr.related_class.__name__ == expression_term_model_type_name:
+                    self.term_models.add(attr.related_class)
+        for obj_type in self.term_models:
+            if not issubclass(obj_type, Model):   # pragma: no cover
+                raise ParsedExpressionError("objs entry '{}' is not a subclass of Model".format(
                     obj_type.__name__))
         self.valid_functions = set()
-        if hasattr(model_cls.Meta, 'valid_functions'):
-            self.valid_functions.update(model_cls.Meta.valid_functions)
+        if hasattr(model_cls.Meta, 'expression_valid_functions'):
+            self.valid_functions.update(model_cls.Meta.expression_valid_functions)
 
         self._objs = objs
         self.model_cls = model_cls
@@ -443,7 +557,7 @@ class ParsedExpression(object):
         """
         self.related_objects = {}
         self.lin_coeffs = {}
-        for model_type in self.valid_models:
+        for model_type in self.term_models:
             self.related_objects[model_type] = {}
             self.lin_coeffs[model_type] = {}
 
@@ -461,10 +575,10 @@ class ParsedExpression(object):
             name (:obj:`str`): the name of a purported `obj_model` model type in an expression
 
         Returns:
-            :obj:`object`: `None` if no model named `name` exists in `self.valid_models`,
+            :obj:`object`: `None` if no model named `name` exists in `self.term_models`,
                 else the type of the model with that name
         """
-        for model_type in self.valid_models:
+        for model_type in self.term_models:
             if name == model_type.__name__:
                 return model_type
         return None
@@ -483,16 +597,16 @@ class ParsedExpression(object):
         """
         if not token_pattern:
             return False
-        if len(self._py_tokens)-idx < len(token_pattern):
+        if len(self._py_tokens) - idx < len(token_pattern):
             return False
         for tok_idx, token_pat_num in enumerate(token_pattern):
-            if self._py_tokens[idx+tok_idx].exact_type != token_pat_num:
+            if self._py_tokens[idx + tok_idx].exact_type != token_pat_num:
                 return False
-            # because a wc_lang ID shouldn't contain white space, do not allow it between the self._py_tokens
+            # because a obj_model primary attribute shouldn't contain white space, do not allow it between the self._py_tokens
             # that match token_pattern
-            if 0 < tok_idx and self._py_tokens[idx+tok_idx-1].end != self._py_tokens[idx+tok_idx].start:
+            if 0 < tok_idx and self._py_tokens[idx + tok_idx - 1].end != self._py_tokens[idx + tok_idx].start:
                 return False
-        match_val = ''.join([self._py_tokens[idx+i].string for i in range(len(token_pattern))])
+        match_val = ''.join([self._py_tokens[idx + i].string for i in range(len(token_pattern))])
         return match_val
 
     def _get_disambiguated_id(self, idx, case_fold_match=False):
@@ -521,7 +635,7 @@ class ParsedExpression(object):
             if case_fold_match:
                 possible_model_id = possible_model_id.casefold()
 
-            # the disambiguation model type must be in self.valid_models
+            # the disambiguation model type must be in self.term_models
             model_type = self._get_model_type(disambig_model_type)
             if model_type is None:
                 return ("'{}', a {}.{}, contains '{}', but the disambiguation model type '{}' "
@@ -530,7 +644,7 @@ class ParsedExpression(object):
                             self.attr, disambig_model_match, disambig_model_type,
                             self.model_cls.__name__))
 
-            if possible_model_id not in self._objs[model_type]:
+            if possible_model_id not in self._objs.get(model_type, {}):
                 return "'{}', a {}.{}, contains '{}', but '{}' is not the id of a '{}'".format(
                     self.expression, self.model_cls.__name__, self.attr, disambig_model_match,
                     possible_model_id, disambig_model_type)
@@ -547,7 +661,7 @@ class ParsedExpression(object):
 
         Different `obj_model` objects match different Python token patterns. The default pattern
         is (token.NAME, ), but an object of type `model_type` can define a custom pattern in
-        `model_type.Meta.token_pattern`, as Species does. Some patterns may consume multiple Python tokens.
+        `model_type.Meta.expression_term_token_pattern`, as Species does. Some patterns may consume multiple Python tokens.
 
         Args:
             idx (:obj:`int`): current index into `_py_tokens`
@@ -561,19 +675,17 @@ class ParsedExpression(object):
         """
         token_matches = set()
         id_matches = set()
-        for model_type in self.valid_models:
-            token_pattern = (token.NAME, )
-            if hasattr(model_type.Meta, 'token_pattern'):
-                token_pattern = model_type.Meta.token_pattern
+        for model_type in self.term_models:
+            token_pattern = model_type.Meta.expression_term_token_pattern
             match_string = self._match_tokens(token_pattern, idx)
             if match_string:
                 token_matches.add(match_string)
                 # is match_string the ID of an instance in model_type?
                 if case_fold_match:
-                    if match_string.casefold() in self._objs[model_type]:
+                    if match_string.casefold() in self._objs.get(model_type, {}):
                         id_matches.add(IdMatch(model_type, token_pattern, match_string))
                 else:
-                    if match_string in self._objs[model_type]:
+                    if match_string in self._objs.get(model_type, {}):
                         id_matches.add(IdMatch(model_type, token_pattern, match_string))
 
         if not id_matches:
@@ -616,7 +728,7 @@ class ParsedExpression(object):
         """ Try to parse a Python math function call from `self._py_tokens` at `idx`
 
         Each `obj_model` object `model_cls` that contains an expression which can use Python math
-        functions must define the set of allowed functions in `Meta.valid_functions` of the
+        functions must define the set of allowed functions in `Meta.expression_valid_functions` of the
         model_cls Expression Model.
 
         Args:
@@ -635,18 +747,23 @@ class ParsedExpression(object):
             # the closing paren ")" will simply be encoded as a WcToken with code == op
 
             # are Python math functions defined?
-            if not hasattr(self.model_cls.Meta, 'valid_functions'):
+            if not hasattr(self.model_cls.Meta, 'expression_valid_functions'):
                 return ("'{}', a {}.{}, contains the func name '{}', but {}.Meta doesn't "
-                        "define 'valid_functions'".format(self.expression,
-                                                          self.model_cls.__name__, self.attr, func_name, self.model_cls.__name__))
+                        "define 'expression_valid_functions'".format(self.expression,
+                                                                     self.model_cls.__name__,
+                                                                     self.attr, func_name,
+                                                                     self.model_cls.__name__))
 
-            function_ids = set([f.__name__ for f in self.model_cls.Meta.valid_functions])
+            function_ids = set([f.__name__ for f in self.model_cls.Meta.expression_valid_functions])
 
             # is the function allowed?
             if func_name not in function_ids:
                 return ("'{}', a {}.{}, contains the func name '{}', but it isn't in "
-                        "{}.Meta.valid_functions: {}".format(self.expression, self.model_cls.__name__,
-                                                             self.attr, func_name, self.model_cls.__name__, ', '.join(function_ids)))
+                        "{}.Meta.expression_valid_functions: {}".format(self.expression,
+                                                                        self.model_cls.__name__,
+                                                                        self.attr, func_name,
+                                                                        self.model_cls.__name__,
+                                                                        ', '.join(function_ids)))
 
             # return a lexical match about a math function
             return LexMatch(
@@ -755,8 +872,8 @@ class ParsedExpression(object):
             if wc_token.code in [WcTokenCodes.wc_obj_id, WcTokenCodes.math_func_id]:
                 matching_items = []
 
-                for model_type in self.valid_models:
-                    if wc_token.token_string in self._objs[model_type]:
+                for model_type in self.term_models:
+                    if wc_token.token_string in self._objs.get(model_type, {}):
                         matching_items.append(model_type.__name__)
 
                 if wc_token.token_string in valid_function_names:
@@ -843,21 +960,21 @@ class ParsedExpression(object):
             namespace[model_type.__name__] = model_id_values
 
         for model_type, model_ids in self.related_objects.items():
-            if hasattr(model_type.Meta, 'expression_model'):
+            if hasattr(model_type.Meta, 'expression_term_model') and model_type.Meta.expression_term_model:
                 namespace[model_type.__name__] = {}
                 for id, model in model_ids.items():
                     namespace[model_type.__name__][id] = model.expression._parsed_expression.eval(values)
-            elif hasattr(model_type.Meta, 'expression_value'):
+            elif hasattr(model_type.Meta, 'expression_term_value') and model_type.Meta.expression_term_value:
                 namespace[model_type.__name__] = {}
                 for id, model in model_ids.items():
-                    namespace[model_type.__name__][id] = getattr(model, model_type.Meta.expression_value)
+                    namespace[model_type.__name__][id] = getattr(model, model_type.Meta.expression_term_value)
 
         if with_units:
             for model_type, model_ids in self.related_objects.items():
                 for id, model in model_ids.items():
                     if isinstance(namespace[model_type.__name__][id], bool):
                         namespace[model_type.__name__][id] = float(namespace[model_type.__name__][id])
-                    units = getattr(model, model.Meta.expression_units)
+                    units = getattr(model, model.Meta.expression_term_units)
                     if isinstance(units, Enum):
                         units = units.name
                     namespace[model_type.__name__][id] *= unit_registry.parse_expression(units)
@@ -898,7 +1015,7 @@ class ParsedExpression(object):
         while idx < len(self._wc_tokens):
             wc_token = self._wc_tokens[idx]
             if wc_token.code == WcTokenCodes.wc_obj_id:
-                val = '{}["{}"]'.format(wc_token.model_type.__name__, wc_token.model.id)
+                val = '{}["{}"]'.format(wc_token.model_type.__name__, wc_token.model.get_primary_attribute())
                 compiled_tokens.append(val)
             elif wc_token.code == WcTokenCodes.number:
                 if with_units:
