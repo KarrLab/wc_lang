@@ -1083,8 +1083,7 @@ class TestCore(unittest.TestCase):
             reaction=Reaction(id='rxn'),
             expression=expression
         )
-        with self.assertRaises(SyntaxError):
-            rate_law.expression.validate()
+        self.assertRegex(str(rate_law.expression.validate()), 'SyntaxError')
 
         # No error
         expression = 'k_cat * spec_0[c_0]'
@@ -2284,12 +2283,8 @@ class TestCore(unittest.TestCase):
         self.assertIn(error_msg_substr, invalid_obj.attributes[0].messages[0])
 
     def test_invalid_function_expressions(self):
-        _, objects, _ = self.make_objects()
-
-        with self.assertRaises(SyntaxError):
-            bad_expr = '1 +'
-            self.do_test_invalid_expression(FunctionExpression, Function, objects, bad_expr,
-                                            "SyntaxError: cannot eval expression '{}' in Function".format(bad_expr))
+        func_expr, error = FunctionExpression.deserialize('1 +', {})
+        self.assertRegex(str(error), "SyntaxError:")
 
     def test_function(self):
         model, objects, _ = self.make_objects()

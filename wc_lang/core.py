@@ -2204,6 +2204,7 @@ class ObservableExpression(obj_model.Model, Expression):
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
         expression_term_models = ('Species', 'Observable')
+        expression_is_linear = True
 
     def serialize(self):
         """ Generate string representation
@@ -2236,7 +2237,7 @@ class ObservableExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return Expression.validate(self, self.observable, check_linear=True)
+        return Expression.validate(self, self.observable)
 
 
 class Observable(obj_model.Model):
@@ -2440,6 +2441,7 @@ class StopConditionExpression(obj_model.Model, Expression):
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_type = bool
 
     def serialize(self):
         """ Generate string representation
@@ -2472,7 +2474,7 @@ class StopConditionExpression(obj_model.Model, Expression):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        return Expression.validate(self, self.stop_condition, return_type=bool)
+        return Expression.validate(self, self.stop_condition)
 
 
 class StopCondition(obj_model.Model):
