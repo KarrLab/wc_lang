@@ -3131,6 +3131,10 @@ class UnitsTestCase(unittest.TestCase):
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
 
+        rl.reaction.rate_units = None
+        rv = rl.validate()
+        self.assertNotEqual(rv, None, str(rv))
+
     def test_reaction_flux(self):
         self.assertEqual(Reaction.flux_bound_units.enum_class, ReactionFluxBoundUnit)
         self.assertEqual(len(ReactionFluxBoundUnit), 1)
