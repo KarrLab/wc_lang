@@ -15,7 +15,8 @@ import unittest
 import wc_lang
 import wc_lang.config.core
 from libsbml import SBMLDocument
-from obj_model.core import InvalidAttribute
+from obj_model import InvalidAttribute
+from obj_model.expression import ExpressionManyToOneAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           MoleculeCountUnit,
@@ -38,7 +39,6 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Evidence,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
-from wc_lang.expression import ExpressionManyToOneAttribute
 from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
                                create_sbml_doc_w_fbc, get_SBML_compatibility_method)

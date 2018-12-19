@@ -37,16 +37,6 @@ This module also defines numerous classes that serve as attributes of these clas
 from enum import Enum, EnumMeta
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
-from six import with_metaclass
-import collections
-import datetime
-import networkx
-import pkg_resources
-import re
-import six
-import stringcase
-import token
-
 from obj_model import (BooleanAttribute, EnumAttribute,
                        FloatAttribute, PositiveFloatAttribute,
                        IntegerAttribute, PositiveIntegerAttribute,
@@ -54,18 +44,27 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
                        InvalidObject, InvalidAttribute, TabularOrientation)
-import obj_model
-import obj_model.extra_attributes
+from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
+                                  ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
+                                  ExpressionExpressionTermMeta, Expression,
+                                  ParsedExpression, ParsedExpressionError)
+from six import with_metaclass
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                create_sbml_parameter)
-from wc_lang.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
-                                ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
-                                ExpressionExpressionTermMeta, Expression,
-                                ParsedExpression, ParsedExpressionError)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.units import unit_registry
+import collections
+import datetime
+import networkx
+import obj_model
+import obj_model.extra_attributes
+import pkg_resources
+import re
+import six
+import stringcase
+import token
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()

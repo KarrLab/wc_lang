@@ -23,7 +23,6 @@ from .core import (TimeUnit, TaxonRank,
                    Evidence, DatabaseReference, Reference,
                    Validator)
 from . import config
-from . import expression
 from . import io
 from . import sbml
 from . import transform

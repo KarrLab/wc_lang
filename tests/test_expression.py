@@ -16,9 +16,9 @@ from wc_lang import (Compartment, ConcentrationUnit, SpeciesType, Species,
                      Function, FunctionExpression,
                      RateLaw, RateLawExpression,
                      Parameter)
-from wc_lang.expression import (WcTokenCodes, WcToken, LexMatch,
-                                Expression, ParsedExpression, ParsedExpressionError,
-                                ParsedExpressionValidator, LinearParsedExpressionValidator)
+from obj_model.expression import (WcTokenCodes, WcToken, LexMatch,
+                                  Expression, ParsedExpression, ParsedExpressionError,
+                                  ParsedExpressionValidator, LinearParsedExpressionValidator)
 
 
 class TestWcLangExpression(unittest.TestCase):
