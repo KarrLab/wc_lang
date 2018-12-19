@@ -2190,7 +2190,7 @@ class TestCore(unittest.TestCase):
                     self.assertEqual(set(getattr(expr_obj, modifier)), set(elements))
             error = expr_obj.validate()
             self.assertEqual(error, None, str(error))
-            self.assertEqual(expr_obj._parsed_expression.test_eval(species_counts=1.),
+            self.assertEqual(expr_obj._parsed_expression.test_eval({Species: 1.}),
                              expected_val,
                              expr_obj._parsed_expression.expression)
 
@@ -2940,8 +2940,8 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(function.expression.compartments, [])
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 4.)
-        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=3.), 6.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2.}), 4.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 3.}), 6.)
 
         function = Function(
             id='func',
@@ -2952,9 +2952,9 @@ class UnitsTestCase(unittest.TestCase):
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2., compartment_masses=3.), 4./3.)
+            {Species: 2., Compartment: 3.}), 4./3.)
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=3., compartment_masses=3.), 6./3.)
+            {Species: 3., Compartment: 3.}), 6./3.)
 
         function = Function(
             id='func',
@@ -2965,9 +2965,9 @@ class UnitsTestCase(unittest.TestCase):
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2., compartment_masses=3.), 4./3.)
+            {Species: 2., Compartment: 3.}), 4./3.)
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=3., compartment_masses=3.), 6./3.)
+            {Species: 3., Compartment: 3.}), 6./3.)
 
         # with parameters
         function = Function(
@@ -2976,7 +2976,7 @@ class UnitsTestCase(unittest.TestCase):
             units='molecule g^-1')
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 8./3.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_1': 1.5}}), 8./3.)
 
         function = Function(
             id='func',
@@ -2984,7 +2984,7 @@ class UnitsTestCase(unittest.TestCase):
             units='molecule kg^-1')
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 8./5.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_2': 2.5}}), 8./5.)
 
         function = Function(
             id='func',
@@ -2992,7 +2992,7 @@ class UnitsTestCase(unittest.TestCase):
             units='molecule kg^-1')
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval(species_counts=2.), 2.4)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_2': 2.5}}), 2.4)
 
         # inconsistent units
         function = Function(
@@ -3010,7 +3010,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2., with_units=True),
+            {Species: 2., Parameter: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True),
             (4. + 2. / (1.5/2.5e3)) * unit_registry.parse_expression('molecule'))
 
         function = Function(
@@ -3020,7 +3020,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            species_counts=2.), 6.)
+            {Species: 2.}), 6.)
 
         func = Function(
             id='func',
@@ -3029,7 +3029,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = func.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(func.expression._parsed_expression.test_eval(
-            species_counts=2.), 14.)
+            {Species: 2.}), 14.)
 
         objs[Function]['func'] = func
         func2 = Function(
@@ -3040,7 +3040,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = func2.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(func2.expression._parsed_expression.test_eval(
-            species_counts=2., with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
+            {Species: 2., Parameter: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
 
         func2 = Function(
             id='func_2',
@@ -3096,8 +3096,9 @@ class UnitsTestCase(unittest.TestCase):
         rl.expression, _ = RateLawExpression.deserialize('4 * p_1 * func_1', objs)
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(rl.expression._parsed_expression.test_eval(species_counts=2., with_units=True).magnitude,
-                         4. * 1.5 * (3. * (2. * 2.)))
+        self.assertEqual(rl.expression._parsed_expression.test_eval(
+            {Species: 2., Parameter: {'p_1': 1.5}}, with_units=True).magnitude,
+            4. * 1.5 * (3. * (2. * 2.)))
 
         rl = RateLaw(id='rxn_1-forward',
                      reaction=Reaction(id='rxn_1'),
@@ -3170,16 +3171,16 @@ class UnitsTestCase(unittest.TestCase):
         rv = dfba_obj.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(dfba_obj.expression._parsed_expression.test_eval(
-            reaction_fluxes=2.1, dfba_net_reaction_fluxes=3., with_units=False),
+            {Reaction: 2.1, DfbaNetReaction: 3.}, with_units=False),
             (2.1 + 3.))
 
         dfba_obj.expression._parsed_expression._compiled_expression_with_units = ' + '.join([
-            'unit_registry.parse_expression("s M^-1") * reaction_fluxes["rxn_1"]',
-            'unit_registry.parse_expression("s") * dfba_net_reaction_fluxes["dfba_net_rxn_1"]',
+            'unit_registry.parse_expression("s") * Reaction["rxn_1"]',
+            'unit_registry.parse_expression("s") * DfbaNetReaction["dfba_net_rxn_1"]',
         ])
         dfba_obj.expression._parsed_expression._compiled_namespace_with_units['unit_registry'] = unit_registry
         self.assertEqual(dfba_obj.expression._parsed_expression.test_eval(
-            reaction_fluxes=2.1, dfba_net_reaction_fluxes=3., with_units=True),
+            {Reaction: 2.1, DfbaNetReaction: 3.}, with_units=True),
             (2.1 + 3.) * unit_registry.parse_expression(DfbaObjectiveUnit['dimensionless'].name))
 
     def test_dfba_net_specices_value(self):
@@ -3236,17 +3237,19 @@ class UnitsTestCase(unittest.TestCase):
         obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
         obs_1.expression, error = ObservableExpression.deserialize('2 * st_1[c_1]', objs)
         self.assertEqual(error, None)
+        self.assertEqual(obs_1.expression._parsed_expression.test_eval(values={Species: 1.}), 2. * 1.)
 
         func_1 = objs[Function]['func_1'] = Function(id='func_1', units='molecule')
         func_1.expression, error = FunctionExpression.deserialize('3 * obs_1', objs)
         self.assertEqual(error, None)
+        self.assertEqual(func_1.expression._parsed_expression.test_eval(values={Species: 1.}), 3. * 2. * 1.)
 
         cond = StopCondition(id='cond_1')
         cond.expression, error = StopConditionExpression.deserialize('func_1 > p_2', objs)
         self.assertEqual(error, None)
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertTrue(cond.expression._parsed_expression.test_eval(with_units=True))
+        self.assertTrue(cond.expression._parsed_expression.test_eval(values={Species: 1.}, with_units=True))
 
         cond = StopCondition(id='cond_2')
         cond.expression, error = StopConditionExpression.deserialize('func_1 > p_3', objs)
@@ -3259,7 +3262,8 @@ class UnitsTestCase(unittest.TestCase):
         self.assertEqual(error, None)
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertFalse(cond.expression._parsed_expression.test_eval(with_units=True))
+        self.assertFalse(cond.expression._parsed_expression.test_eval(
+            values={Parameter: {'p_3': 1.5, 'p_4': 2.5}}, with_units=True))
 
         cond = StopCondition(id='cond_4')
         cond.expression, error = StopConditionExpression.deserialize('st_1[c_1] / c_1 > p_5', objs)
@@ -3267,9 +3271,9 @@ class UnitsTestCase(unittest.TestCase):
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertTrue(cond.expression._parsed_expression.test_eval(
-            species_counts=2, compartment_masses=1., with_units=True))
+            values={Species: 2., Compartment: 1., Parameter: {'p_5': 1.}}, with_units=True))
         self.assertFalse(cond.expression._parsed_expression.test_eval(
-            species_counts=0.5, compartment_masses=1., with_units=True))
+            values={Species: 0.5, Compartment: 1., Parameter: {'p_5': 1.}}, with_units=True))
 
     def test_parameter_value(self):
         self.assertTrue(hasattr(Parameter, 'units'))

@@ -355,9 +355,6 @@ class TestExampleModel(unittest.TestCase):
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
-        print(copy.keys())
-        print('\n\n')
-        print(original.keys())
         for sheet in original.keys():
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
                 self.assertEqual(copy_row, original_row,

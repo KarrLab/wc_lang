@@ -473,7 +473,7 @@ class TestWcLangExpression(unittest.TestCase):
         obj, _ = Expression.deserialize(obj_type, expr, self.objects.copy())
         parsed_expr = obj._parsed_expression
         parent = parent_type(expression=obj)
-        evaled_val = parsed_expr.test_eval(species_counts=related_obj_val)
+        evaled_val = parsed_expr.test_eval({Species: related_obj_val})
         self.assertEqual(expected_val, evaled_val)
 
     def test_test_eval(self):

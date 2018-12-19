@@ -7,15 +7,13 @@
 :License: MIT
 """
 import collections
-import copy
 import obj_model
 import token
 import tokenize
 import wc_lang.core
 from enum import Enum
 from io import BytesIO
-from wc_lang.core import InvalidObject, InvalidAttribute
-from wc_lang.util import get_models
+from obj_model import InvalidObject, InvalidAttribute
 from wc_utils.util.misc import DFSMAcceptor
 from wc_utils.util.units import unit_registry
 
@@ -37,21 +35,21 @@ IdMatch.token_pattern.__doc__ = 'The token pattern used by the match'
 IdMatch.match_string.__doc__ = 'The matched string'
 
 
-# a token in a parsed wc_lang expression, returned in a list by tokenize
+# a token in a parsed expression, returned in a list by tokenize
 WcToken = collections.namedtuple('WcToken', 'code, token_string, model_type, model_id, model')
 # make model_type, model_id, and model optional: see https://stackoverflow.com/a/18348004
 WcToken.__new__.__defaults__ = (None, None, None)
-WcToken.__doc__ += ': WcToken in a parsed wc_lang expression'
+WcToken.__doc__ += ': WcToken in a parsed obj_model expression'
 WcToken.code.__doc__ = 'WcTokenCodes encoding'
 WcToken.token_string.__doc__ = "The token's string"
-WcToken.model_type.__doc__ = "When code is wc_obj_id, the wc_lang obj's type"
-WcToken.model_id.__doc__ = "When code is wc_obj_id, the wc_lang obj's id"
-WcToken.model.__doc__ = "When code is wc_obj_id, the wc_lang obj"
+WcToken.model_type.__doc__ = "When code is wc_obj_id, the obj_model obj's type"
+WcToken.model_id.__doc__ = "When code is wc_obj_id, the obj_model obj's id"
+WcToken.model.__doc__ = "When code is wc_obj_id, the obj_model obj"
 
 
 # result returned by a tokens lexer, like _get_disambiguated_id()
 LexMatch = collections.namedtuple('LexMatch', 'wc_tokens, num_py_tokens')
-LexMatch.__doc__ += ': result returned by a lexer method that matches a wc_lang expression element'
+LexMatch.__doc__ += ': result returned by a lexer method that matches a obj_model expression element'
 LexMatch.wc_tokens.__doc__ = 'List of WcLangTokens created'
 LexMatch.num_py_tokens.__doc__ = 'Number of Python tokens consumed'
 
@@ -88,12 +86,6 @@ class Expression(object):
         # objects must contain all objects types in valid_models
         value = value or ''
 
-        all_models = {model.__name__: model for model in get_models()}
-
-        used_model_types = []
-        for used_model in model_cls.Meta.valid_models:
-            used_model_type = all_models[used_model]
-            used_model_types.append(used_model_type)
         expr_field = 'expression'
         try:
             parsed_expression = ParsedExpression(model_cls, expr_field, value, objects)
@@ -283,8 +275,8 @@ class Expression(object):
         For example, this uses `FunctionExpression` to make a `Function`.
 
         Args:
-            model (:obj:`obj_model.Model`): a `wc_lang.core.Model` which is the root model
-            model_type (:obj:`type`): an `obj_model.Model` that uses a mathemetical expression, like
+            model (:obj:`obj_model.Model`): an instance of `obj_model.Model` which is the root model
+            model_type (:obj:`type`): a subclass of `obj_model.Model` that uses a mathemetical expression, like
                 `Function` and `Observable`
             id (:obj:`str`): the id of the `model_type` being created
             expression (:obj:`str`): the expression used by the `model_type` being created
@@ -324,11 +316,9 @@ class ParsedExpressionError(Exception):
 
 
 class ParsedExpression(object):
-    """ An expression in a wc_lang Model
+    """ An expression in a obj_model Model
 
-    Expressions are currently (July, 2018) used in five `wc_lang` `Model`s: `RateLawExpression`, `Function`,
-    `StopCondition` (which is just a special case of `Function` that returns a boolean), `DfbaObjective`,
-    and `Observable`. These expressions are limited Python expressions with specific semantics:
+   These expressions are limited Python expressions with specific semantics:
 
     * They must be syntactically correct Python.
     * No Python keywords, strings, or tokens that do not belong in expressions are allowed.
@@ -341,7 +331,7 @@ class ParsedExpression(object):
         `Observable`'s and `DfbaNetReaction`s.
     * Cycles of references are illegal.
     * An identifier must unambiguously refer to exactly one related `Model` in a model.
-    * Each `wc_lang` `Model` that can be used in an expression must have an ID that is a simple Python identifier,
+    * Each `obj_model` `Model` that can be used in an expression must have an ID that is a simple Python identifier,
         or define `token_pattern` as an attribute that describes the `Model`'s syntactic Python structure. See
         `Species` for an example.
     * Every expression must be computable at any time during a simulation. The evaluation of an expression
@@ -357,13 +347,13 @@ class ParsedExpression(object):
         for the expression's use
 
     Attributes:
-        model_cls (:obj:`type`): the `wc_lang` `Model` which has an expression
+        model_cls (:obj:`type`): the `obj_model` `Model` which has an expression
         attr (:obj:`str`): the attribute name of the expression in `model_cls`
-        expression (:obj:`str`): the expression defined in the wc_lang Model
+        expression (:obj:`str`): the expression defined in the obj_model Model
         _py_tokens (:obj:`list` of :obj:`collections.namedtuple`): a list of Python tokens generated by `tokenize.tokenize()`
-        _objs (:obj:`dict`): dict of wc_lang Models that might be referenced in expression; maps
+        _objs (:obj:`dict`): dict of obj_model Models that might be referenced in expression; maps
             model type to a dict mapping ids to Model instances
-        valid_models (:obj:`set`): wc_lang Models that `model_cls` objects are allowed to use,
+        valid_models (:obj:`set`): obj_model Models that `model_cls` objects are allowed to use,
             as indicated in `model_cls.Meta.valid_models`, intersected with `_objs.keys()`
             might be referenced in expression; maps
         valid_functions (:obj:`set`): the union of all `valid_functions` attributes for `_objs`
@@ -384,7 +374,7 @@ class ParsedExpression(object):
     MODEL_TYPE_DISAMBIG_PATTERN = (token.NAME, token.DOT, token.NAME)
     FUNC_PATTERN = (token.NAME, token.LPAR)
 
-    # enumerate and detect Python tokens that are illegal in wc_lang expressions
+    # enumerate and detect Python tokens that are illegal in obj_model expressions
     ILLEGAL_TOKENS_NAMES = ('ENDMARKER', 'NEWLINE', 'INDENT', 'DEDENT', 'COLON', 'LBRACE', 'RBRACE',
                             'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL', 'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
                             'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL', 'DOUBLESTAREQUAL', 'DOUBLESLASHEQUAL',
@@ -402,9 +392,9 @@ class ParsedExpression(object):
         """ Create an instance of ParsedExpression
 
         Args:
-            model_cls (:obj:`type`): the `wc_lang` `Model` which has an expression
+            model_cls (:obj:`type`): the `obj_model` `Model` which has an expression
             attr (:obj:`str`): the attribute name of the expression in `model_cls`
-            expression (:obj:`str`): the expression defined in the wc_lang Model
+            expression (:obj:`str`): the expression defined in the obj_model Model
             objs (:obj:`dict`): dictionary of model objects (instances of :obj:`obj_model.Model`) organized
                 by their type
 
@@ -465,10 +455,10 @@ class ParsedExpression(object):
         self._compiled_namespace_with_units = {}
 
     def _get_model_type(self, name):
-        """ Find the `wc_lang` model type corresponding to `name`
+        """ Find the `obj_model` model type corresponding to `name`
 
         Args:
-            name (:obj:`str`): the name of a purported `wc_lang` model type in an expression
+            name (:obj:`str`): the name of a purported `obj_model` model type in an expression
 
         Returns:
             :obj:`object`: `None` if no model named `name` exists in `self.valid_models`,
@@ -506,7 +496,7 @@ class ParsedExpression(object):
         return match_val
 
     def _get_disambiguated_id(self, idx, case_fold_match=False):
-        """ Try to parse a disambiguated `wc_lang` id from `self._py_tokens` at `idx`
+        """ Try to parse a disambiguated `obj_model` id from `self._py_tokens` at `idx`
 
         Look for a disambugated id (a Model written as `ModelType.model_id`). If tokens do not match,
         return `None`. If tokens match, but their values are wrong, return an error `str`.
@@ -553,9 +543,9 @@ class ParsedExpression(object):
         return None
 
     def _get_related_obj_id(self, idx, case_fold_match=False):
-        """ Try to parse a related object `wc_lang` id from `self._py_tokens` at `idx`
+        """ Try to parse a related object `obj_model` id from `self._py_tokens` at `idx`
 
-        Different `wc_lang` objects match different Python token patterns. The default pattern
+        Different `obj_model` objects match different Python token patterns. The default pattern
         is (token.NAME, ), but an object of type `model_type` can define a custom pattern in
         `model_type.Meta.token_pattern`, as Species does. Some patterns may consume multiple Python tokens.
 
@@ -625,7 +615,7 @@ class ParsedExpression(object):
     def _get_func_call_id(self, idx, case_fold_match='unused'):
         """ Try to parse a Python math function call from `self._py_tokens` at `idx`
 
-        Each `wc_lang` object `model_cls` that contains an expression which can use Python math
+        Each `obj_model` object `model_cls` that contains an expression which can use Python math
         functions must define the set of allowed functions in `Meta.valid_functions` of the
         model_cls Expression Model.
 
@@ -782,20 +772,15 @@ class ParsedExpression(object):
         self._compiled_expression_with_units, self._compiled_namespace_with_units = self._compile(with_units=True)
         return (self._wc_tokens, self.related_objects, None)
 
-    def test_eval(self, species_counts=1., compartment_masses=1.,
-                  reaction_fluxes=1., dfba_net_reaction_fluxes=1.,
-                  with_units=False):
+    def test_eval(self, values=1., with_units=False):
         """ Test evaluate the expression with the value of all used models equal to `test_val`.
 
         This is used to validate this :obj:`ParsedExpression`, as well as for testing.
 
         Args:
-            species_counts (:obj:`float`, optional): species counts to use to evaluate expression
-            compartment_masses (:obj:`float`, optional): compartment masses (g) to use to evaluate expression
-            reaction_fluxes (:obj:`float`, optional): reaction fluxes (M s^-1) to use
-                to use to evaluate expression
-            dfba_net_reaction_fluxes (:obj:`float`, optional): dFBA net reaction fluxes (s^-1)
-                to use to evaluate expression
+            values (:obj:`float` or :obj:`dict`, optional): value, dictionary that maps model types to 
+                values, or dictionary that maps model types to dictionaries that map model ids
+                to values
             with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
 
         Returns:
@@ -804,42 +789,43 @@ class ParsedExpression(object):
         Raises:
             :obj:`ParsedExpressionError`: if the expression evaluation fails
         """
-        return self.eval(species_counts=collections.defaultdict(lambda: species_counts),
-                         compartment_masses=collections.defaultdict(lambda: compartment_masses),
-                         reaction_fluxes=collections.defaultdict(lambda: reaction_fluxes),
-                         dfba_net_reaction_fluxes=collections.defaultdict(lambda: dfba_net_reaction_fluxes),
-                         with_units=with_units)
+        def constant_factory(value):
+            return lambda: value
 
-    def eval(self, species_counts=None, compartment_masses=None,
-             reaction_fluxes=None, dfba_net_reaction_fluxes=None,
-             with_units=False):
-        """ Evaluate the expression
+        if isinstance(values, (int, float, bool)):
+            obj_values = {}
+            for model_type in self.related_objects.keys():
+                obj_values[model_type] = collections.defaultdict(constant_factory(values))
+        else:
+            obj_values = {}
+            for model_type, model_values in values.items():
+                if isinstance(model_values, (int, float, bool)):
+                    obj_values[model_type] = collections.defaultdict(constant_factory(model_values))
+                else:
+                    obj_values[model_type] = model_values
 
-        This expression must have been successfully `tokenize`d.
+        return self.eval(obj_values, with_units=with_units)
+
+    def eval(self, values, with_units=False):
+        """ Evaluate the expression        
 
         Approach:
 
+            0. Compile the expression
             1. Replace references to used models in `self._wc_tokens` with values
             2. Join the elements of `self._wc_tokens` into a Python expression
             3. `eval` the Python expression
 
         Args:
-            species_counts (:obj:`dict` of :object:`str`, :obj:`float`):
-                dictionary that maps ids of :obj:`wc_lang.core.Species` to their counts
-            compartment_masses (:obj:`dict` of :str`, :obj:`float`):
-                dictionary that maps ids of :obj:`wc_lang.core.Compartment` to their masses (g)
-            reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`):
-                dictionary that maps ids of :obj:`wc_lang.core.Reaction` to their fluxes (M s^-1)
-            dfba_net_reaction_fluxes (:obj:`dict` of :obj:`str`, :obj:`float`)
-                dictionary that maps ids of :obj:`wc_lang.core.DfbaNetReaction` to their fluxes
-                (s^-1)
-            with_units (:obj:`bool`, optional): if :obj:`True`, evaluate units
+            values (:obj:`dict`): dictionary that maps model types to dictionaries that 
+                map model ids to values
+            with_units (:obj:`bool`, optional): if :obj:`True`, include units
 
         Returns:
             :obj:`float`, :obj:`int`, or :obj:`bool`: the value of the expression
 
         Raises:
-            :obj:`ParsedExpressionError`: if the evaluation fails
+            :obj:`ParsedExpressionError`: if the expression has not been compiled or the evaluation fails
         """
         if with_units:
             expression = self._compiled_expression_with_units
@@ -853,58 +839,28 @@ class ParsedExpression(object):
                 self.expression))
 
         # prepare name space
+        for model_type, model_id_values in values.items():
+            namespace[model_type.__name__] = model_id_values
+
+        for model_type, model_ids in self.related_objects.items():
+            if hasattr(model_type.Meta, 'expression_model'):
+                namespace[model_type.__name__] = {}
+                for id, model in model_ids.items():
+                    namespace[model_type.__name__][id] = model.expression._parsed_expression.eval(values)
+            elif hasattr(model_type.Meta, 'expression_value'):
+                namespace[model_type.__name__] = {}
+                for id, model in model_ids.items():
+                    namespace[model_type.__name__][id] = getattr(model, model_type.Meta.expression_value)
+
         if with_units:
-            namespace['parameter_values'] = copy.copy(namespace['parameter_values'])
-            for obj in self.related_objects.get(wc_lang.core.Parameter, {}).values():
-                namespace['parameter_values'][obj.id] = obj.value * \
-                    unit_registry.parse_expression(obj.units)
-
-        namespace['compartment_masses'] = compartment_masses
-        if with_units:
-            namespace['compartment_masses'] = copy.copy(namespace['compartment_masses'])
-            for obj in self.related_objects.get(wc_lang.core.Compartment, {}).values():
-                namespace['compartment_masses'][obj.id] = compartment_masses[obj.id] * \
-                    unit_registry.parse_expression(wc_lang.core.MassUnit.g.name)
-
-        namespace['species_counts'] = species_counts
-        if with_units:
-            namespace['species_counts'] = copy.copy(namespace['species_counts'])
-            for obj in self.related_objects.get(wc_lang.core.Species, {}).values():
-                namespace['species_counts'][obj.id] = species_counts[obj.id] * \
-                    unit_registry.parse_expression(
-                        wc_lang.core.MoleculeCountUnit['molecule'].name)
-
-        namespace['reaction_fluxes'] = reaction_fluxes
-        if with_units:
-            namespace['reaction_fluxes'] = copy.copy(namespace['reaction_fluxes'])
-            for obj in self.related_objects.get(wc_lang.core.Reaction, {}).values():
-                namespace['reaction_fluxes'][obj.id] = reaction_fluxes[obj.id] * \
-                    unit_registry.parse_expression(
-                        wc_lang.core.ReactionFluxBoundUnit['M s^-1'].name)
-
-        namespace['dfba_net_reaction_fluxes'] = dfba_net_reaction_fluxes
-        if with_units:
-            namespace['dfba_net_reaction_fluxes'] = copy.copy(namespace['dfba_net_reaction_fluxes'])
-            for obj in self.related_objects.get(wc_lang.core.DfbaNetReaction, {}).values():
-                namespace['dfba_net_reaction_fluxes'][obj.id] = dfba_net_reaction_fluxes[obj.id] * \
-                    unit_registry.parse_expression(
-                        wc_lang.core.ReactionRateUnit['s^-1'].name)
-
-        namespace['observable_counts'] = {}
-        for obs in self.related_objects.get(wc_lang.core.Observable, {}).values():
-            val = namespace['observable_counts'][obs.id] = obs.expression._parsed_expression.eval(
-                species_counts, compartment_masses)
-            if with_units:
-                namespace['observable_counts'][obs.id] = val * unit_registry.parse_expression(
-                    wc_lang.core.MoleculeCountUnit['molecule'].name)
-
-        namespace['function_values'] = {}
-        for func in self.related_objects.get(wc_lang.core.Function, {}).values():
-            val = namespace['function_values'][func.id] = func.expression._parsed_expression.eval(
-                species_counts, compartment_masses)
-            if with_units:
-                namespace['function_values'][func.id] = float(val) * \
-                    unit_registry.parse_expression(func.units)
+            for model_type, model_ids in self.related_objects.items():
+                for id, model in model_ids.items():
+                    if isinstance(namespace[model_type.__name__][id], bool):
+                        namespace[model_type.__name__][id] = float(namespace[model_type.__name__][id])
+                    units = getattr(model, model.Meta.expression_units)
+                    if isinstance(units, Enum):
+                        units = units.name
+                    namespace[model_type.__name__][id] *= unit_registry.parse_expression(units)
 
         # prepare error message
         error_suffix = " cannot eval expression '{}' in {}; ".format(expression,
@@ -942,24 +898,7 @@ class ParsedExpression(object):
         while idx < len(self._wc_tokens):
             wc_token = self._wc_tokens[idx]
             if wc_token.code == WcTokenCodes.wc_obj_id:
-                if wc_token.model_type == wc_lang.core.Compartment:
-                    val = 'compartment_masses["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.Species:
-                    val = 'species_counts["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.Observable:
-                    val = 'observable_counts["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.Function:
-                    val = 'function_values["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.Parameter:
-                    val = 'parameter_values["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.Reaction:
-                    val = 'reaction_fluxes["{}"]'.format(wc_token.model.id)
-                elif wc_token.model_type == wc_lang.core.DfbaNetReaction:
-                    val = 'dfba_net_reaction_fluxes["{}"]'.format(wc_token.model.id)
-                else:
-                    raise ParsedExpressionError(('Expression {} can only contain compartments, species, observables, '
-                                                 'functions, parameters, reactions, and dFBA net reactions').format(
-                        self.expression))  # pragma: no cover
+                val = '{}["{}"]'.format(wc_token.model_type.__name__, wc_token.model.id)
                 compiled_tokens.append(val)
             elif wc_token.code == WcTokenCodes.number:
                 if with_units:
@@ -975,8 +914,6 @@ class ParsedExpression(object):
         compiled_namespace = {func.__name__: func for func in self.valid_functions}
         if with_units:
             compiled_namespace['__dimensionless__'] = unit_registry['dimensionless']
-        compiled_namespace['parameter_values'] = {
-            param.id: param.value for param in self.related_objects.get(wc_lang.core.Parameter, {}).values()}
 
         return compiled_expression, compiled_namespace
 

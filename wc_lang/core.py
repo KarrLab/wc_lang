@@ -1709,6 +1709,7 @@ class DfbaObjective(obj_model.Model):
         attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'reaction_rate_units', 'coefficient_units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = DfbaObjectiveExpression
+        expression_units = 'units'
 
     @staticmethod
     def gen_id(submodel_id):
@@ -1881,6 +1882,7 @@ class Compartment(obj_model.Model):
                            'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units',
                            'init_density',
                            'db_refs', 'evidence', 'comments', 'references')
+        expression_units = 'mass_units'
 
     def validate(self):
         """ Check that the compartment is valid
@@ -1904,7 +1906,8 @@ class Compartment(obj_model.Model):
             elif unit_registry.parse_expression(self.init_density.units).to_base_units().units != \
                     unit_registry.parse_expression(DensityUnit['g l^-1'].name).to_base_units().units:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
-                                               ['Initial density of 3D compartment must have units `{}`'.format(DensityUnit['g l^-1'].name)]))
+                                               ['Initial density of 3D compartment must have units `{}`'.format(
+                                                DensityUnit['g l^-1'].name)]))
 
         if errors:
             return InvalidObject(self, errors)
@@ -2062,6 +2065,7 @@ class Species(obj_model.Model):
         # unique_together = (('species_type', 'compartment', ), )
         indexed_attrs_tuples = (('species_type', 'compartment'), )
         token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
+        expression_units = 'units'
 
     @staticmethod
     def gen_id(species_type_id, compartment_id):
@@ -2356,6 +2360,7 @@ class Observable(obj_model.Model):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = ObservableExpression
+        expression_units = 'units'
 
 
 class FunctionExpression(obj_model.Model, Expression):
@@ -2462,6 +2467,7 @@ class Function(obj_model.Model):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = FunctionExpression
+        expression_units = 'units'
 
     def validate(self):
         """ Check that the Function is valid
@@ -2606,6 +2612,7 @@ class StopCondition(obj_model.Model):
         attribute_order = ('id', 'name', 'expression', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
         expression_model = StopConditionExpression
+        expression_units = 'units'
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -2673,6 +2680,7 @@ class Reaction(obj_model.Model):
     submodel = ManyToOneAttribute(Submodel, related_name='reactions')
     participants = ReactionParticipantAttribute(related_name='reactions')
     reversible = BooleanAttribute()
+    rate_units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     flux_min = FloatAttribute(nan=True)
     flux_max = FloatAttribute(min=0, nan=True)
     flux_bound_units = EnumAttribute(ReactionFluxBoundUnit, default=None, none=True)
@@ -2684,9 +2692,10 @@ class Reaction(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
-                           'flux_min', 'flux_max', 'flux_bound_units',
+                           'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
+        expression_units = 'rate_units'
 
     def validate(self):
         """ Check if the reaction is valid
@@ -2980,104 +2989,6 @@ class SpeciesCoefficient(obj_model.Model):
             return (None, InvalidAttribute(attr, ['Invalid species coefficient']))
 
 
-class RateLaw(obj_model.Model):
-    """ Rate law
-
-    Attributes:
-        id (:obj:`str`): identifier equal to `{reaction.id}-{direction.name}`
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-        reaction (:obj:`Reaction`): reaction
-        direction (:obj:`RateLawDirection`): direction
-        type (:obj:`RateLawType`): type
-        expression (:obj:`RateLawExpression`): expression
-        units (:obj:`ReactionRateUnit`): units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
-        evidence (:obj:`list` of :obj:`Evidence`): evidence
-        comments (:obj:`str`): comments
-        references (:obj:`list` of :obj:`Reference`): references
-    """
-    id = StringAttribute(primary=True, unique=True)
-    name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='rate_laws')
-    reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
-    direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
-    type = EnumAttribute(RateLawType, default=RateLawType.other)
-    expression = RateLawExpressionAttribute(related_name='rate_laws')
-    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
-    evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
-    comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='rate_laws')
-
-    class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
-                           'expression', 'units',
-                           'db_refs', 'evidence', 'comments', 'references')
-        # unique_together = (('reaction', 'direction'), )
-
-    @staticmethod
-    def gen_id(reaction_id, direction_name):
-        """ Generate identifier
-
-        Args:
-            reaction_id (:obj:`str`): reaction id
-            direction_name (:obj:`str`): direction name
-
-        Returns:
-            :obj:`str`: identifier
-        """
-        return '{}-{}'.format(reaction_id, direction_name)
-
-    def validate(self):
-        """ Determine whether this `RateLaw` is valid
-
-        * Check if identifier equal to `{reaction.id}-{direction.name}`
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors in an `InvalidObject` instance
-        """
-        invalid_obj = super(RateLaw, self).validate()
-        if invalid_obj:
-            errors = invalid_obj.attributes
-        else:
-            errors = []
-
-        # check ID
-        if self.reaction and self.direction is not None and \
-                self.id != self.gen_id(self.reaction.id, self.direction.name):
-            errors.append(InvalidAttribute(
-                self.Meta.attributes['id'],
-                ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
-
-        # check that units are valid
-        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
-            exp_units = unit_registry.parse_expression(self.units.name).to_base_units().units
-            try:
-                calc = self.expression._parsed_expression.test_eval(with_units=True)
-            except ParsedExpressionError as error:
-                errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
-            else:
-                if hasattr(calc, 'units'):
-                    calc_units = calc.to_base_units().units
-                else:
-                    calc_units = unit_registry.parse_expression('dimensionless')
-
-                if calc_units != exp_units:
-                    errors.append(InvalidAttribute(self.Meta.attributes['units'],
-                                                   ['Units of "{}" should be "{}" not "{}"'.format(
-                                                    self.expression.expression, exp_units, calc_units)]))
-        else:
-            errors.append(InvalidAttribute(self.Meta.attributes['expression'],
-                                           ['Expression for {} could not be parsed'.format(self.id)]))
-
-        """ return errors or `None` to indicate valid object """
-        if errors:
-            return InvalidObject(self, errors)
-        return None
-
-
 class RateLawExpression(obj_model.Model, Expression):
     """ Rate law expression
 
@@ -3145,6 +3056,106 @@ class RateLawExpression(obj_model.Model, Expression):
                 otherwise return a list of errors in an `InvalidObject` instance
         """
         return Expression.validate(self, self.rate_laws[0])
+
+
+class RateLaw(obj_model.Model):
+    """ Rate law
+
+    Attributes:
+        id (:obj:`str`): identifier equal to `{reaction.id}-{direction.name}`
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        reaction (:obj:`Reaction`): reaction
+        direction (:obj:`RateLawDirection`): direction
+        type (:obj:`RateLawType`): type
+        expression (:obj:`RateLawExpression`): expression
+        units (:obj:`ReactionRateUnit`): units
+        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
+        comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
+    """
+    id = StringAttribute(primary=True, unique=True)
+    name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='rate_laws')
+    reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
+    direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
+    type = EnumAttribute(RateLawType, default=RateLawType.other)
+    expression = RateLawExpressionAttribute(related_name='rate_laws')
+    units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
+    evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='rate_laws')
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
+                           'expression', 'units',
+                           'db_refs', 'evidence', 'comments', 'references')
+        # unique_together = (('reaction', 'direction'), )
+        expression_model = RateLawExpression
+        expression_units = 'units'
+
+    @staticmethod
+    def gen_id(reaction_id, direction_name):
+        """ Generate identifier
+
+        Args:
+            reaction_id (:obj:`str`): reaction id
+            direction_name (:obj:`str`): direction name
+
+        Returns:
+            :obj:`str`: identifier
+        """
+        return '{}-{}'.format(reaction_id, direction_name)
+
+    def validate(self):
+        """ Determine whether this `RateLaw` is valid
+
+        * Check if identifier equal to `{reaction.id}-{direction.name}`
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors in an `InvalidObject` instance
+        """
+        invalid_obj = super(RateLaw, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        # check ID
+        if self.reaction and self.direction is not None and \
+                self.id != self.gen_id(self.reaction.id, self.direction.name):
+            errors.append(InvalidAttribute(
+                self.Meta.attributes['id'],
+                ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
+
+        # check that units are valid
+        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+            exp_units = unit_registry.parse_expression(self.units.name).to_base_units().units
+            try:
+                calc = self.expression._parsed_expression.test_eval(with_units=True)
+            except ParsedExpressionError as error:
+                errors.append(InvalidAttribute(self.Meta.attributes['units'], [str(error)]))
+            else:
+                if hasattr(calc, 'units'):
+                    calc_units = calc.to_base_units().units
+                else:
+                    calc_units = unit_registry.parse_expression('dimensionless')
+
+                if calc_units != exp_units:
+                    errors.append(InvalidAttribute(self.Meta.attributes['units'],
+                                                   ['Units of "{}" should be "{}" not "{}"'.format(
+                                                    self.expression.expression, exp_units, calc_units)]))
+        else:
+            errors.append(InvalidAttribute(self.Meta.attributes['expression'],
+                                           ['Expression for {} could not be parsed'.format(self.id)]))
+
+        """ return errors or `None` to indicate valid object """
+        if errors:
+            return InvalidObject(self, errors)
+        return None
 
 
 class DfbaNetSpecies(obj_model.Model):
@@ -3281,6 +3292,7 @@ class DfbaNetReaction(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA net reaction'
+        expression_units = 'units'
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add a DfbaNetReaction to a libsbml SBML document.
@@ -3378,6 +3390,8 @@ class Parameter(obj_model.Model):
         attribute_order = ('id', 'name', 'type',
                            'value', 'std', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
+        expression_value = 'value'
+        expression_units = 'units'
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add this Parameter to a libsbml SBML document.
