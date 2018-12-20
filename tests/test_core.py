@@ -2773,7 +2773,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(st.validate(), None)
 
         st = SpeciesType(id='species_4', molecular_weight=0.)
-        self.assertNotEqual(st.validate(), None)
+        self.assertEqual(st.validate(), None)
 
         st = SpeciesType(id='species_4', molecular_weight=-1.)
         self.assertNotEqual(st.validate(), None)

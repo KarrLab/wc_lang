@@ -38,7 +38,7 @@ from enum import Enum, EnumMeta
 from math import ceil, floor, exp, log, log10, isnan
 from natsort import natsorted, ns
 from obj_model import (BooleanAttribute, EnumAttribute,
-                       FloatAttribute, PositiveFloatAttribute,
+                       FloatAttribute,
                        IntegerAttribute, PositiveIntegerAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
                        DateTimeAttribute,
@@ -1917,7 +1917,7 @@ class SpeciesType(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='species_types')
     structure = LongStringAttribute()
     empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
-    molecular_weight = PositiveFloatAttribute()
+    molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
