@@ -10,6 +10,7 @@ from wc_lang import transform
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import cement
+import sys
 import wc_lang
 
 
@@ -38,18 +39,16 @@ class ValidateController(cement.Controller):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to model definition')),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
         try:
-            Reader().run(args.path, strict=args.strict)  # reader already does validation
+            Reader().run(args.path)  # reader already does validation
             print('Model is valid')
         except ValueError as exception:
-            raise ValueError('Model is invalid: ' + str(exception))
+            raise SystemExit('Model is invalid: ' + str(exception))
 
 
 class DifferenceController(cement.Controller):
@@ -65,8 +64,6 @@ class DifferenceController(cement.Controller):
             (['path_2'], dict(type=str, help='Path to second model definition')),
             (['--compare-files'], dict(dest='compare_files', default=False, action='store_true',
                                        help='If true, compare models; otherwise compare files directly')),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
@@ -79,8 +76,8 @@ class DifferenceController(cement.Controller):
             diff = model1.difference(model2)
 
         else:
-            model1 = Reader().run(args.path_1, strict=args.strict)
-            model2 = Reader().run(args.path_2, strict=args.strict)
+            model1 = Reader().run(args.path_1)
+            model2 = Reader().run(args.path_2)
             diff = model1.difference(model2)
 
         if diff:
@@ -107,8 +104,6 @@ class TransformController(cement.Controller):
             (['dest'], dict(type=str, help='Path to save transformed model definition')),
             (['--transform'], dict(dest='transforms', action='append',
                                    help='Model transform:' + transform_list)),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
@@ -116,10 +111,10 @@ class TransformController(cement.Controller):
         args = self.app.pargs
 
         if not args.transforms:
-            raise ValueError('Please select at least one transform')
+            raise SystemExit('Please select at least one transform')
 
         # read model
-        model = Reader().run(args.source, strict=args.strict)
+        model = Reader().run(args.source)
 
         # apply transforms
         transforms = transform.get_transforms()
@@ -143,14 +138,12 @@ class NormalizeController(cement.Controller):
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
             (['--dest'], dict(default='', type=str, help='Path to save normalized model definition')),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        model = Reader().run(args.source, strict=args.strict)
+        model = Reader().run(args.source)
         if args.dest:
             Writer().run(model, args.dest, set_repo_metadata_from_path=False)
         else:
@@ -169,14 +162,12 @@ class ConvertController(cement.Controller):
         arguments = [
             (['source'], dict(type=str, help='Path to model definition')),
             (['dest'], dict(type=str, help='Path to save model in converted format')),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        convert(args.source, args.dest, strict=args.strict)
+        convert(args.source, args.dest)
 
 
 class CreateTemplateController(cement.Controller):
@@ -213,14 +204,12 @@ class UpdateVersionMetadataController(cement.Controller):
             (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
                                               help=('If set, do not set the Git repository metadata for the knowledge base from '
                                                     'the parent directory of `path-core`'))),
-            (['--sloppy'], dict(dest='strict', default=True, action='store_false',
-                                help='If set, do not validate the format of the model file(s)')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        model = Reader().run(args.path, strict=args.strict)
+        model = Reader().run(args.path)
         model.wc_lang_version = wc_lang.__version__
         Writer().run(model, args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 

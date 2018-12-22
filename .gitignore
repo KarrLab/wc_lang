@@ -1,3 +1,6 @@
+# configuration files
+wc_lang.cfg
+
 # IDE config files
 .idea/
 
@@ -18,6 +21,7 @@ htmlcov/
 # documentation files
 docs/source/
 docs/_build/
+docs/.doctrees/
 
 # files for PyPI
 README.rst
@@ -27,6 +31,10 @@ README.rst
 .~lock.*.xls#
 ~$*.xlsx
 ~$*.xls
+.~*.xlsx
 
 # mac DS files
 .DS_Store
+
+# pytest config files
+pytest.ini

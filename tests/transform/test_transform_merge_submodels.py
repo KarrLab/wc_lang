@@ -1,4 +1,4 @@
-""" est that algorithmically-like submodels are correctly merged
+""" Test that algorithmically-like submodels are correctly merged
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Date: 2018-06-19
@@ -6,8 +6,9 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
-                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawEquation, SubmodelAlgorithm)
+from wc_lang import (Model, SpeciesTypeType,
+                     Species, SpeciesCoefficient, SubmodelAlgorithm, Reaction,
+                     DfbaObjective, DfbaObjectiveExpression, DfbaNetReaction)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
 import unittest
 
@@ -21,74 +22,97 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         """ Construct model with 3 submodels: two SSA and one FBA """
         mdl = Model()
 
-        cmp = Compartment(id='comp_0', name='compartment 0')
-        mdl.compartments.add(cmp)
+        cmp = mdl.compartments.create(id='comp_0', name='compartment 0')
 
-        specs = []
+        species = []
         for i in range(5):
-            spec_type = SpeciesType(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
-            mdl.species_types.add(spec_type)
+            st = mdl.species_types.create(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
+            s = mdl.species.create(id=Species.gen_id(st.id, cmp.id),
+                                   species_type=st,
+                                   compartment=cmp)
+            species.append(s)
 
-            spec = Species(id=Species.gen_id(spec_type.id, cmp.id),
-                           species_type=spec_type,
-                           compartment=cmp)
-            specs.append(spec)
+        submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.SSA)
+        submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm.SSA)
+        submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm.dFBA)
+        submdl_3 = mdl.submodels.create(id='submdl_3', algorithm=SubmodelAlgorithm.dFBA)
 
-        submdl_0 = Submodel(id='submdl_0', algorithm=SubmodelAlgorithm.SSA)
-        submdl_1 = Submodel(id='submdl_1', algorithm=SubmodelAlgorithm.SSA)
-        submdl_2 = Submodel(id='submdl_2', algorithm=SubmodelAlgorithm.dFBA)
-        mdl.submodels.add(submdl_0)
-        mdl.submodels.add(submdl_1)
-        mdl.submodels.add(submdl_2)
+        rxn_0_0 = mdl.reactions.create(id='rxn_0_0', submodel=submdl_0)
+        rxn_0_0.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_0_0.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_0_0.participants.add(SpeciesCoefficient(species=species[2], coefficient=1))
 
-        rxn_0_0 = Reaction(id='rxn_0_0')
-        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_0_0.participants.add(SpeciesCoefficient(species=specs[2], coefficient=1))
+        rxn_0_1 = mdl.reactions.create(id='rxn_0_1', submodel=submdl_0)
+        rxn_0_1.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_0_1.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_0_1.participants.add(SpeciesCoefficient(species=species[2], coefficient=1))
 
-        rxn_0_1 = Reaction(id='rxn_0_1')
-        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_0_1.participants.add(SpeciesCoefficient(species=specs[2], coefficient=1))
+        rxn_1_0 = mdl.reactions.create(id='rxn_1_0', submodel=submdl_1)
+        rxn_1_0.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_1_0.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_1_0.participants.add(SpeciesCoefficient(species=species[3], coefficient=1))
 
-        rxn_1_0 = Reaction(id='rxn_1_0')
-        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_1_0.participants.add(SpeciesCoefficient(species=specs[3], coefficient=1))
+        rxn_1_1 = mdl.reactions.create(id='rxn_1_1', submodel=submdl_1)
+        rxn_1_1.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_1_1.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_1_1.participants.add(SpeciesCoefficient(species=species[3], coefficient=1))
 
-        rxn_1_1 = Reaction(id='rxn_1_1')
-        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_1_1.participants.add(SpeciesCoefficient(species=specs[3], coefficient=1))
+        rxn_2_0 = mdl.reactions.create(id='rxn_2_0', submodel=submdl_2)
+        rxn_2_0.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_2_0.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_2_0.participants.add(SpeciesCoefficient(species=species[4], coefficient=1))
 
-        rxn_2_0 = Reaction(id='rxn_2_0')
-        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_2_0.participants.add(SpeciesCoefficient(species=specs[4], coefficient=1))
+        rxn_2_1 = mdl.reactions.create(id='rxn_2_1', submodel=submdl_2)
+        rxn_2_1.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
+        rxn_2_1.participants.add(SpeciesCoefficient(species=species[1], coefficient=-1))
+        rxn_2_1.participants.add(SpeciesCoefficient(species=species[4], coefficient=1))
 
-        rxn_2_1 = Reaction(id='rxn_2_1')
-        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[0], coefficient=-1))
-        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[1], coefficient=-1))
-        rxn_2_1.participants.add(SpeciesCoefficient(species=specs[4], coefficient=1))
+        dfba_net_rxn_2_0 = mdl.dfba_net_reactions.create(id='dfba_net_rxn_2_0', submodel=submdl_2)
+        dfba_net_rxn_2_1 = mdl.dfba_net_reactions.create(id='dfba_net_rxn_2_1', submodel=submdl_2)
+        dfba_net_rxn_3_0 = mdl.dfba_net_reactions.create(id='dfba_net_rxn_3_0', submodel=submdl_3)
+        dfba_net_rxn_3_1 = mdl.dfba_net_reactions.create(id='dfba_net_rxn_3_1', submodel=submdl_3)
 
-        submdl_0.reactions.add(rxn_0_0)
-        submdl_0.reactions.add(rxn_0_1)
-        submdl_1.reactions.add(rxn_1_0)
-        submdl_1.reactions.add(rxn_1_1)
-        submdl_2.reactions.add(rxn_2_0)
-        submdl_2.reactions.add(rxn_2_1)
+        dfba_obj_2 = mdl.dfba_objs.create(id='dfba_obj_2', submodel=submdl_2,
+                                          expression=DfbaObjectiveExpression.deserialize(
+                                              'rxn_2_0 + 2 * rxn_2_1 + 3 * dfba_net_rxn_2_0 + dfba_net_rxn_2_1', {
+                                                  Reaction: {
+                                                      'rxn_2_0': rxn_2_0,
+                                                      'rxn_2_1': rxn_2_1,
+                                                  },
+                                                  DfbaNetReaction: {
+                                                      'dfba_net_rxn_2_0': dfba_net_rxn_2_0,
+                                                      'dfba_net_rxn_2_1': dfba_net_rxn_2_1,
+                                                  },
+                                              })[0])
+        dfba_obj_3 = mdl.dfba_objs.create(id='dfba_obj_3', submodel=submdl_3,
+                                          expression=DfbaObjectiveExpression.deserialize(
+                                              'dfba_net_rxn_3_0 + dfba_net_rxn_3_1', {
+                                                  Reaction: {
+                                                  },
+                                                  DfbaNetReaction: {
+                                                      'dfba_net_rxn_3_0': dfba_net_rxn_3_0,
+                                                      'dfba_net_rxn_3_1': dfba_net_rxn_3_1,
+                                                  }
+                                              })[0])
 
-        submdl_0.parameters.create(id='param_0')
-        submdl_1.parameters.create(id='param_1')
-        submdl_2.parameters.create(id='param_2')
+        mdl.parameters.create(id='param_0')
+        mdl.parameters.create(id='param_1')
+        mdl.parameters.create(id='param_2')
 
-        submdl_0.references.create(id='ref_0')
-        submdl_1.references.create(id='ref_1')
-        submdl_2.references.create(id='ref_2')
+        mdl.evidences.create(id='evidence_0', submodels=[submdl_0, submdl_1])
+        mdl.evidences.create(id='evidence_1', submodels=[submdl_0, submdl_2])
+        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2])
+        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3])
 
-        submdl_0.database_references.create(id='xref_0')
-        submdl_1.database_references.create(id='xref_1')
-        submdl_2.database_references.create(id='xref_2')
+        mdl.references.create(id='ref_0', submodels=[submdl_0])
+        mdl.references.create(id='ref_1', submodels=[submdl_1])
+        mdl.references.create(id='ref_2', submodels=[submdl_2], dfba_objs=[dfba_obj_2])
+        mdl.references.create(id='ref_2', submodels=[submdl_3], dfba_objs=[dfba_obj_3])
+
+        submdl_0.db_refs.create(id='xref_0')
+        submdl_1.db_refs.create(id='xref_1')
+        submdl_2.db_refs.create(id='xref_2', dfba_objs=[dfba_obj_2])
+        submdl_3.db_refs.create(id='xref_3', dfba_objs=[dfba_obj_3])
 
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
@@ -97,32 +121,50 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         merged_submdl_fba = merged_mdl.submodels.get_one(algorithm=SubmodelAlgorithm.dFBA)
 
         """ Test submodels merged corrected """
-        self.assertEqual(len(mdl.compartments), len(merged_mdl.compartments))
-        self.assertEqual(len(mdl.species_types), len(merged_mdl.species_types))
-        self.assertEqual(2, len(merged_mdl.submodels))
-        self.assertEqual(len(mdl.parameters), len(merged_mdl.parameters))
-        self.assertEqual(len(mdl.get_reactions()), len(merged_mdl.get_reactions()))
+        self.assertEqual(len(merged_mdl.compartments), len(mdl.compartments))
+        self.assertEqual(len(merged_mdl.species_types), len(mdl.species_types))
+        self.assertEqual(len(merged_mdl.submodels), 2)
+        self.assertEqual(len(merged_mdl.parameters), len(mdl.parameters))
+        self.assertEqual(len(merged_mdl.reactions), len(mdl.reactions))
+        self.assertEqual(len(merged_mdl.dfba_objs), 1)
+        self.assertEqual(len(merged_mdl.dfba_net_reactions), len(mdl.dfba_net_reactions))
+        self.assertEqual(len(merged_mdl.evidences), len(mdl.evidences))
+        self.assertEqual(len(merged_mdl.references), len(mdl.references))
 
         self.assertIn(merged_submdl_ssa.id, [
             '{0}_{1}'.format(submdl_0.id, submdl_1.id),
             '{1}_{0}'.format(submdl_0.id, submdl_1.id),
         ])
-        self.assertEqual(submdl_2.id, merged_submdl_fba.id)
+        self.assertIn(merged_submdl_fba.id, [
+            '{0}_{1}'.format(submdl_2.id, submdl_3.id),
+            '{1}_{0}'.format(submdl_2.id, submdl_3.id),
+        ])
 
-        self.assertEqual(submdl_0.algorithm, merged_submdl_ssa.algorithm)
-        self.assertEqual(submdl_2.algorithm, merged_submdl_fba.algorithm)
+        self.assertEqual(merged_submdl_ssa.algorithm, SubmodelAlgorithm.SSA)
+        self.assertEqual(merged_submdl_fba.algorithm, SubmodelAlgorithm.dFBA)
 
-        self.assertEqual(4, len(merged_submdl_ssa.get_species()))
-        self.assertEqual(len(submdl_2.get_species()), len(merged_submdl_fba.get_species()))
+        self.assertEqual(len(merged_submdl_ssa.get_species()), len(set(submdl_0.get_species()) | set(submdl_1.get_species())))
+        self.assertEqual(len(merged_submdl_fba.get_species()), len(set(submdl_2.get_species()) | set(submdl_3.get_species())))
 
-        self.assertEqual(len(submdl_0.reactions) + len(submdl_1.reactions), len(merged_submdl_ssa.reactions))
-        self.assertEqual(len(submdl_2.reactions), len(merged_submdl_fba.reactions))
+        self.assertEqual(len(merged_submdl_ssa.reactions), len(set(submdl_0.reactions) | set(submdl_1.reactions)))
+        self.assertEqual(len(merged_submdl_fba.reactions), len(set(submdl_2.reactions) | set(submdl_3.reactions)))
 
-        self.assertEqual(len(submdl_0.parameters) + len(submdl_1.parameters), len(merged_submdl_ssa.parameters))
-        self.assertEqual(len(submdl_2.parameters), len(merged_submdl_fba.parameters))
+        self.assertEqual(merged_submdl_ssa.dfba_obj, None)
+        self.assertEqual(merged_submdl_fba.dfba_obj.id, DfbaObjective.gen_id(merged_submdl_fba.id))
 
-        self.assertEqual(len(submdl_0.references) + len(submdl_1.references), len(merged_submdl_ssa.references))
-        self.assertEqual(len(submdl_2.references), len(merged_submdl_fba.references))
+        self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.reactions),
+                         len(submdl_2.reactions) + len(submdl_3.reactions))
+        self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.dfba_net_reactions),
+                         len(submdl_2.dfba_net_reactions) + len(submdl_3.dfba_net_reactions))
 
-        self.assertEqual(len(submdl_0.database_references) + len(submdl_1.database_references), len(merged_submdl_ssa.database_references))
-        self.assertEqual(len(submdl_2.database_references), len(merged_submdl_fba.database_references))
+        self.assertEqual(merged_submdl_ssa.dfba_net_reactions, [])
+        self.assertEqual(len(merged_submdl_fba.dfba_net_reactions), len(submdl_2.dfba_net_reactions) + len(submdl_3.dfba_net_reactions))
+
+        self.assertEqual(len(set(submdl_0.evidence) | set(submdl_1.evidence)), len(merged_submdl_ssa.evidence))
+        self.assertEqual(len(merged_submdl_fba.evidence), len(set(submdl_2.evidence) | set(submdl_3.evidence)))
+
+        self.assertEqual(len(set(submdl_0.references) | set(submdl_1.references)), len(merged_submdl_ssa.references))
+        self.assertEqual(len(merged_submdl_fba.references), len(set(submdl_2.references) | set(submdl_3.references)))
+
+        self.assertEqual(len(set(submdl_0.db_refs) | set(submdl_1.db_refs)), len(merged_submdl_ssa.db_refs))
+        self.assertEqual(len(merged_submdl_fba.db_refs), len(set(submdl_2.db_refs) | set(submdl_3.db_refs)))

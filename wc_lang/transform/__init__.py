@@ -1,4 +1,9 @@
 from .core import Transform, get_transforms
 from .change_value import ChangeValueTransform
+from .create_implicit_distribution_zero_init_concentrations \
+    import CreateImplicitDistributionZeroInitConcentrationsTransform
+from .create_implicit_dfba_ex_rxns import CreateImplicitDfbaExchangeReactionsTransform
 from .merge_submodels import MergeAlgorithmicallyLikeSubmodelsTransform
+from .prep_for_wc_sim import PrepareForWcSimTransform
+from .set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
 from .split_reversible_reactions import SplitReversibleReactionsTransform

@@ -7,15 +7,20 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Taxon, TaxonRank, Submodel, ObjectiveFunction, Reaction, SpeciesType, SpeciesTypeType,
+from test.support import EnvironmentVarGuard
+from wc_lang import (ReactionRateUnit,
+                     Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
-                     BiomassComponent, BiomassReaction,
+                     DfbaNetSpecies, DfbaNetReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
-                     StopCondition, StopConditionExpression,
+                     StopConditionExpression,
                      Observable, ObservableExpression,
-                     RateLaw, RateLawEquation, SubmodelAlgorithm, Concentration, ConcentrationUnit)
+                     RateLaw, RateLawExpression, RateLawDirection,
+                     SubmodelAlgorithm, DistributionInitConcentration, ConcentrationUnit,
+                     DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
+from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
 import os
@@ -45,20 +50,24 @@ class TestSimpleModel(unittest.TestCase):
 
         mdl.taxon = Taxon(id='taxon', name='test taxon', rank=TaxonRank.species)
 
-        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0', initial_volume=1.25)
-        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1', initial_volume=2.5)
+        self.comp_0 = comp_0 = mdl.compartments.create(id='comp_0', name='compartment 0')
+        self.comp_1 = comp_1 = mdl.compartments.create(id='comp_1', name='compartment 1')
         self.compartments = compartments = [comp_0, comp_1]
+
+        density_comp_0 = mdl.parameters.create(id='density_comp_0', value=1100, units='g l^-1')
+        density_comp_1 = mdl.parameters.create(id='density_comp_1', value=1000, units='g l^-1')
+        compartments[0].init_density = density_comp_0
+        compartments[1].init_density = density_comp_1
 
         self.species_types = species_types = []
         self.species = species = []
-        self.concentrations = concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
                 type=SpeciesTypeType.metabolite,
                 structure='C' * (i + 1),
-                empirical_formula='C' + str(i + 1),
+                empirical_formula=EmpiricalFormula('C' + str(i + 1)),
                 molecular_weight=12 * (i + 1),
                 charge=i + 1)
             species_types.append(spec_type)
@@ -68,10 +77,12 @@ class TestSimpleModel(unittest.TestCase):
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
             spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(species=spec, value=3 * i, units=ConcentrationUnit.M)
-            concentrations.append(conc)
+            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id),
+                                                 model=mdl,
+                                                 species=spec, mean=3 * i, units=ConcentrationUnit.M)
 
         species_coefficients = {}
 
@@ -82,14 +93,13 @@ class TestSimpleModel(unittest.TestCase):
             return species_coefficients[part_serialized]
 
         self.observables = observables = []
-        attr = Observable.Meta.attributes['expression']
         objects = {Species: {}, Observable: {}}
         for i in range(8):
             expr_parts = []
             for j in range(i + 1):
                 objects[Species][species[j].id] = species[j]
                 expr_parts.append("{} * {}".format(j + 1, species[j].id))
-            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            obs_expr, _ = ObservableExpression.deserialize(' + '.join(expr_parts), objects)
             id = 'obs_{}'.format(i)
             obs = mdl.observables.create(id=id, expression=obs_expr)
             observables.append(obs)
@@ -98,17 +108,19 @@ class TestSimpleModel(unittest.TestCase):
             expr_parts = []
             for j in range(i + 1):
                 expr_parts.append("{} * {}".format(j + 1, observables[j].id))
-            obs_expr, _ = ObservableExpression.deserialize(attr, ' + '.join(expr_parts), objects)
+            obs_expr, _ = ObservableExpression.deserialize(' + '.join(expr_parts), objects)
             obs = mdl.observables.create(id='obs_{}'.format(i + 8), expression=obs_expr)
             observables.append(obs)
 
-        obs_expr = ' + 2 * '.join(o.id for o in observables[0:j + 1])
         objects = {Observable: {o.id: o for o in observables}}
-        attr = Function.Meta.attributes['expression']
-        func_expr, _ = FunctionExpression.deserialize(attr, obs_expr, objects)
         self.functions = functions = []
         for i in range(8):
-            func = mdl.functions.create(id='func_{}'.format(i), expression=func_expr)
+            obs_expr = ' + 2 * '.join(o.id for o in observables[0:i + 1])
+            func_expr, _ = FunctionExpression.deserialize(obs_expr,
+                                                          objects)
+            func = mdl.functions.create(id='func_{}'.format(i),
+                                        expression=func_expr,
+                                        units='molecule')
             functions.append(func)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -119,40 +131,85 @@ class TestSimpleModel(unittest.TestCase):
             id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
-        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', name='reaction 0')
+        self.rxn_0 = rxn_0 = submdl_0.reactions.create(
+            id='rxn_0', name='reaction 0', model=mdl)
 
-        rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-3))
         rxn_0.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
-        rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=1))
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[5].serialize()),
-            modifiers=species[5:6])
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rxn_0.participants.append(get_or_create_species_coefficient(species=species[2], coefficient=3))
+        k_cat_0 = mdl.parameters.create(id='k_cat_0', value=2, units='s^-1')
+        k_m_0 = mdl.parameters.create(id='k_m_0', value=1, units='molecule')
+        expression, _ = RateLawExpression.deserialize('k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].id), {
+            Species: {
+                species[5].id: species[5],
+            },
+            Parameter: {
+                'k_cat_0': k_cat_0,
+                'k_m_0': k_m_0,
+            },
+        })
+        rate_law_0 = rxn_0.rate_laws.create(
+            id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
+            model=mdl,
+            direction=RateLawDirection.forward,
+            expression=expression,
+            units=ReactionRateUnit['s^-1'])
 
-        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', name='reaction 1')
+        self.rxn_1 = rxn_1 = submdl_1.reactions.create(
+            id='rxn_1', name='reaction 1', model=mdl)
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
         rxn_1.participants.append(get_or_create_species_coefficient(species=species[3], coefficient=2))
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[6].serialize()),
-            modifiers=species[6:7])
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        k_cat_1 = mdl.parameters.create(id='k_cat_1', value=2, units='s^-1')
+        k_m_1 = mdl.parameters.create(id='k_m_1', value=1, units='molecule')
+        expression, _ = RateLawExpression.deserialize('k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].id), {
+            Species: {
+                species[6].id: species[6],
+            },
+            Parameter: {
+                'k_cat_1': k_cat_1,
+                'k_m_1': k_m_1,
+            },
+        })
+        rate_law_1 = rxn_1.rate_laws.create(
+            id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
+            model=mdl,
+            direction=RateLawDirection.forward,
+            expression=expression,
+            units=ReactionRateUnit['s^-1'])
 
-        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', name='reaction 2')
+        self.rxn_2 = rxn_2 = submdl_2.reactions.create(
+            id='rxn_2', name='reaction 2', model=mdl)
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[0], coefficient=-2))
         rxn_2.participants.append(get_or_create_species_coefficient(species=species[1], coefficient=-3))
-        rxn_2.participants.append(get_or_create_species_coefficient(species=species[4], coefficient=1))
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[7].serialize()),
-            modifiers=species[7:8])
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        rxn_2.participants.append(get_or_create_species_coefficient(species=species[7], coefficient=1))
+        k_cat_2 = mdl.parameters.create(id='k_cat_2', value=2, units='s^-1')
+        k_m_2 = mdl.parameters.create(id='k_m_2', value=1, units='molecule')
+        expression, _ = RateLawExpression.deserialize('k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].id), {
+            Species: {
+                species[7].id: species[7],
+            },
+            Parameter: {
+                'k_cat_2': k_cat_2,
+                'k_m_2': k_m_2,
+            },
+        })
+        rate_law_2 = rxn_2.rate_laws.create(
+            id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
+            model=mdl,
+            direction=RateLawDirection.forward,
+            expression=expression,
+            units=ReactionRateUnit['s^-1'])
+
+        submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
+        submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
 
         self.parameters = parameters = []
         self.references = references = []
-        self.database_references = database_references = []
+        self.db_refs = db_refs = []
         for i in range(3):
             param = mdl.parameters.create(
                 id='param_{}'.format(i), name='parameter {}'.format(i),
@@ -166,16 +223,19 @@ class TestSimpleModel(unittest.TestCase):
             ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.database_references.create(database='x', id='y' * (i + 1),
-                                                   url='http://x.com/{}'.format('y' * (i + 1)))
-            database_references.append(x_ref)
+            x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
+            db_refs.append(x_ref)
 
+        param = mdl.parameters.create(
+            id='param_stop_cond', name='parameter - stop condition',
+            value=1., units='molecule')
+        parameters.append(param)
+        objects[Parameter] = {param.id: param}
         self.stop_conditions = stop_conditions = []
-        attr = StopCondition.Meta.attributes['expression']
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
-            expr = '{} > 1'.format(' + '.join(o.id for o in observables[0:i+1]))
-            cond.expression = StopConditionExpression.deserialize(attr, expr, objects)[0]
+            expr = '({}) > {}'.format(' + '.join(o.id for o in observables[0:i+1]), param.id)
+            cond.expression, error = StopConditionExpression.deserialize(expr, objects)
             self.stop_conditions.append(cond)
 
         self.dirname = tempfile.mkdtemp()
@@ -219,7 +279,11 @@ class TestSimpleModel(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
-        model = Reader().run(filename, strict=False)
+
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
+        with env:
+            model = Reader().run(filename)
         self.assertEqual(model.validate(), None)
 
         self.assertTrue(model.is_equal(self.model))
@@ -256,7 +320,10 @@ class TestSimpleModel(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
-        convert(filename_xls1, filename_csv, strict=False)
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
+        with env:
+            convert(filename_xls1, filename_csv)
 
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
@@ -290,8 +357,8 @@ class TestExampleModel(unittest.TestCase):
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
-                self.assertEqual(copy_row, original_row, 
-                    msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
+                self.assertEqual(copy_row, original_row,
+                                 msg='Rows {} of {} sheets are not equal'.format(i_row, sheet))
             self.assertEqual(copy[sheet], original[sheet], msg='{} sheets are not equal'.format(sheet))
 
         self.assertEqual(copy, original)
@@ -300,6 +367,21 @@ class TestExampleModel(unittest.TestCase):
         model2 = Reader().run(self.filename)
         self.assertTrue(model2.is_equal(model))
         self.assertTrue(model.difference(model2) == '')
+
+    def test_rate_law_expressions_with_multiple_model_types(self):
+        fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
+        model = Reader().run(fixture_filename)
+        rate_laws = model.get_rate_laws(id='AK_AMP-backward')
+        self.assertEqual(len(rate_laws), 1)
+        rate_law = rate_laws[0]
+        self.assertEqual(len(rate_law.expression.species), 1)
+        self.assertEqual(rate_law.expression.species[0].id, 'Adk_Protein[c]')
+        self.assertEqual(len(rate_law.expression.parameters), 1)
+        self.assertEqual(rate_law.expression.parameters[0].id, 'k_cat_rev_ak')
+        self.assertEqual(len(rate_law.expression.observables), 1)
+        self.assertEqual(rate_law.expression.observables[0].id, 'AXP_c')
+        self.assertEqual(len(rate_law.expression.functions), 1)
+        self.assertEqual(rate_law.expression.functions[0].id, 'func_1')
 
 
 class TestReaderException(unittest.TestCase):
@@ -344,8 +426,16 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
     def test_write_parameter(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         submodel = model.submodels.create(id='submodel')
-        parameter = submodel.parameters.create(id='parameter')
-        parameter.model = model
+        species_type = model.species_types.create(id='st', molecular_weight=1., charge=0)
+        compartment = model.compartments.create(id='c')
+        species = model.species.create(id=Species.gen_id(species_type.id, compartment.id),
+                                       species_type=species_type, compartment=compartment)
+        reaction = submodel.reactions.create(id='reaction', model=model)
+        reaction.participants.create(species=species, coefficient=1.)
+        rate_law = reaction.rate_laws.create(id=RateLaw.gen_id(reaction.id, RateLawDirection.forward.name),
+                                             model=model, direction=RateLawDirection.forward)
+        rate_law_eq = rate_law.expression = RateLawExpression(expression='parameter')
+        parameter = rate_law_eq.parameters.create(id='parameter', value=1., units='dimensionless', model=model)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)
@@ -360,11 +450,11 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         compartment = model.compartments.create(id='compartment')
         species = Species(
             id=Species.gen_id(species_type.id, compartment.id),
+            model=model,
             species_type=species_type,
             compartment=compartment)
-        attr = Observable.Meta.attributes['expression']
         s_id = species.serialize()
-        obs_expr, _ = ObservableExpression.deserialize(attr, s_id, {Species: {s_id: species}})
+        obs_expr, _ = ObservableExpression.deserialize(s_id, {Species: {s_id: species}})
         observable = model.observables.create(id='observable', expression=obs_expr)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')

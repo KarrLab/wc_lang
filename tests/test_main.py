@@ -14,6 +14,7 @@ from tempfile import mkdtemp
 from wc_lang import __main__
 from wc_lang import Model, Parameter
 from wc_lang.io import Writer, Reader
+import datetime
 import mock
 import unittest
 import wc_lang
@@ -53,27 +54,29 @@ class TestCli(unittest.TestCase):
 
     def test_validate_exception(self):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
-        model.parameters.append(Parameter(id='param_1'))
-        model.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
+        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
 
         self.assertNotEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
         Writer().run(model, filename, set_repo_metadata_from_path=False)
 
-        with self.assertRaisesRegex(ValueError, '^Model is invalid: '):
+        with self.assertRaisesRegex(SystemExit, '^Model is invalid: '):
             with __main__.App(argv=['validate', filename]) as app:
                 app.run()
 
     def test_difference(self):
-        model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        now = datetime.datetime.now().replace(microsecond=0)
+
+        model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename1 = path.join(self.tempdir, 'model1.xlsx')
         Writer().run(model1, filename1, set_repo_metadata_from_path=False)
 
-        model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
+        model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename2 = path.join(self.tempdir, 'model2.xlsx')
         Writer().run(model2, filename2, set_repo_metadata_from_path=False)
 
-        model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1', created=now, updated=now)
         filename3 = path.join(self.tempdir, 'model3.xlsx')
         Writer().run(model3, filename3, set_repo_metadata_from_path=False)
 
@@ -117,7 +120,7 @@ class TestCli(unittest.TestCase):
         Writer().run(model, source, set_repo_metadata_from_path=False)
 
         dest = path.join(self.tempdir, 'dest.xlsx')
-        with self.assertRaisesRegex(ValueError, 'Please select at least one transform'):
+        with self.assertRaisesRegex(SystemExit, 'Please select at least one transform'):
             with __main__.App(argv=['transform', source, dest]) as app:
                 app.run()
 

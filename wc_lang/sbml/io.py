@@ -11,39 +11,38 @@ Representations include
 """
 
 import libsbml
-import sys
 import os
 import warnings
-from os.path import split, splitext, join
+from os.path import split, join
 from six import iteritems
 
 from obj_model import Validator
-from wc_lang.sbml.util import (init_sbml_model, SBML_LEVEL, SBML_VERSION, create_sbml_doc_w_fbc)
+from wc_lang.sbml.util import (init_sbml_model, create_sbml_doc_w_fbc)
 import wc_lang
 
 '''
 wc_lang to SBML mapping to support FBA modeling
 Individual wc_lang submodels that use dFBA are mapped to individual SBML documents and files.
 
-WC                      SBML                                                Status
------                   -----                                               ------
-Model                   Model                                               Ignored
-Taxon                   None, perhaps make SBML annotations                 Ignored
-Submodel                Model                                               Implemented
-ObjectiveFunction       Objective                                           Mostly Implemented
-Compartment             Compartment                                         Implemented
-SpeciesType             SpeciesType aren't defined                          NA
-Species                 Species                                             Implemented
-Concentration           Concentrations are incorporated in Species          NA
-Reaction                Reaction, with FbcReactionPlugin for DFBA submodels Implemented
-SpeciesCoefficient      SpeciesReference in a Reaction                      Implemented
-RateLaw                 KineticLaw                                          Ignored
-RateLawEquation         
-BiomassComponent
-BiomassReaction                                                             TBD
-Parameter               Parameter                                           Implemented
-Reference           
-DatabaseReference           
+WC                              SBML                                                                  Status
+-----                           -----                                                                 ------
+Model                           Model                                                                 Ignored
+Taxon                           None, perhaps make SBML annotations                                   Ignored
+Submodel                        Model                                                                 Implemented
+DfbaObjective                   Objective                                                             Mostly Implemented
+Compartment                     Compartment                                                           Implemented
+SpeciesType                     SpeciesType aren't defined                                            NA
+Species                         Species                                                               Implemented
+DistributionInitConcentration   Distributions of initial concentrations are incorporated in Species   NA
+Reaction                        Reaction, with FbcReactionPlugin for DFBA submodels                   Implemented
+SpeciesCoefficient              SpeciesReference in a Reaction                                        Implemented
+RateLaw                         KineticLaw                                                            Ignored
+RateLawExpression
+DfbaNetSpecies
+DfbaNetReaction                 TBD
+Parameter                       Parameter                                                             Implemented
+Reference
+DatabaseReference
 
 wc_lang attribute to SBML mapping:
 
@@ -108,10 +107,14 @@ class Writer(object):
         sbml_documents = {}
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:
-                objects = [submodel, submodel.objective_function] + \
-                    submodel.biomass_reactions + \
+                objects = [submodel] + \
+                    submodel.dfba_net_reactions + \
                     model.get_compartments() + \
-                    submodel.get_species() + submodel.parameters + submodel.reactions
+                    submodel.get_species() + \
+                    submodel.get_parameters() + \
+                    submodel.reactions
+                if submodel.dfba_obj:
+                    objects.append(submodel.dfba_obj)
                 sbml_documents[submodel.id] = SBMLExchange.write(objects)
         if not sbml_documents:
             raise ValueError("No submodel.algorithm in algorithms '{}'.".format(algorithms))
@@ -184,9 +187,9 @@ class SBMLExchange(object):
         #     Compartment must precede Species
         #     Compartment must precede Reaction
         #     Species must precede Reaction
-        #     Species must precede BiomassReaction
-        #     Reaction must precede ObjectiveFunction
-        #     BiomassReaction must precede ObjectiveFunction
+        #     Species must precede DfbaNetReaction
+        #     Reaction must precede DfbaObjective
+        #     DfbaNetReaction must precede DfbaObjective
         # This partial order is satisfied by this sequence:
         model_order = [
             wc_lang.Submodel,
@@ -194,8 +197,8 @@ class SBMLExchange(object):
             wc_lang.Parameter,
             wc_lang.Species,
             wc_lang.Reaction,
-            wc_lang.BiomassReaction,
-            wc_lang.ObjectiveFunction,
+            wc_lang.DfbaNetReaction,
+            wc_lang.DfbaObjective,
         ]
 
         # add objects into libsbml.SBMLDocument
@@ -226,10 +229,10 @@ class SBMLExchange(object):
             submodel.model.get_compartments() + \
             submodel.get_species() + \
             submodel.reactions + \
-            submodel.biomass_reactions + \
+            submodel.dfba_net_reactions + \
             submodel.model.get_parameters()
-        if submodel.objective_function:
-            objects.append(submodel.objective_function)
+        if submodel.dfba_obj:
+            objects.append(submodel.dfba_obj)
 
         return SBMLExchange.write(objects)
 

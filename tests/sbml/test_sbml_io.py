@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 
 import libsbml
 from libsbml import Compartment as libsbmlCompartment
@@ -23,18 +24,14 @@ from libsbml import Model as libsbmlModel
 from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
-from wc_lang import (SubmodelAlgorithm, Model, Taxon, Submodel, ObjectiveFunction, Compartment,
-                     Species, Concentration, Reaction, RateLaw, RateLawEquation,
-                     BiomassComponent, BiomassReaction, Parameter, Reference, DatabaseReference)
-from wc_lang.prepare import PrepareModel, CheckModel
+from wc_lang import (SubmodelAlgorithm, Model, DfbaObjective,
+                     Species, DfbaNetReaction, Parameter)
+from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
+from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
 import wc_lang.sbml.io as sbml_io
-
-# ignore 'setting concentration' warnings
-import warnings
-warnings.filterwarnings('ignore', '.*setting concentration.*', )
 
 
 def check_document_against_model(sbml_document, wc_lang_model, test_case):
@@ -52,7 +49,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
     all_wc_lang_species = wc_lang_model.get_species()
     all_wc_lang_parameters = wc_lang_model.get_parameters()
     all_wc_lang_reactions = wc_lang_model.get_reactions()
-    all_wc_lang_biomass_reactions = wc_lang_model.get_biomass_reactions()
+    all_wc_lang_dfba_net_reactions = wc_lang_model.get_dfba_net_reactions()
     all_wc_lang_submodels = wc_lang_model.get_submodels()
 
     for element in sbml_document.getListOfAllElements():
@@ -63,7 +60,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                                                       element.getIdAttribute())
             test_case.assertEqual(element.getName(), wc_lang_compartment.name)
             test_case.assertEqual(element.getSpatialDimensions(), 3)
-            test_case.assertEqual(element.getSize(), wc_lang_compartment.initial_volume)
+            # test_case.assertEqual(element.getSize(), wc_lang_compartment.volume_mean)
             # not checking: comments
 
         # parameters
@@ -82,7 +79,7 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             wc_lang_species = get_component_by_id(all_wc_lang_species, wc_lang_id)
             test_case.assertEqual(element.getName(), wc_lang_species.species_type.name)
             test_case.assertEqual(element.getCompartment(), wc_lang_species.compartment.id)
-            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.concentration.value)
+            test_case.assertEqual(element.getInitialConcentration(), wc_lang_species.distribution_init_concentration.mean)
             # not checking: comments
 
         if isinstance(element, libsbmlReaction):
@@ -94,11 +91,11 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
                 test_case.assertEqual(element.getFast(), False)
                 # not checking: participants and flux bounds
 
-            wc_lang_biomass_reaction = get_component_by_id(all_wc_lang_biomass_reactions,
-                                                           element.getIdAttribute())
-            # test BiomassReaction
-            if wc_lang_biomass_reaction:
-                test_case.assertEqual(element.getName(), wc_lang_biomass_reaction.name)
+            wc_lang_dfba_net_reaction = get_component_by_id(all_wc_lang_dfba_net_reactions,
+                                                            element.getIdAttribute())
+            # test DfbaNetReaction
+            if wc_lang_dfba_net_reaction:
+                test_case.assertEqual(element.getName(), wc_lang_dfba_net_reaction.name)
                 test_case.assertEqual(element.getReversible(), False)
                 test_case.assertEqual(element.getFast(), False)
                 # not checking: components, flux bounds, and comments
@@ -111,10 +108,10 @@ def check_document_against_model(sbml_document, wc_lang_model, test_case):
             # not checking: comments
 
         if isinstance(element, libsbmlObjective):
-            # test an ObjectiveFunction
+            # test an DfbaObjective
             test_case.assertEqual(element.getType(), 'maximize')
-            test_case.assertEqual(element.getIdAttribute(), ObjectiveFunction.ACTIVE_OBJECTIVE)
-            # not checking: reactions, or biomass_reactions
+            test_case.assertEqual(element.getIdAttribute(), DfbaObjective.ACTIVE_OBJECTIVE)
+            # not checking: reactions, or dfba_net_reactions
 
             # TODO: check remaining elements
 
@@ -127,8 +124,9 @@ class TestSbml(unittest.TestCase):
         self.dirname = tempfile.mkdtemp()
         # read and initialize a model
         self.model = Reader().run(self.MODEL_FILENAME)
-        PrepareModel(self.model).run()
-        CheckModel(self.model).run()
+        transform = PrepareForWcSimTransform()
+        transform.transforms.remove(SplitReversibleReactionsTransform)
+        transform.run(self.model)
 
     def tearDown(self):
         shutil.rmtree(self.dirname)
@@ -160,8 +158,8 @@ class TestSbml(unittest.TestCase):
     def test_SBML_Exchange_warning(self):
         model = Model(id='model')
         met_submodel = model.submodels.create(id='Metabolism', algorithm=SubmodelAlgorithm.ssa)
-        met_submodel.parameters.append(Parameter(id='param_1'))
-        met_submodel.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1'))
+        model.parameters.append(Parameter(id='param_1'))
 
         with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")

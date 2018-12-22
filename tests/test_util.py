@@ -6,12 +6,18 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Taxon, Submodel, Reaction, SpeciesType, SpeciesTypeType, Species,
-                     Compartment, SpeciesCoefficient, BiomassComponent, BiomassReaction,
-                     Parameter, Reference, ReferenceType, DatabaseReference, RateLaw,
-                     RateLawEquation, SubmodelAlgorithm, Concentration, ObjectiveFunction,
-                     Observable, Function, FunctionExpression, StopCondition, StopConditionExpression,
-                     ObservableExpression)
+from wc_lang.core import (Model, Taxon, Submodel, SubmodelAlgorithm,
+                          Compartment,
+                          SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, DistributionInitConcentration,
+                          Reaction, RateLaw, RateLawExpression, Parameter,
+                          DfbaNetSpecies, DfbaNetReaction,
+                          DfbaObjective, DfbaObjectiveExpression,
+                          Observable, ObservableExpression,
+                          Function, FunctionExpression,
+                          StopCondition, StopConditionExpression,
+                          Evidence,
+                          Reference, ReferenceType, DatabaseReference,
+                          )
 from wc_lang import util
 import shutil
 import tempfile
@@ -30,7 +36,6 @@ class TestUtil(unittest.TestCase):
 
         self.species_types = species_types = []
         self.species = species = []
-        self.concentrations = concentrations = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
                 i), name='species type {}'.format(i), type=SpeciesTypeType.metabolite)
@@ -41,58 +46,66 @@ class TestUtil(unittest.TestCase):
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
             spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.model = mdl
             species.append(spec)
 
-            conc = Concentration(species=spec, value=1)
-            concentrations.append(conc)
+            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=1)
+            conc.model = mdl
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm.ssa)
         self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm.dfba)
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
-        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0')
+        self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', model=mdl)
         rxn_0.participants.create(species=species[0], coefficient=-2)
         rxn_0.participants.create(species=species[1], coefficient=-3)
         rxn_0.participants.create(species=species[2], coefficient=1)
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[5].get_primary_attribute()),
-            modifiers=species[5:6])
-        rate_law_0 = rxn_0.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        expression = RateLawExpression(
+            expression='k_cat_0 * {0} / (k_m_0 + {0})'.format(species[5].get_primary_attribute()),
+            species=species[5:6])
+        expression.parameters.create(id='k_cat_0', value=2, model=mdl)
+        expression.parameters.create(id='k_m_0', value=1, model=mdl)
+        rate_law_0 = rxn_0.rate_laws.create(expression=expression, model=mdl)
 
-        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1')
+        self.rxn_1 = rxn_1 = submdl_1.reactions.create(id='rxn_1', model=mdl)
         rxn_1.participants.create(species=species[0], coefficient=-2)
         rxn_1.participants.create(species=species[1], coefficient=-3)
         rxn_1.participants.create(species=species[3], coefficient=2)
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[6].get_primary_attribute()),
-            modifiers=species[6:7])
-        rate_law_1 = rxn_1.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        expression = RateLawExpression(
+            expression='k_cat_1 * {0} / (k_m_1 + {0})'.format(species[6].get_primary_attribute()),
+            species=species[6:7])
+        expression.parameters.create(id='k_cat_1', value=2, model=mdl)
+        expression.parameters.create(id='k_m_1', value=1, model=mdl)
+        rate_law_1 = rxn_1.rate_laws.create(expression=expression, model=mdl)
 
-        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2')
+        self.rxn_2 = rxn_2 = submdl_2.reactions.create(id='rxn_2', model=mdl)
         rxn_2.participants.create(species=species[0], coefficient=-2)
         rxn_2.participants.create(species=species[1], coefficient=-3)
         rxn_2.participants.create(species=species[4], coefficient=1)
-        equation = RateLawEquation(
-            expression='k_cat * {0} / (k_m + {0})'.format(species[7].get_primary_attribute()),
-            modifiers=species[7:8])
-        rate_law_2 = rxn_2.rate_laws.create(equation=equation, k_cat=2, k_m=1)
+        expression = RateLawExpression(
+            expression='k_cat_2 * {0} / (k_m_2 + {0})'.format(species[7].get_primary_attribute()),
+            species=species[7:8])
+        expression.parameters.create(id='k_cat_2', value=2, model=mdl)
+        expression.parameters.create(id='k_m_2', value=1, model=mdl)
+        rate_law_2 = rxn_2.rate_laws.create(expression=expression, model=mdl)
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
         self.rate_laws = [rate_law_0, rate_law_1, rate_law_2]
 
         self.parameters = parameters = []
         self.references = references = []
-        self.database_references = database_references = []
+        self.db_refs = db_refs = []
         for i in range(3):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
 
             ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType.misc)
+            ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.database_references.create(database='Y', id='x')
-            database_references.append(x_ref)
+            x_ref = ref.db_refs.create(database='Y', id='x')
+            db_refs.append(x_ref)
 
     def test_get_model_size(self):
         model = self.model
@@ -102,7 +115,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(8, size['species'])
         self.assertEqual(3, size['reactions'])
         self.assertEqual(2, size['compartments'])
-        self.assertEqual(3, size['parameters'])
+        self.assertEqual(9, size['parameters'])
         self.assertEqual(3, size['references'])
 
     def test_get_model_summary(self):
@@ -110,34 +123,18 @@ class TestUtil(unittest.TestCase):
         summary = util.get_model_summary(model)
         self.assertIsInstance(summary, str)
 
-    def test_get_reaction_string(self):
-        species_types = self.species_types
-        species = self.species
-
-        self.assertIn(util.get_reaction_string(self.rxn_0), [
-            '[{0}]: ({1}) {2} + ({3}) {4} ==> {5}'.format(self.comp_0.id, 2,
-                                                          species_types[0].id, 3, species_types[1].id, species_types[2].id),
-            '[{0}]: ({3}) {4} + ({1}) {2} ==> {5}'.format(self.comp_0.id, 2,
-                                                          species_types[0].id, 3, species_types[1].id, species_types[2].id),
-        ])
-
-        self.assertIn(util.get_reaction_string(self.rxn_1), [
-            '({0}) {1} + ({2}) {3} ==> (2) {4}'.format(2,
-                                                       species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
-            '({2}) {3} + ({0}) {1} ==> (2) {4}'.format(2,
-                                                       species[0].serialize(), 3, species[1].serialize(), species[3].serialize()),
-        ])
-
     def test_get_models(self):
         non_inline_models = set([
             Model, Taxon,
-            Submodel, Compartment, SpeciesType, Species, Observable, Concentration,
-            Reaction, RateLaw, BiomassComponent, BiomassReaction, Parameter,
-            Function, StopCondition, Reference, DatabaseReference,
+            Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
+            DfbaObjective,
+            Reaction, RateLaw, DfbaNetSpecies, DfbaNetReaction, Parameter, Function,
+            StopCondition, Evidence, Reference,
         ])
         inline_models = set([
-            SpeciesCoefficient, RateLawEquation, ObjectiveFunction,
-            FunctionExpression, StopConditionExpression, ObservableExpression
+            SpeciesCoefficient, RateLawExpression,
+            DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
+            DatabaseReference,
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)

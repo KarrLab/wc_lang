@@ -18,26 +18,29 @@ from wc_utils.util.string import indent_forest
 import obj_model
 import os
 import wc_lang
+import wc_lang.config.core
 
 
 class Writer(object):
     """ Write model to file(s) """
 
     model_order = [
-        core.Model, core.Taxon, core.Submodel, core.Compartment, core.SpeciesType, core.Species,
-        core.Concentration, core.Observable, core.Function,
+        core.Model, core.Taxon,
+        core.Submodel, core.Compartment, core.SpeciesType, core.Species,
+        core.DistributionInitConcentration, core.Observable, core.Function,
         core.Reaction, core.RateLaw,
-        core.BiomassReaction, core.BiomassComponent,
-        core.Parameter, core.StopCondition, core.Reference, core.DatabaseReference
+        core.DfbaObjective, core.DfbaNetReaction, core.DfbaNetSpecies,
+        core.Parameter, core.StopCondition,
+        core.Evidence, core.Reference,
     ]
 
     def run(self, model, path, set_repo_metadata_from_path=True):
         """ Write model to file(s)
 
-        Args:            
+        Args:
             model (:obj:`core.Model`): model
             path (:obj:`str`): path to file(s)
-            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
                 branch, revision) for the model from the parent directory of :obj:`core_path`
         """
         self.validate_implicit_relationships()
@@ -48,12 +51,8 @@ class Writer(object):
             for attr in obj.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
                         attr.related_class == core.Model:
-                    if attr.primary_class in (core.Parameter, core.DatabaseReference):
-                        if getattr(obj, attr.name) not in [None, model]:
-                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
-                    else:
-                        if getattr(obj, attr.name) != model:
-                            raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
+                    if getattr(obj, attr.name) != model:
+                        raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
 
         # set Git repository metadata from the parent directories of :obj:`core_path`
         if set_repo_metadata_from_path:
@@ -77,36 +76,27 @@ class Writer(object):
 
     @classmethod
     def validate_implicit_relationships(cls):
-        """ Check that relationships to :obj:`core.Model` do not need to be explicitly written to 
+        """ Check that relationships to :obj:`core.Model` do not need to be explicitly written to
         workbooks because they can be inferred by :obj:`Reader.run`
         """
         for attr in core.Model.Meta.attributes.values():
-            if isinstance(attr, obj_model.RelatedAttribute):
+            if isinstance(attr, obj_model.RelatedAttribute) and \
+                    attr.related_class != core.DatabaseReference:
                 raise Exception('Relationships from `Model` not supported')
 
         for attr in core.Model.Meta.related_attributes.values():
-            if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)) and \
-                    attr.primary_class not in (core.Parameter, core.DatabaseReference):
+            if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)):
                 raise Exception('Only one-to-one and many-to-one relationships are supported to `Model`')
 
 
 class Reader(object):
     """ Read model from file(s) """
 
-    def run(self, path, strict=True):
+    def run(self, path):
         """ Read model from file(s)
 
         Args:
             path (:obj:`str`): path to file(s)
-            strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
-                :obj:`obj_model` serialization format:
-
-                * The worksheets are in the expected order
-                * There are no missing worksheets
-                * There are no extra worksheets
-                * The columns are in the expected order
-                * There are no missing columns
-                * There are no extra columns
 
         Returns:
             :obj:`core.Model`: model
@@ -114,6 +104,8 @@ class Reader(object):
         Raises:
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
+        config = wc_lang.config.core.get_config()
+
         Writer.validate_implicit_relationships()
 
         # read objects from file
@@ -123,7 +115,7 @@ class Reader(object):
         kwargs = {}
         if isinstance(reader, obj_model.io.WorkbookReader):
             kwargs['include_all_attributes'] = False
-            if not strict:
+            if not config['wc_lang']['io']['strict']:
                 kwargs['ignore_missing_sheets'] = True
                 kwargs['ignore_extra_sheets'] = True
                 kwargs['ignore_sheet_order'] = True
@@ -150,8 +142,7 @@ class Reader(object):
         for cls, cls_objects in objects.items():
             for attr in cls.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
-                        attr.related_class == core.Model and \
-                        attr.primary_class not in (core.Parameter, core.DatabaseReference):
+                        attr.related_class == core.Model:
                     for cls_obj in cls_objects:
                         setattr(cls_obj, attr.name, model)
 
@@ -169,7 +160,7 @@ class Reader(object):
         return model
 
 
-def convert(source, destination, strict=True):
+def convert(source, destination):
     """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated (.tsv) file formats
 
     Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
@@ -179,17 +170,8 @@ def convert(source, destination, strict=True):
     Args:
         source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
-        strict (:obj:`bool`, optional): if :obj:`True`, validate that the the model file(s) strictly follow the
-                :obj:`obj_model` serialization format:
-
-                * The worksheets are in the expected order
-                * There are no missing worksheets
-                * There are no extra worksheets
-                * The columns are in the expected order
-                * There are no missing columns
-                * There are no extra columns
     """
-    model = Reader().run(source, strict=strict)
+    model = Reader().run(source)
     Writer().run(model, destination, set_repo_metadata_from_path=False)
 
 
@@ -198,7 +180,7 @@ def create_template(path, set_repo_metadata_from_path=True):
 
     Args:
         path (:obj:`str`): path to file(s)
-        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL, 
+        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
             branch, revision) for the model from the parent directory of :obj:`core_path`
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)

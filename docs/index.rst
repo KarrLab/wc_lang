@@ -19,6 +19,8 @@ Contents
    :numbered:
 
    installation.rst
+   overview.rst
+   tutorial.rst
    API documentation <source/modules.rst>
    about.rst
    references.rst
