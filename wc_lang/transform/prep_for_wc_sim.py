@@ -8,7 +8,7 @@
 """
 
 from .core import Transform
-from . import create_implicit_distribution_zero_init_concentrations
+from . import create_implicit_dist_zero_init_concs
 from . import create_implicit_dfba_ex_rxns
 from . import set_finite_dfba_flux_bounds
 from . import split_reversible_reactions
@@ -30,7 +30,7 @@ class PrepareForWcSimTransform(Transform):
         transforms (:obj:`list` of :obj:`Transform`): list of transforms
     """
     DEFAULT_TRANSFORMS = (
-        create_implicit_distribution_zero_init_concentrations.CreateImplicitDistributionZeroInitConcentrationsTransform,
+        create_implicit_dist_zero_init_concs.CreateImplicitDistributionZeroInitConcentrationsTransform,
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform,
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform,
         split_reversible_reactions.SplitReversibleReactionsTransform,
