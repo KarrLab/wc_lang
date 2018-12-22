@@ -25,7 +25,7 @@ class Writer(object):
     """ Write model to file(s) """
 
     model_order = [
-        core.Model, core.Taxon,
+        core.Model, core.Taxon, core.Environment,
         core.Submodel, core.Compartment, core.SpeciesType, core.Species,
         core.DistributionInitConcentration, core.Observable, core.Function,
         core.Reaction, core.RateLaw,
