@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, Submodel, SubmodelAlgorithm,
+from wc_lang.core import (Model, Taxon, Environment, Submodel, SubmodelAlgorithm,
                           Compartment,
                           SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, DistributionInitConcentration,
                           Reaction, RateLaw, RateLawExpression, Parameter,
@@ -125,7 +125,7 @@ class TestUtil(unittest.TestCase):
 
     def test_get_models(self):
         non_inline_models = set([
-            Model, Taxon,
+            Model, Taxon, Environment,
             Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
             DfbaObjective,
             Reaction, RateLaw, DfbaNetSpecies, DfbaNetReaction, Parameter, Function,

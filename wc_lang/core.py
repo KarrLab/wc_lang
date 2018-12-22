@@ -142,6 +142,11 @@ class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
     variety = 10
 
 
+class TemperatureUnit(int, Enum):
+    """ Temperature units """
+    C = 1
+
+
 class CompartmentBiologicalType(int, CaseInsensitiveEnum):
     """ Compartment biological type """
     cellular = 1
@@ -772,6 +777,7 @@ class Model(obj_model.Model):
 
     Related attributes:
         taxon (:obj:`Taxon`): taxon
+        env (:obj:`Environment`): environment
         submodels (:obj:`list` of :obj:`Submodel`): submodels
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
@@ -1190,7 +1196,7 @@ class Taxon(obj_model.Model):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
 
     Attributes:
-        id (:obj:`str`): unique identifier
+        id (:obj:`str`): unique identifier equal to 'taxon'
         name (:obj:`str`): name
         model (:obj:`Model`): model
         rank (:obj:`TaxonRank`): rank
@@ -1198,7 +1204,7 @@ class Taxon(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
-    id = SlugAttribute()
+    id = RegexAttribute(pattern=r'^taxon$')
     name = StringAttribute()
     model = OneToOneAttribute(Model, related_name='taxon')
     rank = EnumAttribute(TaxonRank, default=TaxonRank.species)
@@ -1209,6 +1215,37 @@ class Taxon(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'rank',
+                           'db_refs', 'comments', 'references')
+        tabular_orientation = TabularOrientation.column
+
+
+class Environment(obj_model.Model):
+    """ Environment
+
+    Attributes:
+        id (:obj:`str`): unique identifier equal to 'env'
+        name (:obj:`str`): name
+        model (:obj:`Model`): model
+        temp (:obj:`float`): temperature
+        temp_units (:obj:`TemperatureUnit`): temperature units
+        ph (:obj:`float`): pH
+        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
+    """
+    id = RegexAttribute(pattern=r'^env$')
+    name = StringAttribute()
+    model = OneToOneAttribute(Model, related_name='env')
+    temp = FloatAttribute(verbose_name='Temperature')
+    temp_units = EnumAttribute(TemperatureUnit, default=TemperatureUnit.C, verbose_name='Temperature units')
+    ph = FloatAttribute(verbose_name='pH')
+    db_refs = DatabaseReferenceOneToManyAttribute(related_name='env')
+    comments = LongStringAttribute()
+    references = OneToManyAttribute('Reference', related_name='env')
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name',
+                           'temp', 'temp_units', 'ph',
                            'db_refs', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
 
@@ -3410,7 +3447,8 @@ class Reference(obj_model.Model):
         comments (:obj:`str`): comments
 
     Related attributes:
-        taxa (:obj:`list` of :obj:`Taxon`): taxa
+        taxon (:obj:`Taxon`): taxon
+        env (:obj:`Environment`): environment
         submodels (:obj:`list` of :obj:`Submodel`): submodels
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
@@ -3464,6 +3502,7 @@ class DatabaseReference(obj_model.Model):
     Related attributes:
         model (:obj:`Model`): model
         taxon (:obj:`Taxon`): taxon
+        env (:obj:`Environment`): environment
         submodels (:obj:`list` of :obj:`Submodel`): submodels
         compartments (:obj:`list` of :obj:`Compartment`): compartments
         species_types (:obj:`list` of :obj:`SpeciesType`): species types
