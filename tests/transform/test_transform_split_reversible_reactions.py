@@ -33,16 +33,34 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r0 = model.reactions.create(id='r0', reversible=True, submodel=submodel)
         r0.participants.create(species=s0, coefficient=-2)
         r0.participants.create(species=s1, coefficient=3)
-        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='a'), model=model)
+
+        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, model=model)
+        a = model.parameters.create(id='a', value=1., units='s^-1')
+        r0_f.expression, error = RateLawExpression.deserialize('a', {Parameter: {'a': a}})
+        assert error is None, str(error)
+
         r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='b'), model=model)
+        b = model.parameters.create(id='b', value=1., units='s^-1')
+        r0_b.expression, error = RateLawExpression.deserialize('b', {Parameter: {'b': b}})
+        assert error is None, str(error)
+
         r0.references.create(id='ref_0', model=model)
         r0.db_refs.create(database='x', id='y')
 
         r1 = model.reactions.create(id='r1', reversible=False, submodel=submodel)
         r1.participants.create(species=s1, coefficient=-3)
         r1.participants.create(species=s2, coefficient=4)
-        r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, expression=RateLawExpression(expression='c'), model=model)
-        r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='d'), model=model)
+
+        r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, model=model)
+        c = model.parameters.create(id='c', value=1., units='s^-1')
+        r1_f.expression, error = RateLawExpression.deserialize('c', {Parameter: {'c': c}})
+        assert error is None, str(error)
+
+        r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, model=model)
+        d = model.parameters.create(id='d', value=1., units='s^-1')
+        r1_b.expression, error = RateLawExpression.deserialize('d', {Parameter: {'d': d}})
+        assert error is None, str(error)
+
         r1.references.create(id='ref_1', model=model)
         r1.db_refs.create(database='xx', id='yy')
 
