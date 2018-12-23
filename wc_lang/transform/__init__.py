@@ -1,6 +1,6 @@
 from .core import Transform, get_transforms
 from .change_value import ChangeValueTransform
-from .create_implicit_distribution_zero_init_concentrations \
+from .create_implicit_dist_zero_init_concs \
     import CreateImplicitDistributionZeroInitConcentrationsTransform
 from .create_implicit_dfba_ex_rxns import CreateImplicitDfbaExchangeReactionsTransform
 from .merge_submodels import MergeAlgorithmicallyLikeSubmodelsTransform

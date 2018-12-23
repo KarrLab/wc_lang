@@ -8,7 +8,7 @@
 """
 
 from wc_lang import Model, Species
-from wc_lang.transform.create_implicit_distribution_zero_init_concentrations \
+from wc_lang.transform.create_implicit_dist_zero_init_concs \
     import CreateImplicitDistributionZeroInitConcentrationsTransform
 import unittest
 

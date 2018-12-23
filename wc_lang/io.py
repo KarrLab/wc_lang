@@ -138,7 +138,7 @@ class Reader(object):
         else:
             model = objects[core.Model].pop()
 
-        # add implict relationships to `Model`
+        # add implicit relationships to `Model`
         for cls, cls_objects in objects.items():
             for attr in cls.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
