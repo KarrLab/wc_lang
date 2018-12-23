@@ -2566,7 +2566,9 @@ class StopCondition(obj_model.Model):
             errors = []
 
         # check that units are valid
-        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+        if self.expression \
+                and hasattr(self.expression, '_parsed_expression') \
+                and self.expression._parsed_expression:
             try:
                 test_val = self.expression._parsed_expression.test_eval(with_units=True)
             except ParsedExpressionError as error:
@@ -2575,8 +2577,13 @@ class StopCondition(obj_model.Model):
                 if hasattr(test_val, 'units'):
                     errors.append(InvalidAttribute(self.Meta.attributes['units'], ['Units must be dimensionless']))
         else:
+            if self.expression:
+                expression = self.expression.expression
+            else:
+                expression = None
             errors.append(InvalidAttribute(self.Meta.attributes['expression'],
-                                           ['Expression for {} could not be parsed'.format(self.id)]))
+                                           ['Expression for {} could not be parsed: {}'.format(
+                                            self.id, expression)]))
 
         if self.units != StopConditionUnit.dimensionless:
             errors.append(InvalidAttribute(self.Meta.attributes['units'], ['Units must be dimensionless']))
@@ -3064,7 +3071,9 @@ class RateLaw(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.attributes['units'],
                                            ['Units must the same as reaction rate units']))
 
-        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
+        if self.expression \
+                and hasattr(self.expression, '_parsed_expression') \
+                and self.expression._parsed_expression:
             exp_units = unit_registry.parse_expression(self.units.name).to_base_units().units
             try:
                 calc = self.expression._parsed_expression.test_eval(with_units=True)
@@ -3081,8 +3090,13 @@ class RateLaw(obj_model.Model):
                                                    ['Units of "{}" should be "{}" not "{}"'.format(
                                                     self.expression.expression, exp_units, calc_units)]))
         else:
+            if self.expression:
+                expression = self.expression.expression
+            else:
+                expression = None
             errors.append(InvalidAttribute(self.Meta.attributes['expression'],
-                                           ['Expression for {} could not be parsed'.format(self.id)]))
+                                           ['Expression for {} could not be parsed: {}'.format(
+                                            self.id, expression)]))
 
         """ return errors or `None` to indicate valid object """
         if errors:
