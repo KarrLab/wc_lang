@@ -322,15 +322,6 @@ class RateLawDirection(int, CaseInsensitiveEnum):
     forward = 1
 
 
-class RateLawType(int, CaseInsensitiveEnum):
-    """ SBO rate law types """
-    hill = 192
-    mass_action = 12
-    michaelis_menten = 29
-    modular = 527
-    other = 1
-
-
 RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
     ('hill', 192),
     ('mass-action', 12),
