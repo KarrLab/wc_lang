@@ -557,10 +557,9 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 species_id = Species.gen_id(species_type.id, compartment.id)
                 species, error = Species.deserialize(species_id, objects)
                 if error:
-                    raise ValueError('Invalid species "{}"'.format(species_id)
-                                     )  # pragma: no cover; unreachable due to above error checking of species types and compartments
+                    errors.extend(error.messages)
 
-                if coefficient != 0:
+                elif coefficient != 0:
                     if SpeciesCoefficient not in objects:
                         objects[SpeciesCoefficient] = {}
                     serialized_value = SpeciesCoefficient._serialize(species, coefficient)

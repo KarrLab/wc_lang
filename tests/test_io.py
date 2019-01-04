@@ -24,6 +24,7 @@ from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -333,6 +334,31 @@ class TestSimpleModel(unittest.TestCase):
         convert(filename_csv, filename_xls2)
         model = Reader().run(filename_xls2)
         self.assertTrue(model.is_equal(self.model))
+
+    def test_read_without_validation(self):
+        # write model to file
+        filename = os.path.join(self.dirname, 'model.xlsx')
+        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
+
+        # read model and verify that it validates
+        model = Reader().run(filename)
+        self.assertEqual(model.validate(), None)
+
+        # introduce error into model file
+        wb = read_workbook(filename)
+        wb['Model'][0][1] = '1000'
+        write_workbook(filename, wb)
+
+        # read model and verify that it doesn't validate
+        with self.assertRaisesRegex(ValueError, 'does not match pattern'):
+            Reader().run(filename)
+
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__validate', '0')
+        with env:
+            model = Reader().run(filename)
+        
+        self.assertNotEqual(model.validate(), None)
 
 
 class TestExampleModel(unittest.TestCase):

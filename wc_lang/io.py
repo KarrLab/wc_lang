@@ -104,7 +104,7 @@ class Reader(object):
         Raises:
             :obj:`ValueError`: if :obj:`path` defines multiple models
         """
-        config = wc_lang.config.core.get_config()
+        config = wc_lang.config.core.get_config()['wc_lang']['io']
 
         Writer.validate_implicit_relationships()
 
@@ -115,7 +115,7 @@ class Reader(object):
         kwargs = {}
         if isinstance(reader, obj_model.io.WorkbookReader):
             kwargs['include_all_attributes'] = False
-            if not config['wc_lang']['io']['strict']:
+            if not config['strict']:
                 kwargs['ignore_missing_sheets'] = True
                 kwargs['ignore_extra_sheets'] = True
                 kwargs['ignore_sheet_order'] = True
@@ -147,14 +147,15 @@ class Reader(object):
                         setattr(cls_obj, attr.name, model)
 
         # validate
-        objs = []
-        for cls_objs in objects.values():
-            objs.extend(cls_objs)
+        if config['validate']:
+            objs = [model]
+            for cls_objs in objects.values():
+                objs.extend(cls_objs)
 
-        errors = obj_model.Validator().validate(objs)
-        if errors:
-            raise ValueError(
-                indent_forest(['The model cannot be loaded because it fails to validate:', [errors]]))
+            errors = obj_model.Validator().validate(objs)
+            if errors:
+                raise ValueError(
+                    indent_forest(['The model cannot be loaded because it fails to validate:', [errors]]))
 
         # return model
         return model
