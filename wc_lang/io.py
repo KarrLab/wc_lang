@@ -43,6 +43,8 @@ class Writer(object):
             set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
                 branch, revision) for the model from the parent directory of :obj:`core_path`
         """
+        config = wc_lang.config.core.get_config()['wc_lang']['io']
+        
         self.validate_implicit_relationships()
 
         # check that there is only 1 :obj:`Model`and that each relationship to :obj:`Model` is set. This is necessary to
@@ -62,7 +64,9 @@ class Writer(object):
         _, ext = os.path.splitext(path)
         writer = obj_model.io.get_writer(ext)()
 
-        kwargs = {}
+        kwargs = {
+            'validate': config['validate'],
+        }
         if isinstance(writer, obj_model.io.WorkbookWriter):
             kwargs['include_all_attributes'] = False
 
