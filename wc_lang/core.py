@@ -14,8 +14,8 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`SpeciesCoefficient`
 * :obj:`RateLaw`
 * :obj:`RateLawExpression`
-* :obj:`DfbaNetSpecies`
-* :obj:`DfbaNetReaction`
+* :obj:`DfbaObjSpecies`
+* :obj:`DfbaObjReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
 * :obj:`DatabaseReference`
@@ -353,7 +353,7 @@ DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, na
     ('s', 1),
 ])
 
-DfbaNetComponentUnit = Enum('DfbaNetComponentUnit', type=int, names=[
+DfbaObjSpeciesUnit = Enum('DfbaObjSpeciesUnit', type=int, names=[
     ('M s^-1', 1),
     ('mol gDCW^-1 s^-1', 2),
 ])
@@ -780,7 +780,7 @@ class Model(obj_model.Model):
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
+        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references
@@ -1075,8 +1075,8 @@ class Model(obj_model.Model):
 
         return self.dfba_objs.get(__type=__type, **kwargs)
 
-    def get_dfba_net_reactions(self, __type=None, **kwargs):
-        """ Get all dFBA net reactions used by submodels
+    def get_dfba_obj_reactions(self, __type=None, **kwargs):
+        """ Get all dFBA objective reactions used by submodels
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
@@ -1084,12 +1084,12 @@ class Model(obj_model.Model):
                 objects
 
         Returns:
-            :obj:`list` of :obj:`DfbaNetReaction`: dFBA net reactions
+            :obj:`list` of :obj:`DfbaObjReaction`: dFBA objective reactions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        return self.dfba_net_reactions.get(__type=__type, **kwargs)
+        return self.dfba_obj_reactions.get(__type=__type, **kwargs)
 
     def get_parameters(self, __type=None, **kwargs):
         """ Get all parameters from model and submodels
@@ -1170,7 +1170,7 @@ class Model(obj_model.Model):
             type_names = [
                 'submodels', 'compartments', 'species_types', 'species',
                 'distribution_init_concentrations', 'observables', 'functions',
-                'dfba_objs', 'reactions', 'rate_laws', 'dfba_net_reactions',
+                'dfba_objs', 'reactions', 'rate_laws', 'dfba_obj_reactions',
                 'stop_conditions', 'parameters', 'evidence', 'references',
             ]
 
@@ -1256,8 +1256,8 @@ class Submodel(obj_model.Model):
     Related attributes:
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
-            if not initialized, then `dfba_net_reaction` is used as the objective function
-        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): the growth reaction for a dFBA submodel
+            if not initialized, then `dfba_obj_reaction` is used as the objective function
+        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): the growth reaction for a dFBA submodel
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1330,9 +1330,9 @@ class Submodel(obj_model.Model):
         species = []
         for reaction in self.get_reactions():
             species.extend(reaction.get_species())
-        for dfba_net_reaction in self.get_dfba_net_reactions():
-            for dfba_net_species in dfba_net_reaction.dfba_net_species:
-                species.append(dfba_net_species.species)
+        for dfba_obj_reaction in self.get_dfba_obj_reactions():
+            for dfba_obj_species in dfba_obj_reaction.dfba_obj_species:
+                species.append(dfba_obj_species.species)
         for observable in self.get_observables():
             species.extend(observable.expression.species)
         for function in self.get_functions():
@@ -1410,16 +1410,16 @@ class Submodel(obj_model.Model):
             return [self.dfba_obj]
         return []
 
-    def get_dfba_net_reactions(self):
-        """ Get dFBA net reactions in submodel
+    def get_dfba_obj_reactions(self):
+        """ Get dFBA objective reactions in submodel
 
         Returns:
-            :obj:`list` of :obj:`DfbaNetReaction`: dFBA net reactions in submodel
+            :obj:`list` of :obj:`DfbaObjReaction`: dFBA objective reactions in submodel
         """
-        rxns = list(self.dfba_net_reactions)
+        rxns = list(self.dfba_obj_reactions)
         for dfba_obj in self.get_dfba_objs():
             if dfba_obj.expression:
-                rxns.extend(dfba_obj.expression.dfba_net_reactions)
+                rxns.extend(dfba_obj.expression.dfba_obj_reactions)
         return det_dedupe(rxns)
 
     def get_parameters(self):
@@ -1450,7 +1450,7 @@ class Submodel(obj_model.Model):
             'dfba_objs',
             'reactions',
             'rate_laws',
-            'dfba_net_reactions',
+            'dfba_obj_reactions',
             'parameters',
         ]
         evidence = list(self.evidence)
@@ -1475,7 +1475,7 @@ class Submodel(obj_model.Model):
             'dfba_objs',
             'reactions',
             'rate_laws',
-            'dfba_net_reactions',
+            'dfba_obj_reactions',
             'parameters',
             'evidence',
         ]
@@ -1500,7 +1500,7 @@ class Submodel(obj_model.Model):
             self.get_reactions() + \
             self.get_rate_laws() + \
             self.get_dfba_objs() + \
-            self.get_dfba_net_reactions() + \
+            self.get_dfba_obj_reactions() + \
             self.get_parameters() + \
             self.get_evidence() + \
             self.get_references()
@@ -1528,7 +1528,7 @@ class Submodel(obj_model.Model):
 
 
 class DfbaObjectiveExpression(obj_model.Model, Expression):
-    """ A mathematical expression of Reactions and DfbaNetReactions
+    """ A mathematical expression of Reactions and DfbaObjReactions
 
     The expression used by a :obj:`DfbaObjective`.
 
@@ -1536,7 +1536,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         expression (:obj:`str`): mathematical expression
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         reactions (:obj:`list` of :obj:`Reaction`): reactions used by this expression
-        dfba_net_reactions (:obj:`list` of :obj:`Species`): dFBA net reactions used by this expression
+        dfba_obj_reactions (:obj:`list` of :obj:`Species`): dFBA objective reactions used by this expression
 
     Related attributes:
         dfba_obj (:obj:`DfbaObjective`): dFBA objective
@@ -1545,21 +1545,21 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
     expression = LongStringAttribute(primary=True, unique=True, default='')
     reactions = OneToManyAttribute('Reaction', related_name='dfba_obj_expression',
                                    verbose_related_name='dFBA objective expression')
-    dfba_net_reactions = OneToManyAttribute('DfbaNetReaction', related_name='dfba_obj_expression',
-                                            verbose_name='dFBA net reactions', verbose_related_name='dFBA objective expression')
+    dfba_obj_reactions = OneToManyAttribute('DfbaObjReaction', related_name='dfba_obj_expression',
+                                            verbose_name='dFBA objective reactions', verbose_related_name='dFBA objective expression')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.inline
         expression_valid_functions = ()
-        expression_term_models = ('Reaction', 'DfbaNetReaction')
+        expression_term_models = ('Reaction', 'DfbaObjReaction')
         verbose_name = 'dFBA objective expression'
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
 
         * Check that the expression is a linear function
-        * Check if expression is a function of at least one reaction or dFBA net reaction
-        * Check that the reactions and dFBA net reactions belong to the same submodel
+        * Check if expression is a function of at least one reaction or dFBA objective reaction
+        * Check that the reactions and dFBA objective reactions belong to the same submodel
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -1572,23 +1572,23 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
             errors = []
 
         expr_errors = []
-        if not self.reactions and not self.dfba_net_reactions:
-            expr_errors.append('Expression must be a function of at least one reaction or dFBA net reaction')
+        if not self.reactions and not self.dfba_obj_reactions:
+            expr_errors.append('Expression must be a function of at least one reaction or dFBA objective reaction')
 
         if self.dfba_obj and self.dfba_obj.submodel:
             missing_rxns = set(self.reactions).difference(set(self.dfba_obj.submodel.reactions))
-            missing_dfba_net_rxns = set(self.dfba_net_reactions).difference(set(self.dfba_obj.submodel.dfba_net_reactions))
+            missing_dfba_obj_rxns = set(self.dfba_obj_reactions).difference(set(self.dfba_obj.submodel.dfba_obj_reactions))
 
             if missing_rxns:
                 expr_errors.append(('dFBA submodel {} must contain the following reactions '
                                     'that are in its objective function:\n  {}').format(
                     self.dfba_obj.submodel.id,
                     '\n  '.join(rxn.id for rxn in missing_rxns)))
-            if missing_dfba_net_rxns:
-                expr_errors.append(('dFBA submodel {} must contain the following dFBA net reactions '
+            if missing_dfba_obj_rxns:
+                expr_errors.append(('dFBA submodel {} must contain the following dFBA objective reactions '
                                     'that are in its objective function:\n  {}').format(
                     self.dfba_obj.submodel.id,
-                    '\n  '.join(rxn.id for rxn in missing_dfba_net_rxns)))
+                    '\n  '.join(rxn.id for rxn in missing_dfba_obj_rxns)))
 
         if expr_errors:
             errors.append(InvalidAttribute(self.Meta.attributes['expression'], expr_errors))
@@ -1728,11 +1728,11 @@ class DfbaObjective(obj_model.Model):
             wrap_libsbml(sbml_flux_objective.setReaction, reaction.id)
             wrap_libsbml(sbml_flux_objective.setCoefficient,
                          self.expression._parsed_expression.lin_coeffs[Reaction][reaction])
-        for idx, dfba_net_reaction in enumerate(self.expression.dfba_net_reactions):
+        for idx, dfba_obj_reaction in enumerate(self.expression.dfba_obj_reactions):
             sbml_flux_objective = wrap_libsbml(sbml_objective.createFluxObjective)
-            wrap_libsbml(sbml_flux_objective.setReaction, dfba_net_reaction.id)
+            wrap_libsbml(sbml_flux_objective.setReaction, dfba_obj_reaction.id)
             wrap_libsbml(sbml_flux_objective.setCoefficient,
-                         self.expression._parsed_expression.lin_coeffs[DfbaNetReaction][dfba_net_reaction])
+                         self.expression._parsed_expression.lin_coeffs[DfbaObjReaction][dfba_obj_reaction])
 
         return sbml_objective
 
@@ -1764,11 +1764,11 @@ class DfbaObjective(obj_model.Model):
                         if part.species.has_attr_vals(__type=__type, **kwargs):
                             products.append(part.species)
 
-        # products of dFBA net reactions
-        for dfba_net_reaction in self.expression.dfba_net_reactions:
-            for dfba_net_species in dfba_net_reaction.dfba_net_species:
-                if dfba_net_species.value > 0 and dfba_net_species.species.has_attr_vals(__type=__type, **kwargs):
-                    products.append(dfba_net_species.species)
+        # products of dFBA objective reactions
+        for dfba_obj_reaction in self.expression.dfba_obj_reactions:
+            for dfba_obj_species in dfba_obj_reaction.dfba_obj_species:
+                if dfba_obj_species.value > 0 and dfba_obj_species.species.has_attr_vals(__type=__type, **kwargs):
+                    products.append(dfba_obj_species.species)
 
         # return unique list
         return det_dedupe(products)
@@ -1992,7 +1992,7 @@ class Species(obj_model.Model):
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
@@ -3094,20 +3094,20 @@ class RateLaw(obj_model.Model):
         return None
 
 
-class DfbaNetSpecies(obj_model.Model):
-    """ DfbaNetSpecies
+class DfbaObjSpecies(obj_model.Model):
+    """ DfbaObjSpecies
 
-    A dFBA net reaction contains a list of DfbaNetSpecies instances. Distinct DfbaNetComponents
+    A dFBA objective reaction contains a list of DfbaObjSpecies instances. Distinct DfbaObjSpecies
     enable separate comments and references for each one.
 
     Attributes:
-        id (:obj:`str`): unique identifier per DfbaNetSpecies equal to
-            `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
+        id (:obj:`str`): unique identifier per DfbaObjSpecies equal to
+            `dfba-net-species-{dfba_obj_reaction.id}-{species.id}`
         name (:obj:`str`): name
-        dfba_net_reaction (:obj:`DfbaNetReaction`): the dFBA net reaction that uses the dFBA net species
+        dfba_obj_reaction (:obj:`DfbaObjReaction`): the dFBA objective reaction that uses the dFBA objective species
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
-        units (:obj:`DfbaNetComponentUnit`): units of the value
+        units (:obj:`DfbaObjSpeciesUnit`): units of the value
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         comments (:obj:`str`): comments
@@ -3115,82 +3115,82 @@ class DfbaNetSpecies(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
-    dfba_net_reaction = ManyToOneAttribute('DfbaNetReaction', min_related=1, related_name='dfba_net_species',
-                                           verbose_name='dFBA net reaction',
-                                           verbose_related_name='dFBA net species')
-    species = ManyToOneAttribute(Species, min_related=1, related_name='dfba_net_species',
-                                 verbose_related_name='dFBA net species')
+    dfba_obj_reaction = ManyToOneAttribute('DfbaObjReaction', min_related=1, related_name='dfba_obj_species',
+                                           verbose_name='dFBA objective reaction',
+                                           verbose_related_name='dFBA objective species')
+    species = ManyToOneAttribute(Species, min_related=1, related_name='dfba_obj_species',
+                                 verbose_related_name='dFBA objective species')
     value = FloatAttribute()
-    units = EnumAttribute(DfbaNetComponentUnit, default=DfbaNetComponentUnit['M s^-1'])
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_species',
-                                                   verbose_related_name='dFBA net species')
-    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_species',
-                                   verbose_related_name='dFBA net species')
+    units = EnumAttribute(DfbaObjSpeciesUnit, default=DfbaObjSpeciesUnit['M s^-1'])
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_obj_species',
+                                                   verbose_related_name='dFBA objective species')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_species',
+                                   verbose_related_name='dFBA objective species')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='dfba_net_species',
-                                     verbose_related_name='dFBA net species')
+    references = ManyToManyAttribute('Reference', related_name='dfba_obj_species',
+                                     verbose_related_name='dFBA objective species')
 
     class Meta(obj_model.Model.Meta):
-        # unique_together = (('dfba_net_reaction', 'species'), )
-        attribute_order = ('id', 'name', 'dfba_net_reaction',
+        # unique_together = (('dfba_obj_reaction', 'species'), )
+        attribute_order = ('id', 'name', 'dfba_obj_reaction',
                            'species', 'value', 'units',
                            'db_refs', 'evidence', 'comments', 'references')
-        verbose_name = 'dFBA net species'
-        verbose_name_plural = 'dFBA net species'
+        verbose_name = 'dFBA objective species'
+        verbose_name_plural = 'dFBA objective species'
 
     @staticmethod
-    def gen_id(dfba_net_rxn_id, species_id):
+    def gen_id(dfba_obj_rxn_id, species_id):
         """ Generate identifier equal to
-        `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
+        `dfba-net-species-{dfba_obj_reaction.id}-{species.id}`
 
         Args:
-            dfba_net_rxn_id (:obj:`str`): dFBA net reaction id
+            dfba_obj_rxn_id (:obj:`str`): dFBA objective reaction id
             species_id (:obj:`str`): species id
 
         Returns:
             :obj:`str`: identifier
         """
-        return 'dfba-net-species-{}-{}'.format(dfba_net_rxn_id, species_id)
+        return 'dfba-net-species-{}-{}'.format(dfba_obj_rxn_id, species_id)
 
     def validate(self):
         """ Validate that the dFBA objective is valid
 
         * Check if the identifier is equal to
-          `dfba-net-species-{dfba_net_reaction.id}-{species.id}`
+          `dfba-net-species-{dfba_obj_reaction.id}-{species.id}`
         * Units consistent with units of cell size
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        invalid_obj = super(DfbaNetSpecies, self).validate()
+        invalid_obj = super(DfbaObjSpecies, self).validate()
         if invalid_obj:
             errors = invalid_obj.attributes
         else:
             errors = []
 
         # id
-        if self.dfba_net_reaction and self.species and self.id != self.gen_id(self.dfba_net_reaction.id, self.species.id):
+        if self.dfba_obj_reaction and self.species and self.id != self.gen_id(self.dfba_obj_reaction.id, self.species.id):
             errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
-                self.gen_id(self.dfba_net_reaction.id, self.species.id))]))
+                self.gen_id(self.dfba_obj_reaction.id, self.species.id))]))
 
         # units consistent with units of cell size
-        if self.dfba_net_reaction and \
-                ((self.units == DfbaNetComponentUnit['M s^-1'] and
-                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.l) or
-                 (self.units == DfbaNetComponentUnit['mol gDCW^-1 s^-1'] and
-                    self.dfba_net_reaction.cell_size_units != DfbaCellSizeUnit.gDCW)):
+        if self.dfba_obj_reaction and \
+                ((self.units == DfbaObjSpeciesUnit['M s^-1'] and
+                    self.dfba_obj_reaction.cell_size_units != DfbaCellSizeUnit.l) or
+                 (self.units == DfbaObjSpeciesUnit['mol gDCW^-1 s^-1'] and
+                    self.dfba_obj_reaction.cell_size_units != DfbaCellSizeUnit.gDCW)):
             errors.append(InvalidAttribute(
                 self.Meta.attributes['units'],
                 ['Units {} are not consistent with cell size units {}'.format(
-                    self.units.name, self.dfba_net_reaction.cell_size_units.name)]))
+                    self.units.name, self.dfba_obj_reaction.cell_size_units.name)]))
 
         if errors:
             return InvalidObject(self, errors)
         return None
 
 
-class DfbaNetReaction(obj_model.Model):
+class DfbaObjReaction(obj_model.Model):
     """ A pseudo-reaction used to represent the interface between metabolism and other
     cell processes.
 
@@ -3208,36 +3208,36 @@ class DfbaNetReaction(obj_model.Model):
 
     Related attributes:
         dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
-        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): the components of this dFBA net reaction
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): the components of this dFBA objective reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
-    submodel = ManyToOneAttribute(Submodel, related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
+    model = ManyToOneAttribute(Model, related_name='dfba_obj_reactions', verbose_related_name='dFBA objective reactions')
+    submodel = ManyToOneAttribute(Submodel, related_name='dfba_obj_reactions', verbose_related_name='dFBA objective reactions')
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     cell_size_units = EnumAttribute(DfbaCellSizeUnit, default=DfbaCellSizeUnit.l)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_net_reactions',
-                                                   verbose_related_name='dFBA net reactions')
-    evidence = ManyToManyAttribute('Evidence', related_name='dfba_net_reactions',
-                                   verbose_related_name='dFBA net reactions')
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_obj_reactions',
+                                                   verbose_related_name='dFBA objective reactions')
+    evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_reactions',
+                                   verbose_related_name='dFBA objective reactions')
     comments = LongStringAttribute()
-    references = ManyToManyAttribute('Reference', related_name='dfba_net_reactions', verbose_related_name='dFBA net reactions')
+    references = ManyToManyAttribute('Reference', related_name='dfba_obj_reactions', verbose_related_name='dFBA objective reactions')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel', 'units', 'cell_size_units',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
-        verbose_name = 'dFBA net reaction'
+        verbose_name = 'dFBA objective reaction'
         expression_term_units = 'units'
 
     def add_to_sbml_doc(self, sbml_document):
-        """ Add a DfbaNetReaction to a libsbml SBML document.
+        """ Add a DfbaObjReaction to a libsbml SBML document.
 
-        DfbaNetReactions are added to the SBML document because they can be used in a dFBA submodel's
-        objective function. In fact the default objective function is the submodel's dFBA net reaction.
-        Since SBML does not define DfbaNetReaction as a separate class, DfbaNetReactions are added
+        DfbaObjReactions are added to the SBML document because they can be used in a dFBA submodel's
+        objective function. In fact the default objective function is the submodel's dFBA objective reaction.
+        Since SBML does not define DfbaObjReaction as a separate class, DfbaObjReactions are added
         to the SBML model as SBML reactions.
-        CheckModel ensures that wc_lang DfbaNetReactions and Reactions have distinct ids.
+        CheckModel ensures that wc_lang DfbaObjReactions and Reactions have distinct ids.
 
         Args:
              sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
@@ -3259,24 +3259,24 @@ class DfbaNetReaction(obj_model.Model):
         if self.comments:
             wrap_libsbml(sbml_reaction.setNotes, self.comments, True)
 
-        # write dFBA net reaction participants to SBML document
-        for dfba_net_species in self.dfba_net_species:
-            if dfba_net_species.value < 0:
+        # write dFBA objective reaction participants to SBML document
+        for dfba_obj_species in self.dfba_obj_species:
+            if dfba_obj_species.value < 0:
                 species_reference = wrap_libsbml(sbml_reaction.createReactant)
-                wrap_libsbml(species_reference.setStoichiometry, -dfba_net_species.value)
-            elif 0 < dfba_net_species.value:
+                wrap_libsbml(species_reference.setStoichiometry, -dfba_obj_species.value)
+            elif 0 < dfba_obj_species.value:
                 species_reference = wrap_libsbml(sbml_reaction.createProduct)
-                wrap_libsbml(species_reference.setStoichiometry, dfba_net_species.value)
-            id = dfba_net_species.species.gen_sbml_id()
+                wrap_libsbml(species_reference.setStoichiometry, dfba_obj_species.value)
+            id = dfba_obj_species.species.gen_sbml_id()
             wrap_libsbml(species_reference.setSpecies, id)
             wrap_libsbml(species_reference.setConstant, True)
 
-        # the dFBA net reaction does not constrain the optimization, so set its bounds to 0 and INF
+        # the dFBA objective reaction does not constrain the optimization, so set its bounds to 0 and INF
         fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
         for bound in ['lower', 'upper']:
             # make a unique ID for each flux bound parameter
             # ids for wc_lang Parameters all start with 'parameter'
-            param_id = "_dfba_net_reaction_{}_{}_bound".format(self.id, bound)
+            param_id = "_dfba_obj_reaction_{}_{}_bound".format(self.id, bound)
             param = create_sbml_parameter(sbml_model, id=param_id, value=0,
                                           units='mmol_per_gDW_per_hr')
             if bound == 'lower':
@@ -3395,8 +3395,8 @@ class Evidence(obj_model.Model):
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
-        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
+        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
@@ -3465,7 +3465,7 @@ class Reference(obj_model.Model):
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
     """
@@ -3519,8 +3519,8 @@ class DatabaseReference(obj_model.Model):
         reactions (:obj:`list` of :obj:`Reaction`): reactions
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_net_reactions (:obj:`list` of :obj:`DfbaNetReaction`): dFBA net reactions
-        dfba_net_species (:obj:`list` of :obj:`DfbaNetSpecies`): dFBA net species
+        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references

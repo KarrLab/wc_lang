@@ -47,7 +47,7 @@ def get_model_summary(model):
         + "\n{:d} species".format(len(model.get_species())) \
         + "\n{:d} parameters".format(len(model.get_parameters())) \
         + "\n{:d} references".format(len(model.get_references())) \
-        + "\n{:d} dFBA net reactions".format(len(model.get_dfba_net_reactions())) \
+        + "\n{:d} dFBA objective reactions".format(len(model.get_dfba_obj_reactions())) \
         + "\n{:d} reactions".format(len(model.get_reactions())) \
         + "\n{:d} rate laws".format(len(model.get_rate_laws()))
 

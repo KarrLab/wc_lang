@@ -11,7 +11,7 @@ from test.support import EnvironmentVarGuard
 from wc_lang import (ReactionRateUnit,
                      Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
                      Species, Compartment, SpeciesCoefficient,
-                     DfbaNetSpecies, DfbaNetReaction,
+                     DfbaObjSpecies, DfbaObjReaction,
                      Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
                      StopConditionExpression,
                      Observable, ObservableExpression,
