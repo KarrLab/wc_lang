@@ -61,8 +61,7 @@ class Writer(object):
             util.set_git_repo_metadata_from_path(model, path)
 
         # write objects
-        _, ext = os.path.splitext(path)
-        writer = obj_model.io.get_writer(ext)()
+        writer = obj_model.io.Writer.get_writer(path)()
 
         kwargs = {
             'validate': config['validate'],
@@ -113,8 +112,7 @@ class Reader(object):
         Writer.validate_implicit_relationships()
 
         # read objects from file
-        _, ext = os.path.splitext(path)
-        reader = obj_model.io.get_reader(ext)()
+        reader = obj_model.io.Reader.get_reader(path)()
 
         kwargs = {}
         if isinstance(reader, obj_model.io.WorkbookReader):
