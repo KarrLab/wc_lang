@@ -123,7 +123,7 @@ class TestSbml(unittest.TestCase):
     def setUp(self):
         self.dirname = tempfile.mkdtemp()
         # read and initialize a model
-        self.model = Reader().run(self.MODEL_FILENAME)
+        self.model = Reader().run(self.MODEL_FILENAME)[Model][0]
         transform = PrepareForWcSimTransform()
         transform.transforms.remove(SplitReversibleReactionsTransform)
         transform.run(self.model)

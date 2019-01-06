@@ -75,7 +75,7 @@ class RoundTripTestCase(unittest.TestCase):
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
         with pytest.warns(obj_model.io.IoWarning, match='objects are not valid'):
-            Writer().run(model, filename, set_repo_metadata_from_path=False)
+            Writer().run(filename, model, set_repo_metadata_from_path=False)
         with self.assertRaisesRegex(ValueError, re.escape('contains error(s)')):
             Reader().run(filename)
 
@@ -142,8 +142,8 @@ class RoundTripTestCase(unittest.TestCase):
         self.assertEqual(errors, None, str(errors))
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
-        Writer().run(model, filename, set_repo_metadata_from_path=False)
-        model_2 = Reader().run(filename)
+        Writer().run(filename, model, set_repo_metadata_from_path=False)
+        model_2 = Reader().run(filename)[Model][0]
 
         self.assertEqual(model.difference(model_2), '')
         self.assertTrue(model_2.is_equal(model))

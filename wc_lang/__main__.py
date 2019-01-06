@@ -7,6 +7,7 @@
 """
 
 from wc_lang import transform
+from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import cement
@@ -76,8 +77,8 @@ class DifferenceController(cement.Controller):
             diff = model1.difference(model2)
 
         else:
-            model1 = Reader().run(args.path_1)
-            model2 = Reader().run(args.path_2)
+            model1 = Reader().run(args.path_1)[Model][0]
+            model2 = Reader().run(args.path_2)[Model][0]
             diff = model1.difference(model2)
 
         if diff:
@@ -114,7 +115,7 @@ class TransformController(cement.Controller):
             raise SystemExit('Please select at least one transform')
 
         # read model
-        model = Reader().run(args.source)
+        model = Reader().run(args.source)[Model][0]
 
         # apply transforms
         transforms = transform.get_transforms()
@@ -124,7 +125,7 @@ class TransformController(cement.Controller):
             instance.run(model)
 
         # write model
-        Writer().run(model, args.dest, set_repo_metadata_from_path=False)
+        Writer().run(args.dest, model, set_repo_metadata_from_path=False)
 
 
 class NormalizeController(cement.Controller):
@@ -143,11 +144,11 @@ class NormalizeController(cement.Controller):
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        model = Reader().run(args.source)
+        model = Reader().run(args.source)[Model][0]
         if args.dest:
-            Writer().run(model, args.dest, set_repo_metadata_from_path=False)
+            Writer().run(args.dest, model, set_repo_metadata_from_path=False)
         else:
-            Writer().run(model, args.source, set_repo_metadata_from_path=False)
+            Writer().run(args.source, model, set_repo_metadata_from_path=False)
 
 
 class ConvertController(cement.Controller):
@@ -209,9 +210,9 @@ class UpdateVersionMetadataController(cement.Controller):
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        model = Reader().run(args.path)
+        model = Reader().run(args.path)[Model][0]
         model.wc_lang_version = wc_lang.__version__
-        Writer().run(model, args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
+        Writer().run(args.path, model, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
 class App(cement.App):

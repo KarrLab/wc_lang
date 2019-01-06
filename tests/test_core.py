@@ -2550,7 +2550,7 @@ class TestCoreFromFile(unittest.TestCase):
 
     def setUp(self):
         # read and initialize a model
-        self.model = Reader().run(self.MODEL_FILENAME)
+        self.model = Reader().run(self.MODEL_FILENAME)[Model][0]
         self.dfba_submodel = self.model.submodels.get_one(id='submodel_1')
 
     def test_get_species(self):
@@ -2585,7 +2585,7 @@ class ValidateModelTestCase(unittest.TestCase):
 
     def setUp(self):
         # read a wc model
-        self.model = Reader().run(self.MODEL_FILENAME)
+        self.model = Reader().run(self.MODEL_FILENAME)[Model][0]
         self.dfba_submodel = self.model.submodels.get_one(id='dfba_submodel')
 
     def test_min_flux_maxes(self):

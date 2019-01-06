@@ -41,7 +41,8 @@ class TestCreateTemplate(unittest.TestCase):
 
     def test_create_template(self):
         create_template(self.filename, set_repo_metadata_from_path=False)
-        self.assertIsInstance(Reader().run(self.filename), Model)
+        self.assertIsInstance(Reader().run(self.filename), dict)
+        self.assertIsInstance(Reader().run(self.filename)[Model][0], Model)
 
 
 class TestSimpleModel(unittest.TestCase):
@@ -247,8 +248,8 @@ class TestSimpleModel(unittest.TestCase):
     def test_write_read(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
 
-        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
-        model = Reader().run(filename)
+        Writer().run(filename, self.model, set_repo_metadata_from_path=False)
+        model = Reader().run(filename)[Model][0]
         self.assertEqual(model.validate(), None)
 
         self.assertTrue(model.is_equal(self.model))
@@ -259,7 +260,7 @@ class TestSimpleModel(unittest.TestCase):
 
         self.assertEqual(self.model.url, '')
 
-        Writer().run(self.model, filename, set_repo_metadata_from_path=True)
+        Writer().run(filename, self.model, set_repo_metadata_from_path=True)
         self.assertIn(self.model.url, [
             'https://github.com/KarrLab/wc_lang.git',
             'ssh://git@github.com/KarrLab/wc_lang.git',
@@ -271,7 +272,7 @@ class TestSimpleModel(unittest.TestCase):
     def test_write_read_sloppy(self):
         filename = os.path.join(self.dirname, 'model.xlsx')
 
-        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
+        Writer().run(filename, self.model, set_repo_metadata_from_path=False)
 
         wb = read_workbook(filename)
         row = wb['Model'].pop(0)
@@ -284,7 +285,7 @@ class TestSimpleModel(unittest.TestCase):
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
         with env:
-            model = Reader().run(filename)
+            model = Reader().run(filename)[Model][0]
         self.assertEqual(model.validate(), None)
 
         self.assertTrue(model.is_equal(self.model))
@@ -295,16 +296,16 @@ class TestSimpleModel(unittest.TestCase):
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
         filename_csv = os.path.join(self.dirname, 'model-*.csv')
 
-        Writer().run(self.model, filename_xls1, set_repo_metadata_from_path=False)
+        Writer().run(filename_xls1, self.model, set_repo_metadata_from_path=False)
 
         convert(filename_xls1, filename_csv)
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
-        model = Reader().run(filename_csv)
+        model = Reader().run(filename_csv)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
         convert(filename_csv, filename_xls2)
-        model = Reader().run(filename_xls2)
+        model = Reader().run(filename_xls2)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
     def test_convert_sloppy(self):
@@ -312,7 +313,7 @@ class TestSimpleModel(unittest.TestCase):
         filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
         filename_csv = os.path.join(self.dirname, 'model-*.csv')
 
-        Writer().run(self.model, filename_xls1, set_repo_metadata_from_path=False)
+        Writer().run(filename_xls1, self.model, set_repo_metadata_from_path=False)
 
         wb = read_workbook(filename_xls1)
         row = wb['Model'].pop(0)
@@ -328,20 +329,20 @@ class TestSimpleModel(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
         self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
-        model = Reader().run(filename_csv)
+        model = Reader().run(filename_csv)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
         convert(filename_csv, filename_xls2)
-        model = Reader().run(filename_xls2)
+        model = Reader().run(filename_xls2)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
     def test_read_without_validation(self):
         # write model to file
         filename = os.path.join(self.dirname, 'model.xlsx')
-        Writer().run(self.model, filename, set_repo_metadata_from_path=False)
+        Writer().run(filename, self.model, set_repo_metadata_from_path=False)
 
         # read model and verify that it validates
-        model = Reader().run(filename)
+        model = Reader().run(filename)[Model][0]
         self.assertEqual(model.validate(), None)
 
         # introduce error into model file
@@ -356,8 +357,8 @@ class TestSimpleModel(unittest.TestCase):
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__validate', '0')
         with env:
-            model = Reader().run(filename)
-        
+            model = Reader().run(filename)[Model][0]
+
         self.assertNotEqual(model.validate(), None)
 
 
@@ -373,11 +374,11 @@ class TestExampleModel(unittest.TestCase):
     def test_read_write(self):
         fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
 
-        model = Reader().run(fixture_filename)
+        model = Reader().run(fixture_filename)[Model][0]
         self.assertEqual(model.validate(), None)
 
         # compare excel files
-        Writer().run(model, self.filename, set_repo_metadata_from_path=False)
+        Writer().run(self.filename, model, set_repo_metadata_from_path=False)
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
         # note that models must be sorted by id for this assertion to hold
@@ -390,13 +391,13 @@ class TestExampleModel(unittest.TestCase):
         self.assertEqual(copy, original)
 
         # compare models
-        model2 = Reader().run(self.filename)
+        model2 = Reader().run(self.filename)[Model][0]
         self.assertTrue(model2.is_equal(model))
         self.assertTrue(model.difference(model2) == '')
 
     def test_rate_law_expressions_with_multiple_model_types(self):
         fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
-        model = Reader().run(fixture_filename)
+        model = Reader().run(fixture_filename)[Model][0]
         rate_laws = model.get_rate_laws(id='AK_AMP-backward')
         self.assertEqual(len(rate_laws), 1)
         rate_law = rate_laws[0]
@@ -422,7 +423,7 @@ class TestReaderException(unittest.TestCase):
         model1 = Model(id='model1', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         model2 = Model(id='model2', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [model1, model2], Writer.model_order, include_all_attributes=False)
+        obj_model.io.WorkbookWriter().run(filename, [model1, model2], models=Writer.MODELS, include_all_attributes=False)
 
         with self.assertRaisesRegex(ValueError, ' should define one model$'):
             Reader().run(filename)
@@ -438,8 +439,9 @@ class TestReadNoModel(unittest.TestCase):
 
     def test(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [], io.Writer.model_order, include_all_attributes=False)
-        self.assertEqual(Reader().run(filename), None)
+        obj_model.io.WorkbookWriter().run(filename, [], models=io.Writer.MODELS, include_all_attributes=False)
+        with self.assertRaisesRegex(ValueError, 'should define one model'):
+            Reader().run(filename)
 
 
 class ImplicitRelationshipsTestCase(unittest.TestCase):
@@ -464,11 +466,11 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         parameter = rate_law_eq.parameters.create(id='parameter', value=1., units='dimensionless', model=model)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        Writer().run(model, filename, set_repo_metadata_from_path=False)
+        Writer().run(filename, model, set_repo_metadata_from_path=False)
 
         parameter.model = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
         with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
-            Writer().run(model, filename, set_repo_metadata_from_path=False)
+            Writer().run(filename, model, set_repo_metadata_from_path=False)
 
     def test_write_other(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
@@ -484,17 +486,17 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         observable = model.observables.create(id='observable', expression=obs_expr)
 
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        Writer().run(model, filename, set_repo_metadata_from_path=False)
+        Writer().run(filename, model, set_repo_metadata_from_path=False)
 
         model2 = Model(id='model2', version='0.0.1', wc_lang_version='0.0.1')
         observable.model = model2
         with self.assertRaisesRegex(ValueError, 'must be set to the instance of `Model`'):
-            Writer().run(model, filename, set_repo_metadata_from_path=False)
+            Writer().run(filename, model, set_repo_metadata_from_path=False)
 
     def test_read(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], Writer.model_order, include_all_attributes=False)
-        with self.assertRaisesRegex(ValueError, 'cannot contain instances of'):
+        obj_model.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], models=Writer.MODELS, include_all_attributes=False)
+        with self.assertRaisesRegex(ValueError, 'should define one model'):
             Reader().run(filename)
 
     def test_validate(self):
