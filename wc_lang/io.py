@@ -87,7 +87,7 @@ class Writer(obj_model.io.Writer):
             creator = '{}.{}'.format(self.__class__.__module__, self.__class__.__name__)
 
         super(Writer, self).run(path, model, models=models, get_related=get_related,
-                                include_all_attributes=False, validate=validate,
+                                include_all_attributes=include_all_attributes, validate=validate,
                                 title=title, description=description, version=version, language=language, creator=creator)
 
     @classmethod
@@ -95,6 +95,10 @@ class Writer(obj_model.io.Writer):
         """ Check that relationships to :obj:`core.Model` do not need to be explicitly exported because they can be inferred
         by :obj:`Reader.run`. This is necessary to enable the relationships to :obj:`core.Model` to not be exported in workbooks, and
         instead added by :obj:`Reader.run`.
+
+        Raises:
+            :obj:`Exception`: if there are relationships from :obj:`core.Model` or one-to-many or many-to-many relationships 
+                to :obj:`core.Model`
         """
         for attr in core.Model.Meta.attributes.values():
             if isinstance(attr, obj_model.RelatedAttribute) and \
@@ -112,6 +116,9 @@ class Writer(obj_model.io.Writer):
 
         Args:
             model (:obj:`core.Model`): model
+
+        Raises:
+            :obj:`ValueError`: if there are multiple instances of :obj:`core.Model` in the object graph
         """
         for obj in model.get_related():
             for attr in obj.Meta.attributes.values():
@@ -156,6 +163,10 @@ class Reader(obj_model.io.Reader):
 
         Returns:
             :obj:`dict`: model objects grouped by `obj_model.Model` class
+
+        Raises:
+            :obj:`ValueError`: if the file defines zero or multiple models or the model defined in the file(s) is
+                invalid
         """
         if issubclass(self.get_reader(path), obj_model.io.WorkbookReader):
             Writer.validate_implicit_relationships()

@@ -1,8 +1,9 @@
 """ Configuration
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-10-22
-:Copyright: 2017, Karr Lab
+:Author: Jonathan Karr <jonrkarr@gmail.com>
+:Date: 2019-01-06
+:Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
 
