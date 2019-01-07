@@ -3576,7 +3576,7 @@ class DatabaseReference(obj_model.Model):
 
 class Validator(obj_model.Validator):
     def run(self, model, get_related=True):
-        """ Validate a list of objects and return their errors
+        """ Validate a model and return its errors
 
         Args:
             model (:obj:`Model`): model
