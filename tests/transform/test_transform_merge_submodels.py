@@ -14,7 +14,7 @@ import unittest
 
 
 class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
-    """ est that algorithmically-like submodels are correctly merged """
+    """ Test that algorithmically-like submodels are correctly merged """
 
     def test(self):
         """ Test that algorithmically-like submodels are correctly merged """
@@ -27,9 +27,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         species = []
         for i in range(5):
             st = mdl.species_types.create(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
-            s = mdl.species.create(id=Species.gen_id(st.id, cmp.id),
-                                   species_type=st,
+            s = mdl.species.create(species_type=st,
                                    compartment=cmp)
+            s.id = s.gen_id()
             species.append(s)
 
         submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.SSA)
@@ -150,7 +150,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(len(merged_submdl_fba.reactions), len(set(submdl_2.reactions) | set(submdl_3.reactions)))
 
         self.assertEqual(merged_submdl_ssa.dfba_obj, None)
-        self.assertEqual(merged_submdl_fba.dfba_obj.id, DfbaObjective.gen_id(merged_submdl_fba.id))
+        self.assertEqual(merged_submdl_fba.dfba_obj.id, merged_submdl_fba.dfba_obj.gen_id())
 
         self.assertEqual(len(merged_submdl_fba.dfba_obj.expression.reactions),
                          len(submdl_2.reactions) + len(submdl_3.reactions))

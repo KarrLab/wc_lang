@@ -115,14 +115,14 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1')
         k_cat_f = model.parameters.create(id='k_cat_f', value=1)
         k_cat_b = model.parameters.create(id='k_cat_b', value=2)
-        rl_f = model.rate_laws.create(id=RateLaw.gen_id(r_1_1.id, RateLawDirection.forward.name),
-                                      reaction=r_1_1, direction=RateLawDirection.forward,
+        rl_f = model.rate_laws.create(reaction=r_1_1, direction=RateLawDirection.forward,
                                       expression=RateLawExpression(
                                           parameters=[k_cat_f]))
-        rl_b = model.rate_laws.create(id=RateLaw.gen_id(r_1_1.id, RateLawDirection.backward.name),
-                                      reaction=r_1_1, direction=RateLawDirection.backward,
+        rl_b = model.rate_laws.create(reaction=r_1_1, direction=RateLawDirection.backward,
                                       expression=RateLawExpression(
                                           parameters=[k_cat_b]))
+        rl_f.id = rl_f.gen_id()
+        rl_b.id = rl_b.gen_id()
         ChangeValueTransform((('parameters', {'id': 'k_cat_b'}), 'value'), 0).run(model)
 
         self.assertEqual(k_cat_f.value, 1)
@@ -134,19 +134,23 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2 = model.species_types.create(id='st_2')
         c_1 = model.compartments.create(id='c_1')
         c_2 = model.compartments.create(id='c_2')
-        st_1_c_1 = model.species.create(id=Species.gen_id(st_1.id, c_1.id), species_type=st_1, compartment=c_1)
-        st_1_c_2 = model.species.create(id=Species.gen_id(st_1.id, c_2.id), species_type=st_1, compartment=c_2)
-        st_2_c_1 = model.species.create(id=Species.gen_id(st_2.id, c_1.id), species_type=st_2, compartment=c_1)
-        st_2_c_2 = model.species.create(id=Species.gen_id(st_2.id, c_2.id), species_type=st_2, compartment=c_2)
+        st_1_c_1 = model.species.create(species_type=st_1, compartment=c_1)
+        st_1_c_2 = model.species.create(species_type=st_1, compartment=c_2)
+        st_2_c_1 = model.species.create(species_type=st_2, compartment=c_1)
+        st_2_c_2 = model.species.create(species_type=st_2, compartment=c_2)
+        st_1_c_1.id = st_1_c_1.gen_id()
+        st_1_c_2.id = st_1_c_2.gen_id()
+        st_2_c_1.id = st_2_c_1.gen_id()
+        st_2_c_2.id = st_2_c_2.gen_id()
 
-        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_1_c_1.id), units='u')
-        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_1_c_2.id), units='v')
-        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_2_c_1.id), units='w')
-        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_2_c_2.id), units='x')
+        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(units='u')
+        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(units='v')
+        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(units='w')
+        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(units='x')
+        st_1_c_1.distribution_init_concentration.id = st_1_c_1.distribution_init_concentration.gen_id()
+        st_1_c_2.distribution_init_concentration.id = st_1_c_2.distribution_init_concentration.gen_id()
+        st_2_c_1.distribution_init_concentration.id = st_2_c_1.distribution_init_concentration.gen_id()
+        st_2_c_2.distribution_init_concentration.id = st_2_c_2.distribution_init_concentration.gen_id()
 
         ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
                               'distribution_init_concentration',
@@ -162,19 +166,23 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2 = model.species_types.create(id='st_2')
         c_1 = model.compartments.create(id='c_1')
         c_2 = model.compartments.create(id='c_2')
-        st_1_c_1 = model.species.create(id=Species.gen_id(st_1.id, c_1.id), species_type=st_1, compartment=c_1)
-        st_1_c_2 = model.species.create(id=Species.gen_id(st_1.id, c_2.id), species_type=st_1, compartment=c_2)
-        st_2_c_1 = model.species.create(id=Species.gen_id(st_2.id, c_1.id), species_type=st_2, compartment=c_1)
-        st_2_c_2 = model.species.create(id=Species.gen_id(st_2.id, c_2.id), species_type=st_2, compartment=c_2)
+        st_1_c_1 = model.species.create(species_type=st_1, compartment=c_1)
+        st_1_c_2 = model.species.create(species_type=st_1, compartment=c_2)
+        st_2_c_1 = model.species.create(species_type=st_2, compartment=c_1)
+        st_2_c_2 = model.species.create(species_type=st_2, compartment=c_2)
+        st_1_c_1.id = st_1_c_1.gen_id()
+        st_1_c_2.id = st_1_c_2.gen_id()
+        st_2_c_1.id = st_2_c_1.gen_id()
+        st_2_c_2.id = st_2_c_2.gen_id()
 
-        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_1_c_1.id), mean=1, std=2)
-        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_1_c_2.id), mean=2, std=2)
-        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_2_c_1.id), mean=3, std=2)
-        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(st_2_c_2.id), mean=4, std=2)
+        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(mean=1, std=2)
+        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(mean=2, std=2)
+        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(mean=3, std=2)
+        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(mean=4, std=2)
+        st_1_c_1.distribution_init_concentration.id = st_1_c_1.distribution_init_concentration.gen_id()
+        st_1_c_2.distribution_init_concentration.id = st_1_c_2.distribution_init_concentration.gen_id()
+        st_2_c_1.distribution_init_concentration.id = st_2_c_1.distribution_init_concentration.gen_id()
+        st_2_c_2.distribution_init_concentration.id = st_2_c_2.distribution_init_concentration.gen_id()
 
         ChangeValueTransform((('species', {'id': st_2_c_1.id}),
                               'distribution_init_concentration',

@@ -30,16 +30,42 @@ class BaseController(cement.Controller):
         self._parser.print_help()
 
 
-class ValidateController(cement.Controller):
-    """ Validate model definition and display errors """
-
+class MergeController(cement.Controller):
+    """ Merge models """
     class Meta:
-        label = 'validate'
-        description = 'Validate model definition and display errors'
+        label = 'merge'
+        description = 'Merge multiple models'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
-            (['path'], dict(type=str, help='Path to model definition')),
+            (['-p', '--primary'], dict(dest='primary_path', type=str, help='Path to base for merged model')),
+            (['-s', '--secondary'], dict(dest='secondary_paths', type=str, nargs='*', help='Path to models to merge into primary model')),
+            (['-o', '--out'], dict(dest='out_path', type=str, help='Path to save merged model')),
+        ]
+
+    @cement.ex(hide=True)
+    def _default(self):
+        args = self.app.pargs
+
+        primary_model = Reader().run(args.primary_path)[Model][0]
+
+        for secondary_path in args.secondary_paths:
+            secondary_model = Reader().run(secondary_path)[Model][0]
+            primary_model.merge(secondary_model)
+
+        Writer().run(args.out_path, primary_model, set_repo_metadata_from_path=False)
+
+
+class ValidateController(cement.Controller):
+    """ Validate model and display errors """
+
+    class Meta:
+        label = 'validate'
+        description = 'Validate model and display errors'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['path'], dict(type=str, help='Path to model')),
         ]
 
     @cement.ex(hide=True)
@@ -61,8 +87,8 @@ class DifferenceController(cement.Controller):
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
-            (['path_1'], dict(type=str, help='Path to first model definition')),
-            (['path_2'], dict(type=str, help='Path to second model definition')),
+            (['path_1'], dict(type=str, help='Path to first model')),
+            (['path_2'], dict(type=str, help='Path to second model')),
             (['--compare-files'], dict(dest='compare_files', default=False, action='store_true',
                                        help='If true, compare models; otherwise compare files directly')),
         ]
@@ -101,8 +127,8 @@ class TransformController(cement.Controller):
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
-            (['source'], dict(type=str, help='Path to model definition')),
-            (['dest'], dict(type=str, help='Path to save transformed model definition')),
+            (['source'], dict(type=str, help='Path to model')),
+            (['dest'], dict(type=str, help='Path to save transformed model')),
             (['--transform'], dict(dest='transforms', action='append',
                                    help='Model transform:' + transform_list)),
         ]
@@ -129,16 +155,16 @@ class TransformController(cement.Controller):
 
 
 class NormalizeController(cement.Controller):
-    """ Normalize model definition """
+    """ Normalize model """
 
     class Meta:
         label = 'normalize'
-        description = 'Normalize model definition'
+        description = 'Normalize model'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
-            (['source'], dict(type=str, help='Path to model definition')),
-            (['--dest'], dict(default='', type=str, help='Path to save normalized model definition')),
+            (['source'], dict(type=str, help='Path to model')),
+            (['--dest'], dict(default='', type=str, help='Path to save normalized model')),
         ]
 
     @cement.ex(hide=True)
@@ -152,16 +178,16 @@ class NormalizeController(cement.Controller):
 
 
 class ConvertController(cement.Controller):
-    """ Convert model definition among Excel (.xlsx), comma separated (.csv), JavaScript Object Notation (.json),
+    """ Convert model among Excel (.xlsx), comma separated (.csv), JavaScript Object Notation (.json),
     tab separated (.tsv), and Yet Another Markup Language (.yaml, .yml) formats """
 
     class Meta:
         label = 'convert'
-        description = 'Convert model definition among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
+        description = 'Convert model among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
-            (['source'], dict(type=str, help='Path to model definition')),
+            (['source'], dict(type=str, help='Path to model')),
             (['dest'], dict(type=str, help='Path to save model in converted format')),
         ]
 
@@ -222,6 +248,7 @@ class App(cement.App):
         base_controller = 'base'
         handlers = [
             BaseController,
+            MergeController,
             ValidateController,
             DifferenceController,
             TransformController,

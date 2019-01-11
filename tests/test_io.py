@@ -78,13 +78,13 @@ class TestSimpleModel(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
-            spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.id = spec.gen_id()
             spec.model = mdl
             species.append(spec)
 
-            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id),
-                                                 model=mdl,
+            conc = DistributionInitConcentration(model=mdl,
                                                  species=spec, mean=3 * i, units=ConcentrationUnit.M)
+            conc.id = conc.gen_id()
 
         species_coefficients = {}
 
@@ -151,11 +151,11 @@ class TestSimpleModel(unittest.TestCase):
             },
         })
         rate_law_0 = rxn_0.rate_laws.create(
-            id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
             units=ReactionRateUnit['s^-1'])
+        rate_law_0.id = rate_law_0.gen_id()
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(
             id='rxn_1', name='reaction 1', model=mdl)
@@ -174,11 +174,11 @@ class TestSimpleModel(unittest.TestCase):
             },
         })
         rate_law_1 = rxn_1.rate_laws.create(
-            id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
             units=ReactionRateUnit['s^-1'])
+        rate_law_1.id = rate_law_1.gen_id()
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(
             id='rxn_2', name='reaction 2', model=mdl)
@@ -197,13 +197,14 @@ class TestSimpleModel(unittest.TestCase):
             },
         })
         rate_law_2 = rxn_2.rate_laws.create(
-            id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression,
             units=ReactionRateUnit['s^-1'])
+        rate_law_2.id = rate_law_2.gen_id()
 
-        submdl_2.dfba_obj = DfbaObjective(id=DfbaObjective.gen_id('submodel_2'), model=mdl)
+        submdl_2.dfba_obj = DfbaObjective(model=mdl)
+        submdl_2.dfba_obj.id = submdl_2.dfba_obj.gen_id()
         submdl_2.dfba_obj.expression = DfbaObjectiveExpression(expression='rxn_2', reactions=[rxn_2])
 
         self.reactions = [rxn_0, rxn_1, rxn_2]
@@ -456,12 +457,12 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         submodel = model.submodels.create(id='submodel')
         species_type = model.species_types.create(id='st', molecular_weight=1., charge=0)
         compartment = model.compartments.create(id='c')
-        species = model.species.create(id=Species.gen_id(species_type.id, compartment.id),
-                                       species_type=species_type, compartment=compartment)
+        species = model.species.create(species_type=species_type, compartment=compartment)
+        species.id = species.gen_id()
         reaction = submodel.reactions.create(id='reaction', model=model)
         reaction.participants.create(species=species, coefficient=1.)
-        rate_law = reaction.rate_laws.create(id=RateLaw.gen_id(reaction.id, RateLawDirection.forward.name),
-                                             model=model, direction=RateLawDirection.forward)
+        rate_law = reaction.rate_laws.create(model=model, direction=RateLawDirection.forward)
+        rate_law.id = rate_law.gen_id()
         rate_law_eq = rate_law.expression = RateLawExpression(expression='parameter')
         parameter = rate_law_eq.parameters.create(id='parameter', value=1., units='dimensionless', model=model)
 
@@ -477,10 +478,10 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         species_type = model.species_types.create(id='species_type')
         compartment = model.compartments.create(id='compartment')
         species = Species(
-            id=Species.gen_id(species_type.id, compartment.id),
             model=model,
             species_type=species_type,
             compartment=compartment)
+        species.id = species.gen_id()
         s_id = species.serialize()
         obs_expr, _ = ObservableExpression.deserialize(s_id, {Species: {s_id: species}})
         observable = model.observables.create(id='observable', expression=obs_expr)

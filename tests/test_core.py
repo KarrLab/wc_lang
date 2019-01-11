@@ -75,11 +75,12 @@ class TestCore(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
-            spec.id = spec.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.id = spec.gen_id()
             spec.model = mdl
             species.append(spec)
 
-            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=3 * i)
+            conc = DistributionInitConcentration(species=spec, mean=3 * i)
+            conc.id = conc.gen_id()
             conc.model = mdl
             distribution_init_concentrations.append(conc)
 
@@ -119,11 +120,11 @@ class TestCore(unittest.TestCase):
 
         dfba_obj_species = []
         for i in range(2):
-            dfba_obj_species.append(
-                dfba_obj_reaction.dfba_obj_species.create(
-                    id=DfbaObjSpecies.gen_id(dfba_obj_reaction.id, species[i].id),
+            tmp = dfba_obj_reaction.dfba_obj_species.create(
                     value=2 * (float(i) - 0.5),  # create a reactant and a product
-                    species=species[i]))
+                    species=species[i])
+            tmp.id=tmp.gen_id()
+            dfba_obj_species.append(tmp)
         self.dfba_obj_species = dfba_obj_species
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
@@ -156,10 +157,10 @@ class TestCore(unittest.TestCase):
         parameters.append(expression.parameters.create(id='k_m_0', value=1,
                                                        model=mdl))
         rate_law_0 = rxn_0.rate_laws.create(
-            id=RateLaw.gen_id(rxn_0.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression)
+        rate_law_0.id = rate_law_0.gen_id()
 
         self.rxn_1 = rxn_1 = submdl_1.reactions.create(
             id='rxn_1', name='reaction 1', model=mdl)
@@ -174,10 +175,10 @@ class TestCore(unittest.TestCase):
         parameters.append(expression.parameters.create(id='k_m_1', value=1,
                                                        model=mdl))
         rate_law_1 = rxn_1.rate_laws.create(
-            id=RateLaw.gen_id(rxn_1.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression)
+        rate_law_1.id = rate_law_1.gen_id()
 
         self.rxn_2 = rxn_2 = submdl_2.reactions.create(
             id='rxn_2', name='reaction 2', model=mdl)
@@ -189,10 +190,10 @@ class TestCore(unittest.TestCase):
             species=species[7:8],
             parameters=parameters[0:2])
         rate_law_2 = rxn_2.rate_laws.create(
-            id=RateLaw.gen_id(rxn_2.id, RateLawDirection.forward.name),
             model=mdl,
             direction=RateLawDirection.forward,
             expression=expression)
+        rate_law_2.id = rate_law_2.gen_id()
 
         Reaction.get_manager().insert_all_new()
 
@@ -679,8 +680,7 @@ class TestCore(unittest.TestCase):
         self.assertTrue(self.species_types[1].has_carbon())
 
     def test_species_gen_id(self):
-        self.assertEqual(Species.gen_id(self.species[3].species_type.id, self.species[3].compartment.id),
-                         'spec_type_3[comp_1]')
+        self.assertEqual(self.species[3].gen_id(), 'spec_type_3[comp_1]')
 
     def test_species_get(self):
         self.assertEqual(Species.get([], self.species), [])
@@ -1383,7 +1383,7 @@ class TestCore(unittest.TestCase):
             species_type=objs[SpeciesType]['spec_2'],
             compartment=objs[Compartment]['c_1'])
         for species in objs[Species].values():
-            species.id = species.gen_id(species.species_type.id, species.compartment.id)
+            species.id = species.gen_id()
 
         attr = ReactionParticipantAttribute()
 
@@ -1889,9 +1889,10 @@ class TestCore(unittest.TestCase):
     def test_dfba_obj_species_validate(self):
         dfba_obj_reaction = DfbaObjReaction(id='dfba_obj_reaction', cell_size_units=DfbaCellSizeUnit.l)
         species = Species(id='species')
-        comp = DfbaObjSpecies(id=DfbaObjSpecies.gen_id('dfba_obj_reaction', 'species'),
-                              dfba_obj_reaction=dfba_obj_reaction,
+        comp = DfbaObjSpecies(dfba_obj_reaction=dfba_obj_reaction,
                               species=species)
+        comp.id = comp.gen_id()
+
         rv = comp.validate()
         self.assertEqual(rv, None, str(rv))
 
@@ -2079,17 +2080,17 @@ class TestCore(unittest.TestCase):
                     DfbaObjReaction(
                         id='dfba_obj_rxn',
                         dfba_obj_species=[
-                            DfbaObjSpecies(
-                                id=DfbaObjSpecies.gen_id('dfba_obj_rxn_1', 'spec_1[c_1]'),
-                                value=-1, species=species_1),
-                            DfbaObjSpecies(
-                                id=DfbaObjSpecies.gen_id('dfba_obj_rxn_2', 'spec_3[c_3]'),
-                                value=1, species=species_3),
+                            DfbaObjSpecies(value=-1, species=species_1),
+                            DfbaObjSpecies(value=1, species=species_3),
                         ],
                     ),
                 ],
             ),
         )
+        for rxn in obj_func.expression.dfba_obj_reactions:
+            for spec in rxn.dfba_obj_species:
+                spec.id = spec.gen_id()
+
         self.assertEqual(set(obj_func.get_products()), set([species_0, species_2, species_3]))
         self.assertEqual(set(obj_func.get_products(__type=Species)), set([species_0, species_2, species_3]))
         self.assertEqual(obj_func.get_products(__type=Model), [])
@@ -2592,8 +2593,10 @@ class ValidateModelTestCase(unittest.TestCase):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
         st = SpeciesType(id='s', empirical_formula=EmpiricalFormula('CHN2P1'), charge=-1)
-        species_1 = Species(id=Species.gen_id('s', 'c_1'), species_type=st, compartment=c_1)
-        species_2 = Species(id=Species.gen_id('s', 'c_2'), species_type=st, compartment=c_2)
+        species_1 = Species(species_type=st, compartment=c_1)
+        species_2 = Species(species_type=st, compartment=c_2)
+        species_1.id = species_1.gen_id()
+        species_2.id = species_2.gen_id()
         participants = [
             SpeciesCoefficient(species=species_1, coefficient=1.),
             SpeciesCoefficient(species=species_2, coefficient=-1.),
@@ -2718,8 +2721,10 @@ class ValidateModelTestCase(unittest.TestCase):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
         st = SpeciesType(id='s', empirical_formula=EmpiricalFormula('CHO'), charge=1)
-        species_1 = Species(id=Species.gen_id('s', 'c_1'), species_type=st, compartment=c_1)
-        species_2 = Species(id=Species.gen_id('s', 'c_2'), species_type=st, compartment=c_2)
+        species_1 = Species(species_type=st, compartment=c_1)
+        species_2 = Species(species_type=st, compartment=c_2)
+        species_1.id = species_1.gen_id()
+        species_2.id = species_2.gen_id()
         participants = [
             SpeciesCoefficient(species=species_1, coefficient=-1.),
             SpeciesCoefficient(species=species_2, coefficient=1.),
@@ -2902,12 +2907,12 @@ class UnitsTestCase(unittest.TestCase):
                 'p_2': Parameter(id='p_2', value=2.5, units='kg'),
             },
         }
-        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
-                                             species_type=objs[SpeciesType]['st_1'],
+        objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
                                              compartment=objs[Compartment]['c_1'])
-        objs[Species]['st_2[c_2]'] = Species(id=Species.gen_id('st_2', 'c_2'),
-                                             species_type=objs[SpeciesType]['st_2'],
+        objs[Species]['st_2[c_2]'] = Species(species_type=objs[SpeciesType]['st_2'],
                                              compartment=objs[Compartment]['c_2'])
+        objs[Species]['st_1[c_1]'].id = objs[Species]['st_1[c_1]'].gen_id()
+        objs[Species]['st_2[c_2]'].id = objs[Species]['st_2[c_2]'].gen_id()
         obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
         obs_1.expression, invalid = ObservableExpression.deserialize('3 * st_1[c_1]', objs)
         obs_2 = objs[Observable]['obs_2'] = Observable(id='obs_2')
@@ -3076,9 +3081,9 @@ class UnitsTestCase(unittest.TestCase):
                 'p_3': Parameter(id='p_3', value=1.5, units='molecule g^-1 s^-1'),
             },
         }
-        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
-                                             species_type=objs[SpeciesType]['st_1'],
+        objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
                                              compartment=objs[Compartment]['c_1'])
+        objs[Species]['st_1[c_1]'].id = objs[Species]['st_1[c_1]'].gen_id()
         obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
         obs_1.expression, invalid = ObservableExpression.deserialize('2 * st_1[c_1]', objs)
 
@@ -3165,7 +3170,8 @@ class UnitsTestCase(unittest.TestCase):
             },
         }
 
-        dfba_obj = DfbaObjective(id=DfbaObjective.gen_id(submodel.id), submodel=submodel)
+        dfba_obj = DfbaObjective(submodel=submodel)
+        dfba_obj.id = dfba_obj.gen_id()
         dfba_obj.expression, error = DfbaObjectiveExpression.deserialize('rxn_1 + dfba_obj_rxn_1', objs)
         self.assertEqual(error, None)
         rv = dfba_obj.validate()
@@ -3231,9 +3237,9 @@ class UnitsTestCase(unittest.TestCase):
                 'p_5': Parameter(id='p_5', value=1.0, units='molecule g^-1'),
             },
         }
-        objs[Species]['st_1[c_1]'] = Species(id=Species.gen_id('st_1', 'c_1'),
-                                             species_type=objs[SpeciesType]['st_1'],
+        objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
                                              compartment=objs[Compartment]['c_1'])
+        objs[Species]['st_1[c_1]'].id = objs[Species]['st_1[c_1]'].gen_id()
         obs_1 = objs[Observable]['obs_1'] = Observable(id='obs_1')
         obs_1.expression, error = ObservableExpression.deserialize('2 * st_1[c_1]', objs)
         self.assertEqual(error, None)

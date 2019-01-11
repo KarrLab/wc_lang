@@ -554,7 +554,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             if part_errors:
                 errors += part_errors
             else:
-                species_id = Species.gen_id(species_type.id, compartment.id)
+                species_id = Species.gen_id_static(species_type.id, compartment.id)
                 species, error = Species.deserialize(species_id, objects)
                 if error:
                     errors.extend(error.messages)
@@ -745,6 +745,29 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
             return (det_dedupe(db_refs), None)
 
 
+class CommentAttribute(obj_model.LongStringAttribute):
+    """ Comment attribute """
+
+    SEPARATOR = '\n\n'
+
+    def merge(self, left, right, right_objs_in_left, left_objs_in_right):
+        """ Merge an attribute of elements of two models
+
+        Args:
+            left (:obj:`Model`): an element in a model to merge
+            right (:obj:`Model`): an element in a second model to merge
+            right_objs_in_left (:obj:`dict`): mapping from objects in right model to objects in left model
+            left_objs_in_right (:obj:`dict`): mapping from objects in left model to objects in right model
+
+        Raises:
+            :obj:`ValueError`: if the attributes of the elements of the models are different
+        """
+        left_val = getattr(left, self.name)
+        right_val = getattr(right, self.name)
+        if left_val != right_val:
+            setattr(left, self.name, left_val + self.SEPARATOR + right_val)
+
+
 class Model(obj_model.Model):
     """ Model
 
@@ -781,6 +804,7 @@ class Model(obj_model.Model):
         rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references
@@ -798,7 +822,7 @@ class Model(obj_model.Model):
     author_email = LongStringAttribute()
     time_units = EnumAttribute(TimeUnit, default=TimeUnit.s)
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='model')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     created = DateTimeAttribute()
     updated = DateTimeAttribute()
 
@@ -1181,6 +1205,21 @@ class Model(obj_model.Model):
 
         return components
 
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
+
+        Args:
+            other (:obj:`Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        self.Meta.attributes['comments'].merge(self, other, other_objs_in_self, self_objs_in_other)
+        for attr in self.Meta.attributes.values():
+            if isinstance(attr, obj_model.RelatedAttribute):
+                attr.merge(self, other, other_objs_in_self, self_objs_in_other)
+
 
 class Taxon(obj_model.Model):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
@@ -1194,12 +1233,12 @@ class Taxon(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
-    id = RegexAttribute(pattern=r'^taxon$')
+    id = RegexAttribute(pattern=r'^taxon$', primary=True, unique=True)
     name = StringAttribute()
     model = OneToOneAttribute(Model, related_name='taxon')
     rank = EnumAttribute(TaxonRank, default=TaxonRank.species)
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='taxon')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='taxon')
 
     class Meta(obj_model.Model.Meta):
@@ -1223,14 +1262,14 @@ class Environment(obj_model.Model):
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
-    id = RegexAttribute(pattern=r'^env$')
+    id = RegexAttribute(pattern=r'^env$', primary=True, unique=True)
     name = StringAttribute()
     model = OneToOneAttribute(Model, related_name='env')
     temp = FloatAttribute(verbose_name='Temperature')
     temp_units = EnumAttribute(TemperatureUnit, default=TemperatureUnit.C, verbose_name='Temperature units')
     ph = FloatAttribute(verbose_name='pH')
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='env')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='env')
 
     class Meta(obj_model.Model.Meta):
@@ -1265,13 +1304,14 @@ class Submodel(obj_model.Model):
     algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'algorithm',
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
+        merge = obj_model.ModelMerge.append
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1553,6 +1593,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         expression_valid_functions = ()
         expression_term_models = ('Reaction', 'DfbaObjReaction')
         verbose_name = 'dFBA objective expression'
+        merge = obj_model.ModelMerge.append
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
@@ -1648,7 +1689,7 @@ class DfbaObjective(obj_model.Model):
     coefficient_units = EnumAttribute(DfbaObjectiveCoefficientUnit, default=DfbaObjectiveCoefficientUnit['s'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_objs', verbose_related_name='dFBA objectives')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
@@ -1657,18 +1698,15 @@ class DfbaObjective(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
         expression_term_units = 'units'
+        merge = obj_model.ModelMerge.append
 
-    @staticmethod
-    def gen_id(submodel_id):
+    def gen_id(self):
         """ Generate identifier
-
-        Args:
-            submodel_id (:obj:`str`): submodel id
 
         Returns:
             :obj:`str`: identifier
         """
-        return 'dfba-obj-{}'.format(submodel_id)
+        return 'dfba-obj-{}'.format(self.submodel.id)
 
     def validate(self):
         """ Validate that the dFBA objective is valid
@@ -1685,9 +1723,9 @@ class DfbaObjective(obj_model.Model):
         else:
             errors = []
 
-        if self.submodel and self.id != self.gen_id(self.submodel.id):
+        if self.submodel and self.id != self.gen_id():
             errors.append(InvalidAttribute(self.Meta.attributes['id'],
-                                           ['Id must be {}'.format(self.gen_id(self.submodel.id))]))
+                                           ['Id must be {}'.format(self.gen_id())]))
         if errors:
             return InvalidObject(self, errors)
         return None
@@ -1816,10 +1854,10 @@ class Compartment(obj_model.Model):
     mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
     std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume standard deviation')
     init_volume_units = EnumAttribute(VolumeUnit, default=VolumeUnit.l, verbose_name='Initial volume units')
-    init_density = OneToOneAttribute('Parameter', related_name='density_compartments', verbose_name='Initial density')
+    init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
@@ -1949,7 +1987,7 @@ class SpeciesType(obj_model.Model):
     type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = ManyToManyAttribute('Evidence', related_name='species_types')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
     class Meta(obj_model.Model.Meta):
@@ -1957,7 +1995,6 @@ class SpeciesType(obj_model.Model):
         attribute_order = ('id', 'name', 'structure', 'empirical_formula',
                            'molecular_weight', 'charge', 'type',
                            'db_refs', 'evidence', 'comments', 'references')
-
         indexed_attrs_tuples = (('id',), )
 
     def has_carbon(self):
@@ -2002,7 +2039,7 @@ class Species(obj_model.Model):
     units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species')
     evidence = ManyToManyAttribute('Evidence', related_name='species')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
@@ -2014,8 +2051,16 @@ class Species(obj_model.Model):
         expression_term_token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
         expression_term_units = 'units'
 
+    def gen_id(self):
+        """ Generate identifier
+
+        Returns:
+            :obj:`str`: identifier
+        """
+        return self.gen_id_static(self.species_type.id, self.compartment.id)
+
     @staticmethod
-    def gen_id(species_type_id, compartment_id):
+    def gen_id_static(species_type_id, compartment_id):
         """ Generate identifier
 
         Args:
@@ -2042,9 +2087,9 @@ class Species(obj_model.Model):
         else:
             errors = []
 
-        if self.id != self.gen_id(self.species_type.id, self.compartment.id):
+        if self.id != self.gen_id():
             errors.append(InvalidAttribute(self.Meta.attributes['id'],
-                                           ['Id must be {}'.format(self.gen_id(self.species_type.id, self.compartment.id))]))
+                                           ['Id must be {}'.format(self.gen_id())]))
 
         if errors:
             return InvalidObject(self, errors)
@@ -2161,7 +2206,7 @@ class DistributionInitConcentration(obj_model.Model):
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='distribution_init_concentrations')
     evidence = ManyToManyAttribute('Evidence', related_name='distribution_init_concentrations')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='distribution_init_concentrations')
 
     class Meta(obj_model.Model.Meta):
@@ -2172,17 +2217,13 @@ class DistributionInitConcentration(obj_model.Model):
         verbose_name = 'Initial species concentration'
         frozen_columns = 1
 
-    @staticmethod
-    def gen_id(species_id):
+    def gen_id(self):
         """ Generate string representation
-
-        Args:
-            species_id (:obj:`str`): species id
 
         Returns:
             :obj:`str`: string representation
         """
-        return 'dist-init-conc-{}'.format(species_id)
+        return 'dist-init-conc-{}'.format(self.species.id)
 
     def validate(self):
         """ Check that the distribution of initial concentrations
@@ -2200,9 +2241,9 @@ class DistributionInitConcentration(obj_model.Model):
         else:
             errors = []
 
-        if self.species and self.id != self.gen_id(self.species.id):
+        if self.species and self.id != self.gen_id():
             errors.append(InvalidAttribute(self.Meta.attributes['id'],
-                                           ['Id must be {}'.format(self.gen_id(self.species.id))]))
+                                           ['Id must be {}'.format(self.gen_id())]))
 
         if errors:
             return InvalidObject(self, errors)
@@ -2290,11 +2331,12 @@ class Observable(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='observables')
-    expression = ExpressionOneToOneAttribute(ObservableExpression, related_name='observable')
+    expression = ExpressionOneToOneAttribute(ObservableExpression, related_name='observable',
+                                             min_related=1, min_related_rev=1)
     units = EnumAttribute(MoleculeCountUnit, default=MoleculeCountUnit['molecule'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='observables')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
@@ -2320,7 +2362,6 @@ class FunctionExpression(obj_model.Model, Expression):
 
     Related attributes:
         function (:obj:`Function`): function
-        density_compartments (:obj:`Compartment`): compartments whose density is represented by the function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
@@ -2389,11 +2430,12 @@ class Function(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='functions')
-    expression = ExpressionOneToOneAttribute(FunctionExpression, related_name='function')
+    expression = ExpressionOneToOneAttribute(FunctionExpression, related_name='function',
+                                             min_related=1, min_related_rev=1)
     units = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
@@ -2527,11 +2569,12 @@ class StopCondition(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='stop_conditions')
-    expression = ExpressionOneToOneAttribute(StopConditionExpression, related_name='stop_condition')
+    expression = ExpressionOneToOneAttribute(StopConditionExpression, related_name='stop_condition',
+                                             min_related=1, min_related_rev=1)
     units = EnumAttribute(StopConditionUnit, default=StopConditionUnit.dimensionless)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
@@ -2619,7 +2662,7 @@ class Reaction(obj_model.Model):
     flux_bound_units = EnumAttribute(ReactionFluxBoundUnit, default=None, none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
@@ -2629,6 +2672,7 @@ class Reaction(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
+        merge = obj_model.ModelMerge.append
 
     def validate(self):
         """ Check if the reaction is valid
@@ -2899,7 +2943,7 @@ class SpeciesCoefficient(obj_model.Model):
             coefficient = float(match.group(2) or 1.)
 
             if compartment:
-                species_id = Species.gen_id(match.group(5), compartment.get_primary_attribute())
+                species_id = Species.gen_id_static(match.group(5), compartment.get_primary_attribute())
             else:
                 species_id = match.group(5)
 
@@ -3010,7 +3054,7 @@ class RateLaw(obj_model.Model):
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
@@ -3021,18 +3065,13 @@ class RateLaw(obj_model.Model):
         expression_term_model = RateLawExpression
         expression_term_units = 'units'
 
-    @staticmethod
-    def gen_id(reaction_id, direction_name):
+    def gen_id(self):
         """ Generate identifier
-
-        Args:
-            reaction_id (:obj:`str`): reaction id
-            direction_name (:obj:`str`): direction name
 
         Returns:
             :obj:`str`: identifier
         """
-        return '{}-{}'.format(reaction_id, direction_name)
+        return '{}-{}'.format(self.reaction.id, self.direction.name)
 
     def validate(self):
         """ Determine whether this `RateLaw` is valid
@@ -3051,10 +3090,10 @@ class RateLaw(obj_model.Model):
 
         # check ID
         if self.reaction and self.direction is not None and \
-                self.id != self.gen_id(self.reaction.id, self.direction.name):
+                self.id != self.gen_id():
             errors.append(InvalidAttribute(
                 self.Meta.attributes['id'],
-                ['Id must be {}'.format(self.gen_id(self.reaction.id, self.direction.name))]))
+                ['Id must be {}'.format(self.gen_id())]))
 
         # check that units are valid
         if self.expression and self.reaction and self.units != self.reaction.rate_units:
@@ -3104,6 +3143,7 @@ class DfbaObjSpecies(obj_model.Model):
         id (:obj:`str`): unique identifier per DfbaObjSpecies equal to
             `dfba-net-species-{dfba_obj_reaction.id}-{species.id}`
         name (:obj:`str`): name
+        model (:obj:`Model`): model
         dfba_obj_reaction (:obj:`DfbaObjReaction`): the dFBA objective reaction that uses the dFBA objective species
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
@@ -3115,6 +3155,7 @@ class DfbaObjSpecies(obj_model.Model):
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
+    model = ManyToOneAttribute(Model, related_name='dfba_obj_species')
     dfba_obj_reaction = ManyToOneAttribute('DfbaObjReaction', min_related=1, related_name='dfba_obj_species',
                                            verbose_name='dFBA objective reaction',
                                            verbose_related_name='dFBA objective species')
@@ -3126,7 +3167,7 @@ class DfbaObjSpecies(obj_model.Model):
                                                    verbose_related_name='dFBA objective species')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_species',
                                    verbose_related_name='dFBA objective species')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_obj_species',
                                      verbose_related_name='dFBA objective species')
 
@@ -3137,20 +3178,16 @@ class DfbaObjSpecies(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references')
         verbose_name = 'dFBA objective species'
         verbose_name_plural = 'dFBA objective species'
+        merge = obj_model.ModelMerge.append
 
-    @staticmethod
-    def gen_id(dfba_obj_rxn_id, species_id):
+    def gen_id(self):
         """ Generate identifier equal to
         `dfba-net-species-{dfba_obj_reaction.id}-{species.id}`
-
-        Args:
-            dfba_obj_rxn_id (:obj:`str`): dFBA objective reaction id
-            species_id (:obj:`str`): species id
 
         Returns:
             :obj:`str`: identifier
         """
-        return 'dfba-net-species-{}-{}'.format(dfba_obj_rxn_id, species_id)
+        return 'dfba-net-species-{}-{}'.format(self.dfba_obj_reaction.id, self.species.id)
 
     def validate(self):
         """ Validate that the dFBA objective is valid
@@ -3170,9 +3207,9 @@ class DfbaObjSpecies(obj_model.Model):
             errors = []
 
         # id
-        if self.dfba_obj_reaction and self.species and self.id != self.gen_id(self.dfba_obj_reaction.id, self.species.id):
+        if self.dfba_obj_reaction and self.species and self.id != self.gen_id():
             errors.append(InvalidAttribute(self.Meta.attributes['id'], ['Id must be {}'.format(
-                self.gen_id(self.dfba_obj_reaction.id, self.species.id))]))
+                self.gen_id())]))
 
         # units consistent with units of cell size
         if self.dfba_obj_reaction and \
@@ -3220,7 +3257,7 @@ class DfbaObjReaction(obj_model.Model):
                                                    verbose_related_name='dFBA objective reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_reactions',
                                    verbose_related_name='dFBA objective reactions')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_obj_reactions', verbose_related_name='dFBA objective reactions')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
@@ -3229,6 +3266,7 @@ class DfbaObjReaction(obj_model.Model):
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA objective reaction'
         expression_term_units = 'units'
+        merge = obj_model.ModelMerge.append
 
     def add_to_sbml_doc(self, sbml_document):
         """ Add a DfbaObjReaction to a libsbml SBML document.
@@ -3305,6 +3343,7 @@ class Parameter(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
+        density_compartment (:obj:`Compartment`): compartments whose density is represented by the parameter
         observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
         function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
         rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
@@ -3319,7 +3358,7 @@ class Parameter(obj_model.Model):
     units = StringAttribute(min_length=1)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='parameters')
     evidence = ManyToManyAttribute('Evidence', related_name='parameters')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(obj_model.Model.Meta, ExpressionStaticTermMeta):
@@ -3415,7 +3454,7 @@ class Evidence(obj_model.Model):
     growth_media = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='evidences')
     evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='evidences')
 
     class Meta(obj_model.Model.Meta):
@@ -3487,7 +3526,7 @@ class Reference(obj_model.Model):
     chapter = StringAttribute()
     pages = StringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='references')
-    comments = LongStringAttribute()
+    comments = CommentAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',

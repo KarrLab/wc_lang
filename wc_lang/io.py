@@ -97,7 +97,7 @@ class Writer(obj_model.io.Writer):
         instead added by :obj:`Reader.run`.
 
         Raises:
-            :obj:`Exception`: if there are relationships from :obj:`core.Model` or one-to-many or many-to-many relationships 
+            :obj:`Exception`: if there are relationships from :obj:`core.Model` or one-to-many or many-to-many relationships
                 to :obj:`core.Model`
         """
         for attr in core.Model.Meta.attributes.values():

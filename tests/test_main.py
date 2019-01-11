@@ -41,6 +41,33 @@ class TestCli(unittest.TestCase):
                     app.run()
                 self.assertEqual(capturer.get_text(), wc_lang.__version__)
 
+    def test_merge_models(self):
+        in_paths = [
+            path.join(self.tempdir, 'in-0.xlsx'),
+            path.join(self.tempdir, 'in-1.xlsx'),
+        ]
+        out_path = path.join(self.tempdir, 'out.xlsx')
+
+        # write models
+        model_0 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model_0.species_types.create(id='a')
+        model_1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
+        model_1.species_types.create(id='b')
+        Writer().run(in_paths[0], model_0, set_repo_metadata_from_path=False)
+        Writer().run(in_paths[1], model_1, set_repo_metadata_from_path=False)
+
+        # merge models
+        with __main__.App(argv=['merge', '-p', in_paths[0], '-s', in_paths[1], '-o', out_path]) as app:
+            app.run()
+
+        # read merged model
+        merged_model = Reader().run(out_path)[Model][0]
+
+        # verify merged model
+        self.assertEqual(len(merged_model.species_types), 2)
+        self.assertNotEqual(merged_model.species_types.get_one(id='a'), None)
+        self.assertNotEqual(merged_model.species_types.get_one(id='b'), None)
+
     def test_validate(self):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         self.assertEqual(Validator().run(model, get_related=True), None)

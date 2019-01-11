@@ -49,9 +49,9 @@ class RoundTripTestCase(unittest.TestCase):
 
         # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
         species_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(species_1.id),
             model=model,
             mean=1, units=ConcentrationUnit.M)
+        species_1.distribution_init_concentration.id = species_1.distribution_init_concentration.gen_id()
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
         observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
@@ -62,10 +62,10 @@ class RoundTripTestCase(unittest.TestCase):
         ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.extend(rxn_species_coeffs)
-        rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
-                                  direction=RateLawDirection.forward,
+        rl = rxn.rate_laws.create(direction=RateLawDirection.forward,
                                   units=ReactionRateUnit['s^-1'],
                                   model=model)
+        rl.id = rl.gen_id()
         param_1 = model.parameters.create(id='param_1', value=1., units='s^-1')
         rl.expression, error = RateLawExpression.deserialize('param_1', {Parameter: {'param_1': param_1}})
         self.assertEqual(error, None)
@@ -97,18 +97,18 @@ class RoundTripTestCase(unittest.TestCase):
             empirical_formula=EmpiricalFormula('C3H3O3'),
             charge=3)
         species_1 = comp.species.create(species_type=species_type_1,
-                                        id=Species.gen_id(species_type_1.id, comp.id),
                                         model=model)
         species_2 = comp.species.create(species_type=species_type_2,
-                                        id=Species.gen_id(species_type_2.id, comp.id),
                                         model=model)
+        species_1.id = species_1.gen_id()
+        species_2.id = species_2.gen_id()
         submdl = model.submodels.create(id='submodel_1')
 
         # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
         species_1.distribution_init_concentration = DistributionInitConcentration(
-            id=DistributionInitConcentration.gen_id(species_1.id),
             model=model,
             mean=1, units=ConcentrationUnit.M)
+        species_1.distribution_init_concentration.id = species_1.distribution_init_concentration.gen_id()
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
         observable_1 = Expression.make_obj(model, Observable, 'observable_1', species_1.id, objects)
@@ -131,10 +131,10 @@ class RoundTripTestCase(unittest.TestCase):
         ]
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.extend(rxn_species_coeffs)
-        rl = rxn.rate_laws.create(id=RateLaw.gen_id(rxn.id, RateLawDirection.forward.name),
-                                  direction=RateLawDirection.forward,
+        rl = rxn.rate_laws.create(direction=RateLawDirection.forward,
                                   units=ReactionRateUnit['s^-1'],
                                   model=model)
+        rl.id = rl.gen_id()
         rl.expression, error = RateLawExpression.deserialize('param_2', objects)
         self.assertEqual(error, None)
 

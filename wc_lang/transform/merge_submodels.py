@@ -55,9 +55,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
 
             if algorithm == SubmodelAlgorithm.dFBA:
                 merged_dfba_obj = merged_submodel.dfba_obj = model.dfba_objs.create(
-                    id=DfbaObjective.gen_id(merged_submodel.id),
                     name='dFBA objective ({})'.format(', '.join(submodel.name for submodel in submodels)),
                     units=dfba_obj_units)
+                merged_dfba_obj.id = merged_dfba_obj.gen_id()
 
                 merged_dfba_expression = []
                 objs_for_merged_dfba_expression = {

@@ -75,3 +75,14 @@ def set_git_repo_metadata_from_path(model, path='.'):
     model.url = md.url
     model.branch = md.branch
     model.revision = md.revision
+
+
+def gen_ids(model):
+    """ Generate ids for model objects
+
+    Args:
+        model (:obj:`core.Model`): model
+    """
+    for obj in model.get_related():
+        if hasattr(obj, 'gen_id'):
+            obj.id = obj.gen_id()

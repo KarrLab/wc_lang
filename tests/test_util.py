@@ -45,11 +45,12 @@ class TestUtil(unittest.TestCase):
                 spec = Species(species_type=spec_type, compartment=comp_0)
             else:
                 spec = Species(species_type=spec_type, compartment=comp_1)
-            spec.id = Species.gen_id(spec.species_type.id, spec.compartment.id)
+            spec.id = spec.gen_id()
             spec.model = mdl
             species.append(spec)
 
-            conc = DistributionInitConcentration(id=DistributionInitConcentration.gen_id(spec.id), species=spec, mean=1)
+            conc = DistributionInitConcentration(species=spec, mean=1)
+            conc.id = conc.gen_id()
             conc.model = mdl
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
@@ -161,3 +162,19 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(model.url, '')
 
         shutil.rmtree(tempdir)
+
+    def test_gen_ids(self):
+        model = Model()
+        model.compartments.create(id='c_1')
+        model.compartments.create(id='c_2')
+        model.species_types.create(id='st_1')
+        model.species_types.create(id='st_2')
+        model.species.create(species_type=model.species_types[0], compartment=model.compartments[0])
+        model.species.create(species_type=model.species_types[0], compartment=model.compartments[1])
+        model.species.create(species_type=model.species_types[1], compartment=model.compartments[0])
+        model.species.create(species_type=model.species_types[1], compartment=model.compartments[1])
+        util.gen_ids(model)
+        self.assertEqual(model.species[0].id, 'st_1[c_1]')
+        self.assertEqual(model.species[1].id, 'st_1[c_2]')
+        self.assertEqual(model.species[2].id, 'st_2[c_1]')
+        self.assertEqual(model.species[3].id, 'st_2[c_2]')
