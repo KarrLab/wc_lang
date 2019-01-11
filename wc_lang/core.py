@@ -147,6 +147,11 @@ class TemperatureUnit(int, Enum):
     C = 1
 
 
+class PhUnit(int, Enum):
+    """ pH units """
+    dimensionless = 1
+
+
 class CompartmentBiologicalType(int, CaseInsensitiveEnum):
     """ Compartment biological type """
     cellular = 1
@@ -1258,6 +1263,7 @@ class Environment(obj_model.Model):
         temp (:obj:`float`): temperature
         temp_units (:obj:`TemperatureUnit`): temperature units
         ph (:obj:`float`): pH
+        ph_units (:obj:`PhUnit`): pH units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -1268,13 +1274,14 @@ class Environment(obj_model.Model):
     temp = FloatAttribute(verbose_name='Temperature')
     temp_units = EnumAttribute(TemperatureUnit, default=TemperatureUnit.C, verbose_name='Temperature units')
     ph = FloatAttribute(verbose_name='pH')
+    ph_units = EnumAttribute(PhUnit, default=PhUnit.dimensionless, verbose_name='pH units')
     db_refs = DatabaseReferenceOneToManyAttribute(related_name='env')
     comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='env')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'temp', 'temp_units', 'ph',
+                           'temp', 'temp_units', 'ph', 'ph_units',
                            'db_refs', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
 
