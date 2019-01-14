@@ -28,7 +28,6 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, Compartment,
-                          CompartmentPhysicalType, CompartmentBiologicalType, CompartmentGeometry,
                           SpeciesType, SpeciesTypeType, Species,
                           SpeciesCoefficient, Parameter, Reference, ReferenceType,
                           DatabaseReference,
@@ -44,6 +43,7 @@ from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
                                create_sbml_doc_w_fbc, get_SBML_compatibility_method)
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 
 
@@ -498,16 +498,16 @@ class TestCore(unittest.TestCase):
         self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_components())
 
     def test_compartment_validate(self):
-        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'], init_density=Parameter(units='g l^-1'))
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units='g l^-1'))
         self.assertEqual(comp.validate(), None)
 
-        comp = Compartment(id='', geometry=CompartmentGeometry['3d'], init_density=Parameter(units='g l^-1'))
+        comp = Compartment(id='', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units='g l^-1'))
         self.assertNotEqual(comp.validate(), None)
 
-        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'])
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'])
         self.assertNotEqual(comp.validate(), None)
 
-        comp = Compartment(id='c', geometry=CompartmentGeometry['3d'], init_density=Parameter(units=''))
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units=''))
         self.assertNotEqual(comp.validate(), None)
 
     def test_reaction_get_species(self):
@@ -607,33 +607,33 @@ class TestCore(unittest.TestCase):
 
     def test_get_root_cellular_compartments(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular)
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'])
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus)
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria)
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria)
 
         self.assertEqual(set(model.get_root_compartments()), set([extracellular, cytosol]))
-        self.assertEqual(model.get_root_compartments(biological_type=CompartmentBiologicalType.cellular), [cytosol])
-        self.assertEqual(model.get_root_compartments(biological_type=CompartmentBiologicalType.extracellular), [extracellular])
+        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:0000003']), [cytosol])
+        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:0000004']), [extracellular])
 
     def test_get_sub_compartments(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular)
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'])
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus)
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol)
+            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria)
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria)
 
         self.assertEqual(extracellular.get_sub_compartments(), [
             cytosol,
@@ -669,21 +669,21 @@ class TestCore(unittest.TestCase):
 
     def test_get_tot_mean_init_volume(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=CompartmentBiologicalType.extracellular,
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'],
                                                   mean_init_volume=1.)
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=CompartmentBiologicalType.cellular, parent_compartment=extracellular,
+            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular,
             mean_init_volume=2.)
-        nucleus = model.compartments.create(id='nucleus', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol,
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol,
                                             mean_init_volume=3.)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=nucleus,
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus,
             mean_init_volume=4.)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=CompartmentBiologicalType.cellular, parent_compartment=cytosol,
+            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol,
             mean_init_volume=5.)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=CompartmentBiologicalType.cellular, parent_compartment=mitochondria,
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria,
             mean_init_volume=6.)
         self.assertEqual(extracellular.get_tot_mean_init_volume(), 21.)
         self.assertEqual(cytosol.get_tot_mean_init_volume(), 20.)

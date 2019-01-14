@@ -8,7 +8,7 @@
 
 import unittest
 import wc_lang.util
-from wc_lang.core import (Model, Taxon, TaxonRank, Environment, CompartmentGeometry,
+from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           Submodel, SubmodelAlgorithm, Reaction, SpeciesCoefficient,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
@@ -56,7 +56,7 @@ class MergeTestCase(unittest.TestCase):
 
         for model in models:
             for comp in model.compartments:
-                comp.geometry = CompartmentGeometry.none
+                comp.geometry = None
 
         # species types
         models[0].species_types.create(id='st_0')
@@ -907,10 +907,10 @@ class MergeTestCase(unittest.TestCase):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_3 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_1', geometry=None)
+        model_3.compartments.create(id='c_0', geometry=None)
+        model_3.compartments.create(id='c_1', geometry=None)
         model_1.parameters.create(id='p_0', density_compartment=model_1.compartments[0], units='g l^-1')
         model_2.parameters.create(id='p_1', density_compartment=model_2.compartments[0], units='g l^-1')
         model_3.parameters.create(id='p_0', density_compartment=model_3.compartments[0], units='g l^-1')
@@ -925,10 +925,10 @@ class MergeTestCase(unittest.TestCase):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_3 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_1', geometry=None)
+        model_3.compartments.create(id='c_0', geometry=None)
+        model_3.compartments.create(id='c_1', geometry=None)
         model_1.parameters.create(id='p_0', density_compartment=model_1.compartments[0], units='g l^-1')
         model_3.parameters.create(id='p_0', density_compartment=model_3.compartments[0], units='g l^-1')
         merged_model = model_1.copy()
@@ -941,10 +941,10 @@ class MergeTestCase(unittest.TestCase):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_3 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_1', geometry=None)
+        model_3.compartments.create(id='c_0', geometry=None)
+        model_3.compartments.create(id='c_1', geometry=None)
         model_2.parameters.create(id='p_1', density_compartment=model_2.compartments[0], units='g l^-1')
         model_3.parameters.create(id='p_1', density_compartment=model_3.compartments[1], units='g l^-1')
         merged_model = model_1.copy()
@@ -957,10 +957,10 @@ class MergeTestCase(unittest.TestCase):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_3 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_1', geometry=None)
+        model_3.compartments.create(id='c_0', geometry=None)
+        model_3.compartments.create(id='c_1', geometry=None)
         model_1.parameters.create(id='p_1', density_compartment=model_1.compartments[0], units='g l^-1')
         model_1.parameters.create(id='p_2', units='g l^-1')
         model_2.parameters.create(id='p_1', units='g l^-1')
@@ -978,9 +978,9 @@ class MergeTestCase(unittest.TestCase):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_3 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_3.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_0', geometry=None)
+        model_3.compartments.create(id='c_0', geometry=None)
         model_1.parameters.create(id='p_1', density_compartment=model_1.compartments[0], units='g l^-1')
         model_2.parameters.create(id='p_1', units='g l^-1')
         model_3.parameters.create(id='p_1', density_compartment=model_3.compartments[0], units='g l^-1')
@@ -994,8 +994,8 @@ class MergeTestCase(unittest.TestCase):
     def test_merge_one_to_one_errors(self):
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_2', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_0', geometry=None)
         model_1.parameters.create(id='p_0', density_compartment=model_1.compartments[0], units='g l^-1')
         model_2.parameters.create(id='p_1', density_compartment=model_2.compartments[0], units='g l^-1')
         with self.assertRaisesRegex(ValueError, 'Cannot join'):
@@ -1005,8 +1005,8 @@ class MergeTestCase(unittest.TestCase):
 
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_2', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_1', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_1', geometry=None)
         model_1.parameters.create(id='p_0', density_compartment=model_1.compartments[0], units='g l^-1')
         model_2.parameters.create(id='p_0', density_compartment=model_2.compartments[0], units='g l^-1')
         with self.assertRaisesRegex(ValueError, 'Cannot join'):
@@ -1016,8 +1016,8 @@ class MergeTestCase(unittest.TestCase):
 
         model_1 = Model(id='model_1', version='0.0.1', wc_lang_version='0.0.1')
         model_2 = Model(id='model_2', version='0.0.1', wc_lang_version='0.0.1')
-        model_1.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
-        model_2.compartments.create(id='c_0', geometry=CompartmentGeometry.none)
+        model_1.compartments.create(id='c_0', geometry=None)
+        model_2.compartments.create(id='c_0', geometry=None)
         model_1.parameters.create(id='p_1', density_compartment=model_1.compartments[0], units='g l^-1')
         model_1.parameters.create(id='p_2', units='g l^-1')
         model_2.parameters.create(id='p_1', units='g l^-1')

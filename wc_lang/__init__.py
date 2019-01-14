@@ -5,14 +5,16 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # :obj:`str`: version
 
 # API
-from .core import (TimeUnit, TaxonRank,
-                   CompartmentBiologicalType, CompartmentPhysicalType, CompartmentGeometry,
-                   MassUnit, VolumeUnit, DensityUnit,
-                   SubmodelAlgorithm, SpeciesTypeType, MoleculeCountUnit,
-                   RandomDistribution, ConcentrationUnit,
-                   ReactionParticipantUnit, RateLawDirection, RateLawType, ReactionRateUnit, ReactionFluxBoundUnit,
-                   DfbaObjectiveUnit, DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaObjSpeciesUnit,
+from .core import (Unit, TimeUnit, MassUnit, VolumeUnit, DensityUnit, MoleculeCountUnit, ConcentrationUnit,
+                   ReactionParticipantUnit, ReactionRateUnit, ReactionFluxBoundUnit, DfbaObjectiveUnit,
+                   DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaObjSpeciesUnit,
+
+                   RateLawDirection,
+
+                   TaxonRank, SubmodelAlgorithm, SpeciesTypeType,
+                   RandomDistribution, RateLawType,
                    ParameterType, EvidenceType, InterpretationType, ReferenceType,
+
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
@@ -21,6 +23,7 @@ from .core import (TimeUnit, TaxonRank,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression, StopConditionUnit,
                    Evidence, Interpretation, DatabaseReference, Reference,
+
                    Validator)
 from . import config
 from . import io

@@ -48,12 +48,14 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
                                   ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
                                   ExpressionExpressionTermMeta, Expression,
                                   ParsedExpression, ParsedExpressionError)
+from obj_model.ontology import OntologyAttribute
 from six import with_metaclass
 from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
                                create_sbml_parameter)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
+from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 import collections
 import datetime
@@ -61,6 +63,7 @@ import networkx
 import obj_model
 import obj_model.chem
 import pkg_resources
+import pronto.term
 import re
 import six
 import stringcase
@@ -155,28 +158,6 @@ class TemperatureUnit(Unit):
 class PhUnit(Unit):
     """ pH units """
     dimensionless = 1
-
-
-class CompartmentBiologicalType(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Compartment biological type """
-    cellular = 1
-    extracellular = 2
-    other = 3
-
-
-class CompartmentPhysicalType(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Compartment physical type """
-    fluid = 1
-    membrane = 2
-    other = 3
-
-
-CompartmentGeometry = CaseInsensitiveEnum('CompartmentGeometry', type=int, names=[
-    ('none', 0),
-    # ('1d', 1),
-    # ('2d', 2),
-    ('3d', 3),
-])  # todo: replace with ontology
 
 
 class MassUnit(Unit):
@@ -991,7 +972,7 @@ class Model(obj_model.Model):
         roots = []
         for comp in self.get_compartments(__type=__type, **kwargs):
             if comp.parent_compartment is None \
-                    or comp.parent_compartment.biological_type != CompartmentBiologicalType.cellular:
+                    or comp.parent_compartment.biological_type != wcm_ontology['WCM:0000003']: #cellular compartment']
                 roots.append(comp)
         return roots
 
@@ -1886,9 +1867,9 @@ class Compartment(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        biological_type (:obj:`CompartmentBiologicalType`): biological type
-        physical_type (:obj:`CompartmentPhysicalType`): physical type
-        geometry (:obj:`CompartmentGeometry`): geometry
+        biological_type (:obj:`pronto.term.Term`): biological type
+        physical_type (:obj:`pronto.term.Term`): physical type
+        geometry (:obj:`pronto.term.Term`): geometry
         parent_compartment (:obj:`Compartment`): parent compartment
         mass_units (:obj:`MassUnit`): mass units
         mean_init_volume (:obj:`float`): mean initial volume
@@ -1912,9 +1893,18 @@ class Compartment(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
-    biological_type = EnumAttribute(CompartmentBiologicalType, default=CompartmentBiologicalType.cellular)
-    physical_type = EnumAttribute(CompartmentPhysicalType, default=CompartmentPhysicalType.fluid)
-    geometry = EnumAttribute(CompartmentGeometry, default=CompartmentGeometry['3d'])
+    biological_type = OntologyAttribute(wcm_ontology,
+                                        terms=wcm_ontology['WCM:0000002'].rchildren(),  # biological compartment
+                                        default=wcm_ontology['WCM:0000003'],  # cellular compartment
+                                        none=True)
+    physical_type = OntologyAttribute(wcm_ontology,
+                                      terms=wcm_ontology['WCM:0000005'].rchildren(),  # physical compartment
+                                      default=wcm_ontology['WCM:0000006'],  # fluid compartment
+                                      none=True)
+    geometry = OntologyAttribute(wcm_ontology,
+                                 terms=wcm_ontology['WCM:0000008'].rchildren(),  # geometric compartment
+                                 default=wcm_ontology['WCM:0000009'], # 3d compartment
+                                 none=True)
     parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
     distribution_init_volume = EnumAttribute(RandomDistribution, default=RandomDistribution.normal,
                                              verbose_name='Initial volume distribution')
@@ -1953,7 +1943,7 @@ class Compartment(obj_model.Model):
         else:
             errors = []
 
-        if self.geometry == CompartmentGeometry['3d']:
+        if self.geometry == wcm_ontology['WCM:0000009']: # 3d compartment
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
