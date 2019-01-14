@@ -80,7 +80,12 @@ warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 import wc_lang.config.core
 
 
-class TimeUnit(int, Enum):
+class Unit(int, Enum):
+    """ Base class for units """
+    pass
+
+
+class TimeUnit(Unit):
     """ Time units """
     s = 1
 
@@ -142,12 +147,12 @@ class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
     variety = 10
 
 
-class TemperatureUnit(int, Enum):
+class TemperatureUnit(Unit):
     """ Temperature units """
     C = 1
 
 
-class PhUnit(int, Enum):
+class PhUnit(Unit):
     """ pH units """
     dimensionless = 1
 
@@ -174,18 +179,18 @@ CompartmentGeometry = CaseInsensitiveEnum('CompartmentGeometry', type=int, names
 ])  # todo: replace with ontology
 
 
-class MassUnit(int, Enum):
+class MassUnit(Unit):
     """ Mass units """
     g = 1
 
 
-VolumeUnit = Enum('VolumeUnit', type=int, names=[
+VolumeUnit = Unit('VolumeUnit', names=[
     ('l', 1),
     # ('dm^2', 2),
 ])
 
 
-DensityUnit = Enum('DensityUnit', type=int, names=[
+DensityUnit = Unit('DensityUnit', names=[
     ('g l^-1', 1),
     # ('g dm^-2', 2),
 ])
@@ -207,12 +212,12 @@ class SpeciesTypeType(int, CaseInsensitiveEnum):  # todo: replace with ontology
     pseudo_species = 5
 
 
-class ObservableCoefficientUnit(int, Enum):
+class ObservableCoefficientUnit(Unit):
     """ Observable coefficient units """
     dimensionless = 1
 
 
-class MoleculeCountUnit(int, Enum):
+class MoleculeCountUnit(Unit):
     """ Units of molecule counts """
     molecule = 1
 
@@ -256,7 +261,7 @@ RandomDistribution = CaseInsensitiveEnum('RandomDistribution', type=int, names=[
 ])
 
 
-ConcentrationUnit = Enum('ConcentrationUnit', type=int, names=[
+ConcentrationUnit = Unit('ConcentrationUnit', names=[
     ('molecule', 1),
     ('M', 2),
     ('mM', 3),
@@ -316,7 +321,7 @@ ConcentrationUnit.Meta = {
 }
 
 
-class ReactionParticipantUnit(int, Enum):
+class ReactionParticipantUnit(Unit):
     """ Units of reaction participants """
     dimensionless = 1
 
@@ -335,30 +340,30 @@ RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
     ('other', 1),
 ])  # todo: replace with ontology
 
-ReactionRateUnit = Enum('ReactionRateUnit', type=int, names=[
+ReactionRateUnit = Unit('ReactionRateUnit', names=[
     ('s^-1', 1),
 ])
 
-ReactionFluxBoundUnit = Enum('ReactionFluxBoundUnit', type=int, names=[
+ReactionFluxBoundUnit = Unit('ReactionFluxBoundUnit', names=[
     ('M s^-1', 1),
 ])
 
-DfbaObjectiveUnit = Enum('DfbaObjectiveUnit', type=int, names=[
+DfbaObjectiveUnit = Unit('DfbaObjectiveUnit', names=[
     ('dimensionless', 1),
 ])
 
 
-class DfbaCellSizeUnit(int, Enum):
+class DfbaCellSizeUnit(Unit):
     """ dFBA cell size units """
     l = 1
     gDCW = 2
 
 
-DfbaObjectiveCoefficientUnit = Enum('DfbaObjectiveCoefficientUnit', type=int, names=[
+DfbaObjectiveCoefficientUnit = Unit('DfbaObjectiveCoefficientUnit', names=[
     ('s', 1),
 ])
 
-DfbaObjSpeciesUnit = Enum('DfbaObjSpeciesUnit', type=int, names=[
+DfbaObjSpeciesUnit = Unit('DfbaObjSpeciesUnit', names=[
     ('M s^-1', 1),
     ('mol gDCW^-1 s^-1', 2),
 ])
@@ -373,7 +378,7 @@ class ParameterType(int, Enum):  # todo: replace with ontology
     other = 2
 
 
-class StopConditionUnit(int, Enum):
+class StopConditionUnit(Unit):
     """ Stop condition units """
     dimensionless = 1
 
