@@ -12,7 +12,7 @@ from .core import (TimeUnit, TaxonRank,
                    RandomDistribution, ConcentrationUnit,
                    ReactionParticipantUnit, RateLawDirection, RateLawType, ReactionRateUnit, ReactionFluxBoundUnit,
                    DfbaObjectiveUnit, DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaObjSpeciesUnit,
-                   ParameterType, EvidenceType, ReferenceType,
+                   ParameterType, EvidenceType, InterpretationType, ReferenceType,
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
@@ -20,7 +20,7 @@ from .core import (TimeUnit, TaxonRank,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression, StopConditionUnit,
-                   Evidence, DatabaseReference, Reference,
+                   Evidence, Interpretation, DatabaseReference, Reference,
                    Validator)
 from . import config
 from . import io

@@ -15,7 +15,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel, SubmodelAlgorithm
                           Observable, ObservableExpression,
                           Function, FunctionExpression,
                           StopCondition, StopConditionExpression,
-                          Evidence,
+                          Evidence, Interpretation,
                           Reference, ReferenceType, DatabaseReference,
                           )
 from wc_lang import util
@@ -130,7 +130,7 @@ class TestUtil(unittest.TestCase):
             Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
             DfbaObjective,
             Reaction, RateLaw, DfbaObjSpecies, DfbaObjReaction, Parameter, Function,
-            StopCondition, Evidence, Reference,
+            StopCondition, Evidence, Interpretation, Reference,
         ])
         inline_models = set([
             SpeciesCoefficient, RateLawExpression,

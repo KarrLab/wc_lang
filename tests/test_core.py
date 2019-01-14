@@ -24,6 +24,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           DfbaObjectiveUnit, DfbaCellSizeUnit,
                           DfbaObjectiveCoefficientUnit,
                           DfbaObjSpeciesUnit, StopConditionUnit,
+                          TemperatureUnit, PhUnit,
                           Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, Compartment,
@@ -36,7 +37,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
                           SubmodelAlgorithm, DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
-                          Evidence,
+                          Evidence, Interpretation,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
@@ -121,9 +122,9 @@ class TestCore(unittest.TestCase):
         dfba_obj_species = []
         for i in range(2):
             tmp = dfba_obj_reaction.dfba_obj_species.create(
-                    value=2 * (float(i) - 0.5),  # create a reactant and a product
-                    species=species[i])
-            tmp.id=tmp.gen_id()
+                value=2 * (float(i) - 0.5),  # create a reactant and a product
+                species=species[i])
+            tmp.id = tmp.gen_id()
             dfba_obj_species.append(tmp)
         self.dfba_obj_species = dfba_obj_species
 
@@ -213,6 +214,9 @@ class TestCore(unittest.TestCase):
 
         mdl.evidences.create(id='ev_0', submodels=[submdl_0])
         mdl.evidences.create(id='ev_2', submodels=[submdl_2])
+
+        mdl.interpretations.create(id='int_0', submodels=[submdl_0])
+        mdl.interpretations.create(id='int_2', submodels=[submdl_2])
 
         self.references = references = []
         self.db_refs = db_refs = []
@@ -423,6 +427,13 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidences))
         self.assertEqual(model.get_evidence(__type=Model), [])
 
+    def test_model_get_interpretations(self):
+        model = self.model
+        self.assertEqual(set(model.get_interpretations()), set(model.interpretations))
+        self.assertNotEqual(set(model.get_interpretations()), set())
+        self.assertEqual(set(model.get_interpretations(__type=Interpretation)), set(model.interpretations))
+        self.assertEqual(model.get_interpretations(__type=Model), [])
+
     def test_submodel_validate(self):
         submdl = Submodel(id='submodel')
         self.assertEqual(submdl.validate(), None)
@@ -466,6 +477,13 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(self.submdl_0.get_evidence()), set([ev]) | set(self.model.evidences[0:1]))
         self.assertEqual(self.submdl_1.get_evidence(), [])
         self.assertEqual(set(self.submdl_2.get_evidence()), set(self.model.evidences[1:2]))
+
+    def test_submodel_get_interpretations(self):
+        species = self.species
+        interpretation = species[2].interpretations.create()
+        self.assertEqual(set(self.submdl_0.get_interpretations()), set([interpretation]) | set(self.model.interpretations[0:1]))
+        self.assertEqual(self.submdl_1.get_interpretations(), [])
+        self.assertEqual(set(self.submdl_2.get_interpretations()), set(self.model.interpretations[1:2]))
 
     def test_submodel_get_references(self):
         species = self.species
@@ -1157,6 +1175,20 @@ class TestCore(unittest.TestCase):
 
         rate_law.id = 'rxn-forward'
         rate_law.expression = None
+        error = rate_law.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        # no parsed expression
+        expression, _ = RateLawExpression.deserialize('p', {
+            Parameter: {'p': Parameter(id='p', value=1., units='s^-1')},
+        })
+        expression._parsed_expression = None
+        rate_law = RateLaw(
+            id='rxn-forward',
+            reaction=Reaction(id='rxn'),
+            expression=expression,
+            units=ReactionRateUnit['s^-1'],
+        )
         error = rate_law.validate()
         self.assertNotEqual(error, None, str(error))
 
@@ -2423,6 +2455,12 @@ class TestCore(unittest.TestCase):
         stop_cond.expression = stop_cond_expr
         self.assertNotEqual(stop_cond.validate(), None)
 
+        stop_cond = StopCondition(id='stop_cond_0', units=StopConditionUnit['dimensionless'])
+        stop_cond_expr, _ = StopConditionExpression.deserialize('2 > 1', {})
+        stop_cond.expression = stop_cond_expr
+        stop_cond.expression._parsed_expression = None
+        self.assertNotEqual(stop_cond.validate(), None)
+
     def test_valid_observable_expressions(self):
         _, objects, id_map = self.make_objects()
 
@@ -2857,6 +2895,31 @@ class ValidateModelTestCase(unittest.TestCase):
         rv = model.validate()
         self.assertEqual(len(rv.attributes), 1)
         self.assertRegex(str(rv), 'cannot have cyclic depencencies')
+
+    def test_evidence_validate(self):
+        ev = Evidence(id='ev')
+        error = ev.validate()
+        self.assertEqual(error, None, str(error))
+
+        ev = Evidence(id='')
+        error = ev.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        ev = Evidence(id='ev', temp=1., temp_units=TemperatureUnit.C)
+        error = ev.validate()
+        self.assertEqual(error, None, str(error))
+
+        ev = Evidence(id='ev', temp=1.)
+        error = ev.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        ev = Evidence(id='ev', ph=1., ph_units=PhUnit.dimensionless)
+        error = ev.validate()
+        self.assertEqual(error, None, str(error))
+
+        ev = Evidence(id='ev', ph=1.)
+        error = ev.validate()
+        self.assertNotEqual(error, None, str(error))
 
 
 class UnitsTestCase(unittest.TestCase):

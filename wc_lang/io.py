@@ -31,10 +31,10 @@ class Writer(obj_model.io.Writer):
         core.Reaction, core.RateLaw,
         core.DfbaObjective, core.DfbaObjReaction, core.DfbaObjSpecies,
         core.Parameter, core.StopCondition,
-        core.Evidence, core.Reference,
+        core.Evidence, core.Interpretation, core.Reference,
     )
 
-    def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=True,
+    def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
             title=None, description=None, keywords=None, version=None, language=None, creator=None,
             set_repo_metadata_from_path=True):
         """ Write a list of model classes to an Excel file, with one worksheet for each model, or to
