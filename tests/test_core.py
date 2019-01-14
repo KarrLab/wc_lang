@@ -1876,7 +1876,7 @@ class TestCore(unittest.TestCase):
             dfba_obj_reactions=[objs[DfbaObjReaction]['dfba_obj_reaction_1']],
             reactions=objs[Reaction].values())
         rv = of_expr.validate()
-        self.assertRegex(rv.attributes[0].messages[0], "cannot eval expression")
+        self.assertRegex(rv.attributes[0].messages[0], re.escape("contains bad token(s)"))
 
         of = DfbaObjective(id='dfba-obj-submdl_1',
                            submodel=Submodel(id='submdl_1'),
