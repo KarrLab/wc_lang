@@ -11,7 +11,7 @@ from .core import (Unit, TimeUnit, MassUnit, VolumeUnit, DensityUnit, MoleculeCo
 
                    RateLawDirection,
 
-                   TaxonRank, SubmodelAlgorithm, SpeciesTypeType,
+                   TaxonRank, SpeciesTypeType,
                    RandomDistribution, RateLawType,
                    ParameterType, EvidenceType, InterpretationType, ReferenceType,
 

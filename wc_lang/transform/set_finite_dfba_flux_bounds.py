@@ -9,7 +9,8 @@
 
 from .core import Transform
 from math import isnan
-from wc_lang.core import SubmodelAlgorithm, ReactionFluxBoundUnit
+from wc_lang.core import ReactionFluxBoundUnit
+import pronto
 import wc_lang.config.core
 
 
@@ -53,7 +54,7 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
         flux_max_bound = config['dfba']['flux_max_bound']
 
         for submodel in model.submodels:
-            if submodel.algorithm == SubmodelAlgorithm.dfba:
+            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013':
                 for rxn in submodel.reactions:
                     if rxn.reversible:
                         flux_min = flux_min_bound_reversible

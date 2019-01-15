@@ -35,7 +35,7 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
-                          SubmodelAlgorithm, DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
+                          DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
                           Evidence, Interpretation,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
@@ -129,11 +129,11 @@ class TestCore(unittest.TestCase):
         self.dfba_obj_species = dfba_obj_species
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
+            id='submodel_0', name='submodel 0', algorithm=wcm_ontology['WCM:0000011'])
         self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
+            id='submodel_1', name='submodel 1', algorithm=wcm_ontology['WCM:0000011'])
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba,
+            id='submodel_2', name='submodel 2', algorithm=wcm_ontology['WCM:0000013'],
             dfba_obj_reactions=[dfba_obj_reaction])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
@@ -2643,7 +2643,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=-1., flux_max=1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000013']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2651,7 +2651,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=0., flux_max=1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.dfba),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000013']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2659,7 +2659,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=1., flux_max=-1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2676,7 +2676,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=-1., flux_max=-1.5,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2690,7 +2690,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'Value must be at least 0.000000')
 
     def test_dfba_submodel_contains_obj_reactions(self):
-        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2702,12 +2702,12 @@ class ValidateModelTestCase(unittest.TestCase):
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
         rv = submodel.validate()
         self.assertEqual(len(rv.attributes), 1)
         self.assertRegex(str(rv), 'submodel must have an objective')
 
-        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2723,7 +2723,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(len(rv.attributes[0].messages), 1)
         self.assertRegex(str(rv), 'must be a function of at least one')
 
-        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2740,7 +2740,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must contain the following reactions')
         self.assertRegex(str(rv), 'must contain the following dFBA objective reactions')
 
-        submodel = Submodel(id='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2769,7 +2769,7 @@ class ValidateModelTestCase(unittest.TestCase):
         ]
 
         rxn = Reaction(id='rxn', reversible=True,
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2779,7 +2779,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(rv, None, str(rv))
 
         rxn = Reaction(id='rxn', reversible=True,
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                        ])
@@ -2790,7 +2790,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must have a backward rate law')
 
         rxn = Reaction(id='rxn', reversible=False,
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                        ])
@@ -2800,7 +2800,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must have a forward rate law')
 
         rxn = Reaction(id='rxn', reversible=False,
-                       submodel=Submodel(algorithm=SubmodelAlgorithm.ssa),
+                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),

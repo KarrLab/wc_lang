@@ -8,8 +8,9 @@
 """
 
 from .core import Transform
-from wc_lang.core import SubmodelAlgorithm, ReactionFluxBoundUnit
+from wc_lang.core import ReactionFluxBoundUnit
 import wc_lang.config.core
+import pronto
 
 
 class CreateImplicitDfbaExchangeReactionsTransform(Transform):
@@ -43,7 +44,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
 
         for submodel in model.submodels:
-            if submodel.algorithm == SubmodelAlgorithm.dfba:
+            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013':
                 for species in submodel.get_species():
                     if species.compartment == ext_comp:
 

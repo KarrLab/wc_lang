@@ -16,11 +16,12 @@ from wc_lang import (ReactionRateUnit,
                      StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
-                     SubmodelAlgorithm, DistributionInitConcentration, ConcentrationUnit,
+                     DistributionInitConcentration, ConcentrationUnit,
                      DfbaObjective, DfbaObjectiveExpression)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.ontology import wcm_ontology
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
 import os
@@ -126,11 +127,11 @@ class TestSimpleModel(unittest.TestCase):
             functions.append(func)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', algorithm=SubmodelAlgorithm.ssa)
+            id='submodel_0', name='submodel 0', algorithm=wcm_ontology['WCM:0000011'])
         self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', algorithm=SubmodelAlgorithm.ssa)
+            id='submodel_1', name='submodel 1', algorithm=wcm_ontology['WCM:0000011'])
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=SubmodelAlgorithm.dfba)
+            id='submodel_2', name='submodel 2', algorithm=wcm_ontology['WCM:0000013'])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(

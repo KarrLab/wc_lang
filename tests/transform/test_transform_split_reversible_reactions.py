@@ -8,7 +8,7 @@
 
 from itertools import chain
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, SpeciesTypeType,
-                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression, SubmodelAlgorithm)
+                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform
 from obj_model import RelatedAttribute
 import unittest

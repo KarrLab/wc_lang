@@ -9,12 +9,12 @@
 import unittest
 import wc_lang.util
 from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
-                          Submodel, SubmodelAlgorithm, Reaction, SpeciesCoefficient,
+                          Submodel, Reaction, SpeciesCoefficient,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
                           Evidence, DatabaseReference, Reference, ReferenceType)
-
+from wc_utils.util.ontology import wcm_ontology
 
 class MergeTestCase(unittest.TestCase):
 
@@ -156,21 +156,21 @@ class MergeTestCase(unittest.TestCase):
         models[3].parameters.create(id='p_6', units='s^-1')
 
         # submodels
-        models[0].submodels.create(id='submodel_11', algorithm=SubmodelAlgorithm.ssa)
-        models[0].submodels.create(id='submodel_12', algorithm=SubmodelAlgorithm.dfba)
+        models[0].submodels.create(id='submodel_11', algorithm=wcm_ontology['WCM:0000011'])
+        models[0].submodels.create(id='submodel_12', algorithm=wcm_ontology['WCM:0000013'])
 
-        models[1].submodels.create(id='submodel_21', algorithm=SubmodelAlgorithm.ssa)
-        models[1].submodels.create(id='submodel_22', algorithm=SubmodelAlgorithm.dfba)
+        models[1].submodels.create(id='submodel_21', algorithm=wcm_ontology['WCM:0000011'])
+        models[1].submodels.create(id='submodel_22', algorithm=wcm_ontology['WCM:0000013'])
 
-        models[2].submodels.create(id='submodel_11', algorithm=SubmodelAlgorithm.ssa)
-        models[2].submodels.create(id='submodel_12', algorithm=SubmodelAlgorithm.dfba)
-        models[2].submodels.create(id='submodel_21', algorithm=SubmodelAlgorithm.ssa)
-        models[2].submodels.create(id='submodel_22', algorithm=SubmodelAlgorithm.dfba)
+        models[2].submodels.create(id='submodel_11', algorithm=wcm_ontology['WCM:0000011'])
+        models[2].submodels.create(id='submodel_12', algorithm=wcm_ontology['WCM:0000013'])
+        models[2].submodels.create(id='submodel_21', algorithm=wcm_ontology['WCM:0000011'])
+        models[2].submodels.create(id='submodel_22', algorithm=wcm_ontology['WCM:0000013'])
 
-        models[3].submodels.create(id='submodel_11', algorithm=SubmodelAlgorithm.ssa)
-        models[3].submodels.create(id='submodel_12', algorithm=SubmodelAlgorithm.dfba)
-        models[3].submodels.create(id='submodel_21', algorithm=SubmodelAlgorithm.ssa)
-        models[3].submodels.create(id='submodel_22', algorithm=SubmodelAlgorithm.dfba)
+        models[3].submodels.create(id='submodel_11', algorithm=wcm_ontology['WCM:0000011'])
+        models[3].submodels.create(id='submodel_12', algorithm=wcm_ontology['WCM:0000013'])
+        models[3].submodels.create(id='submodel_21', algorithm=wcm_ontology['WCM:0000011'])
+        models[3].submodels.create(id='submodel_22', algorithm=wcm_ontology['WCM:0000013'])
 
         # reactions
         models[0].reactions.create(id='rxn_11', submodel=models[0].submodels[0])

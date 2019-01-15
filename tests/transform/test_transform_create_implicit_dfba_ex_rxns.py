@@ -7,9 +7,10 @@
 :License: MIT
 """
 
-from wc_lang import Model, SubmodelAlgorithm
+from wc_lang import Model
 from wc_lang.transform import CreateImplicitDfbaExchangeReactionsTransform
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.ontology import wcm_ontology
 import unittest
 import wc_lang.config.core
 
@@ -19,7 +20,7 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
         config = wc_lang.config.core.get_config()['wc_lang']['dfba']
 
         model = Model()
-        submodel = model.submodels.create(id='submdl', name='submodel', algorithm=SubmodelAlgorithm.dfba)
+        submodel = model.submodels.create(id='submdl', name='submodel', algorithm=wcm_ontology['WCM:0000013'])
 
         comps = [
             model.compartments.create(id='c', name='cytosol'),

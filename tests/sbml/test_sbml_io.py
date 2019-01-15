@@ -10,6 +10,7 @@ from math import isnan
 from six import iteritems
 import mock
 import os
+import pronto
 import shutil
 import tempfile
 import unittest
@@ -24,13 +25,14 @@ from libsbml import Model as libsbmlModel
 from libsbml import Objective as libsbmlObjective
 
 from obj_model.utils import get_component_by_id
-from wc_lang import (SubmodelAlgorithm, Model, DfbaObjective,
+from wc_lang import (Model, DfbaObjective,
                      Species, DfbaObjReaction, Parameter)
 from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
 from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
 from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
 from wc_lang.io import Reader
+from wc_utils.util.ontology import wcm_ontology
 import wc_lang.sbml.io as sbml_io
 
 
@@ -147,7 +149,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_Exchange(self):
         for submodel in self.model.get_submodels():
-            if submodel.algorithm == SubmodelAlgorithm.dfba:
+            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013': #dFBA
                 sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
                 self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
@@ -157,7 +159,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_Exchange_warning(self):
         model = Model(id='model')
-        met_submodel = model.submodels.create(id='Metabolism', algorithm=SubmodelAlgorithm.ssa)
+        met_submodel = model.submodels.create(id='Metabolism', algorithm=wcm_ontology['WCM:0000011'])
         model.parameters.append(Parameter(id='param_1'))
         model.parameters.append(Parameter(id='param_1'))
 
@@ -168,7 +170,7 @@ class TestSbml(unittest.TestCase):
             warnings.resetwarnings()
 
     def test_writer(self):
-        for algorithms in [None, [SubmodelAlgorithm.dfba]]:
+        for algorithms in [None, [wcm_ontology['WCM:0000013']]]:
             sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms)
             try:
                 paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=self.dirname)

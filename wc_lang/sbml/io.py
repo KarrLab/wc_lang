@@ -18,6 +18,7 @@ from six import iteritems
 
 from obj_model import Validator
 from wc_lang.sbml.util import (init_sbml_model, create_sbml_doc_w_fbc)
+from wc_utils.util.ontology import wcm_ontology
 import wc_lang
 
 '''
@@ -93,8 +94,8 @@ class Writer(object):
 
         Args:
             model (:obj:`Model`): a `Model`
-            algorithms (:obj:`list`, optional): list of `SubmodelAlgorithm` attributes, defaulting
-                to `[SubmodelAlgorithm.dfba]`
+            algorithms (:obj:`list`, optional): list of `Submodel.algorithm` attributes, defaulting
+                to `[wcm_ontology['WCM:0000013']]`
             path (:obj:`str`, optional): prefix of path of SBML file(s) to write
 
         Returns:
@@ -103,7 +104,7 @@ class Writer(object):
                 otherwise a list of SBML file(s) created
         """
         if algorithms is None:
-            algorithms = [wc_lang.SubmodelAlgorithm.dfba]
+            algorithms = [wcm_ontology['WCM:0000013']]
         sbml_documents = {}
         for submodel in model.get_submodels():
             if submodel.algorithm in algorithms:

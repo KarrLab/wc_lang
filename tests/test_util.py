@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang.core import (Model, Taxon, Environment, Submodel, SubmodelAlgorithm,
+from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Compartment,
                           SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, DistributionInitConcentration,
                           Reaction, RateLaw, RateLawExpression, Parameter,
@@ -19,6 +19,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel, SubmodelAlgorithm
                           Reference, ReferenceType, DatabaseReference,
                           )
 from wc_lang import util
+from wc_utils.util.ontology import wcm_ontology
 import shutil
 import tempfile
 import unittest
@@ -53,9 +54,9 @@ class TestUtil(unittest.TestCase):
             conc.id = conc.gen_id()
             conc.model = mdl
 
-        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=SubmodelAlgorithm.ssa)
-        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=SubmodelAlgorithm.ssa)
-        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=SubmodelAlgorithm.dfba)
+        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=wcm_ontology['WCM:0000011'])
+        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=wcm_ontology['WCM:0000011'])
+        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=wcm_ontology['WCM:0000013'])
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', model=mdl)

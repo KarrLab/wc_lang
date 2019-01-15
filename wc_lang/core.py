@@ -177,13 +177,6 @@ DensityUnit = Unit('DensityUnit', names=[
 ])
 
 
-class SubmodelAlgorithm(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Submodel algorithms """
-    dfba = 1
-    ode = 2
-    ssa = 3
-
-
 class SpeciesTypeType(int, CaseInsensitiveEnum):  # todo: replace with ontology
     """ Types of species types """
     metabolite = 1
@@ -972,7 +965,8 @@ class Model(obj_model.Model):
         roots = []
         for comp in self.get_compartments(__type=__type, **kwargs):
             if comp.parent_compartment is None \
-                    or comp.parent_compartment.biological_type != wcm_ontology['WCM:0000003']: #cellular compartment']
+                    or not (isinstance(comp.parent_compartment.biological_type, pronto.term.Term) and \
+                        comp.parent_compartment.biological_type.id == 'WCM:0000003'): #cellular compartment']
                 roots.append(comp)
         return roots
 
@@ -1302,7 +1296,7 @@ class Submodel(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        algorithm (:obj:`SubmodelAlgorithm`): algorithm
+        algorithm (:obj:`pronto.term.Term`): algorithm
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -1318,7 +1312,9 @@ class Submodel(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
-    algorithm = EnumAttribute(SubmodelAlgorithm, default=SubmodelAlgorithm.ssa)
+    algorithm = OntologyAttribute(wcm_ontology, 
+        terms=wcm_ontology['WCM:0000010'].rchildren(),  # submodel simulation algorithm
+        default=wcm_ontology['WCM:0000011']) # SSA
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
     interpretations = ManyToManyAttribute('Interpretation', related_name='submodels')
@@ -1348,7 +1344,7 @@ class Submodel(obj_model.Model):
         else:
             errors = []
 
-        if self.algorithm == SubmodelAlgorithm.dfba:
+        if isinstance(self.algorithm, pronto.term.Term) and self.algorithm.id == 'WCM:0000013': # dFBA
             if not self.dfba_obj:
                 errors.append(InvalidAttribute(self.Meta.related_attributes['dfba_obj'],
                                                ['dFBA submodel must have an objective']))
@@ -1943,7 +1939,7 @@ class Compartment(obj_model.Model):
         else:
             errors = []
 
-        if self.geometry == wcm_ontology['WCM:0000009']: # 3d compartment
+        if isinstance(self.geometry, pronto.term.Term) and self.geometry.id == 'WCM:0000009': # 3d compartment
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
@@ -2772,7 +2768,10 @@ class Reaction(obj_model.Model):
 
         for_rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
         rev_rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
-        if self.submodel and self.submodel.algorithm in [SubmodelAlgorithm.ode, SubmodelAlgorithm.ssa]:
+        if self.submodel and isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id in [
+            'WCM:0000012', # ODE
+            'WCM:0000011', # SSA
+            ]:
             if not for_rl:
                 rl_errors.append('Reaction in {} submodel must have a forward rate law'.format(
                     self.submodel.algorithm.name))
@@ -2790,7 +2789,7 @@ class Reaction(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.attributes['flux_bound_units'],
                                            ['Units must be defined for the flux bounds']))
 
-        if self.submodel and self.submodel.algorithm is not SubmodelAlgorithm.dfba:
+        if self.submodel and not (isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013'):
             if not isnan(self.flux_min):
                 errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                                ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
@@ -2908,7 +2907,7 @@ class Reaction(obj_model.Model):
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
-        if self.submodel.algorithm == SubmodelAlgorithm.dfba:
+        if isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013': #dFBA
             fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
