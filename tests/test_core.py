@@ -28,8 +28,8 @@ from wc_lang.core import (TimeUnit, VolumeUnit, ConcentrationUnit, DensityUnit,
                           Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, Compartment,
-                          SpeciesType, SpeciesTypeType, Species,
-                          SpeciesCoefficient, Parameter, Reference, ReferenceType,
+                          SpeciesType, Species,
+                          SpeciesCoefficient, Parameter, Reference,
                           DatabaseReference,
                           RateLaw, RateLawExpression, RateLawDirection,
                           Function, FunctionExpression,
@@ -65,7 +65,7 @@ class TestCore(unittest.TestCase):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
-                type=SpeciesTypeType.metabolite,
+                type=wcm_ontology['WCM:0000015'], # metabolite
                 structure='C' * i + 'H' * (i + 1),
                 empirical_formula=EmpiricalFormula('C{}H{}'.format(i, i + 1)),
                 molecular_weight=12 * (i + 1),
@@ -224,7 +224,7 @@ class TestCore(unittest.TestCase):
             ref = parameters[i].references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
                 model=mdl,
-                type=ReferenceType.misc)
+                type=None)
             references.append(ref)
 
             x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))

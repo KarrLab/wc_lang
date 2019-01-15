@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Evidence, DatabaseReference, Reference, ReferenceType)
+                          Evidence, DatabaseReference, Reference)
 from wc_utils.util.ontology import wcm_ontology
 
 class MergeTestCase(unittest.TestCase):
@@ -579,7 +579,7 @@ class MergeTestCase(unittest.TestCase):
 
         for model in models:
             for ref in model.references:
-                ref.type = ReferenceType.article
+                ref.type = wcm_ontology['WCM:0000041']
 
         # generate ids
         for model in models:

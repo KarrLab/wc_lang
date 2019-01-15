@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang import (Model, SpeciesTypeType,
+from wc_lang import (Model,
                      Species, SpeciesCoefficient, Reaction,
                      DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
@@ -27,7 +27,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
 
         species = []
         for i in range(5):
-            st = mdl.species_types.create(id='spec_type_{}'.format(i), type=SpeciesTypeType.metabolite)
+            st = mdl.species_types.create(id='spec_type_{}'.format(i),
+                                          type=wcm_ontology['WCM:0000015'])  # metabolite
             s = mdl.species.create(species_type=st,
                                    compartment=cmp)
             s.id = s.gen_id()

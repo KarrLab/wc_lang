@@ -9,10 +9,10 @@
 
 from test.support import EnvironmentVarGuard
 from wc_lang import (ReactionRateUnit,
-                     Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType, SpeciesTypeType,
+                     Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      Species, Compartment, SpeciesCoefficient,
                      DfbaObjSpecies, DfbaObjReaction,
-                     Parameter, Reference, ReferenceType, DatabaseReference, Function, FunctionExpression,
+                     Parameter, Reference, DatabaseReference, Function, FunctionExpression,
                      StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
@@ -68,7 +68,7 @@ class TestSimpleModel(unittest.TestCase):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
-                type=SpeciesTypeType.metabolite,
+                type=wcm_ontology['WCM:0000015'],  # metabolite
                 structure='C' * (i + 1),
                 empirical_formula=EmpiricalFormula('C' + str(i + 1)),
                 molecular_weight=12 * (i + 1),
@@ -223,7 +223,7 @@ class TestSimpleModel(unittest.TestCase):
 
             ref = param.references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
-                type=ReferenceType.misc)
+                type=None)
             ref.model = mdl
             references.append(ref)
 

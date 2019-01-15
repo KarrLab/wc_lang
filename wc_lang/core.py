@@ -177,15 +177,6 @@ DensityUnit = Unit('DensityUnit', names=[
 ])
 
 
-class SpeciesTypeType(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Types of species types """
-    metabolite = 1
-    protein = 2
-    dna = 3
-    rna = 4
-    pseudo_species = 5
-
-
 class ObservableCoefficientUnit(Unit):
     """ Observable coefficient units """
     dimensionless = 1
@@ -194,45 +185,6 @@ class ObservableCoefficientUnit(Unit):
 class MoleculeCountUnit(Unit):
     """ Units of molecule counts """
     molecule = 1
-
-
-RandomDistribution = CaseInsensitiveEnum('RandomDistribution', type=int, names=[
-    #('beta', 1),
-    #('binomial', 2),
-    #('chisquare', 3),
-    #('dirichlet', 4),
-    #('exponential', 5),
-    #('f', 6),
-    #('gamma', 7),
-    #('geometric', 8),
-    #('gumbel', 9),
-    #('hypergeometric', 10),
-    #('laplace', 11),
-    #('logisitic', 12),
-    #('lognormal', 13),
-    #('logseries', 14),
-    #('multinomial', 15),
-    #('multivariate-normal', 16),
-    #('negative-binomial', 17),
-    #('noncentral-chisquare', 18),
-    #('noncentral-f', 19),
-    ('normal', 20),
-    #('pareto', 21),
-    #('poisson', 22),
-    #('power', 23),
-    #('rayleigh', 24),
-    #('standard-cauchy', 25),
-    #('standard-exponential', 26),
-    #('standard-gamma', 27),
-    #('standard-normal', 28),
-    #('standard-t', 29),
-    #('triangular', 30),
-    #('uniform', 31),
-    #('vonmises', 32),
-    #('wald', 33),
-    #('weibull', 34),
-    #('zipf', 35),
-])
 
 
 ConcentrationUnit = Unit('ConcentrationUnit', names=[
@@ -306,14 +258,6 @@ class RateLawDirection(int, CaseInsensitiveEnum):
     forward = 1
 
 
-RateLawType = CaseInsensitiveEnum('RateLawType', type=int, names=[
-    ('hill', 192),
-    ('mass-action', 12),
-    ('michaelis-menten', 29),
-    ('modular', 527),
-    ('other', 1),
-])  # todo: replace with ontology
-
 ReactionRateUnit = Unit('ReactionRateUnit', names=[
     ('s^-1', 1),
 ])
@@ -343,51 +287,9 @@ DfbaObjSpeciesUnit = Unit('DfbaObjSpeciesUnit', names=[
 ])
 
 
-class ParameterType(int, Enum):  # todo: replace with ontology
-    """ SBO parameter types """
-    k_cat = 25
-    v_max = 186
-    K_m = 27
-    K_i = 261
-    other = 2
-
-
 class StopConditionUnit(Unit):
     """ Stop condition units """
     dimensionless = 1
-
-
-class EvidenceType(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Evidence types """
-    experiment = 1
-    computation = 2
-    theory = 3
-    other = 4
-
-
-class InterpretationType(int, Enum):  # todo: replace with ontology
-    """ Interpretation types """
-    assumption = 1
-    approximation = 2
-    coarse_graining = 3
-    computation = 4
-    decision = 5
-    other = 6
-
-
-class ReferenceType(int, CaseInsensitiveEnum):  # todo: replace with ontology
-    """ Reference types """
-    article = 1
-    book = 2
-    online = 3
-    proceedings = 4
-    thesis = 5
-
-    inbook = 6
-    incollection = 7
-    inproceedings = 8
-
-    misc = 9
 
 
 class ReactionParticipantAttribute(ManyToManyAttribute):
@@ -965,8 +867,8 @@ class Model(obj_model.Model):
         roots = []
         for comp in self.get_compartments(__type=__type, **kwargs):
             if comp.parent_compartment is None \
-                    or not (isinstance(comp.parent_compartment.biological_type, pronto.term.Term) and \
-                        comp.parent_compartment.biological_type.id == 'WCM:0000003'): #cellular compartment']
+                    or not (isinstance(comp.parent_compartment.biological_type, pronto.term.Term) and
+                            comp.parent_compartment.biological_type.id == 'WCM:0000003'):  # cellular compartment']
                 roots.append(comp)
         return roots
 
@@ -1312,9 +1214,9 @@ class Submodel(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
-    algorithm = OntologyAttribute(wcm_ontology, 
-        terms=wcm_ontology['WCM:0000010'].rchildren(),  # submodel simulation algorithm
-        default=wcm_ontology['WCM:0000011']) # SSA
+    algorithm = OntologyAttribute(wcm_ontology,
+                                  terms=wcm_ontology['WCM:0000010'].rchildren(),  # submodel
+                                  default=wcm_ontology['WCM:0000011'])  # SSA
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
     interpretations = ManyToManyAttribute('Interpretation', related_name='submodels')
@@ -1344,7 +1246,7 @@ class Submodel(obj_model.Model):
         else:
             errors = []
 
-        if isinstance(self.algorithm, pronto.term.Term) and self.algorithm.id == 'WCM:0000013': # dFBA
+        if isinstance(self.algorithm, pronto.term.Term) and self.algorithm.id == 'WCM:0000013':  # dFBA
             if not self.dfba_obj:
                 errors.append(InvalidAttribute(self.Meta.related_attributes['dfba_obj'],
                                                ['dFBA submodel must have an objective']))
@@ -1899,11 +1801,13 @@ class Compartment(obj_model.Model):
                                       none=True)
     geometry = OntologyAttribute(wcm_ontology,
                                  terms=wcm_ontology['WCM:0000008'].rchildren(),  # geometric compartment
-                                 default=wcm_ontology['WCM:0000009'], # 3d compartment
+                                 default=wcm_ontology['WCM:0000009'],  # 3D compartment
                                  none=True)
     parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
-    distribution_init_volume = EnumAttribute(RandomDistribution, default=RandomDistribution.normal,
-                                             verbose_name='Initial volume distribution')
+    distribution_init_volume = OntologyAttribute(wcm_ontology,
+                                                 terms=wcm_ontology['WCM:0000046'].rchildren(),  # random distribution
+                                                 default=wcm_ontology['WCM:0000065'],  # normal distribution
+                                                 verbose_name='Initial volume distribution')
     mass_units = EnumAttribute(MassUnit, default=MassUnit.g)
     mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
     std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume standard deviation')
@@ -1939,7 +1843,7 @@ class Compartment(obj_model.Model):
         else:
             errors = []
 
-        if isinstance(self.geometry, pronto.term.Term) and self.geometry.id == 'WCM:0000009': # 3d compartment
+        if isinstance(self.geometry, pronto.term.Term) and self.geometry.id == 'WCM:0000009':  # 3D compartment
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
@@ -2020,7 +1924,7 @@ class SpeciesType(obj_model.Model):
         empirical_formula (:obj:`EmpiricalFormula`): empirical formula
         molecular_weight (:obj:`float`): molecular weight
         charge (:obj:`int`): charge
-        type (:obj:`SpeciesTypeType`): type
+        type (:obj:`pronto.term.Term`): type
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -2040,7 +1944,10 @@ class SpeciesType(obj_model.Model):
     empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
-    type = EnumAttribute(SpeciesTypeType, default=SpeciesTypeType.metabolite)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000014'].rchildren(),  # species type
+                             default=wcm_ontology['WCM:0000015'],  # metabolite,
+                             none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = ManyToManyAttribute('Evidence', related_name='species_types')
     interpretations = ManyToManyAttribute('Interpretation', related_name='species_types')
@@ -2244,7 +2151,7 @@ class DistributionInitConcentration(obj_model.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species (:obj:`Species`): species
-        distribution (:obj:`RandomDistribution`): distribution
+        distribution (:obj:`pronto.term.Term`): distribution
         mean (:obj:`float`): mean concentration in a population of single cells at the
             beginning of each cell cycle
         std (:obj:`float`): standard deviation of the concentration in a population of
@@ -2260,7 +2167,9 @@ class DistributionInitConcentration(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='distribution_init_concentrations')
     species = OneToOneAttribute(Species, min_related=1, related_name='distribution_init_concentration')
-    distribution = EnumAttribute(RandomDistribution, default=RandomDistribution.normal)
+    distribution = OntologyAttribute(wcm_ontology,
+                                     terms=wcm_ontology['WCM:0000046'].rchildren(),  # random distribution
+                                     default=wcm_ontology['WCM:0000065'])  # normal distribution
     mean = FloatAttribute(min=0)
     std = FloatAttribute(min=0, verbose_name='Standard deviation')
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
@@ -2769,9 +2678,9 @@ class Reaction(obj_model.Model):
         for_rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
         rev_rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
         if self.submodel and isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id in [
-            'WCM:0000012', # ODE
-            'WCM:0000011', # SSA
-            ]:
+            'WCM:0000012',  # ODE
+            'WCM:0000011',  # SSA
+        ]:
             if not for_rl:
                 rl_errors.append('Reaction in {} submodel must have a forward rate law'.format(
                     self.submodel.algorithm.name))
@@ -2907,7 +2816,7 @@ class Reaction(obj_model.Model):
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
-        if isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013': #dFBA
+        if isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013':  # dFBA
             fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
@@ -3108,7 +3017,7 @@ class RateLaw(obj_model.Model):
         model (:obj:`Model`): model
         reaction (:obj:`Reaction`): reaction
         direction (:obj:`RateLawDirection`): direction
-        type (:obj:`RateLawType`): type
+        type (:obj:`pronto.term.Term`): type
         expression (:obj:`RateLawExpression`): expression
         units (:obj:`ReactionRateUnit`): units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
@@ -3122,7 +3031,9 @@ class RateLaw(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='rate_laws')
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
-    type = EnumAttribute(RateLawType, default=RateLawType.other)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000020'].rchildren(),  # rate law
+                             default=None, none=True)
     expression = ExpressionManyToOneAttribute(RateLawExpression, min_related=1, min_related_rev=1, related_name='rate_laws')
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
@@ -3413,7 +3324,7 @@ class Parameter(obj_model.Model):
         id (:obj:`str`): unique identifier per model/submodel
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        type (:obj:`ParameterType`): parameter type
+        type (:obj:`pronto.term.Term`): parameter type
         value (:obj:`float`): value
         std (:obj:`float`): standard error of the value
         units (:obj:`str`): units of the value and standard error
@@ -3433,7 +3344,9 @@ class Parameter(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='parameters')
-    type = EnumAttribute(ParameterType, default=ParameterType.other)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000025'].rchildren(),  # parameter
+                             default=None, none=True)
     value = FloatAttribute()
     std = FloatAttribute(min=0, verbose_name='Standard error')
     units = StringAttribute(min_length=1)
@@ -3492,7 +3405,7 @@ class Evidence(obj_model.Model):
         value (:obj:`str`): value
         std (:obj:`str`): standard error of the value
         units (:obj:`str`): units
-        type (:obj:`EvidenceType`): type
+        type (:obj:`pronto.term.Term`): type
         taxon (:obj:`str`): taxon in which the evidence was observed
         genetic_variant (:obj:`str`): genetic variant in which the evidence was observed
         temp (:obj:`float`): temperature at which the evidence was observed
@@ -3538,7 +3451,9 @@ class Evidence(obj_model.Model):
     value = StringAttribute()
     std = StringAttribute(verbose_name='Standard error')
     units = StringAttribute()
-    type = EnumAttribute(EvidenceType, default=EvidenceType.other)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000030'].rchildren(),  # evidence,
+                             default=None, none=True)
     taxon = StringAttribute()
     genetic_variant = StringAttribute()
     temp = FloatAttribute(nan=True, verbose_name='Temperature')
@@ -3606,7 +3521,7 @@ class Interpretation(obj_model.Model):
         value (:obj:`str`): value
         std (:obj:`str`): standard error of the value
         units (:obj:`str`): units
-        type (:obj:`InterpretationType`): type
+        type (:obj:`pronto.term.Term`): type
         method (:obj:`str`): procedure which produced the interpretation
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
@@ -3638,7 +3553,9 @@ class Interpretation(obj_model.Model):
     value = StringAttribute()
     std = StringAttribute(verbose_name='Standard error')
     units = StringAttribute()
-    type = EnumAttribute(InterpretationType, default=InterpretationType.other)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000034'].rchildren(),  # interpretation
+                             default=None, none=True)
     method = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='interpretations')
     evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
@@ -3663,7 +3580,7 @@ class Reference(obj_model.Model):
         author (:obj:`str`): author(s)
         editor (:obj:`str`): editor(s)
         year (:obj:`int`): year
-        type (:obj:`ReferenceType`): type
+        type (:obj:`proto.term.Term`): type
         publication (:obj:`str`): publication title
         publisher (:obj:`str`): publisher
         series (:obj:`str`): series
@@ -3702,7 +3619,9 @@ class Reference(obj_model.Model):
     author = StringAttribute()
     editor = StringAttribute()
     year = PositiveIntegerAttribute()
-    type = EnumAttribute(ReferenceType)
+    type = OntologyAttribute(wcm_ontology,
+                             terms=wcm_ontology['WCM:0000040'].rchildren(),  # reference
+                             default=None, none=True)
     publication = StringAttribute()
     publisher = StringAttribute()
     series = StringAttribute()

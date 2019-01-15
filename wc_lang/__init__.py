@@ -9,11 +9,7 @@ from .core import (Unit, TimeUnit, MassUnit, VolumeUnit, DensityUnit, MoleculeCo
                    ReactionParticipantUnit, ReactionRateUnit, ReactionFluxBoundUnit, DfbaObjectiveUnit,
                    DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaObjSpeciesUnit,
 
-                   RateLawDirection,
-
-                   TaxonRank, SpeciesTypeType,
-                   RandomDistribution, RateLawType,
-                   ParameterType, EvidenceType, InterpretationType, ReferenceType,
+                   RateLawDirection, TaxonRank,
 
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,

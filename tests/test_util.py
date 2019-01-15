@@ -8,7 +8,7 @@
 
 from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Compartment,
-                          SpeciesType, SpeciesTypeType, Species, SpeciesCoefficient, DistributionInitConcentration,
+                          SpeciesType, Species, SpeciesCoefficient, DistributionInitConcentration,
                           Reaction, RateLaw, RateLawExpression, Parameter,
                           DfbaObjSpecies, DfbaObjReaction,
                           DfbaObjective, DfbaObjectiveExpression,
@@ -16,7 +16,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Function, FunctionExpression,
                           StopCondition, StopConditionExpression,
                           Evidence, Interpretation,
-                          Reference, ReferenceType, DatabaseReference,
+                          Reference, DatabaseReference,
                           )
 from wc_lang import util
 from wc_utils.util.ontology import wcm_ontology
@@ -39,7 +39,7 @@ class TestUtil(unittest.TestCase):
         self.species = species = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
-                i), name='species type {}'.format(i), type=SpeciesTypeType.metabolite)
+                i), name='species type {}'.format(i), type=wcm_ontology['WCM:0000015'])  # metabolite
             species_types.append(spec_type)
 
             if i != 3:
@@ -102,7 +102,7 @@ class TestUtil(unittest.TestCase):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
 
-            ref = param.references.create(id='ref_{}'.format(i), type=ReferenceType.misc)
+            ref = param.references.create(id='ref_{}'.format(i), type=None)
             ref.model = mdl
             references.append(ref)
 
