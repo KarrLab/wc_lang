@@ -868,7 +868,7 @@ class Model(obj_model.Model):
         for comp in self.get_compartments(__type=__type, **kwargs):
             if comp.parent_compartment is None \
                     or not (isinstance(comp.parent_compartment.biological_type, pronto.term.Term) and
-                            comp.parent_compartment.biological_type.id == 'WCM:0000003'):  # cellular compartment']
+                            comp.parent_compartment.biological_type.id == 'WCM:cellular_compartment'):
                 roots.append(comp)
         return roots
 
@@ -1198,7 +1198,7 @@ class Submodel(obj_model.Model):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        algorithm (:obj:`pronto.term.Term`): algorithm
+        framework (:obj:`pronto.term.Term`): modeling framework (e.g. dynamic flux balance analysis)
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -1214,9 +1214,11 @@ class Submodel(obj_model.Model):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='submodels')
-    algorithm = OntologyAttribute(wcm_ontology,
-                                  terms=wcm_ontology['WCM:0000010'].rchildren(),  # submodel
-                                  default=wcm_ontology['WCM:0000011'])  # SSA
+    framework = OntologyAttribute(wcm_ontology,
+                                  namespace='WCM',
+                                  terms=wcm_ontology['WCM:modeling_framework'].rchildren(),
+                                  default=wcm_ontology['WCM:stochastic_simulation_algorithm'],
+                                  none=False)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
     interpretations = ManyToManyAttribute('Interpretation', related_name='submodels')
@@ -1224,7 +1226,7 @@ class Submodel(obj_model.Model):
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name', 'algorithm',
+        attribute_order = ('id', 'name', 'framework',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         merge = obj_model.ModelMerge.append
@@ -1246,7 +1248,7 @@ class Submodel(obj_model.Model):
         else:
             errors = []
 
-        if isinstance(self.algorithm, pronto.term.Term) and self.algorithm.id == 'WCM:0000013':  # dFBA
+        if isinstance(self.framework, pronto.term.Term) and self.framework.id == 'WCM:dynamic_flux_balance_analysis':
             if not self.dfba_obj:
                 errors.append(InvalidAttribute(self.Meta.related_attributes['dfba_obj'],
                                                ['dFBA submodel must have an objective']))
@@ -1792,21 +1794,25 @@ class Compartment(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='compartments')
     biological_type = OntologyAttribute(wcm_ontology,
-                                        terms=wcm_ontology['WCM:0000002'].rchildren(),  # biological compartment
-                                        default=wcm_ontology['WCM:0000003'],  # cellular compartment
+                                        namespace='WCM',
+                                        terms=wcm_ontology['WCM:biological_compartment'].rchildren(),
+                                        default=wcm_ontology['WCM:cellular_compartment'],
                                         none=True)
     physical_type = OntologyAttribute(wcm_ontology,
-                                      terms=wcm_ontology['WCM:0000005'].rchildren(),  # physical compartment
-                                      default=wcm_ontology['WCM:0000006'],  # fluid compartment
+                                      namespace='WCM',
+                                      terms=wcm_ontology['WCM:physical_compartment'].rchildren(),
+                                      default=wcm_ontology['WCM:fluid_compartment'],
                                       none=True)
     geometry = OntologyAttribute(wcm_ontology,
-                                 terms=wcm_ontology['WCM:0000008'].rchildren(),  # geometric compartment
-                                 default=wcm_ontology['WCM:0000009'],  # 3D compartment
+                                 namespace='WCM',
+                                 terms=wcm_ontology['WCM:geometric_compartment'].rchildren(),
+                                 default=wcm_ontology['WCM:3D_compartment'],
                                  none=True)
     parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
     distribution_init_volume = OntologyAttribute(wcm_ontology,
-                                                 terms=wcm_ontology['WCM:0000046'].rchildren(),  # random distribution
-                                                 default=wcm_ontology['WCM:0000065'],  # normal distribution
+                                                 namespace='WCM',
+                                                 terms=wcm_ontology['WCM:random_distribution'].rchildren(),
+                                                 default=wcm_ontology['WCM:normal_distribution'],
                                                  verbose_name='Initial volume distribution')
     mass_units = EnumAttribute(MassUnit, default=MassUnit.g)
     mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
@@ -1843,7 +1849,7 @@ class Compartment(obj_model.Model):
         else:
             errors = []
 
-        if isinstance(self.geometry, pronto.term.Term) and self.geometry.id == 'WCM:0000009':  # 3D compartment
+        if isinstance(self.geometry, pronto.term.Term) and self.geometry.id == 'WCM:3D_compartment':
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
@@ -1945,8 +1951,9 @@ class SpeciesType(obj_model.Model):
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000014'].rchildren(),  # species type
-                             default=wcm_ontology['WCM:0000015'],  # metabolite,
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:species_type'].rchildren(),
+                             default=wcm_ontology['WCM:metabolite'],
                              none=True)
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = ManyToManyAttribute('Evidence', related_name='species_types')
@@ -2168,8 +2175,9 @@ class DistributionInitConcentration(obj_model.Model):
     model = ManyToOneAttribute(Model, related_name='distribution_init_concentrations')
     species = OneToOneAttribute(Species, min_related=1, related_name='distribution_init_concentration')
     distribution = OntologyAttribute(wcm_ontology,
-                                     terms=wcm_ontology['WCM:0000046'].rchildren(),  # random distribution
-                                     default=wcm_ontology['WCM:0000065'])  # normal distribution
+                                     namespace='WCM',
+                                     terms=wcm_ontology['WCM:random_distribution'].rchildren(),
+                                     default=wcm_ontology['WCM:normal_distribution'])
     mean = FloatAttribute(min=0)
     std = FloatAttribute(min=0, verbose_name='Standard deviation')
     units = EnumAttribute(ConcentrationUnit, default=ConcentrationUnit.M)
@@ -2677,16 +2685,16 @@ class Reaction(obj_model.Model):
 
         for_rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
         rev_rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
-        if self.submodel and isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id in [
-            'WCM:0000012',  # ODE
-            'WCM:0000011',  # SSA
+        if self.submodel and isinstance(self.submodel.framework, pronto.term.Term) and self.submodel.framework.id in [
+            'WCM:ordinary_differential_equations',
+            'WCM:stochastic_simulation_algorithm',
         ]:
             if not for_rl:
                 rl_errors.append('Reaction in {} submodel must have a forward rate law'.format(
-                    self.submodel.algorithm.name))
+                    self.submodel.framework.name))
             if self.reversible and not rev_rl:
                 rl_errors.append('Reversible reaction in {} submodel must have a backward rate law'.format(
-                    self.submodel.algorithm.name))
+                    self.submodel.framework.name))
         if not self.reversible and rev_rl:
             rl_errors.append('Irreversible reaction cannot have a backward rate law')
 
@@ -2698,7 +2706,8 @@ class Reaction(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.attributes['flux_bound_units'],
                                            ['Units must be defined for the flux bounds']))
 
-        if self.submodel and not (isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013'):
+        if self.submodel and not (isinstance(self.submodel.framework, pronto.term.Term) and
+                                  self.submodel.framework.id == 'WCM:dynamic_flux_balance_analysis'):
             if not isnan(self.flux_min):
                 errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                                ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
@@ -2816,7 +2825,7 @@ class Reaction(obj_model.Model):
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
-        if isinstance(self.submodel.algorithm, pronto.term.Term) and self.submodel.algorithm.id == 'WCM:0000013':  # dFBA
+        if isinstance(self.submodel.framework, pronto.term.Term) and self.submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
             fbc_reaction_plugin = wrap_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
@@ -3032,7 +3041,8 @@ class RateLaw(obj_model.Model):
     reaction = ManyToOneAttribute(Reaction, related_name='rate_laws')
     direction = EnumAttribute(RateLawDirection, default=RateLawDirection.forward)
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000020'].rchildren(),  # rate law
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:rate_law'].rchildren(),
                              default=None, none=True)
     expression = ExpressionManyToOneAttribute(RateLawExpression, min_related=1, min_related_rev=1, related_name='rate_laws')
     units = EnumAttribute(ReactionRateUnit, default=ReactionRateUnit['s^-1'])
@@ -3345,7 +3355,8 @@ class Parameter(obj_model.Model):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='parameters')
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000025'].rchildren(),  # parameter
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:parameter'].rchildren(),
                              default=None, none=True)
     value = FloatAttribute()
     std = FloatAttribute(min=0, verbose_name='Standard error')
@@ -3452,7 +3463,8 @@ class Evidence(obj_model.Model):
     std = StringAttribute(verbose_name='Standard error')
     units = StringAttribute()
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000030'].rchildren(),  # evidence,
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:evidence'].rchildren(),
                              default=None, none=True)
     taxon = StringAttribute()
     genetic_variant = StringAttribute()
@@ -3554,7 +3566,8 @@ class Interpretation(obj_model.Model):
     std = StringAttribute(verbose_name='Standard error')
     units = StringAttribute()
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000034'].rchildren(),  # interpretation
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:interpretation'].rchildren(),
                              default=None, none=True)
     method = LongStringAttribute()
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='interpretations')
@@ -3620,7 +3633,8 @@ class Reference(obj_model.Model):
     editor = StringAttribute()
     year = PositiveIntegerAttribute()
     type = OntologyAttribute(wcm_ontology,
-                             terms=wcm_ontology['WCM:0000040'].rchildren(),  # reference
+                             namespace='WCM',
+                             terms=wcm_ontology['WCM:reference'].rchildren(),
                              default=None, none=True)
     publication = StringAttribute()
     publisher = StringAttribute()

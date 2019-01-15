@@ -20,7 +20,7 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
         config = wc_lang.config.core.get_config()['wc_lang']['dfba']
 
         model = Model()
-        submodel = model.submodels.create(id='submdl', name='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = model.submodels.create(id='submdl', name='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
 
         comps = [
             model.compartments.create(id='c', name='cytosol'),

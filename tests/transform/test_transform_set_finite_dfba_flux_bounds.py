@@ -18,7 +18,7 @@ import unittest
 class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
     def test(self):
         model = Model()
-        submodel = model.submodels.create(algorithm=wcm_ontology['WCM:0000013'])
+        submodel = model.submodels.create(framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         rxn_1 = model.reactions.create(submodel=submodel, reversible=True,
                                        flux_min=None, flux_max=None)
         rxn_2 = model.reactions.create(submodel=submodel, reversible=False,

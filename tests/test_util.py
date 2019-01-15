@@ -39,7 +39,7 @@ class TestUtil(unittest.TestCase):
         self.species = species = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
-                i), name='species type {}'.format(i), type=wcm_ontology['WCM:0000015'])  # metabolite
+                i), name='species type {}'.format(i), type=wcm_ontology['WCM:metabolite'])
             species_types.append(spec_type)
 
             if i != 3:
@@ -54,9 +54,9 @@ class TestUtil(unittest.TestCase):
             conc.id = conc.gen_id()
             conc.model = mdl
 
-        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', algorithm=wcm_ontology['WCM:0000011'])
-        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', algorithm=wcm_ontology['WCM:0000011'])
-        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', algorithm=wcm_ontology['WCM:0000013'])
+        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', model=mdl)

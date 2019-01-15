@@ -44,7 +44,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
 
         for submodel in model.submodels:
-            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013':
+            if isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
                 for species in submodel.get_species():
                     if species.compartment == ext_comp:
 

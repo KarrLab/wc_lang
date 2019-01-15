@@ -21,15 +21,15 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
         c = model.compartments.create(id='c')
 
-        t0 = model.species_types.create(id='s0', type=wcm_ontology['WCM:0000015']) # metabolite
-        t1 = model.species_types.create(id='s1', type=wcm_ontology['WCM:0000015'])
-        t2 = model.species_types.create(id='s2', type=wcm_ontology['WCM:0000015'])
+        t0 = model.species_types.create(id='s0', type=wcm_ontology['WCM:metabolite'])
+        t1 = model.species_types.create(id='s1', type=wcm_ontology['WCM:metabolite'])
+        t2 = model.species_types.create(id='s2', type=wcm_ontology['WCM:metabolite'])
 
         s0 = model.species.create(id='s0[c]', species_type=t0, compartment=c)
         s1 = model.species.create(id='s1[c]', species_type=t1, compartment=c)
         s2 = model.species.create(id='s2[c]', species_type=t2, compartment=c)
 
-        submodel = model.submodels.create(id='submodel', algorithm='SSA')
+        submodel = model.submodels.create(id='submodel', framework='SSA')
 
         r0 = model.reactions.create(id='r0', reversible=True, submodel=submodel)
         r0.participants.create(species=s0, coefficient=-2)

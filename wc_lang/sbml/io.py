@@ -84,18 +84,18 @@ class Writer(object):
     """ Write an SBML representation of a model  """
 
     @staticmethod
-    def run(model, algorithms=None, path=None):
+    def run(model, frameworks=None, path=None):
         """ Write the `model`'s submodels in SBML.
 
-        Each `Submodel` in `Model` `model` whose algorithm is in `algorithms`
+        Each `Submodel` in `Model` `model` whose framework is in `frameworks`
         is converted into a separate SBML document.
         If `path` is None, then the SBML is returned in string(s), otherwise it's written to file(s)
         which are named `path + submodel.id + suffix`.
 
         Args:
             model (:obj:`Model`): a `Model`
-            algorithms (:obj:`list`, optional): list of `Submodel.algorithm` attributes, defaulting
-                to `[wcm_ontology['WCM:0000013']]`
+            frameworks (:obj:`list`, optional): list of `Submodel.framework` attributes, defaulting
+                to `[wcm_ontology['WCM:dynamic_flux_balance_analysis']]`
             path (:obj:`str`, optional): prefix of path of SBML file(s) to write
 
         Returns:
@@ -103,11 +103,11 @@ class Writer(object):
                 if `path` is None, a dictionary SBML documents as strings, indexed by submodel ids,
                 otherwise a list of SBML file(s) created
         """
-        if algorithms is None:
-            algorithms = [wcm_ontology['WCM:0000013']]
+        if frameworks is None:
+            frameworks = [wcm_ontology['WCM:dynamic_flux_balance_analysis']]
         sbml_documents = {}
         for submodel in model.get_submodels():
-            if submodel.algorithm in algorithms:
+            if submodel.framework in frameworks:
                 objects = [submodel] + \
                     submodel.dfba_obj_reactions + \
                     model.get_compartments() + \
@@ -118,7 +118,7 @@ class Writer(object):
                     objects.append(submodel.dfba_obj)
                 sbml_documents[submodel.id] = SBMLExchange.write(objects)
         if not sbml_documents:
-            raise ValueError("No submodel.algorithm in algorithms '{}'.".format(algorithms))
+            raise ValueError("No submodel.framework in frameworks '{}'.".format(frameworks))
         if path is None:
             return sbml_documents
         else:

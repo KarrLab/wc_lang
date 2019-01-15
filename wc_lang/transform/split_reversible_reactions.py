@@ -30,7 +30,7 @@ class SplitReversibleReactionsTransform(Transform):
             :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
         """
         for submodel in model.submodels:
-            if not (isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013'):
+            if not (isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis'):
                 for rxn in list(submodel.reactions):
                     if rxn.reversible:
                         # remove reversible reaction

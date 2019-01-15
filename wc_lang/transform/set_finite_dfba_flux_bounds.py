@@ -54,7 +54,7 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
         flux_max_bound = config['dfba']['flux_max_bound']
 
         for submodel in model.submodels:
-            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013':
+            if isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
                 for rxn in submodel.reactions:
                     if rxn.reversible:
                         flux_min = flux_min_bound_reversible

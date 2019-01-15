@@ -149,7 +149,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_Exchange(self):
         for submodel in self.model.get_submodels():
-            if isinstance(submodel.algorithm, pronto.term.Term) and submodel.algorithm.id == 'WCM:0000013': #dFBA
+            if isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
                 sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
                 self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
@@ -159,7 +159,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_Exchange_warning(self):
         model = Model(id='model')
-        met_submodel = model.submodels.create(id='Metabolism', algorithm=wcm_ontology['WCM:0000011'])
+        met_submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
         model.parameters.append(Parameter(id='param_1'))
         model.parameters.append(Parameter(id='param_1'))
 
@@ -170,10 +170,10 @@ class TestSbml(unittest.TestCase):
             warnings.resetwarnings()
 
     def test_writer(self):
-        for algorithms in [None, [wcm_ontology['WCM:0000013']]]:
-            sbml_documents = sbml_io.Writer.run(self.model, algorithms=algorithms)
+        for frameworks in [None, [wcm_ontology['WCM:dynamic_flux_balance_analysis']]]:
+            sbml_documents = sbml_io.Writer.run(self.model, frameworks=frameworks)
             try:
-                paths = sbml_io.Writer.run(self.model, algorithms=algorithms, path=self.dirname)
+                paths = sbml_io.Writer.run(self.model, frameworks=frameworks, path=self.dirname)
             except Exception as e:
                 self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
             for submodel_id, path in zip(sbml_documents.keys(), paths):
@@ -191,8 +191,8 @@ class TestSbml(unittest.TestCase):
         self.assertIn('cannot write to directory', str(context.exception))
         self.assertIn('no_such_dir', str(context.exception))
 
-        with self.assertRaisesRegex(ValueError, 'No submodel.algorithm in algorithms'):
-            sbml_io.Writer.run(self.model, algorithms=[])
+        with self.assertRaisesRegex(ValueError, 'No submodel.framework in frameworks'):
+            sbml_io.Writer.run(self.model, frameworks=[])
 
         with mock.patch('libsbml.writeSBMLToFile', return_value=False):
             with self.assertRaisesRegex(ValueError, ' could not be written to '):

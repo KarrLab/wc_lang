@@ -65,7 +65,7 @@ class TestCore(unittest.TestCase):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
-                type=wcm_ontology['WCM:0000015'], # metabolite
+                type=wcm_ontology['WCM:metabolite'],
                 structure='C' * i + 'H' * (i + 1),
                 empirical_formula=EmpiricalFormula('C{}H{}'.format(i, i + 1)),
                 molecular_weight=12 * (i + 1),
@@ -129,11 +129,11 @@ class TestCore(unittest.TestCase):
         self.dfba_obj_species = dfba_obj_species
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', algorithm=wcm_ontology['WCM:0000011'])
+            id='submodel_0', name='submodel 0', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
         self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', algorithm=wcm_ontology['WCM:0000011'])
+            id='submodel_1', name='submodel 1', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', algorithm=wcm_ontology['WCM:0000013'],
+            id='submodel_2', name='submodel 2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'],
             dfba_obj_reactions=[dfba_obj_reaction])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
@@ -498,16 +498,16 @@ class TestCore(unittest.TestCase):
         self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_components())
 
     def test_compartment_validate(self):
-        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units='g l^-1'))
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:3D_compartment'], init_density=Parameter(units='g l^-1'))
         self.assertEqual(comp.validate(), None)
 
-        comp = Compartment(id='', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units='g l^-1'))
+        comp = Compartment(id='', geometry=wcm_ontology['WCM:3D_compartment'], init_density=Parameter(units='g l^-1'))
         self.assertNotEqual(comp.validate(), None)
 
-        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'])
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:3D_compartment'])
         self.assertNotEqual(comp.validate(), None)
 
-        comp = Compartment(id='c', geometry=wcm_ontology['WCM:0000009'], init_density=Parameter(units=''))
+        comp = Compartment(id='c', geometry=wcm_ontology['WCM:3D_compartment'], init_density=Parameter(units=''))
         self.assertNotEqual(comp.validate(), None)
 
     def test_reaction_get_species(self):
@@ -607,33 +607,33 @@ class TestCore(unittest.TestCase):
 
     def test_get_root_cellular_compartments(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'])
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:extracellular_compartment'])
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
+            id='cytosol', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus)
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
+            id='mitochondria', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria)
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=mitochondria)
 
         self.assertEqual(set(model.get_root_compartments()), set([extracellular, cytosol]))
-        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:0000003']), [cytosol])
-        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:0000004']), [extracellular])
+        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:cellular_compartment']), [cytosol])
+        self.assertEqual(model.get_root_compartments(biological_type=wcm_ontology['WCM:extracellular_compartment']), [extracellular])
 
     def test_get_sub_compartments(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'])
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:extracellular_compartment'])
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
+            id='cytosol', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=extracellular)
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus)
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol)
+            id='mitochondria', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria)
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=mitochondria)
 
         self.assertEqual(extracellular.get_sub_compartments(), [
             cytosol,
@@ -669,21 +669,21 @@ class TestCore(unittest.TestCase):
 
     def test_get_tot_mean_init_volume(self):
         model = Model()
-        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:0000004'],
+        extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:extracellular_compartment'],
                                                   mean_init_volume=1.)
         cytosol = model.compartments.create(
-            id='cytosol', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=extracellular,
+            id='cytosol', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=extracellular,
             mean_init_volume=2.)
-        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol,
+        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol,
                                             mean_init_volume=3.)
         nucleus_dna = model.compartments.create(
-            id='nucleus_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=nucleus,
+            id='nucleus_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=nucleus,
             mean_init_volume=4.)
         mitochondria = model.compartments.create(
-            id='mitochondria', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=cytosol,
+            id='mitochondria', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol,
             mean_init_volume=5.)
         mitochondria_dna = model.compartments.create(
-            id='mitochondria_dna', biological_type=wcm_ontology['WCM:0000003'], parent_compartment=mitochondria,
+            id='mitochondria_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=mitochondria,
             mean_init_volume=6.)
         self.assertEqual(extracellular.get_tot_mean_init_volume(), 21.)
         self.assertEqual(cytosol.get_tot_mean_init_volume(), 20.)
@@ -2643,7 +2643,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=-1., flux_max=1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000013']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:dynamic_flux_balance_analysis']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2651,7 +2651,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=0., flux_max=1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000013']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:dynamic_flux_balance_analysis']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
@@ -2659,7 +2659,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=True,
                        flux_min=1., flux_max=-1.,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2676,7 +2676,7 @@ class ValidateModelTestCase(unittest.TestCase):
         rxn = Reaction(id='rxn', reversible=False,
                        flux_min=-1., flux_max=-1.5,
                        flux_bound_units=ReactionFluxBoundUnit['M s^-1'],
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2690,7 +2690,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'Value must be at least 0.000000')
 
     def test_dfba_submodel_contains_obj_reactions(self):
-        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = Submodel(id='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2702,12 +2702,12 @@ class ValidateModelTestCase(unittest.TestCase):
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = Submodel(id='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         rv = submodel.validate()
         self.assertEqual(len(rv.attributes), 1)
         self.assertRegex(str(rv), 'submodel must have an objective')
 
-        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = Submodel(id='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2723,7 +2723,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(len(rv.attributes[0].messages), 1)
         self.assertRegex(str(rv), 'must be a function of at least one')
 
-        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = Submodel(id='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2740,7 +2740,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must contain the following reactions')
         self.assertRegex(str(rv), 'must contain the following dFBA objective reactions')
 
-        submodel = Submodel(id='submodel', algorithm=wcm_ontology['WCM:0000013'])
+        submodel = Submodel(id='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         objs = {
             Reaction: {'rxn_1': Reaction(id='rxn_1', submodel=submodel)},
             DfbaObjReaction: {'dfba_obj_rxn_1': DfbaObjReaction(id='dfba_obj_rxn_1', submodel=submodel)}
@@ -2769,7 +2769,7 @@ class ValidateModelTestCase(unittest.TestCase):
         ]
 
         rxn = Reaction(id='rxn', reversible=True,
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
@@ -2779,7 +2779,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(rv, None, str(rv))
 
         rxn = Reaction(id='rxn', reversible=True,
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                        ])
@@ -2790,7 +2790,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must have a backward rate law')
 
         rxn = Reaction(id='rxn', reversible=False,
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                        ])
@@ -2800,7 +2800,7 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'must have a forward rate law')
 
         rxn = Reaction(id='rxn', reversible=False,
-                       submodel=Submodel(algorithm=wcm_ontology['WCM:0000011']),
+                       submodel=Submodel(framework=wcm_ontology['WCM:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),

@@ -32,20 +32,20 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             model (:obj:`Model`): model definition
 
         Returns:
-            :obj:`Model`: same model definition, but with submodels of the same simulation algorithm merged
+            :obj:`Model`: same model definition, but with submodels of the same simulation framework merged
         """
 
-        # group submodels by algorithms
+        # group submodels by frameworks
         def key_func(submodel):
             if submodel.dfba_obj:
                 dfba_obj_units = submodel.dfba_obj.units
             else:
                 dfba_obj_units = None
-            return (submodel.algorithm.id, dfba_obj_units)
+            return (submodel.framework.id, dfba_obj_units)
         sorted_submodels = sorted(model.submodels, key=key_func)
         grouped_submodels = itertools.groupby(sorted_submodels, key_func)
 
-        for (algorithm, dfba_obj_units), group in grouped_submodels:
+        for (framework, dfba_obj_units), group in grouped_submodels:
             submodels = tuple(group)
 
             # calculate id, name
@@ -53,9 +53,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(model=model, id=id, name=name, algorithm=wcm_ontology[algorithm])
+            merged_submodel = Submodel(model=model, id=id, name=name, framework=wcm_ontology[framework])
 
-            if  algorithm == 'WCM:0000013':
+            if  framework == 'WCM:dynamic_flux_balance_analysis':
                 merged_dfba_obj = merged_submodel.dfba_obj = model.dfba_objs.create(
                     name='dFBA objective ({})'.format(', '.join(submodel.name for submodel in submodels)),
                     units=dfba_obj_units)
@@ -136,7 +136,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                     submodel.dfba_obj_reactions.remove(dfba_obj_rxn)
                     merged_submodel.dfba_obj_reactions.append(dfba_obj_rxn)
 
-            if algorithm == 'WCM:0000013':
+            if framework == 'WCM:dynamic_flux_balance_analysis':
                 merged_dfba_obj.expression, error = DfbaObjectiveExpression.deserialize(
                     ' + '.join(merged_dfba_expression),
                     objs_for_merged_dfba_expression)
