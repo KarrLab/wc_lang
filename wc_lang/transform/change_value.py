@@ -62,7 +62,7 @@ class ChangeValueTransform(Transform):
         Returns:
             :obj:`Model`: same model, but with a different value of an attribute
         """
-        model.set_nested_attr(self.attr_path, self.value)
+        model.set_nested_attr_val(self.attr_path, self.value)
         return model
 
     def attr_path_to_str(self):
@@ -96,4 +96,11 @@ class ChangeValueTransform(Transform):
         if other.__class__ is not self.__class__:
             return False
 
-        return self.attr_path == other.attr_path and self.value == other.value
+        if self.attr_path != other.attr_path:
+            return False
+
+        attr = Model.get_nested_attr(self.attr_path)
+        if not attr.value_equal(self.value, other.value):
+            return False
+
+        return True
