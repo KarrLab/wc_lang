@@ -10,6 +10,7 @@
 from .core import Transform
 from wc_lang.core import ReactionFluxBoundUnit
 import wc_lang.config.core
+from wc_utils.util.ontology import wcm_ontology
 import pronto
 
 
@@ -44,7 +45,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
 
         for submodel in model.submodels:
-            if isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
+            if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
                 for species in submodel.get_species():
                     if species.compartment == ext_comp:
 

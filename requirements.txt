@@ -3,7 +3,7 @@ enum34
 git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
 natsort
 networkx
-pronto
+git+https://github.com/KarrLab/pronto.git#egg=pronto-0.12.0a >= 0.12.0a
 python_libsbml >= 5.16.0
 scipy
 setuptools

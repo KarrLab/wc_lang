@@ -149,7 +149,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SBML_Exchange(self):
         for submodel in self.model.get_submodels():
-            if isinstance(submodel.framework, pronto.term.Term) and submodel.framework.id == 'WCM:dynamic_flux_balance_analysis':
+            if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
                 sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
 
                 self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
