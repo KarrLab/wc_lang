@@ -18,8 +18,10 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Evidence, Interpretation,
                           Reference, DatabaseReference,
                           )
+from wc_lang import io
 from wc_lang import util
 from wc_utils.util.ontology import wcm_ontology
+import os.path
 import shutil
 import tempfile
 import unittest
@@ -179,3 +181,29 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(model.species[1].id, 'st_1[c_2]')
         self.assertEqual(model.species[2].id, 'st_2[c_1]')
         self.assertEqual(model.species[3].id, 'st_2[c_2]')
+
+
+class MigrateTestCase(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test(self):
+        model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
+        model.species_types.create(id='st_1')
+        model.species_types.create(id='st_2')
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        io.Writer().run(filename, model, set_repo_metadata_from_path=False)
+
+        version = '0.0.2'
+        filename_2 = os.path.join(self.tempdir, 'model-2.xlsx')
+        util.migrate(filename, version, out_path=filename_2, set_repo_metadata_from_path=False)
+        model = io.Reader().run(filename_2)[Model][0]
+        self.assertEqual(model.wc_lang_version, version)
+
+        version = '0.0.3'
+        util.migrate(filename, version, set_repo_metadata_from_path=False)
+        model = io.Reader().run(filename)[Model][0]
+        self.assertEqual(model.wc_lang_version, version)

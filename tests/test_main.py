@@ -205,6 +205,26 @@ class TestCli(unittest.TestCase):
         model = Reader().run(filename)[Model][0]
         self.assertEqual(model.wc_lang_version, wc_lang.__version__)
 
+    def test_migrate(self):
+        model = Model(id='model', name='test model', version='0.0.1', wc_lang_version='0.0.1')
+        filename = path.join(self.tempdir, 'model.xlsx')
+        Writer().run(filename, model, set_repo_metadata_from_path=False)
+
+        version = '0.0.2'
+        filename_2 = path.join(self.tempdir, 'model-2.xlsx')
+        with __main__.App(argv=['migrate', filename, version,
+                                '--ignore-repo-metadata', '--out-path', filename_2]) as app:
+            app.run()
+        model_2 = Reader().run(filename_2)[Model][0]
+        self.assertEqual(model_2.wc_lang_version, version)
+
+        version = '0.0.3'
+        with __main__.App(argv=['migrate', filename, version,
+                                '--ignore-repo-metadata']) as app:
+            app.run()
+        model_2 = Reader().run(filename)[Model][0]
+        self.assertEqual(model_2.wc_lang_version, version)
+
     def test_raw_cli(self):
         with mock.patch('sys.argv', ['wc_lang', '--help']):
             with self.assertRaises(SystemExit) as context:

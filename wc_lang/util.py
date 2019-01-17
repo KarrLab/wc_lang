@@ -8,6 +8,7 @@
 
 from obj_model import get_models as base_get_models
 from wc_lang import core
+from wc_lang import io
 from wc_utils.util import git
 
 
@@ -86,3 +87,21 @@ def gen_ids(model):
     for obj in model.get_related():
         if hasattr(obj, 'gen_id'):
             obj.id = obj.gen_id()
+
+
+def migrate(in_path, wc_lang_version, out_path=None, set_repo_metadata_from_path=True):
+    """ Migrate a model to another version of wc_lang
+
+    Args:
+        in_path (:obj:`str`): path to model
+        wc_lang_version (:obj:`str`): version to migrate to
+        out_path (:obj:`str`, optional): path to save migrated model; default: overwrite original model
+        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
+                branch, revision) for the model from the parent directory of :obj:`core_path`
+    """
+    if not out_path:
+        out_path = in_path
+
+    model = io.Reader().run(in_path)[core.Model][0]
+    model.wc_lang_version = wc_lang_version
+    io.Writer().run(out_path, model, set_repo_metadata_from_path=set_repo_metadata_from_path)

@@ -9,6 +9,7 @@
 from wc_lang import transform
 from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
+from wc_lang.util import migrate
 from wc_utils.workbook.io import read as read_workbook
 import cement
 import sys
@@ -241,6 +242,31 @@ class UpdateVersionMetadataController(cement.Controller):
         Writer().run(args.path, model, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
+class MigrateController(cement.Controller):
+    """ Migrate a model to another version of wc_lang """
+
+    class Meta:
+        label = 'migrate'
+        description = 'Migrate a model to another version of WC-Lang'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['in_path'], dict(type=str, help='Path to model to migrate')),
+            (['version'], dict(type=str, help=('WC-Lang version'))),
+            (['--out-path'], dict(type=str, help=('Path to save migrated model. '
+                                                  'Default: overwrite the original file'))),
+            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
+                                              help=('If set, do not set the Git repository metadata for the knowledge base from '
+                                                    'the parent directory of `path-core`'))),
+        ]
+
+    @cement.ex(hide=True)
+    def _default(self):
+        args = self.app.pargs
+        migrate(args.in_path, args.version, 
+            out_path=args.out_path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
+        
+
 class App(cement.App):
     """ Command line application """
     class Meta:
@@ -256,6 +282,7 @@ class App(cement.App):
             ConvertController,
             CreateTemplateController,
             UpdateVersionMetadataController,
+            MigrateController,
         ]
 
 
