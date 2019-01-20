@@ -610,7 +610,8 @@ class TestCore(unittest.TestCase):
         extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:extracellular_compartment'])
         cytosol = model.compartments.create(
             id='cytosol', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
+        nucleus = model.compartments.create(
+            id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
             id='nucleus_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
@@ -627,7 +628,8 @@ class TestCore(unittest.TestCase):
         extracellular = model.compartments.create(id='extracellular', biological_type=wcm_ontology['WCM:extracellular_compartment'])
         cytosol = model.compartments.create(
             id='cytosol', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=extracellular)
-        nucleus = model.compartments.create(id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
+        nucleus = model.compartments.create(
+            id='nucleus', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=cytosol)
         nucleus_dna = model.compartments.create(
             id='nucleus_dna', biological_type=wcm_ontology['WCM:cellular_compartment'], parent_compartment=nucleus)
         mitochondria = model.compartments.create(
@@ -699,6 +701,18 @@ class TestCore(unittest.TestCase):
 
     def test_species_gen_id(self):
         self.assertEqual(self.species[3].gen_id(), 'spec_type_3[comp_1]')
+
+    def test_species__gen_id(self):
+        self.assertEqual(Species._gen_id('spec_type_3', 'comp_1'), 'spec_type_3[comp_1]')
+
+    def test_species_parse_id(self):
+        self.assertEqual(Species.parse_id('spec_type_3[comp_1]'), ('spec_type_3', 'comp_1'))
+        with self.assertRaisesRegex(ValueError, ''):
+            Species.parse_id('123[comp_1]')
+        with self.assertRaisesRegex(ValueError, ''):
+            Species.parse_id('spec_type_3[123]')
+        with self.assertRaisesRegex(ValueError, ''):
+            Species.parse_id('spec_type_3')
 
     def test_species_get(self):
         self.assertEqual(Species.get([], self.species), [])

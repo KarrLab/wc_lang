@@ -449,7 +449,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             if part_errors:
                 errors += part_errors
             else:
-                species_id = Species.gen_id_static(species_type.id, compartment.id)
+                species_id = Species._gen_id(species_type.id, compartment.id)
                 species, error = Species.deserialize(species_id, objects)
                 if error:
                     errors.extend(error.messages)
@@ -2029,20 +2029,38 @@ class Species(obj_model.Model):
         Returns:
             :obj:`str`: identifier
         """
-        return self.gen_id_static(self.species_type.id, self.compartment.id)
+        return self._gen_id(self.species_type.id, self.compartment.id)
 
     @staticmethod
-    def gen_id_static(species_type_id, compartment_id):
+    def _gen_id(species_type_id, compartment_id):
         """ Generate identifier
 
         Args:
             species_type_id (:obj:`str`): species type id
-            compartment_id (:obj:`str`): species type id
+            compartment_id (:obj:`str`): compartment id
 
         Returns:
             :obj:`str`: identifier
         """
         return '{}[{}]'.format(species_type_id, compartment_id)
+
+    @classmethod
+    def parse_id(cls, id):
+        """
+        Args:
+            id (:obj:`str`): identifier
+
+        Returns:
+            :obj:`str`: species type id
+            :obj:`str`: compartment id
+        """
+        st = cls.species_type.related_class.id.pattern[1:-1]
+        comp = cls.compartment.related_class.id.pattern[1:-1]
+        match = re.match(r'^(' + st + ')\[(' + comp + ')\]$', id)
+        if not match:
+            raise ValueError('{} is not a valid id')
+
+        return (match.group(1), match.group(2))
 
     def validate(self):
         """ Check that the species is valid
@@ -2931,7 +2949,7 @@ class SpeciesCoefficient(obj_model.Model):
             coefficient = float(match.group(2) or 1.)
 
             if compartment:
-                species_id = Species.gen_id_static(match.group(5), compartment.get_primary_attribute())
+                species_id = Species._gen_id(match.group(5), compartment.get_primary_attribute())
             else:
                 species_id = match.group(5)
 
