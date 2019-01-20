@@ -3,7 +3,7 @@ downstream_dependencies:
   - intro_to_wc_modeling
   - mycoplasma_pneumoniae
   - rand_wc_model_gen
-  - wc
+  - wc_cli
   - wc_analysis
   - wc_model_gen
   - wc_sim
