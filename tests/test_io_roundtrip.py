@@ -15,11 +15,12 @@ import shutil
 import tempfile
 import unittest
 
-from wc_lang.core import (ReactionRateUnit, Model, SpeciesCoefficient, Expression, Species, Observable, Function,
-                          DistributionInitConcentration, ConcentrationUnit, RateLaw, RateLawDirection, RateLawExpression,
+from wc_lang.core import (Model, SpeciesCoefficient, Expression, Species, Observable, Function,
+                          DistributionInitConcentration, RateLaw, RateLawDirection, RateLawExpression,
                           Parameter)
 from wc_lang.io import Reader, Writer
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.units import unit_registry
 
 
 class RoundTripTestCase(unittest.TestCase):
@@ -32,7 +33,7 @@ class RoundTripTestCase(unittest.TestCase):
     def test_write_error(self):
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
-        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units='g l^-1')
+        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units=unit_registry.parse_units('g l^-1'))
         species_type_1 = model.species_types.create(
             id='species_type_1',
             empirical_formula=EmpiricalFormula('CHO'),
@@ -50,7 +51,7 @@ class RoundTripTestCase(unittest.TestCase):
         # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
         species_1.distribution_init_concentration = DistributionInitConcentration(
             model=model,
-            mean=1, units=ConcentrationUnit.M)
+            mean=1, units=unit_registry.parse_units('M'))
         species_1.distribution_init_concentration.id = species_1.distribution_init_concentration.gen_id()
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
@@ -63,10 +64,10 @@ class RoundTripTestCase(unittest.TestCase):
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.extend(rxn_species_coeffs)
         rl = rxn.rate_laws.create(direction=RateLawDirection.forward,
-                                  units=ReactionRateUnit['s^-1'],
+                                  units=unit_registry.parse_units('s^-1'),
                                   model=model)
         rl.id = rl.gen_id()
-        param_1 = model.parameters.create(id='param_1', value=1., units='s^-1')
+        param_1 = model.parameters.create(id='param_1', value=1., units=unit_registry.parse_units('s^-1'))
         rl.expression, error = RateLawExpression.deserialize('param_1', {Parameter: {'param_1': param_1}})
         self.assertEqual(error, None)
 
@@ -87,7 +88,7 @@ class RoundTripTestCase(unittest.TestCase):
         """
         model = Model(id='test_model', version='0.0.0')
         comp = model.compartments.create(id='compartment_1')
-        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units='g l^-1')
+        comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units=unit_registry.parse_units('g l^-1'))
         species_type_1 = model.species_types.create(
             id='species_type_1',
             empirical_formula=EmpiricalFormula('CHO'),
@@ -107,7 +108,7 @@ class RoundTripTestCase(unittest.TestCase):
         # create a DistributionInitConcentration so that Species are provided to ExpressionAttribute.deserialize()
         species_1.distribution_init_concentration = DistributionInitConcentration(
             model=model,
-            mean=1, units=ConcentrationUnit.M)
+            mean=1, units=unit_registry.parse_units('M'))
         species_1.distribution_init_concentration.id = species_1.distribution_init_concentration.gen_id()
         objects = {Species: {}}
         objects[Species][species_1.id] = species_1
@@ -115,8 +116,8 @@ class RoundTripTestCase(unittest.TestCase):
         objects = {Observable: {'observable_1': observable_1}}
         observable_2 = Expression.make_obj(model, Observable, 'observable_2', 'obs_1', objects)
 
-        param_1 = model.parameters.create(id='param_1', value=1., units='dimensionless')
-        param_2 = model.parameters.create(id='param_2', value=1., units='s^-1')
+        param_1 = model.parameters.create(id='param_1', value=1., units=unit_registry.parse_units('dimensionless'))
+        param_2 = model.parameters.create(id='param_2', value=1., units=unit_registry.parse_units('s^-1'))
         objects = {
             Parameter: {
                 'param_1': param_1,
@@ -124,6 +125,7 @@ class RoundTripTestCase(unittest.TestCase):
             },
         }
         func_1 = Expression.make_obj(model, Function, 'func_1', 'param_1', objects)
+        func_1.units = unit_registry.parse_units('dimensionless')
 
         rxn_species_coeffs = [
             species_1.species_coefficients.get_or_create(coefficient=-3.),
@@ -132,7 +134,7 @@ class RoundTripTestCase(unittest.TestCase):
         rxn = submdl.reactions.create(id='reaction_1', model=model)
         rxn.participants.extend(rxn_species_coeffs)
         rl = rxn.rate_laws.create(direction=RateLawDirection.forward,
-                                  units=ReactionRateUnit['s^-1'],
+                                  units=unit_registry.parse_units('s^-1'),
                                   model=model)
         rl.id = rl.gen_id()
         rl.expression, error = RateLawExpression.deserialize('param_2', objects)

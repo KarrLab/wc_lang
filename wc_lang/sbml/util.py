@@ -16,6 +16,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
                      SBMLNamespaces, SBMLDocument)
 from warnings import warn
 import libsbml
+import math
 import six
 import wc_lang.core
 
@@ -251,6 +252,7 @@ def init_sbml_model(sbml_document):
         :obj:`libsbml.model`: the SBML model
 
     Raises:
+        :obj:`ValueError`: if unit is not supported
         :obj:`LibSBMLError`: if calling `libsbml` raises an error
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
@@ -275,14 +277,32 @@ def init_sbml_model(sbml_document):
     wrap_libsbml(per_second.setIdAttribute, 'per_second')
     add_sbml_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
 
-    for unit_def, unit_def_meta in wc_lang.core.ConcentrationUnit.Meta.items():
+    unit_registry = wc_lang.core.DistributionInitConcentration.units.registry
+    molar = unit_registry.parse_expression('M')
+    molecule = unit_registry.parse_expression('molecule')
+    for unit in wc_lang.core.DistributionInitConcentration.units.choices:
         sbml_unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
-        wrap_libsbml(sbml_unit_def.setIdAttribute, unit_def_meta['xml_id'])
-        substance_unit = unit_def_meta['substance_units']
-        add_sbml_unit(sbml_unit_def,
-                      getattr(libsbml, 'UNIT_KIND_' + substance_unit['kind'].upper()),
-                      exponent=substance_unit['exponent'],
-                      scale=substance_unit['scale'])
+        wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
+
+        expr = unit_registry.parse_expression(str(unit))
+        rel_molar = (expr / molar).to_base_units()
+        rel_molecule = (expr / molecule).to_base_units()
+        if rel_molar.units == unit_registry.parse_units('dimensionless'):
+            scale = math.log10(rel_molar.magnitude)
+            assert int(scale) == scale
+            add_sbml_unit(sbml_unit_def,
+                          getattr(libsbml, 'UNIT_KIND_MOLE'),
+                          exponent=1.,
+                          scale=int(scale))
+        elif rel_molecule.units == unit_registry.parse_units('dimensionless'):            
+            scale = math.log10(rel_molecule.magnitude)
+            assert int(scale) == scale
+            add_sbml_unit(sbml_unit_def,
+                          getattr(libsbml, 'UNIT_KIND_ITEM'),
+                          exponent=1.,
+                          scale=int(scale))
+        else:
+            raise ValueError('Invalid unit {}'.format(str(unit))) # pragma: no cover # unreachable because all choices in above two cases
 
     mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')

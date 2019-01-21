@@ -14,6 +14,7 @@ from tempfile import mkdtemp
 from wc_lang import __main__
 from wc_lang import Model, Parameter
 from wc_lang.io import Writer, Reader
+from wc_utils.util.units import unit_registry
 import datetime
 import mock
 import unittest
@@ -81,8 +82,8 @@ class TestCli(unittest.TestCase):
 
     def test_validate_exception(self):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
-        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
-        model.parameters.append(Parameter(id='param_1', value=1., units='dimensionless'))
+        model.parameters.append(Parameter(id='param_1', value=1., units=unit_registry.parse_units('dimensionless')))
+        model.parameters.append(Parameter(id='param_1', value=1., units=unit_registry.parse_units('dimensionless')))
 
         self.assertNotEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')

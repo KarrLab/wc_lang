@@ -7,8 +7,9 @@
 """
 
 from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
-                     Reaction, RateLawDirection, RateLaw, RateLawExpression, ReactionFluxBoundUnit, Species)
+                     Reaction, RateLawDirection, RateLaw, RateLawExpression, Species)
 from wc_lang.transform import ChangeValueTransform
+from wc_utils.util.units import unit_registry
 import unittest
 
 
@@ -34,12 +35,12 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
     def test_parameter_units(self):
         model = Model()
-        p_1 = model.parameters.create(id='p_1', units='M')
-        p_2 = model.parameters.create(id='p_2', units='L')
-        ChangeValueTransform((('parameters', {'id': 'p_1'}), 'units'), 'm^2').run(model)
+        p_1 = model.parameters.create(id='p_1', units=unit_registry.parse_units('M'))
+        p_2 = model.parameters.create(id='p_2', units=unit_registry.parse_units('l'))
+        ChangeValueTransform((('parameters', {'id': 'p_1'}), 'units'), unit_registry.parse_units('m^2')).run(model)
 
-        self.assertEqual(p_1.units, 'm^2')
-        self.assertEqual(p_2.units, 'L')
+        self.assertEqual(p_1.units, unit_registry.parse_units('m^2'))
+        self.assertEqual(p_2.units, unit_registry.parse_units('l'))
 
     def test_parameter_value(self):
         model = Model()
@@ -69,10 +70,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
-        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
-        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
-        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_bound_units=unit_registry.parse_units('M s^-1'))
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_bound_units=unit_registry.parse_units('M s^-1'))
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_bound_units=unit_registry.parse_units('M s^-1'))
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_bound_units=unit_registry.parse_units('M s^-1'))
         ChangeValueTransform((('reactions', {'id': 'r_1_2'}), 'flux_min'), 0).run(model)
 
         self.assertEqual(r_1_1.flux_min, 1)
@@ -143,10 +144,10 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         st_2_c_1.id = st_2_c_1.gen_id()
         st_2_c_2.id = st_2_c_2.gen_id()
 
-        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(units='u')
-        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(units='v')
-        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(units='w')
-        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(units='x')
+        st_1_c_1.distribution_init_concentration = DistributionInitConcentration(units=unit_registry.parse_units('gram'))
+        st_1_c_2.distribution_init_concentration = DistributionInitConcentration(units=unit_registry.parse_units('hour'))
+        st_2_c_1.distribution_init_concentration = DistributionInitConcentration(units=unit_registry.parse_units('liter'))
+        st_2_c_2.distribution_init_concentration = DistributionInitConcentration(units=unit_registry.parse_units('second'))
         st_1_c_1.distribution_init_concentration.id = st_1_c_1.distribution_init_concentration.gen_id()
         st_1_c_2.distribution_init_concentration.id = st_1_c_2.distribution_init_concentration.gen_id()
         st_2_c_1.distribution_init_concentration.id = st_2_c_1.distribution_init_concentration.gen_id()
@@ -154,11 +155,11 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
         ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
                               'distribution_init_concentration',
-                              'units'), 'a').run(model)
-        self.assertEqual(st_1_c_1.distribution_init_concentration.units, 'a')
-        self.assertEqual(st_1_c_2.distribution_init_concentration.units, 'v')
-        self.assertEqual(st_2_c_1.distribution_init_concentration.units, 'w')
-        self.assertEqual(st_2_c_2.distribution_init_concentration.units, 'x')
+                              'units'), unit_registry.parse_units('meter')).run(model)
+        self.assertEqual(st_1_c_1.distribution_init_concentration.units, unit_registry.parse_units('meter'))
+        self.assertEqual(st_1_c_2.distribution_init_concentration.units, unit_registry.parse_units('hour'))
+        self.assertEqual(st_2_c_1.distribution_init_concentration.units, unit_registry.parse_units('liter'))
+        self.assertEqual(st_2_c_2.distribution_init_concentration.units, unit_registry.parse_units('second'))
 
     def test_species_concentration_value(self):
         model = Model()
@@ -242,3 +243,11 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
         self.assertNotEqual(t1, 1.)
         self.assertNotEqual(1., t1)
+
+        t1 = ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
+                                   'distribution_init_concentration',
+                                   'std'), 0)
+        t2 = ChangeValueTransform((('species', {'id': 'st_1[c_1]'}),
+                                   'distribution_init_concentration',
+                                   'mean'), 0)
+        self.assertNotEqual(t1, t2)

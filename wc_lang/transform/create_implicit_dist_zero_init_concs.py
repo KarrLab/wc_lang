@@ -8,7 +8,8 @@
 """
 
 from .core import Transform
-from wc_lang.core import DistributionInitConcentration, ConcentrationUnit
+from wc_lang.core import DistributionInitConcentration
+from wc_utils.util.units import unit_registry
 
 
 class CreateImplicitDistributionZeroInitConcentrationsTransform(Transform):
@@ -33,7 +34,7 @@ class CreateImplicitDistributionZeroInitConcentrationsTransform(Transform):
                 species.distribution_init_concentration = DistributionInitConcentration(
                     model=model,
                     species=species,
-                    mean=0.0, std=0.0, units=ConcentrationUnit.M)
+                    mean=0.0, std=0.0, units=unit_registry.parse_units('M'))
                 species.distribution_init_concentration.id = species.distribution_init_concentration.gen_id()
 
         return model

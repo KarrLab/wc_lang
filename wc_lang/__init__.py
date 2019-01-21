@@ -5,11 +5,7 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # :obj:`str`: version
 
 # API
-from .core import (Unit, TimeUnit, MassUnit, VolumeUnit, DensityUnit, MoleculeCountUnit, ConcentrationUnit,
-                   ReactionParticipantUnit, ReactionRateUnit, ReactionFluxBoundUnit, DfbaObjectiveUnit,
-                   DfbaCellSizeUnit, DfbaObjectiveCoefficientUnit, DfbaObjSpeciesUnit,
-
-                   RateLawDirection, TaxonRank,
+from .core import (RateLawDirection, TaxonRank,
 
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
@@ -17,7 +13,7 @@ from .core import (Unit, TimeUnit, MassUnit, VolumeUnit, DensityUnit, MoleculeCo
                    Function, FunctionExpression,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
-                   StopCondition, StopConditionExpression, StopConditionUnit,
+                   StopCondition, StopConditionExpression,
                    Evidence, Interpretation, DatabaseReference, Reference,
 
                    Validator)

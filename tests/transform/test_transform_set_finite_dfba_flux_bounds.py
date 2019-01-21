@@ -8,9 +8,10 @@
 """
 
 from test.support import EnvironmentVarGuard
-from wc_lang import Model, ReactionFluxBoundUnit
+from wc_lang import Model
 from wc_lang.transform.set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import mock
 import unittest
 
@@ -28,13 +29,13 @@ class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
         rxn_4 = model.reactions.create(submodel=submodel, reversible=False,
                                        flux_min=float('nan'), flux_max=float('nan'))
         rxn_5 = model.reactions.create(submodel=submodel, reversible=True,
-                                       flux_min=-1e3, flux_max=1e3, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+                                       flux_min=-1e3, flux_max=1e3, flux_bound_units=unit_registry.parse_units('M s^-1'))
         rxn_6 = model.reactions.create(submodel=submodel, reversible=False,
-                                       flux_min=-1e3, flux_max=1e3, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+                                       flux_min=-1e3, flux_max=1e3, flux_bound_units=unit_registry.parse_units('M s^-1'))
         rxn_7 = model.reactions.create(submodel=submodel, reversible=True,
-                                       flux_min=-1e1, flux_max=1e1, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+                                       flux_min=-1e1, flux_max=1e1, flux_bound_units=unit_registry.parse_units('M s^-1'))
         rxn_8 = model.reactions.create(submodel=submodel, reversible=False,
-                                       flux_min=-1e1, flux_max=1e1, flux_bound_units=ReactionFluxBoundUnit['M s^-1'])
+                                       flux_min=-1e1, flux_max=1e1, flux_bound_units=unit_registry.parse_units('M s^-1'))
 
         transform = SetFiniteDfbaFluxBoundsTransform()
         env = EnvironmentVarGuard()

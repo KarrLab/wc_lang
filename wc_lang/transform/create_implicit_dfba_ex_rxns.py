@@ -8,9 +8,9 @@
 """
 
 from .core import Transform
-from wc_lang.core import ReactionFluxBoundUnit
 import wc_lang.config.core
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import pronto
 
 
@@ -71,6 +71,6 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                         else:
                             rxn.flux_min = -ex_flux_bound_no_carbon
                             rxn.flux_max = ex_flux_bound_no_carbon
-                        rxn.flux_bound_units = ReactionFluxBoundUnit['M s^-1']
+                        rxn.flux_bound_units = unit_registry.parse_units('M s^-1')
 
         return model

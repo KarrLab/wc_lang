@@ -9,8 +9,8 @@
 
 from .core import Transform
 from math import isnan
-from wc_lang.core import ReactionFluxBoundUnit
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import pronto
 import wc_lang.config.core
 
@@ -73,5 +73,5 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
                     else:
                         rxn.flux_max = min(rxn.flux_max, flux_max)
 
-                    rxn.flux_bound_units = ReactionFluxBoundUnit['M s^-1']
+                    rxn.flux_bound_units = unit_registry.parse_units('M s^-1')
         return model
