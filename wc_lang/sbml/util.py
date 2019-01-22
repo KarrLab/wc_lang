@@ -17,6 +17,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
 from warnings import warn
 import libsbml
 import math
+import pint
 import six
 import wc_lang.core
 
@@ -285,24 +286,34 @@ def init_sbml_model(sbml_document):
         wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
 
         expr = unit_registry.parse_expression(str(unit))
-        rel_molar = (expr / molar).to_base_units()
-        rel_molecule = (expr / molecule).to_base_units()
-        if rel_molar.units == unit_registry.parse_units('dimensionless'):
-            scale = math.log10(rel_molar.magnitude)
+
+        try:
+            molar_units = unit_registry.parse_units('molar')
+            conversion = expr.to(molar_units)
+            scale = math.log10(conversion.magnitude)
             assert int(scale) == scale
             add_sbml_unit(sbml_unit_def,
                           getattr(libsbml, 'UNIT_KIND_MOLE'),
                           exponent=1.,
                           scale=int(scale))
-        elif rel_molecule.units == unit_registry.parse_units('dimensionless'):            
-            scale = math.log10(rel_molecule.magnitude)
+            continue
+        except pint.DimensionalityError:
+            pass
+
+        try:
+            molecule_units = unit_registry.parse_units('molecule')
+            conversion = expr.to(molecule_units)
+            scale = math.log10(conversion.magnitude)
             assert int(scale) == scale
             add_sbml_unit(sbml_unit_def,
                           getattr(libsbml, 'UNIT_KIND_ITEM'),
                           exponent=1.,
                           scale=int(scale))
-        else:
-            raise ValueError('Invalid unit {}'.format(str(unit))) # pragma: no cover # unreachable because all choices in above two cases
+            continue
+        except pint.DimensionalityError:
+            pass
+
+        raise ValueError('Invalid unit {}'.format(str(unit))) # pragma: no cover # unreachable because all choices in above two cases
 
     mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')

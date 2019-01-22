@@ -57,7 +57,7 @@ from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.ontology import wcm_ontology
-from wc_utils.util.units import unit_registry
+from wc_utils.util.units import unit_registry, are_units_equivalent
 import collections
 import datetime
 import networkx
@@ -1727,9 +1727,8 @@ class Compartment(obj_model.Model):
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
-            elif self.init_density.units is None or \
-                (unit_registry.parse_expression(str(self.init_density.units)).to_base_units() != \
-                unit_registry.parse_expression('g l^-1').to_base_units()):
+            elif not are_units_equivalent(self.init_density.units, unit_registry.parse_units('g l^-1'), 
+                check_same_magnitude=True):
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density of 3D compartment must have units `{}`'.format(
                                                 'g l^-1')]))
@@ -2364,8 +2363,7 @@ class Function(obj_model.Model):
                     calc_units = unit_registry.parse_units('dimensionless')
 
                 exp_units = self.units
-                if unit_registry.parse_expression(str(calc_units)).to_base_units() != \
-                    unit_registry.parse_expression(str(exp_units)).to_base_units():
+                if not are_units_equivalent(exp_units, calc_units, check_same_magnitude=True):
                     errors.append(InvalidAttribute(self.Meta.attributes['units'],
                                                    ['Units of "{}" should be "{}" not "{}"'.format(
                                                     self.expression.expression, str(exp_units), str(calc_units))]))
@@ -3026,8 +3024,7 @@ class RateLaw(obj_model.Model):
                     calc_units = unit_registry.parse_units('dimensionless')
 
                 exp_units = self.units
-                if unit_registry.parse_expression(str(calc_units)).to_base_units() != \
-                    unit_registry.parse_expression(str(exp_units)).to_base_units():
+                if not are_units_equivalent(exp_units, calc_units, check_same_magnitude=True):
                     errors.append(InvalidAttribute(self.Meta.attributes['units'],
                                                    ['Units of "{}" should be "{}" not "{}"'.format(
                                                     self.expression.expression, str(exp_units), str(calc_units))]))
@@ -3318,14 +3315,13 @@ class Parameter(obj_model.Model):
         if not self.units:
             raise ValueError('Units must be defined for parameter "{}"'.format(self.id))
 
-        units = unit_registry.parse_expression(str(self.units)).to_base_units()
-        if units == unit_registry.parse_expression('dimensionless').to_base_units():
+        if are_units_equivalent(self.units, unit_registry.parse_units('dimensionless'), check_same_magnitude=True):
             sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
                                                    name=self.name)
-        elif units == unit_registry.parse_expression('s').to_base_units():
+        elif are_units_equivalent(self.units, unit_registry.parse_units('s'), check_same_magnitude=True):
             sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'second',
                                                    name=self.name)
-        elif units == unit_registry.parse_expression('mmol/gDCW/hour').to_base_units():
+        elif are_units_equivalent(self.units, unit_registry.parse_units('mmol/gDCW/hour'), check_same_magnitude=True):
             sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
                                                    name=self.name)
         else:
