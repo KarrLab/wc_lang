@@ -285,6 +285,8 @@ def init_sbml_model(sbml_document):
         sbml_unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
         wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
 
+        if not isinstance(unit, unit_registry.Unit):
+            raise ValueError('Unsupported units "{}"'.format(unit)) # pragma: no cover # unreachable because all choices in above two cases
         expr = unit_registry.parse_expression(str(unit))
 
         try:
