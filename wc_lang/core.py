@@ -40,8 +40,8 @@ from natsort import natsorted, ns
 from obj_model import (BooleanAttribute, EnumAttribute,
                        FloatAttribute,
                        IntegerAttribute, PositiveIntegerAttribute,
-                       RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute, UrlAttribute,
-                       DateTimeAttribute,
+                       RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
+                       UrlAttribute, EmailAttribute, DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
                        InvalidObject, InvalidAttribute, TabularOrientation)
 from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
@@ -529,9 +529,6 @@ class Model(obj_model.Model):
         branch (:obj:`str`): branch of the model Git repository
         revision (:obj:`str`): revision of the model Git repository
         wc_lang_version (:obj:`str`): version of ``wc_lang``
-        author (:obj:`str`): author(s)
-        author_organization (:obj:`str`): author organization(s)
-        author_email (:obj:`str`): author emails(s)
         time_units (:obj:`unit_registry.Unit`): time units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         comments (:obj:`str`): comments
@@ -560,6 +557,8 @@ class Model(obj_model.Model):
         evidences (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         references (:obj:`list` of :obj:`Reference`): references
+        authors (:obj:`list` of :obj:`Author`): authors
+        changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -569,9 +568,6 @@ class Model(obj_model.Model):
     revision = StringAttribute()
     wc_lang_version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
                                      default=wc_lang_version, verbose_name='wc_lang version')
-    author = LongStringAttribute()
-    author_organization = LongStringAttribute()
-    author_email = LongStringAttribute()
     time_units = UnitAttribute(unit_registry,
                                choices=[unit_registry.parse_units('s')],
                                default=unit_registry.parse_units('s'))
@@ -584,7 +580,6 @@ class Model(obj_model.Model):
         attribute_order = ('id', 'name', 'version',
                            'url', 'branch', 'revision',
                            'wc_lang_version',
-                           'author', 'author_organization', 'author_email',
                            'time_units',
                            'db_refs', 'comments',
                            'created', 'updated')
@@ -939,6 +934,38 @@ class Model(obj_model.Model):
 
         return self.references.get(__type=__type, **kwargs)
 
+    def get_authors(self, __type=None, **kwargs):
+        """ Get all authors from model and children
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Author`: authors
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.authors.get(__type=__type, **kwargs)
+
+    def get_changes(self, __type=None, **kwargs):
+        """ Get all changes from model and children
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`Change`: changes
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.changes.get(__type=__type, **kwargs)
+
     def get_components(self, __type=None, **kwargs):
         """ Find model component of `type` with `id`
 
@@ -961,7 +988,7 @@ class Model(obj_model.Model):
                 'distribution_init_concentrations', 'observables', 'functions',
                 'dfba_objs', 'reactions', 'rate_laws', 'dfba_obj_reactions',
                 'stop_conditions', 'parameters', 'evidence', 'interpretations',
-                'references',
+                'references', 'authors', 'changes',
             ]
 
         components = []
@@ -1727,8 +1754,8 @@ class Compartment(obj_model.Model):
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
-            elif not are_units_equivalent(self.init_density.units, unit_registry.parse_units('g l^-1'), 
-                check_same_magnitude=True):
+            elif not are_units_equivalent(self.init_density.units, unit_registry.parse_units('g l^-1'),
+                                          check_same_magnitude=True):
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density of 3D compartment must have units `{}`'.format(
                                                 'g l^-1')]))
@@ -2351,7 +2378,7 @@ class Function(obj_model.Model):
             errors = []
 
         # check that units are valid
-        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:            
+        if self.expression and hasattr(self.expression, '_parsed_expression') and self.expression._parsed_expression:
             try:
                 calc = self.expression._parsed_expression.test_eval(with_units=True)
             except ParsedExpressionError as error:
@@ -3012,7 +3039,7 @@ class RateLaw(obj_model.Model):
 
         if self.expression \
                 and hasattr(self.expression, '_parsed_expression') \
-                and self.expression._parsed_expression:            
+                and self.expression._parsed_expression:
             try:
                 calc = self.expression._parsed_expression.test_eval(with_units=True)
             except ParsedExpressionError as error:
@@ -3378,6 +3405,7 @@ class Evidence(obj_model.Model):
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        changes (:obj:`list` of :obj:`Change`): change
         reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
             supports (e.g. averages supported by this and other evidence)
     """
@@ -3489,6 +3517,7 @@ class Interpretation(obj_model.Model):
         dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
+        changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3555,6 +3584,7 @@ class Reference(obj_model.Model):
         dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
+        changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3586,6 +3616,104 @@ class Reference(obj_model.Model):
                            'db_refs', 'comments')
 
 
+class Author(obj_model.Model):
+    """ An author of a model
+
+    Attributes:
+        id (:obj:`str`): unique identifier
+        name (:obj:`str`): full name
+        model (:obj:`Model`): model
+        last_name (:obj:`str`): last name(s)
+        first_name (:obj:`str`): first name(s)
+        middle_name (:obj:`str`): middle name(s)
+        title (:obj:`str`): title
+        organization (:obj:`str`): organization
+        email (:obj:`str`): email address
+        website (:obj:`str`): website
+        address (:obj:`str`): physical address
+        orcid (:obj:`str`): ORCID
+        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        comments (:obj:`str`): comments
+
+    Related attributes:
+        changes (:obj:`list` of :obj:`Change`): changes
+    """
+    id = SlugAttribute()
+    name = StringAttribute(min_length=1)
+    model = ManyToOneAttribute(Model, related_name='authors')
+    last_name = StringAttribute(min_length=1)
+    first_name = StringAttribute()
+    middle_name = StringAttribute(min_length=1)
+    title = LongStringAttribute()
+    organization = LongStringAttribute()
+    email = EmailAttribute()
+    website = UrlAttribute()
+    address = LongStringAttribute()
+    orcid = RegexAttribute(pattern=r'^\d{4}-\d{4}-\d{4}-(\d{3}X|\d{4})$', verbose_name='ORCID')
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='authors')
+    comments = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name',
+                           'last_name', 'first_name', 'middle_name',
+                           'title', 'organization',
+                           'email', 'website', 'address', 'orcid',
+                           'db_refs', 'comments')
+        frozen_columns = 2
+
+
+class Change(obj_model.Model):
+    """ A change to a model
+
+    Attributes:
+        id (:obj:`str`): unique identifier
+        name (:obj:`str`): full name
+        model (:obj:`Model`): model
+        type (:obj:`pronto.term.Term`): type
+        target (:obj:`str`): target
+        target_type (:obj:`pronto.term.Term`): target type
+        reason (:obj:`str`): reason
+        reason_type (:obj:`pronto.term.Term`): type of reason
+        intention (:obj:`str`): intention
+        intention_type (:obj:`pronto.term.Term`): type of intention
+        db_refs (::obj:`list` of :obj:`DatabaseReference`): database references
+        evidence (:obj:`list` of :obj:`Evidence`): evidence
+        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        comments (:obj:`str`): comments
+        references (:obj:`list` of :obj:`Reference`): references
+        authors (:obj:`list` of :obj:`Author`): authors
+        date (:obj:`datetime`): date
+    """
+    id = SlugAttribute()
+    name = StringAttribute(min_length=1)
+    model = ManyToOneAttribute(Model, related_name='changes')
+
+    type = OntologyAttribute(wcm_ontology, namespace='WCM',
+                             terms=wcm_ontology['WCM:change_provenance'].rchildren())
+    target = LongStringAttribute()
+    target_type = OntologyAttribute(wcm_ontology, namespace='WCM',
+                                    terms=wcm_ontology['WCM:target_provenance'].rchildren())
+    reason = LongStringAttribute()
+    reason_type = OntologyAttribute(wcm_ontology, namespace='WCM',
+                                    terms=wcm_ontology['WCM:reason_provenance'].rchildren())
+    intention = LongStringAttribute()
+    intention_type = OntologyAttribute(wcm_ontology, namespace='WCM',
+                                       terms=wcm_ontology['WCM:intention_provenance'].rchildren())
+    db_refs = DatabaseReferenceManyToManyAttribute(related_name='changes')
+    evidence = ManyToManyAttribute('Evidence', related_name='changes')
+    interpretations = ManyToManyAttribute('Interpretation', related_name='changes')
+    comments = LongStringAttribute()
+    references = ManyToManyAttribute('Reference', related_name='changes')
+    authors = ManyToManyAttribute('Author', related_name='changes')
+    date = DateTimeAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        attribute_order = ('id', 'name',
+                           'type', 'target', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
+                           'db_refs', 'evidence', 'interpretations', 'comments', 'references',
+                           'authors', 'date')
+
+
 class DatabaseReference(obj_model.Model):
     """ Reference to a source database entry
 
@@ -3614,6 +3742,8 @@ class DatabaseReference(obj_model.Model):
         stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         parameters (:obj:`list` of :obj:`Parameter`): parameters
         references (:obj:`list` of :obj:`Reference`): references
+        authors (:obj:`list` of :obj:`Author`): authors
+        changes (:obj:`list` of :obj:`Change`): changes
     """
 
     database = StringAttribute(min_length=1)

@@ -29,7 +29,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
                           DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
-                          Evidence, Interpretation,
+                          Evidence, Interpretation, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
@@ -222,6 +222,11 @@ class TestCore(unittest.TestCase):
 
             x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
             db_refs.append(x_ref)
+
+        mdl.authors.create(id='First_Last', name='First Last', last_name='Last', first_name='First')
+        mdl.authors.create(id='First_Middle_Last', name='First Middel Last', last_name='Last', first_name='First', middle_name='Middle')
+        mdl.changes.create(id='change_0')
+        mdl.changes.create(id='change_1')
 
     def test_default_wc_lang_version(self):
         model = Model()
@@ -426,6 +431,20 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(set(model.get_interpretations()), set())
         self.assertEqual(set(model.get_interpretations(__type=Interpretation)), set(model.interpretations))
         self.assertEqual(model.get_interpretations(__type=Model), [])
+
+    def test_model_get_authors(self):
+        model = self.model
+        self.assertEqual(set(model.get_authors()), set(model.authors))
+        self.assertNotEqual(set(model.get_authors()), set())
+        self.assertEqual(set(model.get_authors(__type=Author)), set(model.authors))
+        self.assertEqual(model.get_authors(__type=Model), [])
+
+    def test_model_get_changes(self):
+        model = self.model
+        self.assertEqual(set(model.get_changes()), set(model.changes))
+        self.assertNotEqual(set(model.get_changes()), set())
+        self.assertEqual(set(model.get_changes(__type=Change)), set(model.changes))
+        self.assertEqual(model.get_changes(__type=Model), [])
 
     def test_submodel_validate(self):
         submdl = Submodel(id='submodel')

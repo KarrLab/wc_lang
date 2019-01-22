@@ -14,7 +14,7 @@ from .core import (RateLawDirection, TaxonRank,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
-                   Evidence, Interpretation, DatabaseReference, Reference,
+                   Evidence, Interpretation, DatabaseReference, Reference, Author, Change,
 
                    Validator)
 from . import config
