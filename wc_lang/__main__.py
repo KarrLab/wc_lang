@@ -270,7 +270,7 @@ class MigrateController(cement.Controller):
 class App(cement.App):
     """ Command line application """
     class Meta:
-        label = 'wc_lang'
+        label = 'wc-lang'
         base_controller = 'base'
         handlers = [
             BaseController,
