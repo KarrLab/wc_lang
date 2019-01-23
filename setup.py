@@ -46,7 +46,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'wc_lang = wc_lang.__main__:main',
+            'wc-lang = wc_lang.__main__:main',
         ],
     },
 )
