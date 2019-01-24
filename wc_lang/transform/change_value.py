@@ -84,11 +84,12 @@ class ChangeValueTransform(Transform):
         """
         return json.loads(str)
 
-    def __eq__(self, other):
+    def __eq__(self, other, tol=0.):
         """ Compare two :obj:`ChangeValueTransform` objects
 
         Args:
             other (:obj:`Object`): other object
+            tol (:obj:`float`, optional): equality tolerance
 
         Returns:
             :obj:`bool`: true if :obj:`ChangeValueTransform` objects are semantically equal
@@ -100,7 +101,7 @@ class ChangeValueTransform(Transform):
             return False
 
         attr = Model.get_nested_attr(self.attr_path)
-        if not attr.value_equal(self.value, other.value):
+        if not attr.value_equal(self.value, other.value, tol=tol):
             return False
 
         return True
