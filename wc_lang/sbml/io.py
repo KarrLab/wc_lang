@@ -79,7 +79,7 @@ references              notes, as a Python dict
 #           pass
 
 
-class Writer(object):
+class SbmlWriter(object):
     """ Write an SBML representation of a model  """
 
     @classmethod
@@ -111,29 +111,50 @@ class Writer(object):
     @classmethod
     def run_submodel(cls, submodel, out_dir):
         out_file = os.path.join(out_dir, submodel.id + '.xml')
-        sbml_doc = cls.convert_submodel(submodel)
+        sbml_doc = SbmlConverter.run_submodel(submodel)
         if not libsbml.writeSBMLToFile(sbml_doc, out_file):
             raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
                 submodel.id, out_file))
         return out_file
 
+
+class SbmlConverter(object):
+    """ Convert `wc_lang` model to/from a libSBML SBML representation """
+
     @classmethod
-    def convert(cls, model):
+    def run(cls, model):
         sbml_docs = {}
         for submodel in model.submodels:
             if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
                 continue
-            sbml_doc = cls.convert_submodel(submodel)
+            sbml_doc = cls.run_submodel(submodel)
             sbml_docs[submodel] = sbml_doc
         return sbml_docs
 
     @classmethod
-    def convert_submodel(cls, submodel):
-        objects = [submodel] + \
-            submodel.get_compartments() + \
-            submodel.get_species() + \
-            submodel.get_parameters() + \
-            submodel.reactions
+    def run_submodel(cls, submodel):
+        """ Create a libSBML `SBMLDocument` containing `submodel`.
+
+        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
+        submodels export one `wc_lang.Submodel` into one libSBML model.
+
+        Args:
+            submodel (:obj:`Submodel`): a submodel
+
+        Returns:
+            :obj:`libsbml.SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
+
+        Raises:
+            :obj:`ValueError`: if the SBMLDocument cannot be created
+        """
+        objects = [submodel] \
+            + submodel.get_compartments() \
+            + submodel.get_species() \
+            + submodel.get_parameters() \
+            + submodel.reactions
+        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            objects.append(submodel.dfba_obj)
+            objects.extend(submodel.dfba_obj_reactions)
 
         # DistributionInitConcentration
         # observables
@@ -142,14 +163,7 @@ class Writer(object):
         #core.Taxon, core.Environment,
         #core.Evidence, core.Interpretation, core.Reference, core.Author, core.Change,
 
-        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-            objects.append(submodel.dfba_obj)
-            objects.extend(submodel.dfba_obj_reactions)
-        return SbmlExchange.write(objects)
-
-
-class SbmlExchange(object):
-    """ Exchange `wc_lang` model to/from a libSBML SBML representation """
+        return cls.write(objects)
 
     @staticmethod
     def write(objects):
@@ -220,33 +234,6 @@ class SbmlExchange(object):
                     obj.add_to_sbml_doc(sbml_document)
 
         return sbml_document
-
-    @staticmethod
-    def write_submodel(submodel):
-        """ Create a libSBML `SBMLDocument` containing `submodel`.
-
-        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
-        submodels export one `wc_lang.Submodel` into one libSBML model.
-
-        Args:
-            submodel (:obj:`Submodel`): a submodel
-
-        Returns:
-            :obj:`libsbml.SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
-
-        Raises:
-            :obj:`ValueError`: if the SBMLDocument cannot be created
-        """
-        objects = [submodel] + \
-            submodel.model.get_compartments() + \
-            submodel.get_species() + \
-            submodel.reactions + \
-            submodel.dfba_obj_reactions + \
-            submodel.model.get_parameters()
-        if submodel.dfba_obj:
-            objects.append(submodel.dfba_obj)
-
-        return SbmlExchange.write(objects)
 
 #       @staticmethod
 #       def read(document):

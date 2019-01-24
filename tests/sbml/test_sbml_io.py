@@ -144,31 +144,31 @@ class TestSbml(unittest.TestCase):
             print(sbml_doc.getError(i).getMessage())
         self.assertEqual(wrap_libsbml(sbml_doc.getNumErrors, returns_int=True), 0)
 
-    def test_SBML_Exchange(self):
+    def test_SbmlConverter(self):
         for submodel in self.model.get_submodels():
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-                sbml_document = sbml_io.SbmlExchange.write_submodel(submodel)
+                sbml_document = sbml_io.SbmlConverter.run_submodel(submodel)
 
                 self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(sbml_document),
                                               returns_int=True), 0)
                 self.check_sbml_doc(sbml_document)
                 check_document_against_model(sbml_document, self.model, self)
 
-    def test_SBML_Exchange_warning(self):
+    def test_SbmlConverter_warning(self):
         model = Model(id='model')
-        met_submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        model.parameters.append(Parameter(id='param_1'))
-        model.parameters.append(Parameter(id='param_1'))
+        submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+        model.reactions.create(id='rxn_1', submodel=submodel)
+        model.reactions.create(id='rxn_1', submodel=submodel)
 
         with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")
             warnings.simplefilter("error", UserWarning)
-            sbml_document = sbml_io.SbmlExchange.write_submodel(met_submodel)
+            sbml_document = sbml_io.SbmlConverter.run_submodel(submodel)
             warnings.resetwarnings()
 
     def test_writer(self):
-        sbml_docs = sbml_io.Writer.convert(self.model)
-        paths = sbml_io.Writer.run(self.model, self.dirname)
+        sbml_docs = sbml_io.SbmlConverter.run(self.model)
+        paths = sbml_io.SbmlWriter.run(self.model, self.dirname)
 
         for submodel, sbml_doc in sbml_docs.items():
             sbml_doc_2 = libsbml.SBMLReader().readSBML(paths[submodel])
@@ -180,4 +180,4 @@ class TestSbml(unittest.TestCase):
     def test_writer_errors(self):
         with mock.patch('libsbml.writeSBMLToFile', return_value=False):
             with self.assertRaisesRegex(ValueError, ' could not be written to '):
-                sbml_io.Writer.run(self.model, self.dirname)
+                sbml_io.SbmlWriter.run(self.model, self.dirname)
