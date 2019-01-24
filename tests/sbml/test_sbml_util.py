@@ -18,9 +18,9 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
                      UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_AMPERE,
                      UNIT_KIND_AVOGADRO)
 
-from wc_lang.sbml.util import (wrap_libsbml, LibSBMLError, create_sbml_doc_w_fbc, add_sbml_unit,
+from wc_lang.sbml.util import (wrap_libsbml, LibSbmlError, create_sbml_doc_w_fbc, add_sbml_unit,
                                create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, FBC_VERSION,
-                               get_SBML_compatibility_method)
+                               get_sbml_compatibility_method)
 
 
 class TestSbml(unittest.TestCase):
@@ -55,17 +55,17 @@ class TestSbml(unittest.TestCase):
         self.assertEqual(
             wrap_libsbml(self.document.getNumErrors, returns_int=True), 0)
 
-        with self.assertRaises(LibSBMLError) as context:
+        with self.assertRaises(LibSbmlError) as context:
             wrap_libsbml(self.document.getNumErrors, 'no arg')
         self.assertIn('Error', str(context.exception))
         self.assertIn("in libSBML method call", str(context.exception))
 
-        with self.assertRaises(LibSBMLError) as context:
+        with self.assertRaises(LibSbmlError) as context:
             wrap_libsbml(self.document.setIdAttribute, '..')
         self.assertIn('LibSBML returned error code', str(context.exception))
         self.assertIn("when executing", str(context.exception))
 
-        with self.assertRaises(LibSBMLError) as context:
+        with self.assertRaises(LibSbmlError) as context:
             wrap_libsbml(self.document.getAnnotation)
         self.assertIn('libSBML returned None when executing', str(context.exception))
 
@@ -116,7 +116,7 @@ class TestSbml(unittest.TestCase):
         # raises warning in case the libsbml call returns an int value
         strange_unit = wrap_libsbml(sbml_model.createUnitDefinition)
         unit = wrap_libsbml(strange_unit.createUnit)
-        with self.assertRaises(LibSBMLError) as context:
+        with self.assertRaises(LibSbmlError) as context:
             unit_kind = -1
             wrap_libsbml(unit.setKind, unit_kind)
         self.assertIn("WARNING: if this libSBML call returns an int value, then this error may be incorrect",
@@ -127,7 +127,7 @@ class TestSbml(unittest.TestCase):
 
         # check the SBML document
         self.assertEqual(wrap_libsbml(self.document.checkConsistency, returns_int=True), 0)
-        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(self.document), returns_int=True), 0)
+        self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(self.document), returns_int=True), 0)
 
         # check mmol_per_gDW_per_hr
         mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.getUnitDefinition, 'mmol_per_gDW_per_hr')
@@ -185,7 +185,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.assertEqual(wrap_libsbml(unit.getScale, returns_int=True), scale)
         self.assertEqual(wrap_libsbml(unit.getMultiplier), mult)
 
-        with self.assertRaises(LibSBMLError) as context:
+        with self.assertRaises(LibSbmlError) as context:
             unit = add_sbml_unit(strange_unit, -1)
         self.assertIn("LibSBML returned error code", str(context.exception))
 

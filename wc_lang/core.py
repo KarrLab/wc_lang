@@ -51,7 +51,7 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
 from six import with_metaclass
-from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSBMLError,
+from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSbmlError,
                                create_sbml_parameter)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
@@ -1488,7 +1488,7 @@ class Submodel(obj_model.Model):
             :obj:`libsbml.model`: the libsbml model
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
         wrap_libsbml(sbml_model.setIdAttribute, self.id)
@@ -1687,7 +1687,7 @@ class DfbaObjective(obj_model.Model):
             :obj:`libsbml.Objective`: the libsbml Objective that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         # issue warning if objective function not linear
         if not self.expression._parsed_expression.is_linear:
@@ -1904,7 +1904,7 @@ class Compartment(obj_model.Model):
             :obj:`libsbml.compartment`: the libsbml compartment that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
         sbml_compartment = wrap_libsbml(sbml_model.createCompartment)
@@ -2142,7 +2142,7 @@ class Species(obj_model.Model):
             :obj:`libsbml.species`: the libsbml species that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
         sbml_species = wrap_libsbml(sbml_model.createSpecies)
@@ -2836,7 +2836,7 @@ class Reaction(obj_model.Model):
             :obj:`libsbml.reaction`: the libsbml reaction that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
 
@@ -3331,7 +3331,7 @@ class DfbaObjReaction(obj_model.Model):
             :obj:`libsbml.reaction`: the libsbml reaction that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)
 
@@ -3430,7 +3430,7 @@ class Parameter(obj_model.Model):
             :obj:`libsbml.Parameter`: the libsbml Parameter that's created
 
         Raises:
-            :obj:`LibSBMLError`: if calling `libsbml` raises an error
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
             :obj:`ValueError`: if units are undefined
         """
         sbml_model = wrap_libsbml(sbml_document.getModel)

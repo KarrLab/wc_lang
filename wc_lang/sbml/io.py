@@ -145,10 +145,10 @@ class Writer(object):
         if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
             objects.append(submodel.dfba_obj)
             objects.extend(submodel.dfba_obj_reactions)
-        return SBMLExchange.write(objects)
+        return SbmlExchange.write(objects)
 
 
-class SBMLExchange(object):
+class SbmlExchange(object):
     """ Exchange `wc_lang` model to/from a libSBML SBML representation """
 
     @staticmethod
@@ -170,7 +170,7 @@ class SBMLExchange(object):
             :obj:`SBMLDocument`: an SBMLDocument containing `objects`
 
         Raises:
-            :obj:`LibSBMLError`: if the SBMLDocument cannot be created
+            :obj:`LibSbmlError`: if the SBMLDocument cannot be created
         """
         # Create an empty SBMLDocument object.
         sbml_document = create_sbml_doc_w_fbc()
@@ -246,7 +246,7 @@ class SBMLExchange(object):
         if submodel.dfba_obj:
             objects.append(submodel.dfba_obj)
 
-        return SBMLExchange.write(objects)
+        return SbmlExchange.write(objects)
 
 #       @staticmethod
 #       def read(document):

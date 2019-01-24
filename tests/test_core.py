@@ -34,7 +34,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
 from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
-                               create_sbml_doc_w_fbc, get_SBML_compatibility_method)
+                               create_sbml_doc_w_fbc, get_sbml_compatibility_method)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
@@ -2104,7 +2104,7 @@ class TestCore(unittest.TestCase):
                 self.fail("reaction {} unexpected".format(wrap_libsbml(flux_objective.getReaction)))
 
         # Check the SBML document
-        self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(document)), 0)
+        self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(document)), 0)
         for i in range(document.checkConsistency()):
             print(document.getError(i).getShortMessage())
             print(document.getError(i).getMessage())

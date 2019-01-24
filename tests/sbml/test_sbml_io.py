@@ -27,7 +27,7 @@ from wc_lang import (Model, DfbaObjective,
 from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
 from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
-from wc_lang.sbml.util import wrap_libsbml, get_SBML_compatibility_method
+from wc_lang.sbml.util import wrap_libsbml, get_sbml_compatibility_method
 from wc_lang.io import Reader
 from wc_utils.util.ontology import wcm_ontology
 import wc_lang.sbml.io as sbml_io
@@ -147,9 +147,9 @@ class TestSbml(unittest.TestCase):
     def test_SBML_Exchange(self):
         for submodel in self.model.get_submodels():
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-                sbml_document = sbml_io.SBMLExchange.write_submodel(submodel)
+                sbml_document = sbml_io.SbmlExchange.write_submodel(submodel)
 
-                self.assertEqual(wrap_libsbml(get_SBML_compatibility_method(sbml_document),
+                self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(sbml_document),
                                               returns_int=True), 0)
                 self.check_sbml_doc(sbml_document)
                 check_document_against_model(sbml_document, self.model, self)
@@ -163,7 +163,7 @@ class TestSbml(unittest.TestCase):
         with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")
             warnings.simplefilter("error", UserWarning)
-            sbml_document = sbml_io.SBMLExchange.write_submodel(met_submodel)
+            sbml_document = sbml_io.SbmlExchange.write_submodel(met_submodel)
             warnings.resetwarnings()
 
     def test_writer(self):

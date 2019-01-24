@@ -32,7 +32,7 @@ FBC_VERSION = 2
 # SBML compatibility method for the version being used
 
 
-def get_SBML_compatibility_method(sbml_document):
+def get_sbml_compatibility_method(sbml_document):
     return sbml_document.checkL3v1Compatibility
 
 
@@ -42,7 +42,7 @@ class Error(Exception):
     pass
 
 
-class LibSBMLError(Error):
+class LibSbmlError(Error):
     '''Exception raised when libSBML returns an error
     '''
 
@@ -55,7 +55,7 @@ class LibSBMLError(Error):
         return self.msg
 
 
-class LibSBMLInterface(object):
+class LibSbmlInterface(object):
     '''Methods that compactly use libSBML to create SBML objects.
 
     The libSBML method calls provide horribly narrow interfaces, typically exchanging one
@@ -71,7 +71,7 @@ class LibSBMLInterface(object):
             :obj:`libsbml.Unit`: the new SBML Document
 
         Raises:
-            :obj:`LibSBMLError`: if a libSBML calls fails
+            :obj:`LibSbmlError`: if a libSBML calls fails
         """
         sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', FBC_VERSION)
         sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
@@ -98,7 +98,7 @@ class LibSBMLInterface(object):
             :obj:`libsbml.Unit`: the new SBML Unit
 
         Raises:
-            :obj:`LibSBMLError`: if a libSBML calls fails
+            :obj:`LibSbmlError`: if a libSBML calls fails
         """
         unit = wrap_libsbml(unit_definition.createUnit)
         wrap_libsbml(unit.setKind, unit_kind)
@@ -127,13 +127,13 @@ class LibSBMLInterface(object):
             :obj:`libsbml.Parameter`: the new SBML Parameter
 
         Raises:
-            :obj:`LibSBMLError`: if a libSBML calls fails
+            :obj:`LibSbmlError`: if a libSBML calls fails
             :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
         try:
             wrap_libsbml(sbml_model.getParameter, id)
             raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
-        except LibSBMLError as e:
+        except LibSbmlError as e:
             sbml_parameter = wrap_libsbml(sbml_model.createParameter)
             wrap_libsbml(sbml_parameter.setIdAttribute, id)
             if not name is None:
@@ -146,9 +146,9 @@ class LibSBMLInterface(object):
             return sbml_parameter
 
 
-create_sbml_doc_w_fbc = LibSBMLInterface._create_sbml_doc_w_fbc
-add_sbml_unit = LibSBMLInterface._add_sbml_unit
-create_sbml_parameter = LibSBMLInterface._create_sbml_parameter
+create_sbml_doc_w_fbc = LibSbmlInterface._create_sbml_doc_w_fbc
+add_sbml_unit = LibSbmlInterface._add_sbml_unit
+create_sbml_parameter = LibSbmlInterface._create_sbml_parameter
 
 
 def wrap_libsbml(method, *args, **kwargs):
@@ -175,7 +175,7 @@ def wrap_libsbml(method, *args, **kwargs):
         value, or the `libsbml` success return code, `LIBSBML_OPERATION_SUCCESS`
 
     Raises:
-        :obj:`LibSBMLError`: if the `libsbml` call raises an exception, or returns None, or
+        :obj:`LibSbmlError`: if the `libsbml` call raises an exception, or returns None, or
         returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
     """
     # process kwargs
@@ -209,9 +209,9 @@ def wrap_libsbml(method, *args, **kwargs):
     try:
         rc = method(*tuple(new_args))
     except BaseException as error:
-        raise LibSBMLError("Error '{}' in libSBML method call '{}'.".format(error, call_str))
+        raise LibSbmlError("Error '{}' in libSBML method call '{}'.".format(error, call_str))
     if rc == None:
-        raise LibSBMLError("libSBML returned None when executing '{}'.".format(call_str))
+        raise LibSbmlError("libSBML returned None when executing '{}'.".format(call_str))
     elif type(rc) is int:
         # if `method` returns an int value, do not interpret rc as an error code
         if returns_int:
@@ -233,7 +233,7 @@ def wrap_libsbml(method, *args, **kwargs):
                      "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str))
                 return rc
             else:
-                raise LibSBMLError("LibSBML returned error code '{}' when executing '{}'."
+                raise LibSbmlError("LibSBML returned error code '{}' when executing '{}'."
                                    "\nWARNING: if this libSBML call returns an int value, then this error may be "
                                    "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
                                        error_code, call_str))
@@ -255,7 +255,7 @@ def init_sbml_model(sbml_document):
 
     Raises:
         :obj:`ValueError`: if unit is not supported
-        :obj:`LibSBMLError`: if calling `libsbml` raises an error
+        :obj:`LibSbmlError`: if calling `libsbml` raises an error
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
     sbml_model = wrap_libsbml(sbml_document.createModel)
