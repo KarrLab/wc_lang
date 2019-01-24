@@ -5,20 +5,19 @@ Representations include
 * Strings
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-09-22
-:Copyright: 2017, Karr Lab
+:Author: Jonathan Karr <karr@mssm.edu>
+:Date: 2019-01-24
+:Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
 
+from obj_model import Validator
+from six import iteritems
+from wc_lang.sbml.util import init_sbml_model, create_sbml_doc_w_fbc
+from wc_utils.util.ontology import wcm_ontology
 import libsbml
 import os
 import warnings
-from os.path import split, join
-from six import iteritems
-
-from obj_model import Validator
-from wc_lang.sbml.util import (init_sbml_model, create_sbml_doc_w_fbc)
-from wc_utils.util.ontology import wcm_ontology
 import wc_lang
 
 '''
@@ -83,58 +82,70 @@ references              notes, as a Python dict
 class Writer(object):
     """ Write an SBML representation of a model  """
 
-    @staticmethod
-    def run(model, frameworks=None, path=None):
-        """ Write the `model`'s submodels in SBML.
+    @classmethod
+    def run(cls, model, out_dir):
+        """ Write the submodels of a model to separate SBML-encoded XML files.
 
-        Each `Submodel` in `Model` `model` whose framework is in `frameworks`
-        is converted into a separate SBML document.
-        If `path` is None, then the SBML is returned in string(s), otherwise it's written to file(s)
-        which are named `path + submodel.id + suffix`.
+        Each :obj:`Submodel` in :obj:`Model` :obj:`model` is converted to a separate SBML document
+        and saved to a separate XML file.
 
         Args:
             model (:obj:`Model`): a `Model`
-            frameworks (:obj:`list`, optional): list of `Submodel.framework` attributes, defaulting
-                to `[wcm_ontology['WCM:dynamic_flux_balance_analysis']]`
-            path (:obj:`str`, optional): prefix of path of SBML file(s) to write
+            out_dir (:obj:`str`): path to directory to save SBML file(s)
 
         Returns:
-            :obj:`dict` of `str`:
-                if `path` is None, a dictionary SBML documents as strings, indexed by submodel ids,
-                otherwise a list of SBML file(s) created
+            :obj:`dict`: dictionary that maps submodels to the paths where they are exported
         """
-        if frameworks is None:
-            frameworks = [wcm_ontology['WCM:dynamic_flux_balance_analysis']]
-        sbml_documents = {}
-        for submodel in model.get_submodels():
-            if submodel.framework in frameworks:
-                objects = [submodel] + \
-                    submodel.dfba_obj_reactions + \
-                    model.get_compartments() + \
-                    submodel.get_species() + \
-                    submodel.get_parameters() + \
-                    submodel.reactions
-                if submodel.dfba_obj:
-                    objects.append(submodel.dfba_obj)
-                sbml_documents[submodel.id] = SBMLExchange.write(objects)
-        if not sbml_documents:
-            raise ValueError("No submodel.framework in frameworks '{}'.".format(frameworks))
-        if path is None:
-            return sbml_documents
-        else:
-            ext = '.sbml'
-            (dirname, basename) = split(path)
-            files = []
-            if not os.access(dirname, os.W_OK):
-                raise ValueError("Writer.run() cannot write to directory '{}'.".format(dirname))
-            for id, sbml_doc in iteritems(sbml_documents):
-                dest = join(dirname, basename + '-' + id + ext)
-                dest = str(dest)
-                files.append(dest)
-                if not libsbml.writeSBMLToFile(sbml_doc, dest):
-                    raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
-                        id, dest))
-            return files
+        # create a directory to save SBML-encoded XML documents for each submodel
+        if not os.path.isdir(out_dir):
+            os.mkdirs(out_dir)
+
+        # save submodels to SBML-encoded XML files
+        sbml_paths = {}
+        for submodel in model.submodels:
+            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
+                continue
+            sbml_paths[submodel] = cls.run_submodel(submodel, out_dir)
+        return sbml_paths
+
+    @classmethod
+    def run_submodel(cls, submodel, out_dir):
+        out_file = os.path.join(out_dir, submodel.id + '.xml')
+        sbml_doc = cls.convert_submodel(submodel)
+        if not libsbml.writeSBMLToFile(sbml_doc, out_file):
+            raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
+                submodel.id, out_file))
+        return out_file
+
+    @classmethod
+    def convert(cls, model):
+        sbml_docs = {}
+        for submodel in model.submodels:
+            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
+                continue
+            sbml_doc = cls.convert_submodel(submodel)
+            sbml_docs[submodel] = sbml_doc
+        return sbml_docs
+
+    @classmethod
+    def convert_submodel(cls, submodel):
+        objects = [submodel] + \
+            submodel.get_compartments() + \
+            submodel.get_species() + \
+            submodel.get_parameters() + \
+            submodel.reactions
+
+        # DistributionInitConcentration
+        # observables
+        # functions
+
+        #core.Taxon, core.Environment,
+        #core.Evidence, core.Interpretation, core.Reference, core.Author, core.Change,
+
+        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            objects.append(submodel.dfba_obj)
+            objects.extend(submodel.dfba_obj_reactions)
+        return SBMLExchange.write(objects)
 
 
 class SBMLExchange(object):

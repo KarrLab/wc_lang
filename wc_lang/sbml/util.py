@@ -1,4 +1,4 @@
-""" Utilities for writing a `wc_lang` model to SBML
+""" Utilities for writing/reading a `wc_lang` model to/from SBML
 
 Includes
 
@@ -7,8 +7,9 @@ Includes
 * Utilities for wrapping libSBML calls and initializing libSBML models
 
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-11-01
-:Copyright: 2017, Karr Lab
+:Author: Jonathan Karr <karr@mssm.edu>
+:Date: 2019-01-24
+:Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
 

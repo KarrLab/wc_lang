@@ -6,11 +6,8 @@
 :License: MIT
 """
 
-from math import isnan
-from six import iteritems
 import mock
 import os
-import pronto
 import shutil
 import tempfile
 import unittest
@@ -170,30 +167,17 @@ class TestSbml(unittest.TestCase):
             warnings.resetwarnings()
 
     def test_writer(self):
-        for frameworks in [None, [wcm_ontology['WCM:dynamic_flux_balance_analysis']]]:
-            sbml_documents = sbml_io.Writer.run(self.model, frameworks=frameworks)
-            try:
-                paths = sbml_io.Writer.run(self.model, frameworks=frameworks, path=self.dirname)
-            except Exception as e:
-                self.fail("Unexpected sbml_io.Writer.run() exception '{}'".format(e))
-            for submodel_id, path in zip(sbml_documents.keys(), paths):
+        sbml_docs = sbml_io.Writer.convert(self.model)
+        paths = sbml_io.Writer.run(self.model, self.dirname)
 
-                document = libsbml.SBMLReader().readSBML(path)
-                self.check_sbml_doc(document)
+        for submodel, sbml_doc in sbml_docs.items():
+            sbml_doc_2 = libsbml.SBMLReader().readSBML(paths[submodel])
+            self.check_sbml_doc(sbml_doc_2)
 
-                self.assertEqual(document.toSBML(), sbml_documents[submodel_id].toSBML())
-                check_document_against_model(document, self.model, self)
+            self.assertEqual(sbml_doc_2.toSBML(), sbml_doc.toSBML())
+            check_document_against_model(sbml_doc_2, self.model, self)
 
     def test_writer_errors(self):
-        root_path = os.path.join(os.path.dirname(__file__), 'no_such_dir', 'example-model')
-        with self.assertRaises(ValueError) as context:
-            sbml_io.Writer.run(self.model, path=root_path)
-        self.assertIn('cannot write to directory', str(context.exception))
-        self.assertIn('no_such_dir', str(context.exception))
-
-        with self.assertRaisesRegex(ValueError, 'No submodel.framework in frameworks'):
-            sbml_io.Writer.run(self.model, frameworks=[])
-
         with mock.patch('libsbml.writeSBMLToFile', return_value=False):
             with self.assertRaisesRegex(ValueError, ' could not be written to '):
-                sbml_io.Writer.run(self.model, path=self.dirname)
+                sbml_io.Writer.run(self.model, self.dirname)
