@@ -55,7 +55,7 @@ references              notes, as a Python dict
 #   class Reader(object):
 #       """ Read model objects from an SBML representation """
 #
-#       @staticmethod
+#       @classmethod
 #       def run(self, objects, models, path=None, get_related=True,
 #           title=None, description=None, keywords=None, version=None,
 #           language=None, creator=None):
@@ -133,40 +133,6 @@ class SbmlConverter(object):
 
     @classmethod
     def run_submodel(cls, submodel):
-        """ Create a libSBML `SBMLDocument` containing `submodel`.
-
-        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
-        submodels export one `wc_lang.Submodel` into one libSBML model.
-
-        Args:
-            submodel (:obj:`Submodel`): a submodel
-
-        Returns:
-            :obj:`libsbml.SBMLDocument`: an SBMLDocument containing `submodel` as a libSBML model
-
-        Raises:
-            :obj:`ValueError`: if the SBMLDocument cannot be created
-        """
-        objects = [submodel] \
-            + submodel.get_compartments() \
-            + submodel.get_species() \
-            + submodel.get_parameters() \
-            + submodel.reactions
-        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-            objects.append(submodel.dfba_obj)
-            objects.extend(submodel.dfba_obj_reactions)
-
-        # DistributionInitConcentration
-        # observables
-        # functions
-
-        #core.Taxon, core.Environment,
-        #core.Evidence, core.Interpretation, core.Reference, core.Author, core.Change,
-
-        return cls.write(objects)
-
-    @staticmethod
-    def write(objects):
         """ Write the `wc_lang` model described by `objects` to a libSBML `SBMLDocument`.
 
         Warning: `wc_lang` and SBML semantics are not equivalent.
@@ -177,14 +143,8 @@ class SbmlConverter(object):
             * group objects by model class
             * add objects to the SBML document in dependent order
 
-        Args:
-            objects (:obj:`list`): list of objects
-
         Returns:
             :obj:`SBMLDocument`: an SBMLDocument containing `objects`
-
-        Raises:
-            :obj:`LibSbmlError`: if the SBMLDocument cannot be created
         """
         # Create an empty SBMLDocument object.
         sbml_document = create_sbml_doc_w_fbc()
@@ -192,10 +152,7 @@ class SbmlConverter(object):
         # Create the SBML Model object inside the SBMLDocument object.
         sbml_model = init_sbml_model(sbml_document)
 
-        error = Validator().run(objects)
-        if error:
-            warnings.warn('Some data will not be written because objects are not valid:\n  {}'.format(
-                str(error).replace('\n', '\n  ').rstrip()), UserWarning)
+        objects = cls.get_submodel_objects(submodel)
 
         grouped_objects = {}
         for obj in objects:
@@ -235,7 +192,45 @@ class SbmlConverter(object):
 
         return sbml_document
 
-#       @staticmethod
+    @classmethod
+    def get_submodel_objects(cls, submodel):
+        """ Create a libSBML `SBMLDocument` containing `submodel`.
+
+        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
+        submodels export one `wc_lang.Submodel` into one libSBML model.
+
+        Args:
+            submodel (:obj:`Submodel`): a submodel
+
+        Returns:
+            objects (:obj:`list`): list of objects
+        """
+        objects = [submodel] \
+            + submodel.get_compartments() \
+            + submodel.get_species() \
+            + submodel.get_parameters() \
+            + submodel.reactions
+        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            objects.append(submodel.dfba_obj)
+            objects.extend(submodel.dfba_obj_reactions)
+
+        # DistributionInitConcentration
+        # observables
+        # functions
+
+        #core.Taxon, core.Environment,
+        #core.Evidence, core.Interpretation, core.Reference, core.Author, core.Change,
+
+        # validate objects
+        error = Validator().run(objects)
+        if error:
+            warnings.warn('Some data will not be written because objects are not valid:\n  {}'.format(
+                str(error).replace('\n', '\n  ').rstrip()), UserWarning)
+
+        # return objects
+        return objects
+
+#       @classmethod
 #       def read(document):
 #           """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
 #

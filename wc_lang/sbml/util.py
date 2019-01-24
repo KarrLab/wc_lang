@@ -287,7 +287,8 @@ def init_sbml_model(sbml_document):
         wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
 
         if not isinstance(unit, unit_registry.Unit):
-            raise ValueError('Unsupported units "{}"'.format(unit)) # pragma: no cover # unreachable because all choices in above two cases
+            raise ValueError('Unsupported units "{}"'.format(
+                unit))  # pragma: no cover # unreachable because all choices in above two cases
         expr = unit_registry.parse_expression(str(unit))
 
         try:
@@ -316,7 +317,7 @@ def init_sbml_model(sbml_document):
         except pint.DimensionalityError:
             pass
 
-        raise ValueError('Invalid unit {}'.format(str(unit))) # pragma: no cover # unreachable because all choices in above two cases
+        raise ValueError('Invalid unit {}'.format(str(unit)))  # pragma: no cover # unreachable because all choices in above two cases
 
     mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
