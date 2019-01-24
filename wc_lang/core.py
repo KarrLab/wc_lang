@@ -58,6 +58,7 @@ from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry, are_units_equivalent
+from wc_utils.workbook.core import get_column_letter
 import collections
 import datetime
 import networkx
@@ -376,6 +377,43 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         # return None
         return None
 
+    def get_excel_validation(self):
+        """ Get Excel validation
+
+        Returns:
+            :obj:`wc_utils.workbook.io.FieldValidation`: validation
+        """
+        validation = super(ManyToManyAttribute, self).get_excel_validation()
+
+        related_class = Species
+        related_ws = related_class.Meta.verbose_name_plural
+        related_col = get_column_letter(related_class.get_attr_index(related_class.Meta.primary_attribute) + 1)
+        source = '{}:{}'.format(related_ws, related_col)
+
+        validation.ignore_blank = False
+        input_message = ['Enter a reaction string using species from "{}".'.format(source)]
+        error_message = ['Value must be a reaction string using species from "{}".'.format(source)]
+
+        input_message.append(('Examples:\n'
+                              '* [c]: atp + h2o ==> adp + pi + h\n'
+                              '* glc[e] + atp[c] + h2o[c] ==> glc[e] + adp[c] + pi[c] + h[c]\n'
+                              '* (3) Na[c] + (2) K[e] ==> (3) Na[e] + (2) K[c]'))
+
+        error_message.append(('Examples:\n'
+                              '* [c]: atp + h2o ==> adp + pi + h\n'
+                              '* glc[e] + atp[c] + h2o[c] ==> glc[e] + adp[c] + pi[c] + h[c]\n'
+                              '* (3) Na[c] + (2) K[e] ==> (3) Na[e] + (2) K[c]'))
+
+        if validation.input_message:
+            validation.input_message += '\n\n'
+        validation.input_message += '\n\n'.join(input_message)
+
+        if validation.error_message:
+            validation.error_message += '\n\n'
+        validation.error_message += '\n\n'.join(error_message)
+
+        return validation
+
 
 class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
     def __init__(self, related_name='', verbose_name='Database references', verbose_related_name='', help=''):
@@ -435,6 +473,36 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         else:
             return (det_dedupe(db_refs), None)
 
+    def get_excel_validation(self):
+        """ Get Excel validation
+
+        Returns:
+            :obj:`wc_utils.workbook.io.FieldValidation`: validation
+        """
+        validation = super(OneToManyAttribute, self).get_excel_validation()
+
+        validation.ignore_blank = True
+        input_message = ['Enter a comma-separated list of references to external databases.']
+        error_message = ['Value must be a comma-separated list of references to external databases.']
+
+        input_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        error_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        if validation.input_message:
+            validation.input_message += '\n\n'
+        validation.input_message += '\n\n'.join(input_message)
+
+        if validation.error_message:
+            validation.error_message += '\n\n'
+        validation.error_message += '\n\n'.join(error_message)
+
+        return validation
+
 
 class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
     def __init__(self, related_name='', verbose_name='Database references', verbose_related_name='', help=''):
@@ -493,6 +561,36 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
             return (None, InvalidAttribute(self, errors))
         else:
             return (det_dedupe(db_refs), None)
+
+    def get_excel_validation(self):
+        """ Get Excel validation
+
+        Returns:
+            :obj:`wc_utils.workbook.io.FieldValidation`: validation
+        """
+        validation = super(ManyToManyAttribute, self).get_excel_validation()
+
+        validation.ignore_blank = True
+        input_message = ['Enter a comma-separated list of references to external databases.']
+        error_message = ['Value must be a comma-separated list of references to external databases.']
+
+        input_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        error_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        if validation.input_message:
+            validation.input_message += '\n\n'
+        validation.input_message += '\n\n'.join(input_message)
+
+        if validation.error_message:
+            validation.error_message += '\n\n'
+        validation.error_message += '\n\n'.join(error_message)
+
+        return validation
 
 
 class CommentAttribute(obj_model.LongStringAttribute):
