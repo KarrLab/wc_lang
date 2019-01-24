@@ -36,7 +36,7 @@ class Writer(obj_model.io.Writer):
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
             title=None, description=None, keywords=None, version=None, language=None, creator=None,
-            set_repo_metadata_from_path=True):
+            extra_entries=0, set_repo_metadata_from_path=True):
         """ Write a list of model classes to an Excel file, with one worksheet for each model, or to
             a set of .csv or .tsv files, with one file for each model.
 
@@ -56,6 +56,7 @@ class Writer(obj_model.io.Writer):
             version (:obj:`str`, optional): version
             language (:obj:`str`, optional): language
             creator (:obj:`str`, optional): creator
+            extra_entries (:obj:`int`, optional): additional entries to display
             set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
                 branch, revision) for the model from the parent directory of :obj:`core_path`
         """
@@ -88,7 +89,8 @@ class Writer(obj_model.io.Writer):
 
         super(Writer, self).run(path, model, models=models, get_related=get_related,
                                 include_all_attributes=include_all_attributes, validate=validate,
-                                title=title, description=description, version=version, language=language, creator=creator)
+                                title=title, description=description, version=version, language=language, creator=creator,
+                                extra_entries=extra_entries)
 
     @classmethod
     def validate_implicit_relationships(cls):
@@ -244,13 +246,14 @@ def convert(source, destination):
     Writer().run(destination, model, set_repo_metadata_from_path=False)
 
 
-def create_template(path, set_repo_metadata_from_path=True):
+def create_template(path, extra_entries=10, set_repo_metadata_from_path=True):
     """ Create file with model template, including row and column headings
 
     Args:
         path (:obj:`str`): path to file(s)
+        extra_entries (:obj:`int`, optional): additional entries to display
         set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
             branch, revision) for the model from the parent directory of :obj:`core_path`
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
-    Writer().run(path, model, set_repo_metadata_from_path=set_repo_metadata_from_path)
+    Writer().run(path, model, extra_entries=extra_entries, set_repo_metadata_from_path=set_repo_metadata_from_path)
