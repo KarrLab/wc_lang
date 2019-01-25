@@ -154,7 +154,7 @@ class SubmodelSbmlExporter(object):
         sbml_doc = LibSbmlInterface.create_doc(packages=packages)
 
         # Create the SBML Model object inside the libsbml.SBMLDocument object.
-        LibSbmlInterface.init_model(sbml_doc, packages=packages)
+        LibSbmlInterface.init_model(None, sbml_doc, packages=packages)
 
         objects = cls.get_submodel_objects(submodel)
 

@@ -1984,7 +1984,7 @@ class TestCore(unittest.TestCase):
         document = LibSbmlInterface.create_doc(packages={'fbc': 2})
 
         # Initialize the SBML document's model
-        sbml_model = LibSbmlInterface.init_model(document)
+        sbml_model = LibSbmlInterface.init_model(None, document)
 
         # Write a dFBA Submodel to an SBML document
         self.submdl_2.comments = 'test submodel comment'

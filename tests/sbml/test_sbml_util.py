@@ -114,7 +114,7 @@ class TestSbml(unittest.TestCase):
                       str(context.exception))
 
     def test_init_sbml_model(self):
-        sbml_model = LibSbmlInterface.init_model(self.document, packages={'fbc': 2})
+        sbml_model = LibSbmlInterface.init_model(None, self.document, packages={'fbc': 2})
 
         # check the SBML document
         self.assertEqual(LibSbmlInterface.call_libsbml(self.document.checkConsistency, returns_int=True), 0)
