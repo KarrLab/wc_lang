@@ -32,8 +32,8 @@ FBC_VERSION = 2
 # SBML compatibility method for the version being used
 
 
-def get_sbml_compatibility_method(sbml_document):
-    return sbml_document.checkL3v1Compatibility
+def get_sbml_compatibility_method(sbml_doc):
+    return sbml_doc.checkL3v1Compatibility
 
 
 class Error(Exception):
@@ -64,8 +64,11 @@ class LibSbmlInterface(object):
     '''
 
     @staticmethod
-    def _create_sbml_doc_w_fbc():
-        """ Create an SBMLDocument that uses the 'Flux Balance Constraints' extension.
+    def _create_sbml_doc(fbc=False):
+        """ Create an SBMLDocument that, optionally, uses the Flux Balance Constraints (FBC) package.
+
+        Args:
+            fbc (:obj:`bool`, optional): if :obj:`True`, use the FBC package
 
         Returns:
             :obj:`libsbml.Unit`: the new SBML Document
@@ -73,10 +76,14 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if a libSBML calls fails
         """
-        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, 'fbc', FBC_VERSION)
-        sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
-        wrap_libsbml(sbml_document.setPackageRequired, 'fbc', False)
-        return sbml_document
+        packages = []
+        if fbc:
+            packages.extend(['fbc', FBC_VERSION])
+        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, *packages)
+        sbml_doc = wrap_libsbml(SBMLDocument, sbmlns)
+        if fbc:
+            wrap_libsbml(sbml_doc.setPackageRequired, 'fbc', False)
+        return sbml_doc
 
     @staticmethod
     def _add_sbml_unit(unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
@@ -146,7 +153,7 @@ class LibSbmlInterface(object):
             return sbml_parameter
 
 
-create_sbml_doc_w_fbc = LibSbmlInterface._create_sbml_doc_w_fbc
+create_sbml_doc = LibSbmlInterface._create_sbml_doc
 add_sbml_unit = LibSbmlInterface._add_sbml_unit
 create_sbml_parameter = LibSbmlInterface._create_sbml_parameter
 
@@ -244,11 +251,12 @@ def wrap_libsbml(method, *args, **kwargs):
         return rc
 
 
-def init_sbml_model(sbml_document):
+def init_sbml_model(sbml_doc, fbc=False):
     """ Create and initialize an SMBL model.
 
     Args:
-         sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+         sbml_doc (:obj:`obj`): a `libsbml` SBMLDocument
+         fbc (:obj:`bool`, optional): if :obj:`True`, use the FBC plugin
 
     Returns:
         :obj:`libsbml.model`: the SBML model
@@ -258,15 +266,16 @@ def init_sbml_model(sbml_document):
         :obj:`LibSbmlError`: if calling `libsbml` raises an error
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
-    sbml_model = wrap_libsbml(sbml_document.createModel)
-    fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
-    wrap_libsbml(fbc_model_plugin.setStrict, True)
+    
+    # create model
+    sbml_model = wrap_libsbml(sbml_doc.createModel)
 
-    # To produce a model with complete units for the reaction rates, we need
-    # to set the 'timeUnits' and 'extentUnits' attributes on Model.  We
-    # set 'substanceUnits' too, for good measure, though it's not strictly
-    # necessary here because we also set the units for invididual species
-    # in their definitions.
+    # enable FBC plugin
+    if fbc:
+        fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
+        wrap_libsbml(fbc_model_plugin.setStrict, True)
+
+    # Set time, extent, and substance units
     wrap_libsbml(sbml_model.setTimeUnits, 'second')
     wrap_libsbml(sbml_model.setExtentUnits, 'mole')
     wrap_libsbml(sbml_model.setSubstanceUnits, 'mole')

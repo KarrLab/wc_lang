@@ -147,7 +147,7 @@ class TestSbml(unittest.TestCase):
     def test_SbmlExporter(self):
         for submodel in self.model.get_submodels():
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-                sbml_document = sbml_io.SbmlExporter.run_submodel(submodel)
+                sbml_document = sbml_io.SubmodelSbmlExporter.run(submodel)
 
                 self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(sbml_document),
                                               returns_int=True), 0)
@@ -156,14 +156,14 @@ class TestSbml(unittest.TestCase):
 
     def test_SbmlExporter_warning(self):
         model = Model(id='model')
-        submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+        submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         model.reactions.create(id='rxn_1', submodel=submodel)
         model.reactions.create(id='rxn_1', submodel=submodel)
 
         with self.assertRaisesRegex(UserWarning, 'Some data will not be written because objects are not valid'):
             warnings.simplefilter("ignore")
             warnings.simplefilter("error", UserWarning)
-            sbml_document = sbml_io.SbmlExporter.run_submodel(submodel)
+            sbml_document = sbml_io.SubmodelSbmlExporter.run(submodel)
             warnings.resetwarnings()
 
     def test_writer(self):

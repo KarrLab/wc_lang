@@ -11,8 +11,9 @@ Representations include
 :License: MIT
 """
 
-from wc_lang.sbml.util import init_sbml_model, create_sbml_doc_w_fbc
+from wc_lang.sbml.util import init_sbml_model, create_sbml_doc
 from wc_utils.util.ontology import wcm_ontology
+import abc
 import libsbml
 import obj_model
 import os
@@ -66,31 +67,32 @@ class SbmlWriter(object):
         Returns:
             :obj:`dict`: dictionary that maps submodels to the paths where they were exported
         """
+        # encode submodels in SBML
+        sbml_submodels = SbmlExporter.run(model)
+
         # create a directory to save SBML-encoded XML documents for each submodel
         if not os.path.isdir(out_dir):
             os.mkdirs(out_dir)
 
         # save submodels to SBML-encoded XML files
         sbml_submodel_paths = {}
-        for submodel in model.submodels:
-            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
-                continue
-            sbml_submodel_paths[submodel] = cls.run_submodel(submodel, out_dir)
+        for submodel, sbml_submodel in sbml_submodels.items():
+            sbml_submodel_paths[submodel] = cls.run_submodel(submodel, sbml_submodel, out_dir)
         return sbml_submodel_paths
 
     @classmethod
-    def run_submodel(cls, submodel, out_dir):
+    def run_submodel(cls, submodel, sbml_submodel, out_dir):
         """ Write a `wc_lang` submodel to an SBML-encoded XML file
 
         Args:
             submodel (:obj:`wc_lang.core.Submodel`): `wc_lang` submodel
+            sbml_submodel (:obj:`libsbml.SBMLDocument): SBML-encoded submodel
             out_dir (:obj:`str`): path to directory to save SBML-encoded XML file
 
         Returns:
             :obj:`str`: path to SBML-encoded XML file
         """
         out_file = os.path.join(out_dir, submodel.id + '.xml')
-        sbml_submodel = SbmlExporter.run_submodel(submodel)
         if not libsbml.writeSBMLToFile(sbml_submodel, out_file):
             raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
                 submodel.id, out_file))
@@ -119,15 +121,17 @@ class SbmlExporter(object):
         # convert each submodel to an SBML model
         sbml_submodels = {}
         for submodel in model.submodels:
-            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
+            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:
                 continue
-            sbml_submodel = cls.run_submodel(submodel)
-            sbml_submodels[submodel] = sbml_submodel
+            sbml_submodels[submodel] = SubmodelSbmlExporter.run(submodel)
         return sbml_submodels
 
+
+class SubmodelSbmlExporter(object):
+    """ Export a `wc_lang` submodel to an SBML-encoded model """
     @classmethod
-    def run_submodel(cls, submodel):
-        """ Export a `wc_lang` submodel to a libSBML :obj:`SBMLDocument`.        
+    def run(cls, submodel):
+        """ Export a `wc_lang` submodel to a :obj:`libsbml.SBMLDocument`.        
 
         * Validate objects
         * (do not add related objects, as only certain model types can be written to SBML)
@@ -140,13 +144,15 @@ class SbmlExporter(object):
             submodel (obj:`wc_lang.core.Submodel`): `wc_lang` submodel
 
         Returns:
-            :obj:`SBMLDocument`: SBML-encoded submodel
+            :obj:`libsbml.SBMLDocument`: SBML-encoded submodel
         """
-        # Create an empty SBMLDocument object.
-        sbml_document = create_sbml_doc_w_fbc()
+        dfba = submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']
 
-        # Create the SBML Model object inside the SBMLDocument object.
-        sbml_model = init_sbml_model(sbml_document)
+        # Create an empty libsbml.SBMLDocument object.
+        sbml_doc = create_sbml_doc(fbc=dfba)
+
+        # Create the SBML Model object inside the libsbml.SBMLDocument object.
+        init_sbml_model(sbml_doc, fbc=dfba)
 
         objects = cls.get_submodel_objects(submodel)
 
@@ -184,9 +190,9 @@ class SbmlExporter(object):
         for model in model_order:
             if model in grouped_objects:
                 for obj in grouped_objects[model]:
-                    obj.add_to_sbml_doc(sbml_document)
+                    obj.add_to_sbml_doc(sbml_doc)
 
-        return sbml_document
+        return sbml_doc
 
     @classmethod
     def get_submodel_objects(cls, submodel):
@@ -205,7 +211,8 @@ class SbmlExporter(object):
             + submodel.get_parameters() \
             + submodel.reactions
         if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-            objects.append(submodel.dfba_obj)
+            if submodel.dfba_obj:
+                objects.append(submodel.dfba_obj)
             objects.extend(submodel.dfba_obj_reactions)
 
         # DistributionInitConcentration
@@ -254,7 +261,7 @@ class SbmlImporter(object):
         """ Import a `wc_lang` model from SBML-encoded submodels
 
         Args:
-            sbml_submodels (:obj:`list` of :obj:`SBMLDocument`): SBML-encoded submodels
+            sbml_submodels (:obj:`list` of :obj:`libsbml.SBMLDocument`): SBML-encoded submodels
 
         Returns:
             :obj:`wc_lang.core.Model`: `wc_lang` model
