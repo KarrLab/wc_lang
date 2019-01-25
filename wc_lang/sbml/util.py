@@ -69,29 +69,126 @@ class LibSbmlInterface(object):
         for package_id, package_version in packages.items():
             namespaces.append(package_id)
             namespaces.append(package_version)
-        sbmlns = cls.wrap_libsbml(*namespaces)
+        sbml_ns = cls.wrap_libsbml(*namespaces)
 
         # create SBML document
-        sbml_doc = cls.wrap_libsbml(SBMLDocument, sbmlns)
+        doc = cls.wrap_libsbml(SBMLDocument, sbml_ns)
 
         # set package requirements
         for package in packages:
-            cls.wrap_libsbml(sbml_doc.setPackageRequired, package, False)
+            cls.wrap_libsbml(doc.setPackageRequired, package, False)
 
         # return SBML document
-        return sbml_doc
+        return doc
 
     @classmethod
-    def is_doc_compatible(cls, sbml_doc, level=3, version=1):
+    def is_doc_compatible(cls, doc, level=3, version=1):
         """ Check the compatibility of an SBML document with a specific level and version
 
         Args:
-            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML Document
+            doc (:obj:`libsbml.SBMLDocument`): SBML Document
             level (:obj:`int`, optional): SBML level number
             version (:obj:`int`, optional): SBML version number
         """
         # SBML compatibility method for the version being used
-        return 0 == cls.wrap_libsbml(sbml_doc.checkL3v1Compatibility, returns_int=True)
+        return 0 == cls.wrap_libsbml(doc.checkL3v1Compatibility, returns_int=True)
+
+    @classmethod
+    def init_model(cls, doc, packages=None):
+        """ Create and initialize an SMBL model.
+
+        Args:
+             doc (:obj:`obj`): a `libsbml` SBMLDocument
+             packages (:obj:`dict` that maps :obj:`str` to :obj:`int`, optional): dictionary of required packages
+                that maps package identifiers to package numbers
+
+        Returns:
+            :obj:`libsbml.model`: the SBML model
+
+        Raises:
+            :obj:`ValueError`: if unit is not supported
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
+        """
+        # Modified from libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
+
+        # create model
+        model = cls.wrap_libsbml(doc.createModel)
+
+        # enable package plugins
+        packages = packages or {}
+        for package_id in packages.keys():
+            plugin = cls.wrap_libsbml(model.getPlugin, package_id)
+            cls.wrap_libsbml(plugin.setStrict, True)
+
+        # Set time, extent, and substance units
+        cls.wrap_libsbml(model.setTimeUnits, 'second')
+        cls.wrap_libsbml(model.setExtentUnits, 'mole')
+        cls.wrap_libsbml(model.setSubstanceUnits, 'mole')
+        cls.wrap_libsbml(model.setVolumeUnits, 'litre')
+
+        # Define units
+        # Note that SBML Unit objects must have four attributes:
+        # * `kind`
+        # * `exponent`
+        # * `scale`
+        # * `multiplier`
+        per_second = cls.wrap_libsbml(model.createUnitDefinition)
+        cls.wrap_libsbml(per_second.setIdAttribute, 'per_second')
+        cls.add_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
+
+        unit_registry = wc_lang.core.DistributionInitConcentration.units.registry
+        molar = unit_registry.parse_expression('M')
+        molecule = unit_registry.parse_expression('molecule')
+        for unit in wc_lang.core.DistributionInitConcentration.units.choices:
+            sbml_unit_def = cls.wrap_libsbml(model.createUnitDefinition)
+            cls.wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
+
+            if not isinstance(unit, unit_registry.Unit):
+                raise ValueError('Unsupported units "{}"'.format(
+                    unit))  # pragma: no cover # unreachable because all choices in above two cases
+            expr = unit_registry.parse_expression(str(unit))
+
+            try:
+                molar_units = unit_registry.parse_units('molar')
+                conversion = expr.to(molar_units)
+                scale = math.log10(conversion.magnitude)
+                assert int(scale) == scale
+                cls.add_unit(sbml_unit_def,
+                             getattr(libsbml, 'UNIT_KIND_MOLE'),
+                             exponent=1.,
+                             scale=int(scale))
+                continue
+            except pint.DimensionalityError:
+                pass
+
+            try:
+                molecule_units = unit_registry.parse_units('molecule')
+                conversion = expr.to(molecule_units)
+                scale = math.log10(conversion.magnitude)
+                assert int(scale) == scale
+                cls.add_unit(sbml_unit_def,
+                             getattr(libsbml, 'UNIT_KIND_ITEM'),
+                             exponent=1.,
+                             scale=int(scale))
+                continue
+            except pint.DimensionalityError:
+                pass
+
+            raise ValueError('Invalid unit {}'.format(str(unit)))  # pragma: no cover # unreachable because all choices in above two cases
+
+        mmol_per_gDW_per_hr = cls.wrap_libsbml(model.createUnitDefinition)
+        cls.wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
+        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_MOLE, scale=-3)
+        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_GRAM, exponent=-1)
+        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_SECOND, exponent=-1,
+                     multiplier=3600.0)
+
+        dimensionless = cls.wrap_libsbml(model.createUnitDefinition)
+        cls.wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
+        cls.add_unit(dimensionless, libsbml.UNIT_KIND_DIMENSIONLESS)
+
+        # return SBML model
+        return model
 
     @classmethod
     def add_unit(cls, unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
@@ -123,7 +220,7 @@ class LibSbmlInterface(object):
         return unit
 
     @classmethod
-    def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
+    def create_parameter(cls, model, id, value, units, name=None, constant=True):
         """ Add an SBML Parameter to an SBML model.
 
         See the `libSBML documentation
@@ -131,7 +228,7 @@ class LibSbmlInterface(object):
         and the SBML specs for details.
 
         Args:
-            sbml_model (:obj:`libsbml.Model`): a libSBML Model
+            model (:obj:`libsbml.Model`): a libSBML Model
             id (:obj:`str`): the id of the new SBML Parameter
             value (:obj:`obj`): the value of the new SBML Parameter
             units (:obj:`str`): the units of the new SBML Parameter
@@ -146,10 +243,10 @@ class LibSbmlInterface(object):
             :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
         try:
-            cls.wrap_libsbml(sbml_model.getParameter, id)
+            cls.wrap_libsbml(model.getParameter, id)
             raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
         except LibSbmlError as e:
-            sbml_parameter = cls.wrap_libsbml(sbml_model.createParameter)
+            sbml_parameter = cls.wrap_libsbml(model.createParameter)
             cls.wrap_libsbml(sbml_parameter.setIdAttribute, id)
             if not name is None:
                 cls.wrap_libsbml(sbml_parameter.setName, name)
@@ -261,102 +358,3 @@ class LibSbmlInterface(object):
         """
         # TODO: GET libSBML to do this XML crap, but none of the obvious methods work
         return "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(str)
-
-
-wrap_libsbml = LibSbmlInterface.wrap_libsbml
-
-
-def init_sbml_model(sbml_doc, packages=None):
-    """ Create and initialize an SMBL model.
-
-    Args:
-         sbml_doc (:obj:`obj`): a `libsbml` SBMLDocument
-         packages (:obj:`dict` that maps :obj:`str` to :obj:`int`, optional): dictionary of required packages
-            that maps package identifiers to package numbers
-
-    Returns:
-        :obj:`libsbml.model`: the SBML model
-
-    Raises:
-        :obj:`ValueError`: if unit is not supported
-        :obj:`LibSbmlError`: if calling `libsbml` raises an error
-    """
-    # Modified from libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
-
-    # create model
-    sbml_model = wrap_libsbml(sbml_doc.createModel)
-
-    # enable package plugins
-    packages = packages or {}
-    for package_id in packages.keys():
-        plugin = wrap_libsbml(sbml_model.getPlugin, package_id)
-        wrap_libsbml(plugin.setStrict, True)
-
-    # Set time, extent, and substance units
-    wrap_libsbml(sbml_model.setTimeUnits, 'second')
-    wrap_libsbml(sbml_model.setExtentUnits, 'mole')
-    wrap_libsbml(sbml_model.setSubstanceUnits, 'mole')
-    wrap_libsbml(sbml_model.setVolumeUnits, 'litre')
-
-    # Define units
-    # Note that SBML Unit objects must have four attributes:
-    # * `kind`
-    # * `exponent`
-    # * `scale`
-    # * `multiplier`
-    per_second = wrap_libsbml(sbml_model.createUnitDefinition)
-    wrap_libsbml(per_second.setIdAttribute, 'per_second')
-    LibSbmlInterface.add_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
-
-    unit_registry = wc_lang.core.DistributionInitConcentration.units.registry
-    molar = unit_registry.parse_expression('M')
-    molecule = unit_registry.parse_expression('molecule')
-    for unit in wc_lang.core.DistributionInitConcentration.units.choices:
-        sbml_unit_def = wrap_libsbml(sbml_model.createUnitDefinition)
-        wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
-
-        if not isinstance(unit, unit_registry.Unit):
-            raise ValueError('Unsupported units "{}"'.format(
-                unit))  # pragma: no cover # unreachable because all choices in above two cases
-        expr = unit_registry.parse_expression(str(unit))
-
-        try:
-            molar_units = unit_registry.parse_units('molar')
-            conversion = expr.to(molar_units)
-            scale = math.log10(conversion.magnitude)
-            assert int(scale) == scale
-            LibSbmlInterface.add_unit(sbml_unit_def,
-                                      getattr(libsbml, 'UNIT_KIND_MOLE'),
-                                      exponent=1.,
-                                      scale=int(scale))
-            continue
-        except pint.DimensionalityError:
-            pass
-
-        try:
-            molecule_units = unit_registry.parse_units('molecule')
-            conversion = expr.to(molecule_units)
-            scale = math.log10(conversion.magnitude)
-            assert int(scale) == scale
-            LibSbmlInterface.add_unit(sbml_unit_def,
-                                      getattr(libsbml, 'UNIT_KIND_ITEM'),
-                                      exponent=1.,
-                                      scale=int(scale))
-            continue
-        except pint.DimensionalityError:
-            pass
-
-        raise ValueError('Invalid unit {}'.format(str(unit)))  # pragma: no cover # unreachable because all choices in above two cases
-
-    mmol_per_gDW_per_hr = wrap_libsbml(sbml_model.createUnitDefinition)
-    wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
-    LibSbmlInterface.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_MOLE, scale=-3)
-    LibSbmlInterface.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_GRAM, exponent=-1)
-    LibSbmlInterface.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_SECOND, exponent=-1,
-                              multiplier=3600.0)
-
-    dimensionless = wrap_libsbml(sbml_model.createUnitDefinition)
-    wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
-    LibSbmlInterface.add_unit(dimensionless, libsbml.UNIT_KIND_DIMENSIONLESS)
-
-    return sbml_model

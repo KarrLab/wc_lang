@@ -18,7 +18,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
                      UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_AMPERE,
                      UNIT_KIND_AVOGADRO)
 
-from wc_lang.sbml.util import (LibSbmlError, LibSbmlInterface, init_sbml_model)
+from wc_lang.sbml.util import LibSbmlError, LibSbmlInterface
 
 
 class TestSbml(unittest.TestCase):
@@ -121,7 +121,7 @@ class TestSbml(unittest.TestCase):
                       str(context.exception))
 
     def test_init_sbml_model(self):
-        sbml_model = init_sbml_model(self.document, packages={'fbc': 2})
+        sbml_model = LibSbmlInterface.init_model(self.document, packages={'fbc': 2})
 
         # check the SBML document
         self.assertEqual(LibSbmlInterface.wrap_libsbml(self.document.checkConsistency, returns_int=True), 0)

@@ -27,7 +27,7 @@ from wc_lang import (Model, DfbaObjective,
 from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
 from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
-from wc_lang.sbml.util import wrap_libsbml, LibSbmlInterface
+from wc_lang.sbml.util import LibSbmlInterface
 from wc_lang.io import Reader
 from wc_utils.util.ontology import wcm_ontology
 import wc_lang.sbml.io as sbml_io
@@ -131,6 +131,7 @@ class TestSbml(unittest.TestCase):
         shutil.rmtree(self.dirname)
 
     def check_sbml_doc(self, sbml_doc):
+        wrap_libsbml = LibSbmlInterface.wrap_libsbml
 
         # if checkConsistency() returns some errors, print them
         for i in range(wrap_libsbml(sbml_doc.checkConsistency, returns_int=True)):

@@ -33,7 +33,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
-from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model, LibSbmlInterface)
+from wc_lang.sbml.util import LibSbmlInterface
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
@@ -1978,11 +1978,13 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(invalid, None, str(invalid))
 
     def test_sbml_data_exchange(self):
+        wrap_libsbml = LibSbmlInterface.wrap_libsbml
+
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         document = LibSbmlInterface.create_doc(packages={'fbc': 2})
 
         # Initialize the SBML document's model
-        sbml_model = init_sbml_model(document)
+        sbml_model = LibSbmlInterface.init_model(document)
 
         # Write a dFBA Submodel to an SBML document
         self.submdl_2.comments = 'test submodel comment'

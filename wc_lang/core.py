@@ -51,7 +51,7 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
 from six import with_metaclass
-from wc_lang.sbml.util import (wrap_libsbml, LibSbmlInterface, LibSbmlError)
+from wc_lang.sbml.util import LibSbmlInterface, LibSbmlError
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
@@ -82,6 +82,8 @@ warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 
 # configuration
 import wc_lang.config.core
+
+wrap_libsbml = LibSbmlInterface.wrap_libsbml
 
 
 class TaxonRankMeta(CaseInsensitiveEnumMeta):
