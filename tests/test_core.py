@@ -33,8 +33,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
-from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model,
-                               create_sbml_doc_w_fbc, get_sbml_compatibility_method)
+from wc_lang.sbml.util import (wrap_libsbml, init_sbml_model, LibSbmlInterface)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
@@ -1980,7 +1979,7 @@ class TestCore(unittest.TestCase):
 
     def test_sbml_data_exchange(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        document = create_sbml_doc_w_fbc()
+        document = LibSbmlInterface.create_doc(packages={'fbc': 2})
 
         # Initialize the SBML document's model
         sbml_model = init_sbml_model(document)
@@ -2104,7 +2103,7 @@ class TestCore(unittest.TestCase):
                 self.fail("reaction {} unexpected".format(wrap_libsbml(flux_objective.getReaction)))
 
         # Check the SBML document
-        self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(document)), 0)
+        self.assertTrue(LibSbmlInterface.is_doc_compatible(document))
         for i in range(document.checkConsistency()):
             print(document.getError(i).getShortMessage())
             print(document.getError(i).getMessage())

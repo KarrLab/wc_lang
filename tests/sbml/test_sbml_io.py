@@ -27,7 +27,7 @@ from wc_lang import (Model, DfbaObjective,
 from wc_lang.transform.prep_for_wc_sim import PrepareForWcSimTransform
 from wc_lang.transform.split_reversible_reactions import SplitReversibleReactionsTransform
 
-from wc_lang.sbml.util import wrap_libsbml, get_sbml_compatibility_method
+from wc_lang.sbml.util import wrap_libsbml, LibSbmlInterface
 from wc_lang.io import Reader
 from wc_utils.util.ontology import wcm_ontology
 import wc_lang.sbml.io as sbml_io
@@ -147,12 +147,11 @@ class TestSbml(unittest.TestCase):
     def test_SbmlExporter(self):
         for submodel in self.model.get_submodels():
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-                sbml_document = sbml_io.SubmodelSbmlExporter.run(submodel)
+                sbml_doc = sbml_io.SubmodelSbmlExporter.run(submodel)
 
-                self.assertEqual(wrap_libsbml(get_sbml_compatibility_method(sbml_document),
-                                              returns_int=True), 0)
-                self.check_sbml_doc(sbml_document)
-                check_document_against_model(sbml_document, self.model, self)
+                self.assertTrue(LibSbmlInterface.is_doc_compatible(sbml_doc))
+                self.check_sbml_doc(sbml_doc)
+                check_document_against_model(sbml_doc, self.model, self)
 
     def test_SbmlExporter_warning(self):
         model = Model(id='model')

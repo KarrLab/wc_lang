@@ -11,7 +11,7 @@ Representations include
 :License: MIT
 """
 
-from wc_lang.sbml.util import init_sbml_model, create_sbml_doc
+from wc_lang.sbml.util import init_sbml_model, LibSbmlInterface
 from wc_utils.util.ontology import wcm_ontology
 import abc
 import libsbml
@@ -151,7 +151,7 @@ class SubmodelSbmlExporter(object):
             packages['fbc'] = 2
 
         # Create an empty libsbml.SBMLDocument object.
-        sbml_doc = create_sbml_doc(packages=packages)
+        sbml_doc = LibSbmlInterface.create_doc(packages=packages)
 
         # Create the SBML Model object inside the libsbml.SBMLDocument object.
         init_sbml_model(sbml_doc, packages=packages)

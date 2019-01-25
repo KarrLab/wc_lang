@@ -51,8 +51,7 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
 from six import with_metaclass
-from wc_lang.sbml.util import (wrap_libsbml, str_to_xmlstr, LibSbmlError,
-                               create_sbml_parameter)
+from wc_lang.sbml.util import (wrap_libsbml, LibSbmlInterface, LibSbmlError)
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
@@ -1496,7 +1495,7 @@ class Submodel(obj_model.Model):
             wrap_libsbml(sbml_model.setName, self.name)
         # compartment, dfba_obj, and parameters are created separately
         if self.comments:
-            wrap_libsbml(sbml_model.appendNotes, str_to_xmlstr(self.comments))
+            wrap_libsbml(sbml_model.appendNotes, LibSbmlInterface.str_to_xmlstr(self.comments))
         return sbml_model
 
 
@@ -2868,8 +2867,8 @@ class Reaction(obj_model.Model):
                 # make a unique ID for each flux bound parameter
                 # ids for wc_lang Parameters all start with 'parameter'
                 param_id = "_reaction_{}_{}_bound".format(self.id, bound)
-                param = create_sbml_parameter(sbml_model, id=param_id, value=self.flux_min,
-                                              units='mmol_per_gDW_per_hr')
+                param = LibSbmlInterface.create_parameter(sbml_model, id=param_id, value=self.flux_min,
+                                                          units='mmol_per_gDW_per_hr')
                 if bound == 'lower':
                     wrap_libsbml(param.setValue, self.flux_min)
                     wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
@@ -3362,8 +3361,8 @@ class DfbaObjReaction(obj_model.Model):
             # make a unique ID for each flux bound parameter
             # ids for wc_lang Parameters all start with 'parameter'
             param_id = "_dfba_obj_reaction_{}_{}_bound".format(self.id, bound)
-            param = create_sbml_parameter(sbml_model, id=param_id, value=0,
-                                          units='mmol_per_gDW_per_hr')
+            param = LibSbmlInterface.create_parameter(sbml_model, id=param_id, value=0,
+                                                      units='mmol_per_gDW_per_hr')
             if bound == 'lower':
                 wrap_libsbml(param.setValue, 0)
                 wrap_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
@@ -3441,17 +3440,17 @@ class Parameter(obj_model.Model):
             raise ValueError('Units must be defined for parameter "{}"'.format(self.id))
 
         if are_units_equivalent(self.units, unit_registry.parse_units('dimensionless'), check_same_magnitude=True):
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
-                                                   name=self.name)
+            sbml_parameter = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                                                               name=self.name)
         elif are_units_equivalent(self.units, unit_registry.parse_units('s'), check_same_magnitude=True):
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'second',
-                                                   name=self.name)
+            sbml_parameter = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, 'second',
+                                                               name=self.name)
         elif are_units_equivalent(self.units, unit_registry.parse_units('mmol/gDCW/hour'), check_same_magnitude=True):
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
-                                                   name=self.name)
+            sbml_parameter = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, 'mmol_per_gDW_per_hr',
+                                                               name=self.name)
         else:
-            sbml_parameter = create_sbml_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
-                                                   name=self.name)
+            sbml_parameter = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, 'dimensionless_ud',
+                                                               name=self.name)
 
         return sbml_parameter
 
