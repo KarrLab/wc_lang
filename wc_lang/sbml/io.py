@@ -11,14 +11,13 @@ Representations include
 :License: MIT
 """
 
-from obj_model import Validator
-from six import iteritems
 from wc_lang.sbml.util import init_sbml_model, create_sbml_doc_w_fbc
 from wc_utils.util.ontology import wcm_ontology
 import libsbml
+import obj_model
 import os
 import warnings
-import wc_lang
+import wc_lang.core
 
 '''
 wc_lang to SBML mapping to support FBA modeling
@@ -52,99 +51,96 @@ comments                notes
 references              notes, as a Python dict
 '''
 
-#   class Reader(object):
-#       """ Read model objects from an SBML representation """
-#
-#       @classmethod
-#       def run(self, objects, models, path=None, get_related=True,
-#           title=None, description=None, keywords=None, version=None,
-#           language=None, creator=None):
-#           """ Write a list of model objects to a string or a file in an SBML format.
-#
-#           Warning: this is an unimplemented placeholder.
-#
-#           Args:
-#               objects (:obj:`list`): list of objects
-#               models (:obj:`list`): list of model, in the order that they should
-#                   appear as worksheets; all models which are not in `models` will
-#                   follow in alphabetical order
-#               path (:obj:`str`, optional): path of SBML file to write
-#               title (:obj:`str`, optional): title
-#               description (:obj:`str`, optional): description
-#               keywords (:obj:`str`, optional): keywords
-#               version (:obj:`str`, optional): version
-#               language (:obj:`str`, optional): language
-#               creator (:obj:`str`, optional): creator
-#           """
-#           pass
-
 
 class SbmlWriter(object):
-    """ Write an SBML representation of a model  """
+    """ Write `wc_lang` models to a a collection of SBML-encoded XML files, one for each submodel """
 
     @classmethod
     def run(cls, model, out_dir):
-        """ Write the submodels of a model to separate SBML-encoded XML files.
-
-        Each :obj:`Submodel` in :obj:`Model` :obj:`model` is converted to a separate SBML document
-        and saved to a separate XML file.
+        """ Write the submodels of a `wc_lang` model to separate SBML-encoded XML files.
 
         Args:
-            model (:obj:`Model`): a `Model`
-            out_dir (:obj:`str`): path to directory to save SBML file(s)
+            model (:obj:`wc_lang.core.Model`): `wc_lang` model
+            out_dir (:obj:`str`): path to directory to save SBML-encoded XML files for each submodel
 
         Returns:
-            :obj:`dict`: dictionary that maps submodels to the paths where they are exported
+            :obj:`dict`: dictionary that maps submodels to the paths where they were exported
         """
         # create a directory to save SBML-encoded XML documents for each submodel
         if not os.path.isdir(out_dir):
             os.mkdirs(out_dir)
 
         # save submodels to SBML-encoded XML files
-        sbml_paths = {}
+        sbml_submodel_paths = {}
         for submodel in model.submodels:
             if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
                 continue
-            sbml_paths[submodel] = cls.run_submodel(submodel, out_dir)
-        return sbml_paths
+            sbml_submodel_paths[submodel] = cls.run_submodel(submodel, out_dir)
+        return sbml_submodel_paths
 
     @classmethod
     def run_submodel(cls, submodel, out_dir):
+        """ Write a `wc_lang` submodel to an SBML-encoded XML file
+
+        Args:
+            submodel (:obj:`wc_lang.core.Submodel`): `wc_lang` submodel
+            out_dir (:obj:`str`): path to directory to save SBML-encoded XML file
+
+        Returns:
+            :obj:`str`: path to SBML-encoded XML file
+        """
         out_file = os.path.join(out_dir, submodel.id + '.xml')
-        sbml_doc = SbmlConverter.run_submodel(submodel)
-        if not libsbml.writeSBMLToFile(sbml_doc, out_file):
+        sbml_submodel = SbmlExporter.run_submodel(submodel)
+        if not libsbml.writeSBMLToFile(sbml_submodel, out_file):
             raise ValueError("SBML document for submodel '{}' could not be written to '{}'.".format(
                 submodel.id, out_file))
         return out_file
 
 
-class SbmlConverter(object):
-    """ Convert `wc_lang` model to/from a libSBML SBML representation """
+class SbmlExporter(object):
+    """ Export each submodel of a `wc_lang` model to an SBML-encoded model """
 
     @classmethod
     def run(cls, model):
-        sbml_docs = {}
+        """ Export each submodel of a `wc_lang` model to an SBML-encoded model
+
+        Args:
+            model (:obj:`wc_lang.core.Model`): `wc_lang` model
+
+        Returns:
+            :obj:`dict`: dictionary that maps submodels to SBML-encoded copies of each submodel
+        """
+
+        # validate model
+        error = wc_lang.core.Validator().run(model)
+        if error:
+            warnings.warn('Model is invalid: ' + str(error), UserWarning)
+
+        # convert each submodel to an SBML model
+        sbml_submodels = {}
         for submodel in model.submodels:
             if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:  # todo: remove
                 continue
-            sbml_doc = cls.run_submodel(submodel)
-            sbml_docs[submodel] = sbml_doc
-        return sbml_docs
+            sbml_submodel = cls.run_submodel(submodel)
+            sbml_submodels[submodel] = sbml_submodel
+        return sbml_submodels
 
     @classmethod
     def run_submodel(cls, submodel):
-        """ Write the `wc_lang` model described by `objects` to a libSBML `SBMLDocument`.
+        """ Export a `wc_lang` submodel to a libSBML :obj:`SBMLDocument`.        
+
+        * Validate objects
+        * (do not add related objects, as only certain model types can be written to SBML)
+        * Group objects by model class
+        * Add objects to the SBML document in dependent order
 
         Warning: `wc_lang` and SBML semantics are not equivalent.
 
-        Algorithm:
-            * validate objects
-            * (do not add related objects, as only certain model types can be written to SBML)
-            * group objects by model class
-            * add objects to the SBML document in dependent order
+        Args:
+            submodel (obj:`wc_lang.core.Submodel`): `wc_lang` submodel
 
         Returns:
-            :obj:`SBMLDocument`: an SBMLDocument containing `objects`
+            :obj:`SBMLDocument`: SBML-encoded submodel
         """
         # Create an empty SBMLDocument object.
         sbml_document = create_sbml_doc_w_fbc()
@@ -175,13 +171,13 @@ class SbmlConverter(object):
         #     DfbaObjReaction must precede DfbaObjective
         # This partial order is satisfied by this sequence:
         model_order = [
-            wc_lang.Submodel,
-            wc_lang.Compartment,
-            wc_lang.Parameter,
-            wc_lang.Species,
-            wc_lang.Reaction,
-            wc_lang.DfbaObjReaction,
-            wc_lang.DfbaObjective,
+            wc_lang.core.Submodel,
+            wc_lang.core.Compartment,
+            wc_lang.core.Parameter,
+            wc_lang.core.Species,
+            wc_lang.core.Reaction,
+            wc_lang.core.DfbaObjReaction,
+            wc_lang.core.DfbaObjective,
         ]
 
         # add objects into libsbml.SBMLDocument
@@ -194,16 +190,14 @@ class SbmlConverter(object):
 
     @classmethod
     def get_submodel_objects(cls, submodel):
-        """ Create a libSBML `SBMLDocument` containing `submodel`.
-
-        To enable use of cobrapy to solve dFBA submodels, and avoid cumbersome SBML/libSBML
-        submodels export one `wc_lang.Submodel` into one libSBML model.
+        """ Get the children that must be exported with a submodel and validate that
+        they are are a valid model
 
         Args:
-            submodel (:obj:`Submodel`): a submodel
+            submodel (:obj:`wc_lang.core.Submodel`): `wc_lang` submodel
 
         Returns:
-            objects (:obj:`list`): list of objects
+            :obj:`list` of :obj:`obj_model.Model`: `wc_lang` submodel and its `wc_lang` children
         """
         objects = [submodel] \
             + submodel.get_compartments() \
@@ -222,7 +216,7 @@ class SbmlConverter(object):
         #core.Evidence, core.Interpretation, core.Reference, core.Author, core.Change,
 
         # validate objects
-        error = Validator().run(objects)
+        error = obj_model.Validator().run(objects)
         if error:
             warnings.warn('Some data will not be written because objects are not valid:\n  {}'.format(
                 str(error).replace('\n', '\n  ').rstrip()), UserWarning)
@@ -230,10 +224,39 @@ class SbmlConverter(object):
         # return objects
         return objects
 
-#       @classmethod
-#       def read(document):
-#           """ Read a model in a libSBML `SBMLDocument` into a `wc_lang` model.
-#
-#           Warning: this is an unimplemented placeholder.
-#           """
-#           pass
+
+class SbmlReader(object):
+    """ Read `wc_lang` models from SBML-encoded XML files """
+
+    @classmethod
+    def run(self, out_dir,
+            title=None, description=None, keywords=None, version=None,
+            language=None, creator=None):
+        """ Read `wc_lang` models from SBML-encoded XML files
+
+        Args:
+            out_dir (:obj:`str`): path to directory that contains SBML-encoded submodels of a model
+            title (:obj:`str`, optional): title
+            description (:obj:`str`, optional): description
+            keywords (:obj:`str`, optional): keywords
+            version (:obj:`str`, optional): version
+            language (:obj:`str`, optional): language
+            creator (:obj:`str`, optional): creator
+        """
+        pass
+
+
+class SbmlImporter(object):
+    """ Import a wc-lang-encoded model from an SBML-encoded model """
+
+    @classmethod
+    def run(cls, sbml_submodels):
+        """ Import a `wc_lang` model from SBML-encoded submodels
+
+        Args:
+            sbml_submodels (:obj:`list` of :obj:`SBMLDocument`): SBML-encoded submodels
+
+        Returns:
+            :obj:`wc_lang.core.Model`: `wc_lang` model
+        """
+        pass
