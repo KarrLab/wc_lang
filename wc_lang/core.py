@@ -963,6 +963,22 @@ class Model(obj_model.Model):
 
         return self.dfba_obj_reactions.get(__type=__type, **kwargs)
 
+    def get_dfba_obj_species(self, __type=None, **kwargs):
+        """ Get all dFBA objective species used by submodels
+
+        Args:
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+                objects
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjSpecies`: dFBA objective species
+        """
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+
+        return self.dfba_obj_species.get(__type=__type, **kwargs)
+
     def get_parameters(self, __type=None, **kwargs):
         """ Get all parameters from model and submodels
 
@@ -1085,7 +1101,7 @@ class Model(obj_model.Model):
             type_names = [
                 'submodels', 'compartments', 'species_types', 'species',
                 'distribution_init_concentrations', 'observables', 'functions',
-                'dfba_objs', 'reactions', 'rate_laws', 'dfba_obj_reactions',
+                'dfba_objs', 'reactions', 'rate_laws', 'dfba_obj_reactions', 'dfba_obj_species',
                 'stop_conditions', 'parameters', 'evidence', 'interpretations',
                 'references', 'authors', 'changes',
             ]
@@ -1276,28 +1292,43 @@ class Submodel(obj_model.Model):
         species = []
         for reaction in self.get_reactions():
             species.extend(reaction.get_species())
-        for dfba_obj_reaction in self.get_dfba_obj_reactions():
-            for dfba_obj_species in dfba_obj_reaction.dfba_obj_species:
-                species.append(dfba_obj_species.species)
-        for observable in self.get_observables():
+        for dfba_obj_species in self.get_dfba_obj_species():
+            species.append(dfba_obj_species.species)
+        for observable in self.get_observables(include_from_stop_conditions=False):
             species.extend(observable.expression.species)
-        for function in self.get_functions():
+        for function in self.get_functions(include_from_stop_conditions=False):
             species.extend(function.expression.species)
         for rate_law in self.get_rate_laws():
             species.extend(rate_law.expression.species)
         return det_dedupe(species)
 
-    def get_observables(self):
+    def get_distribution_init_concentrations(self):
+        """ Get distributions of initial concentrations for species in submodel
+
+        Returns:
+            :obj:`list` of :obj:`DistributionInitConcentration`: distributions of initial
+                concentrations for species in submodel
+        """
+        concs = []
+        for species in self.get_species():
+            if species.distribution_init_concentration:
+                concs.append(species.distribution_init_concentration)
+        return det_dedupe(concs)
+
+    def get_observables(self, include_from_stop_conditions=True):
         """ Get observables in submodel
 
         Returns:
             :obj:`list` of :obj:`Observable`: observables in submodel
         """
         obs = []
-        for function in self.get_functions():
+        for function in self.get_functions(include_from_stop_conditions=include_from_stop_conditions):
             obs.extend(function.expression.observables)
         for rate_law in self.get_rate_laws():
             obs.extend(rate_law.expression.observables)
+        if include_from_stop_conditions:
+            for stop_condition in self.get_stop_conditions():
+                obs.extend(stop_condition.expression.observables)
         obs = det_dedupe(obs)
         obs_to_flats = list(obs)
         while obs_to_flats:
@@ -1306,7 +1337,7 @@ class Submodel(obj_model.Model):
             obs_to_flats.extend(obs_to_flat.expression.observables)
         return det_dedupe(obs)
 
-    def get_functions(self):
+    def get_functions(self, include_from_stop_conditions=True):
         """ Get functions in submodel
 
         Returns:
@@ -1315,6 +1346,9 @@ class Submodel(obj_model.Model):
         funcs = []
         for rate_law in self.get_rate_laws():
             funcs.extend(rate_law.expression.functions)
+        if include_from_stop_conditions:
+            for stop_condition in self.get_stop_conditions():
+                funcs.extend(stop_condition.expression.functions)
         funcs = det_dedupe(funcs)
         funcs_to_flats = list(funcs)
         while funcs_to_flats:
@@ -1362,11 +1396,18 @@ class Submodel(obj_model.Model):
         Returns:
             :obj:`list` of :obj:`DfbaObjReaction`: dFBA objective reactions in submodel
         """
-        rxns = list(self.dfba_obj_reactions)
-        for dfba_obj in self.get_dfba_objs():
-            if dfba_obj.expression:
-                rxns.extend(dfba_obj.expression.dfba_obj_reactions)
-        return det_dedupe(rxns)
+        return list(self.dfba_obj_reactions)
+
+    def get_dfba_obj_species(self):
+        """ Get dFBA objective species in submodel
+
+        Returns:
+            :obj:`list` of :obj:`DfbaObjSpecies`: dFBA objective species in submodel
+        """
+        species = []
+        for rxn in self.get_dfba_obj_reactions():
+            species.extend(rxn.dfba_obj_species)
+        return det_dedupe(species)
 
     def get_parameters(self):
         """ Get parameters in submodel
@@ -1379,7 +1420,24 @@ class Submodel(obj_model.Model):
             parameters.extend(rate_law.expression.parameters)
         for function in self.get_functions():
             parameters.extend(function.expression.parameters)
+        for stop_condition in self.get_stop_conditions():
+            parameters.extend(stop_condition.expression.parameters)
         return det_dedupe(parameters)
+
+    def get_stop_conditions(self):
+        """ Get stop conditions that only involve species and compartments in the submodel
+
+        Returns:
+            :obj:`list` of :obj:`StopCondition`: stop conditions that only involve species and compartments in the submodel
+        """
+        species = set(self.get_species())
+        compartments = set(self.get_compartments())
+        stop_conditions = []
+        for stop_condition in self.model.stop_conditions:
+            if not set(stop_condition.get_species()).difference(species) and \
+               not set(stop_condition.get_compartments()).difference(compartments):
+                stop_conditions.append(stop_condition)
+        return det_dedupe(stop_conditions)
 
     def get_evidence(self):
         """ Get evidence of submodel
@@ -1391,13 +1449,16 @@ class Submodel(obj_model.Model):
             'compartments',
             'species_types',
             'species',
+            'distribution_init_concentrations',
             'observables',
             'functions',
-            'dfba_objs',
             'reactions',
             'rate_laws',
+            'dfba_objs',
             'dfba_obj_reactions',
+            'dfba_obj_species',
             'parameters',
+            'stop_conditions',
             'interpretations',
         ]
         evidence = list(self.evidence)
@@ -1417,13 +1478,16 @@ class Submodel(obj_model.Model):
             'compartments',
             'species_types',
             'species',
+            'distribution_init_concentrations',
             'observables',
             'functions',
-            'dfba_objs',
             'reactions',
             'rate_laws',
+            'dfba_objs',
             'dfba_obj_reactions',
+            'dfba_obj_species',
             'parameters',
+            'stop_conditions',
         ]
         interpretations = list(self.interpretations)
         for type in types:
@@ -1442,15 +1506,18 @@ class Submodel(obj_model.Model):
             'compartments',
             'species_types',
             'species',
+            'distribution_init_concentrations',
             'observables',
             'functions',
-            'dfba_objs',
             'reactions',
             'rate_laws',
+            'dfba_objs',
             'dfba_obj_reactions',
+            'dfba_obj_species',
             'parameters',
             'evidence',
             'interpretations',
+            'stop_conditions',
         ]
         references = list(self.references)
         for type in types:
@@ -1468,16 +1535,42 @@ class Submodel(obj_model.Model):
         return self.get_compartments() + \
             self.get_species_types() + \
             self.get_species() + \
+            self.get_distribution_init_concentrations() + \
             self.get_observables() + \
             self.get_functions() + \
             self.get_reactions() + \
             self.get_rate_laws() + \
             self.get_dfba_objs() + \
             self.get_dfba_obj_reactions() + \
+            self.get_dfba_obj_species() + \
             self.get_parameters() + \
+            self.get_stop_conditions() + \
             self.get_evidence() + \
             self.get_interpretations() + \
             self.get_references()
+
+    def gen_model(self):
+        """ Generate a separate model that contains just the submodel (its
+        compartments, species, reactions, rate laws, parameters) and its
+        metadata.
+
+        Returns:
+            :obj:`Model`: separate model with just this submodel
+        """
+        # metadata
+        # Model
+        # Taxon
+        # Environment
+        # Author
+        # Change
+
+        # Submodel
+
+        # inline models
+        # SpeciesCoefficient,
+        # RateLawExpression, DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
+        # DatabaseReference,
+        pass
 
     def add_to_sbml_model(self, sbml_model):
         """ Add this metadata about this submodel to a SBML model.
@@ -2504,6 +2597,7 @@ class StopConditionExpression(obj_model.Model, Expression):
     Attributes:
         expression (:obj:`str`): mathematical expression for a StopCondition
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
+        species (:obj:`list` of :obj:`Species`): Species used by this stop condition expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
@@ -2640,6 +2734,78 @@ class StopCondition(obj_model.Model):
         if errors:
             return InvalidObject(self, errors)
         return None
+
+    def get_species(self):
+        """ Get species involved in stop condition
+
+        Returns:
+            :obj:`list` of :obj:`Species`: species involved in stop condition
+        """
+        species = list(self.expression.species)
+        for function in self.get_functions():
+            species.extend(function.expression.species)
+        for observable in self.get_observables():
+            species.extend(observable.expression.species)
+        return det_dedupe(species)
+
+    def get_compartments(self):
+        """ Get compartments involved in stop condition
+
+        Returns:
+            :obj:`list` of :obj:`Compartment`: compartments involved in stop condition
+        """
+        compartments = list(self.expression.compartments)
+        for function in self.get_functions():
+            compartments.extend(function.expression.compartments)
+        for species in self.get_species():
+            compartments.append(species.compartment)
+        return det_dedupe(compartments)
+
+    def get_observables(self):
+        """ Get observables involved in stop condition
+
+        Returns:
+            :obj:`list` of :obj:`Observable`: observables involved in stop condition
+        """
+        observables = list(self.expression.observables)
+        for function in self.get_functions():
+            observables.extend(function.expression.observables)
+
+        observables = det_dedupe(observables)
+        observables_to_flatten = list(observables)
+        while observables_to_flatten:
+            observable_to_flatten = observables_to_flatten.pop()
+            observables.extend(observable_to_flatten.expression.observables)
+            observables_to_flatten.extend(observable_to_flatten.expression.observables)
+
+        return det_dedupe(observables)
+
+    def get_functions(self):
+        """ Get functions involved in stop condition
+
+        Returns:
+            :obj:`list` of :obj:`Function`: functions involved in stop condition
+        """
+        functions = list(self.expression.functions)
+
+        functions_to_flatten = list(functions)
+        while functions_to_flatten:
+            function_to_flatten = functions_to_flatten.pop()
+            functions.extend(function_to_flatten.expression.functions)
+            functions_to_flatten.extend(function_to_flatten.expression.functions)
+
+        return det_dedupe(functions)
+
+    def get_parameters(self):
+        """ Get parameters involved in stop condition
+
+        Returns:
+            :obj:`list` of :obj:`Parameter`: parameters involved in stop condition
+        """
+        parameters = list(self.expression.parameters)
+        for function in self.get_functions():
+            parameters.extend(function.expression.parameters)
+        return det_dedupe(parameters)
 
 
 class Reaction(obj_model.Model):
