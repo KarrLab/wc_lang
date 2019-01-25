@@ -69,14 +69,14 @@ class LibSbmlInterface(object):
         for package_id, package_version in packages.items():
             namespaces.append(package_id)
             namespaces.append(package_version)
-        sbml_ns = cls.wrap_libsbml(*namespaces)
+        sbml_ns = cls.call_libsbml(*namespaces)
 
         # create SBML document
-        doc = cls.wrap_libsbml(SBMLDocument, sbml_ns)
+        doc = cls.call_libsbml(SBMLDocument, sbml_ns)
 
         # set package requirements
         for package in packages:
-            cls.wrap_libsbml(doc.setPackageRequired, package, False)
+            cls.call_libsbml(doc.setPackageRequired, package, False)
 
         # return SBML document
         return doc
@@ -91,7 +91,7 @@ class LibSbmlInterface(object):
             version (:obj:`int`, optional): SBML version number
         """
         # SBML compatibility method for the version being used
-        return 0 == cls.wrap_libsbml(doc.checkL3v1Compatibility, returns_int=True)
+        return 0 == cls.call_libsbml(doc.checkL3v1Compatibility, returns_int=True)
 
     @classmethod
     def init_model(cls, doc, packages=None):
@@ -112,19 +112,19 @@ class LibSbmlInterface(object):
         # Modified from libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
 
         # create model
-        model = cls.wrap_libsbml(doc.createModel)
+        model = cls.call_libsbml(doc.createModel)
 
         # enable package plugins
         packages = packages or {}
         for package_id in packages.keys():
-            plugin = cls.wrap_libsbml(model.getPlugin, package_id)
-            cls.wrap_libsbml(plugin.setStrict, True)
+            plugin = cls.call_libsbml(model.getPlugin, package_id)
+            cls.call_libsbml(plugin.setStrict, True)
 
         # Set time, extent, and substance units
-        cls.wrap_libsbml(model.setTimeUnits, 'second')
-        cls.wrap_libsbml(model.setExtentUnits, 'mole')
-        cls.wrap_libsbml(model.setSubstanceUnits, 'mole')
-        cls.wrap_libsbml(model.setVolumeUnits, 'litre')
+        cls.call_libsbml(model.setTimeUnits, 'second')
+        cls.call_libsbml(model.setExtentUnits, 'mole')
+        cls.call_libsbml(model.setSubstanceUnits, 'mole')
+        cls.call_libsbml(model.setVolumeUnits, 'litre')
 
         # Define units
         # Note that SBML Unit objects must have four attributes:
@@ -132,16 +132,16 @@ class LibSbmlInterface(object):
         # * `exponent`
         # * `scale`
         # * `multiplier`
-        per_second = cls.wrap_libsbml(model.createUnitDefinition)
-        cls.wrap_libsbml(per_second.setIdAttribute, 'per_second')
+        per_second = cls.call_libsbml(model.createUnitDefinition)
+        cls.call_libsbml(per_second.setIdAttribute, 'per_second')
         cls.add_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
 
         unit_registry = wc_lang.core.DistributionInitConcentration.units.registry
         molar = unit_registry.parse_expression('M')
         molecule = unit_registry.parse_expression('molecule')
         for unit in wc_lang.core.DistributionInitConcentration.units.choices:
-            sbml_unit_def = cls.wrap_libsbml(model.createUnitDefinition)
-            cls.wrap_libsbml(sbml_unit_def.setIdAttribute, str(unit))
+            sbml_unit_def = cls.call_libsbml(model.createUnitDefinition)
+            cls.call_libsbml(sbml_unit_def.setIdAttribute, str(unit))
 
             if not isinstance(unit, unit_registry.Unit):
                 raise ValueError('Unsupported units "{}"'.format(
@@ -176,15 +176,15 @@ class LibSbmlInterface(object):
 
             raise ValueError('Invalid unit {}'.format(str(unit)))  # pragma: no cover # unreachable because all choices in above two cases
 
-        mmol_per_gDW_per_hr = cls.wrap_libsbml(model.createUnitDefinition)
-        cls.wrap_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
+        mmol_per_gDW_per_hr = cls.call_libsbml(model.createUnitDefinition)
+        cls.call_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
         cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_MOLE, scale=-3)
         cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_GRAM, exponent=-1)
         cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_SECOND, exponent=-1,
                      multiplier=3600.0)
 
-        dimensionless = cls.wrap_libsbml(model.createUnitDefinition)
-        cls.wrap_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
+        dimensionless = cls.call_libsbml(model.createUnitDefinition)
+        cls.call_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
         cls.add_unit(dimensionless, libsbml.UNIT_KIND_DIMENSIONLESS)
 
         # return SBML model
@@ -212,11 +212,11 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if a libSBML calls fails
         """
-        unit = cls.wrap_libsbml(unit_definition.createUnit)
-        cls.wrap_libsbml(unit.setKind, unit_kind)
-        cls.wrap_libsbml(unit.setExponent, exponent)
-        cls.wrap_libsbml(unit.setScale, scale)
-        cls.wrap_libsbml(unit.setMultiplier, multiplier)
+        unit = cls.call_libsbml(unit_definition.createUnit)
+        cls.call_libsbml(unit.setKind, unit_kind)
+        cls.call_libsbml(unit.setExponent, exponent)
+        cls.call_libsbml(unit.setScale, scale)
+        cls.call_libsbml(unit.setMultiplier, multiplier)
         return unit
 
     @classmethod
@@ -243,23 +243,23 @@ class LibSbmlInterface(object):
             :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
         try:
-            cls.wrap_libsbml(model.getParameter, id)
+            cls.call_libsbml(model.getParameter, id)
             raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
         except LibSbmlError as e:
-            sbml_parameter = cls.wrap_libsbml(model.createParameter)
-            cls.wrap_libsbml(sbml_parameter.setIdAttribute, id)
+            sbml_parameter = cls.call_libsbml(model.createParameter)
+            cls.call_libsbml(sbml_parameter.setIdAttribute, id)
             if not name is None:
-                cls.wrap_libsbml(sbml_parameter.setName, name)
+                cls.call_libsbml(sbml_parameter.setName, name)
             if not value is None:
-                cls.wrap_libsbml(sbml_parameter.setValue, value)
+                cls.call_libsbml(sbml_parameter.setValue, value)
             if not units is None:
-                cls.wrap_libsbml(sbml_parameter.setUnits, units)
-            cls.wrap_libsbml(sbml_parameter.setConstant, constant)
+                cls.call_libsbml(sbml_parameter.setUnits, units)
+            cls.call_libsbml(sbml_parameter.setConstant, constant)
             return sbml_parameter
 
     @classmethod
-    def wrap_libsbml(cls, method, *args, **kwargs):
-        """ Wrap a libSBML method so that errors in return code can be easily handled.
+    def call_libsbml(cls, method, *args, returns_int=False, debug=False):
+        """ Call a libSBML method and handle any errors.
 
         Unfortunately, libSBML methods that do not return data usually report errors via return codes,
         instead of exceptions, and the generic return codes contain virtually no information.
@@ -271,7 +271,6 @@ class LibSbmlInterface(object):
         Args:
             method (:obj:`obj`): a reference to the `libsbml` method to execute
             args (:obj:`list` of :obj:`obj`): a `list` of arguments to the `libsbml` method
-            kwargs (:obj:`dict` of `obj`): a `dict` of options:
             returns_int (:obj:`bool`, optional): whether the method returns an integer; if `returns_int`
                 is `True`, then an exception will not be raised if the method call returns an integer
             debug (:obj:`bool`, optional): whether to print debug output
@@ -285,20 +284,6 @@ class LibSbmlInterface(object):
             :obj:`LibSbmlError`: if the `libsbml` call raises an exception, or returns None, or
             returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
         """
-        # process kwargs
-        returns_int = False
-        if 'returns_int' in kwargs:
-            returns_int = kwargs['returns_int']
-            del kwargs['returns_int']
-        debug = False
-        if 'debug' in kwargs:
-            debug = kwargs['debug']
-            del kwargs['debug']
-
-        # warn about unused kwargs
-        for k in kwargs.keys():
-            warnings.warn("wrap_libsbml: unknown kwargs key '{}'".format(k), UserWarning)
-
         new_args = []
         for arg in args:
             new_args.append(arg)
@@ -331,14 +316,14 @@ class LibSbmlInterface(object):
                 if error_code is None:
                     if debug:
                         print("libSBML returns:", rc)
-                    warnings.warn("wrap_libsbml: unknown error code {} returned by '{}'."
+                    warnings.warn("call_libsbml: unknown error code {} returned by '{}'."
                                   "\nPerhaps an integer value is being returned; if so, to avoid this warning "
-                                  "pass 'returns_int=True' to wrap_libsbml().".format(error_code, call_str), UserWarning)
+                                  "pass 'returns_int=True' to call_libsbml().".format(error_code, call_str), UserWarning)
                     return rc
                 else:
                     raise LibSbmlError("LibSBML returned error code '{}' when executing '{}'."
                                        "\nWARNING: if this libSBML call returns an int value, then this error may be "
-                                       "incorrect; to avoid this error pass 'returns_int=True' to wrap_libsbml().".format(
+                                       "incorrect; to avoid this error pass 'returns_int=True' to call_libsbml().".format(
                                            error_code, call_str))
         else:
             # return data provided by libSBML method

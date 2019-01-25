@@ -131,19 +131,19 @@ class TestSbml(unittest.TestCase):
         shutil.rmtree(self.dirname)
 
     def check_sbml_doc(self, sbml_doc):
-        wrap_libsbml = LibSbmlInterface.wrap_libsbml
+        call_libsbml = LibSbmlInterface.call_libsbml
 
         # if checkConsistency() returns some errors, print them
-        for i in range(wrap_libsbml(sbml_doc.checkConsistency, returns_int=True)):
+        for i in range(call_libsbml(sbml_doc.checkConsistency, returns_int=True)):
             print(sbml_doc.getError(i).getShortMessage())
             print(sbml_doc.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml(sbml_doc.checkConsistency, returns_int=True), 0)
+        self.assertEqual(call_libsbml(sbml_doc.checkConsistency, returns_int=True), 0)
 
         # if 0<getNumErrors, print them
-        for i in range(wrap_libsbml(sbml_doc.getNumErrors, returns_int=True)):
+        for i in range(call_libsbml(sbml_doc.getNumErrors, returns_int=True)):
             print(sbml_doc.getError(i).getShortMessage())
             print(sbml_doc.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml(sbml_doc.getNumErrors, returns_int=True), 0)
+        self.assertEqual(call_libsbml(sbml_doc.getNumErrors, returns_int=True), 0)
 
     def test_SbmlExporter(self):
         for submodel in self.model.get_submodels():

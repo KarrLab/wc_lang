@@ -1978,7 +1978,7 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(invalid, None, str(invalid))
 
     def test_sbml_data_exchange(self):
-        wrap_libsbml = LibSbmlInterface.wrap_libsbml
+        call_libsbml = LibSbmlInterface.call_libsbml
 
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
         document = LibSbmlInterface.create_doc(packages={'fbc': 2})
@@ -2094,22 +2094,22 @@ class TestCore(unittest.TestCase):
 
         #   write DfbaObjective to the model, and test
         sbml_objective = of.add_to_sbml_doc(document)
-        self.assertEqual(wrap_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
-        self.assertEqual(len(wrap_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
-        for flux_objective in wrap_libsbml(sbml_objective.getListOfFluxObjectives):
-            if wrap_libsbml(flux_objective.getReaction) == rxn_id:
-                self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 2.0)
-            elif wrap_libsbml(flux_objective.getReaction) == dfba_obj_reaction_id:
-                self.assertEqual(wrap_libsbml(flux_objective.getCoefficient), 1.0)
+        self.assertEqual(call_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
+        self.assertEqual(len(call_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
+        for flux_objective in call_libsbml(sbml_objective.getListOfFluxObjectives):
+            if call_libsbml(flux_objective.getReaction) == rxn_id:
+                self.assertEqual(call_libsbml(flux_objective.getCoefficient), 2.0)
+            elif call_libsbml(flux_objective.getReaction) == dfba_obj_reaction_id:
+                self.assertEqual(call_libsbml(flux_objective.getCoefficient), 1.0)
             else:
-                self.fail("reaction {} unexpected".format(wrap_libsbml(flux_objective.getReaction)))
+                self.fail("reaction {} unexpected".format(call_libsbml(flux_objective.getReaction)))
 
         # Check the SBML document
         self.assertTrue(LibSbmlInterface.is_doc_compatible(document))
         for i in range(document.checkConsistency()):
             print(document.getError(i).getShortMessage())
             print(document.getError(i).getMessage())
-        self.assertEqual(wrap_libsbml(document.checkConsistency), 0)
+        self.assertEqual(call_libsbml(document.checkConsistency), 0)
 
         # exceptions -- dFBA objective isn't linear
         expression, invalid_attribute = DfbaObjectiveExpression.deserialize('rxn_2', objs)
