@@ -1214,6 +1214,7 @@ class Submodel(obj_model.Model):
         dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
             if not initialized, then `dfba_obj_reaction` is used as the objective function
         dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): the growth reaction for a dFBA submodel
+        changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1460,6 +1461,7 @@ class Submodel(obj_model.Model):
             'parameters',
             'stop_conditions',
             'interpretations',
+            'changes',
         ]
         evidence = list(self.evidence)
         for type in types:
@@ -1488,6 +1490,7 @@ class Submodel(obj_model.Model):
             'dfba_obj_species',
             'parameters',
             'stop_conditions',
+            'changes',
         ]
         interpretations = list(self.interpretations)
         for type in types:
@@ -1518,6 +1521,7 @@ class Submodel(obj_model.Model):
             'evidence',
             'interpretations',
             'stop_conditions',
+            'changes',
         ]
         references = list(self.references)
         for type in types:
@@ -1525,6 +1529,27 @@ class Submodel(obj_model.Model):
             for obj in get_func():
                 references.extend(obj.references)
         return det_dedupe(references)
+
+    def get_authors(self):
+        """ Get authors of submodel
+
+        Returns:
+            :obj:`list` of :obj:`obj_model.Author`: authors of submodel
+        """
+        authors = []
+        for interpretation in self.get_interpretations():
+            authors.extend(interpretation.authors)
+        for change in self.get_changes():
+            authors.extend(change.authors)
+        return det_dedupe(authors)
+
+    def get_changes(self):
+        """ Get changes to submodel
+
+        Returns:
+            :obj:`list` of :obj:`obj_model.Change`: changes to submodel
+        """
+        return list(self.changes)
 
     def get_components(self):
         """ Get components of submodel
@@ -1547,7 +1572,9 @@ class Submodel(obj_model.Model):
             self.get_stop_conditions() + \
             self.get_evidence() + \
             self.get_interpretations() + \
-            self.get_references()
+            self.get_references() + \
+            self.get_authors() + \
+            self.get_changes()
 
     def gen_model(self):
         """ Generate a separate model that contains just the submodel (its
@@ -1561,8 +1588,6 @@ class Submodel(obj_model.Model):
         # Model
         # Taxon
         # Environment
-        # Author
-        # Change
 
         # Submodel
 
@@ -3757,6 +3782,7 @@ class Interpretation(obj_model.Model):
             (e.g. individual observations underlying an average)
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
+        authors (:obj:`list` of :obj:`Author`): authors
 
     Related attributes:
         submodels (:obj:`list` of :obj:`Submodel`): submodels
@@ -3792,12 +3818,13 @@ class Interpretation(obj_model.Model):
     evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='interpretations')
+    authors = ManyToManyAttribute('Author', related_name='interpretations')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
                            'type', 'method',
-                           'db_refs', 'evidence', 'comments', 'references')
+                           'db_refs', 'evidence', 'comments', 'references', 'authors')
 
 
 class Reference(obj_model.Model):
@@ -3894,6 +3921,7 @@ class Author(obj_model.Model):
         comments (:obj:`str`): comments
 
     Related attributes:
+        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
@@ -3929,6 +3957,7 @@ class Change(obj_model.Model):
         model (:obj:`Model`): model
         type (:obj:`pronto.term.Term`): type
         target (:obj:`str`): target
+        target_submodel (:obj:`Submodel`): target submodel
         target_type (:obj:`pronto.term.Term`): target type
         reason (:obj:`str`): reason
         reason_type (:obj:`pronto.term.Term`): type of reason
@@ -3949,6 +3978,7 @@ class Change(obj_model.Model):
     type = OntologyAttribute(wcm_ontology, namespace='WCM',
                              terms=wcm_ontology['WCM:change_provenance'].rchildren())
     target = LongStringAttribute()
+    target_submodel = ManyToOneAttribute(Submodel, related_name='changes')
     target_type = OntologyAttribute(wcm_ontology, namespace='WCM',
                                     terms=wcm_ontology['WCM:target_provenance'].rchildren())
     reason = LongStringAttribute()
@@ -3967,7 +3997,7 @@ class Change(obj_model.Model):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'type', 'target', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
+                           'type', 'target', 'target_submodel', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references',
                            'authors', 'date')
 
