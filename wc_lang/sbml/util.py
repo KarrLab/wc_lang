@@ -22,23 +22,11 @@ import warnings
 import wc_lang.core
 
 
-class Error(Exception):
-    '''Base class for `libSBML` exceptions
-    '''
-    pass
-
-
-class LibSbmlError(Error):
-    '''Exception raised when libSBML returns an error
-    '''
+class LibSbmlError(Exception):
+    ''' Exception raised when libSBML returns an error '''
 
     def __init__(self, msg):
         self.msg = msg
-
-    def __str__(self):
-        '''Provide the Exception's msg; needed for Python 2.7, although not documented
-        '''
-        return self.msg
 
 
 class LibSbmlInterface(object):
@@ -60,7 +48,7 @@ class LibSbmlInterface(object):
                 that maps package identifiers to package numbers
 
         Returns:
-            :obj:`libsbml.SBMLDocument`: SBML Document
+            :obj:`libsbml.SBMLDocument`: SBML document
         """
         packages = packages or {}
 
@@ -86,7 +74,7 @@ class LibSbmlInterface(object):
         """ Check the compatibility of an SBML document with a specific level and version
 
         Args:
-            doc (:obj:`libsbml.SBMLDocument`): SBML Document
+            doc (:obj:`libsbml.SBMLDocument`): SBML document
             level (:obj:`int`, optional): SBML level number
             version (:obj:`int`, optional): SBML version number
         """
@@ -333,13 +321,13 @@ class LibSbmlInterface(object):
 
     @staticmethod
     def str_to_xmlstr(str):
-        """ Convert a Python string to an XML string that can be stored as a Note in an SBML Document.
+        """ Convert a Python string to an XML string that can be stored as a Note in an SBML document.
 
         Args:
             str (:obj:`str`): a string
 
         Returns:
-            :obj:`str`: an XML string that can be stored as a Note in an SBML Document
+            :obj:`str`: an XML string that can be stored as a `Note` in an SBML document
         """
         # TODO: GET libSBML to do this XML crap, but none of the obvious methods work
         return "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(str)
