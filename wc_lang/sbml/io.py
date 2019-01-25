@@ -146,13 +146,15 @@ class SubmodelSbmlExporter(object):
         Returns:
             :obj:`libsbml.SBMLDocument`: SBML-encoded submodel
         """
-        dfba = submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']
+        packages = {}
+        if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            packages['fbc'] = 2
 
         # Create an empty libsbml.SBMLDocument object.
-        sbml_doc = create_sbml_doc(fbc=dfba)
+        sbml_doc = create_sbml_doc(packages=packages)
 
         # Create the SBML Model object inside the libsbml.SBMLDocument object.
-        init_sbml_model(sbml_doc, fbc=dfba)
+        init_sbml_model(sbml_doc, packages=packages)
 
         objects = cls.get_submodel_objects(submodel)
 

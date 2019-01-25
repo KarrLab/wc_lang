@@ -19,7 +19,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
                      UNIT_KIND_AVOGADRO)
 
 from wc_lang.sbml.util import (wrap_libsbml, LibSbmlError, create_sbml_doc, add_sbml_unit,
-                               create_sbml_parameter, init_sbml_model, SBML_LEVEL, SBML_VERSION, FBC_VERSION,
+                               create_sbml_parameter, init_sbml_model,
                                get_sbml_compatibility_method)
 
 
@@ -27,7 +27,7 @@ class TestSbml(unittest.TestCase):
 
     def setUp(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        self.document = create_sbml_doc(fbc=True)
+        self.document = create_sbml_doc(packages={'fbc': 2})
 
     def test_SBML_wrap_libsbml(self):
 
@@ -140,7 +140,7 @@ class TestSbml(unittest.TestCase):
     def test_SBML_fbc(self):
 
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        document = create_sbml_doc(fbc=True)
+        document = create_sbml_doc(packages={'fbc': 2})
 
         id = 'x'
         self.assertEqual(
@@ -150,7 +150,7 @@ class TestSbml(unittest.TestCase):
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, "fbc", FBC_VERSION)
+        sbmlns = wrap_libsbml(SBMLNamespaces, 3, 1, "fbc", 1)
         self.sbml_document = wrap_libsbml(SBMLDocument, sbmlns)
         self.sbml_model = wrap_libsbml(self.sbml_document.createModel)
 
@@ -228,7 +228,7 @@ class TestDebug(unittest.TestCase):
 
     def setUp(self):
         # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        self.document = create_sbml_doc(fbc=True)
+        self.document = create_sbml_doc(packages={'fbc': 2})
 
     def test_SBML_wrap_libsbml_with_debug(self):
         with capturer.CaptureOutput() as capture_output:

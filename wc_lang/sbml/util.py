@@ -22,17 +22,9 @@ import pint
 import six
 import wc_lang.core
 
-# Centralize code that depends on levels and versions
-# SBML level and version
-SBML_LEVEL = 3
-SBML_VERSION = 1
-# Flux balance constraints (fbc) version
-FBC_VERSION = 2
-
-# SBML compatibility method for the version being used
-
 
 def get_sbml_compatibility_method(sbml_doc):
+    # SBML compatibility method for the version being used
     return sbml_doc.checkL3v1Compatibility
 
 
@@ -56,33 +48,43 @@ class LibSbmlError(Error):
 
 
 class LibSbmlInterface(object):
-    '''Methods that compactly use libSBML to create SBML objects.
+    '''Methods for compactly using libSBML to create SBML objects.
 
-    The libSBML method calls provide horribly narrow interfaces, typically exchanging one
-    value per call, which creates extremely verbose code. These methods aggregate multiple
+    The libSBML method calls provide narrow interfaces, typically exchanging one
+    value per call, which creates verbose code. The methods below aggregate multiple
     libSBML method calls to enable more compact usage.
     '''
 
     @staticmethod
-    def _create_sbml_doc(fbc=False):
-        """ Create an SBMLDocument that, optionally, uses the Flux Balance Constraints (FBC) package.
+    def _create_sbml_doc(level=3, version=1, packages=None):
+        """ Create an SBMLDocument that, optionally, uses package(s).
 
         Args:
-            fbc (:obj:`bool`, optional): if :obj:`True`, use the FBC package
+            level (:obj:`int`, optional): SBML level number
+            version (:obj:`int`, optional): SBML version number
+            packages (:obj:`dict` that maps :obj:`str` to :obj:`int`, optional): dictionary of required packages
+                that maps package identifiers to package numbers
 
         Returns:
-            :obj:`libsbml.Unit`: the new SBML Document
-
-        Raises:
-            :obj:`LibSbmlError`: if a libSBML calls fails
+            :obj:`libsbml.SBMLDocument`: the new SBML Document
         """
-        packages = []
-        if fbc:
-            packages.extend(['fbc', FBC_VERSION])
-        sbmlns = wrap_libsbml(SBMLNamespaces, SBML_LEVEL, SBML_VERSION, *packages)
+        packages = packages or {}
+
+        # create name spaces for SBML document
+        namespaces = [SBMLNamespaces, level, version]
+        for package_id, package_version in packages.items():
+            namespaces.append(package_id)
+            namespaces.append(package_version)
+        sbmlns = wrap_libsbml(*namespaces)
+
+        # create SBML document
         sbml_doc = wrap_libsbml(SBMLDocument, sbmlns)
-        if fbc:
-            wrap_libsbml(sbml_doc.setPackageRequired, 'fbc', False)
+
+        # set package requirements
+        for package in packages:
+            wrap_libsbml(sbml_doc.setPackageRequired, package, False)
+
+        # return SBML document
         return sbml_doc
 
     @staticmethod
@@ -251,12 +253,13 @@ def wrap_libsbml(method, *args, **kwargs):
         return rc
 
 
-def init_sbml_model(sbml_doc, fbc=False):
+def init_sbml_model(sbml_doc, packages=None):
     """ Create and initialize an SMBL model.
 
     Args:
          sbml_doc (:obj:`obj`): a `libsbml` SBMLDocument
-         fbc (:obj:`bool`, optional): if :obj:`True`, use the FBC plugin
+         packages (:obj:`dict` that maps :obj:`str` to :obj:`int`, optional): dictionary of required packages
+            that maps package identifiers to package numbers
 
     Returns:
         :obj:`libsbml.model`: the SBML model
@@ -266,14 +269,15 @@ def init_sbml_model(sbml_doc, fbc=False):
         :obj:`LibSbmlError`: if calling `libsbml` raises an error
     """
     # Modified copy of libsbml-5.15.0/examples/python/createSimpleModel.py from 2017-10-02
-    
+
     # create model
     sbml_model = wrap_libsbml(sbml_doc.createModel)
 
-    # enable FBC plugin
-    if fbc:
-        fbc_model_plugin = wrap_libsbml(sbml_model.getPlugin, 'fbc')
-        wrap_libsbml(fbc_model_plugin.setStrict, True)
+    # enable package plugins
+    packages = packages or {}
+    for package_id in packages.keys():
+        plugin = wrap_libsbml(sbml_model.getPlugin, package_id)
+        wrap_libsbml(plugin.setStrict, True)
 
     # Set time, extent, and substance units
     wrap_libsbml(sbml_model.setTimeUnits, 'second')
@@ -281,9 +285,12 @@ def init_sbml_model(sbml_doc, fbc=False):
     wrap_libsbml(sbml_model.setSubstanceUnits, 'mole')
     wrap_libsbml(sbml_model.setVolumeUnits, 'litre')
 
-    # Create a unit definition we will need later.  Note that SBML Unit
-    # objects must have all four attributes 'kind', 'exponent', 'scale'
-    # and 'multiplier' defined.
+    # Define units
+    # Note that SBML Unit objects must have four attributes:
+    # * `kind`
+    # * `exponent`
+    # * `scale`
+    # * `multiplier`
     per_second = wrap_libsbml(sbml_model.createUnitDefinition)
     wrap_libsbml(per_second.setIdAttribute, 'per_second')
     add_sbml_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
