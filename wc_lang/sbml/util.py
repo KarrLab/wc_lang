@@ -115,7 +115,7 @@ class LibSbmlInterface(object):
         # create model
         sbml_model = cls.create_model(doc)
 
-        # enable package plugins
+        # enable plugins for packages
         packages = packages or {}
         for package_id in packages.keys():
             plugin = cls.call_libsbml(sbml_model.getPlugin, package_id)

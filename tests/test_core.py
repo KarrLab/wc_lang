@@ -1988,14 +1988,14 @@ class TestCore(unittest.TestCase):
 
         # Write a dFBA Submodel to an SBML document
         self.submdl_2.comments = 'test submodel comment'
-        sbml_model = self.submdl_2.add_to_sbml_doc(document)
+        sbml_model = self.submdl_2.add_to_sbml_model(sbml_model)
         self.assertEqual(sbml_model.getIdAttribute(), self.submdl_2.id)
         self.assertEqual(sbml_model.getName(), self.submdl_2.name)
         self.assertIn(self.submdl_2.comments, sbml_model.getNotesString())
 
         # Write Compartments to the SBML document
         self.comp_0.comments = 'test comment'
-        sbml_compartment = self.comp_0.add_to_sbml_doc(document)
+        sbml_compartment = self.comp_0.add_to_sbml_model(sbml_model)
         self.assertTrue(sbml_compartment.hasRequiredAttributes())
         self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
         self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
@@ -2004,7 +2004,7 @@ class TestCore(unittest.TestCase):
 
         # Write species used by the submodel to the SBML document
         for species in self.submdl_2.get_species():
-            sbml_species = species.add_to_sbml_doc(document)
+            sbml_species = species.add_to_sbml_model(sbml_model)
             self.assertTrue(sbml_species.hasRequiredAttributes())
             self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
             self.assertEqual(sbml_species.getName(), species.species_type.name)
@@ -2016,7 +2016,7 @@ class TestCore(unittest.TestCase):
         self.rxn_2.flux_max = 200
         self.rxn_2.flux_bound_units = unit_registry.parse_units('M s^-1')
         self.rxn_2.comments = 'comments'
-        sbml_reaction = self.rxn_2.add_to_sbml_doc(document)
+        sbml_reaction = self.rxn_2.add_to_sbml_model(sbml_model)
         self.assertTrue(sbml_reaction.hasRequiredAttributes())
         self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
         self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
@@ -2038,7 +2038,7 @@ class TestCore(unittest.TestCase):
                     self.assertEqual(product.getStoichiometry(), participant.coefficient)
 
         # Write the dFBA objective reaction to the SBML document
-        sbml_dfba_obj_reaction = self.dfba_obj_reaction.add_to_sbml_doc(document)
+        sbml_dfba_obj_reaction = self.dfba_obj_reaction.add_to_sbml_model(sbml_model)
         self.assertTrue(sbml_dfba_obj_reaction.hasRequiredAttributes())
         self.assertEqual(sbml_dfba_obj_reaction.getIdAttribute(), self.dfba_obj_reaction.id)
         self.assertEqual(sbml_dfba_obj_reaction.getName(), self.dfba_obj_reaction.name)
@@ -2066,7 +2066,7 @@ class TestCore(unittest.TestCase):
         self.parameters.append(param)
 
         for param in self.parameters:
-            sbml_param = param.add_to_sbml_doc(document)
+            sbml_param = param.add_to_sbml_model(sbml_model)
             self.assertTrue(sbml_param.hasRequiredAttributes())
             self.assertIn(param.id, sbml_param.getIdAttribute())
             self.assertEqual(sbml_param.getName(), param.name)
@@ -2075,7 +2075,7 @@ class TestCore(unittest.TestCase):
             units = param.units
             param.units = None
             with self.assertRaisesRegex(ValueError, 'Units must be defined'):
-                param.add_to_sbml_doc(document)
+                param.add_to_sbml_model(sbml_model)
             param.units = units
 
         # Write an objective function to the model
@@ -2093,7 +2093,7 @@ class TestCore(unittest.TestCase):
         of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
 
         #   write DfbaObjective to the model, and test
-        sbml_objective = of.add_to_sbml_doc(document)
+        sbml_objective = of.add_to_sbml_model(sbml_model)
         self.assertEqual(call_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
         self.assertEqual(len(call_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
         for flux_objective in call_libsbml(sbml_objective.getListOfFluxObjectives):
@@ -2117,7 +2117,7 @@ class TestCore(unittest.TestCase):
         obj_func = DfbaObjective(expression=expression, submodel=Submodel(id='Metabolism'))
         expression._parsed_expression.is_linear = False
         with pytest.warns(UserWarning):
-            obj_func.add_to_sbml_doc(document)
+            obj_func.add_to_sbml_model(sbml_model)
 
     def test_dfba_obj_get_products(self):
         model = Model()

@@ -154,7 +154,7 @@ class SubmodelSbmlExporter(object):
         sbml_doc = LibSbmlInterface.create_doc(packages=packages)
 
         # Create the SBML Model object inside the libsbml.SBMLDocument object.
-        LibSbmlInterface.init_model(None, sbml_doc, packages=packages)
+        sbml_model = LibSbmlInterface.init_model(None, sbml_doc, packages=packages)
 
         objects = cls.get_submodel_objects(submodel)
 
@@ -192,7 +192,7 @@ class SubmodelSbmlExporter(object):
         for model in model_order:
             if model in grouped_objects:
                 for obj in grouped_objects[model]:
-                    obj.add_to_sbml_doc(sbml_doc)
+                    obj.add_to_sbml_model(sbml_model)
 
         return sbml_doc
 

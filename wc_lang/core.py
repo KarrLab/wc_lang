@@ -1479,19 +1479,18 @@ class Submodel(obj_model.Model):
             self.get_interpretations() + \
             self.get_references()
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Submodel to a libsbml SBML document as a `libsbml.model`.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this metadata about this submodel to a SBML model.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.model`: the libsbml model
+            :obj:`libsbml.Model`: SBML model
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
         call_libsbml(sbml_model.setIdAttribute, self.id)
         if self.name:
             call_libsbml(sbml_model.setName, self.name)
@@ -1675,17 +1674,17 @@ class DfbaObjective(obj_model.Model):
 
     ACTIVE_OBJECTIVE = 'active_objective'
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this DfbaObjective to a libsbml SBML document in a `libsbml.model.ListOfObjectives`.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this DfbaObjective to a SBML model.
 
         This uses version 2 of the 'Flux Balance Constraints' extension. SBML assumes that an
         DfbaObjective is a linear combination of reaction fluxes.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.Objective`: the libsbml Objective that's created
+            :obj:`libsbml.Objective`: SBML objective
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
@@ -1695,7 +1694,6 @@ class DfbaObjective(obj_model.Model):
             warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
                 self.submodel.id), UserWarning)
             return
-        sbml_model = call_libsbml(sbml_document.getModel)
         fbc_model_plugin = call_libsbml(sbml_model.getPlugin, 'fbc')
         sbml_objective = call_libsbml(fbc_model_plugin.createObjective)
         call_libsbml(sbml_objective.setType, 'maximize')
@@ -1895,19 +1893,18 @@ class Compartment(obj_model.Model):
             tot += comp.mean_init_volume
         return tot
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Compartment to a libsbml SBML document.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this compartment to a SBML model.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.compartment`: the libsbml compartment that's created
+            :obj:`libsbml.Compartment`: SBML compartment
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
         sbml_compartment = call_libsbml(sbml_model.createCompartment)
         call_libsbml(sbml_compartment.setIdAttribute, self.id)
         call_libsbml(sbml_compartment.setName, self.name)
@@ -2133,19 +2130,18 @@ class Species(obj_model.Model):
         """
         return sbml_id.replace('__', '[', 1).replace('__', ']', 1)
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Species to a libsbml SBML document.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this species to a SBML model.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.species`: the libsbml species that's created
+            :obj:`libsbml.Species`: SBML species
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
         sbml_species = call_libsbml(sbml_model.createSpecies)
         # initDefaults() isn't wrapped in call_libsbml because it returns None
         sbml_species.initDefaults()
@@ -2827,19 +2823,18 @@ class Reaction(obj_model.Model):
         """
         return list(set(self.rate_laws.get_one(direction=direction).expression.species) - set(self.get_reactants()))
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Reaction to a libsbml SBML document.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this reaction to a SBML model.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.reaction`: the libsbml reaction that's created
+            :obj:`libsbml.Reaction`: SBML reaction
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
 
         # create SBML reaction in SBML document
         sbml_reaction = call_libsbml(sbml_model.createReaction)
@@ -3316,25 +3311,24 @@ class DfbaObjReaction(obj_model.Model):
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add a DfbaObjReaction to a libsbml SBML document.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add a DfbaObjReaction to a SBML model.
 
-        DfbaObjReactions are added to the SBML document because they can be used in a dFBA submodel's
+        DfbaObjReactions are added to the SBML model because they can be used in a dFBA submodel's
         objective function. In fact the default objective function is the submodel's dFBA objective reaction.
         Since SBML does not define DfbaObjReaction as a separate class, DfbaObjReactions are added
         to the SBML model as SBML reactions.
         CheckModel ensures that wc_lang DfbaObjReactions and Reactions have distinct ids.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.reaction`: the libsbml reaction that's created
+            :obj:`libsbml.Reaction`: SBML reaction
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
 
         # create SBML reaction in SBML document
         sbml_reaction = call_libsbml(sbml_model.createReaction)
@@ -3421,20 +3415,19 @@ class Parameter(obj_model.Model):
         expression_term_value = 'value'
         expression_term_units = 'units'
 
-    def add_to_sbml_doc(self, sbml_document):
-        """ Add this Parameter to a libsbml SBML document.
+    def add_to_sbml_model(self, sbml_model):
+        """ Add this parameter to a SBML model.
 
         Args:
-             sbml_document (:obj:`obj`): a `libsbml` SBMLDocument
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`libsbml.Parameter`: the libsbml Parameter that's created
+            :obj:`libsbml.Parameter`: SBML parameter
 
         Raises:
             :obj:`LibSbmlError`: if calling `libsbml` raises an error
             :obj:`ValueError`: if units are undefined
         """
-        sbml_model = call_libsbml(sbml_document.getModel)
         # prefix id with 'parameter' so ids for wc_lang Parameters don't collide with ids for other libsbml parameters
         sbml_id = "parameter_{}".format(self.id)
         # TODO: use a standard unit ontology to map self.units to SBML model units
