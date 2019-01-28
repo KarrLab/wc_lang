@@ -650,6 +650,19 @@ class MergeTestCase(unittest.TestCase):
 
         model_1.normalize()
         model_2.normalize()
+
+        self.assertEqual(set(other_objs_in_self.keys()), set(model_2.get_related()))
+        self.assertEqual(set(other_objs_in_self.values()), set(model_1.get_related()))
+        self.assertEqual(set(model_2.get_related()), set(other_objs_in_self.keys()))
+        self.assertEqual(set(model_1.get_related()), set(other_objs_in_self.values()))
+
+        x=sorted([rel.serialize() for rel in model_1.get_related()])
+        prev=None
+        for y in x:
+            if y == prev:
+                print(y)
+            prev=y
+
         self.assertEqual(other_objs_in_self,
                          {o: s for s, o in zip(model_1.get_related(), model_2.get_related())})
 

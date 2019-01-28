@@ -683,6 +683,9 @@ class Model(obj_model.Model):
                            'db_refs', 'comments',
                            'created', 'updated')
         tabular_orientation = TabularOrientation.column
+        children = {
+            'submodel': ('taxon', 'env'),
+        }
 
     def __init__(self, **kwargs):
         """
@@ -1235,6 +1238,10 @@ class Submodel(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         merge = obj_model.ModelMerge.append
+        children = {
+            'submodel': ('model', 'reactions', 'dfba_obj', 'dfba_obj_reactions',
+                         'db_refs', 'evidence', 'interpretations', 'references', 'changes'),
+        }
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1262,340 +1269,97 @@ class Submodel(obj_model.Model):
             return InvalidObject(self, errors)
         return None
 
-    def get_compartments(self):
-        """ Get compartments in submodel
+    def get_children(self, kind=None, __type=None, recursive=True, __include_stop_conditions=True, 
+        **kwargs):
+        """ Get a kind of children. 
+
+        If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
+        in each class.
+
+        Args:
+            kind (:obj:`str`, optional): kind of children to get
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            recursive (:obj:`bool`, optional): if :obj:`True`, get children recursively
+            kwargs (:obj:`dict` of `str`: `object`): dictionary of attribute name/value pairs
 
         Returns:
-            :obj:`list` of :obj:`Compartment`: compartments in submodel
+            :obj:`list` of :obj:`Model`: children
         """
-        compartments = []
-        for species in self.get_species():
-            compartments.append(species.compartment)
-        return det_dedupe(compartments)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+        if 'recursive' in kwargs:
+            recursive = kwargs.pop('recursive')
+        if '__include_stop_conditions' in kwargs:
+            __include_stop_conditions = kwargs.pop('__include_stop_conditions')
 
-    def get_species_types(self):
-        """ Get species types in submodel
+        children = self.get_immediate_children(kind=kind, __include_stop_conditions=__include_stop_conditions)
+
+        # get recursive children
+        if recursive:
+            objs_to_explore = children
+            children = set(children)
+            while objs_to_explore:
+                obj_to_explore = objs_to_explore.pop()
+                for child in obj_to_explore.get_immediate_children(kind=kind):
+                    if child not in children:
+                        children.add(child)
+                        objs_to_explore.append(child)
+            children = list(children)
+
+        # filter by type/attributes
+        matches = []
+        for child in children:
+            if child.has_attr_vals(__type=__type, **kwargs):
+                matches.append(child)
+        children = matches
+
+        # return children
+        return children
+
+    def get_immediate_children(self, kind=None, __type=None, __include_stop_conditions=True,
+        **kwargs):
+        """ Get a kind of children. 
+
+        If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
+        in each class.
+
+        Args:
+            kind (:obj:`str`, optional): kind of children to get
+            __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
+            kwargs (:obj:`dict` of `str`: `object`): dictionary of attribute name/value pairs
 
         Returns:
-            :obj:`list` of :obj:`SpeciesType`: species types in submodel
+            :obj:`list` of :obj:`Model`: children
         """
-        species_types = []
-        for species in self.get_species():
-            species_types.append(species.species_type)
-        return det_dedupe(species_types)
+        if '__type' in kwargs:
+            __type = kwargs.pop('__type')
+        if '__include_stop_conditions' in kwargs:
+            __include_stop_conditions = kwargs.pop('__include_stop_conditions')
 
-    def get_species(self):
-        """ Get species in submodel
+        immediate_children = super(Submodel, self).get_immediate_children(kind=kind)
+        
+        if kind == 'submodel' and __include_stop_conditions:
+            all_children = set(self.get_children(kind=kind, __include_stop_conditions=False))
 
-        Returns:
-            :obj:`list` of :obj:`Species`: species in submodel
-        """
-        species = []
-        for reaction in self.get_reactions():
-            species.extend(reaction.get_species())
-        for dfba_obj_species in self.get_dfba_obj_species():
-            species.append(dfba_obj_species.species)
-        for observable in self.get_observables(include_from_stop_conditions=False):
-            species.extend(observable.expression.species)
-        for function in self.get_functions(include_from_stop_conditions=False):
-            species.extend(function.expression.species)
-        for rate_law in self.get_rate_laws():
-            species.extend(rate_law.expression.species)
-        return det_dedupe(species)
+            for stop_condition in self.model.stop_conditions:
+                stop_condition_children = stop_condition.get_children(kind='submodel')
+                stop_condition_species = set()
+                for child in stop_condition_children:
+                    if isinstance(child, Species):
+                        stop_condition_species.add(child)
+                if not stop_condition_species.difference(all_children):
+                    immediate_children.append(stop_condition)
 
-    def get_distribution_init_concentrations(self):
-        """ Get distributions of initial concentrations for species in submodel
+            immediate_children = det_dedupe(immediate_children)
 
-        Returns:
-            :obj:`list` of :obj:`DistributionInitConcentration`: distributions of initial
-                concentrations for species in submodel
-        """
-        concs = []
-        for species in self.get_species():
-            if species.distribution_init_concentration:
-                concs.append(species.distribution_init_concentration)
-        return det_dedupe(concs)
+        # filter by type/attributes
+        matches = []
+        for child in immediate_children:
+            if child.has_attr_vals(__type=__type, **kwargs):
+                matches.append(child)
+        immediate_children = matches
 
-    def get_observables(self, include_from_stop_conditions=True):
-        """ Get observables in submodel
-
-        Returns:
-            :obj:`list` of :obj:`Observable`: observables in submodel
-        """
-        obs = []
-        for function in self.get_functions(include_from_stop_conditions=include_from_stop_conditions):
-            obs.extend(function.expression.observables)
-        for rate_law in self.get_rate_laws():
-            obs.extend(rate_law.expression.observables)
-        if include_from_stop_conditions:
-            for stop_condition in self.get_stop_conditions():
-                obs.extend(stop_condition.expression.observables)
-        obs = det_dedupe(obs)
-        obs_to_flats = list(obs)
-        while obs_to_flats:
-            obs_to_flat = obs_to_flats.pop()
-            obs.extend(obs_to_flat.expression.observables)
-            obs_to_flats.extend(obs_to_flat.expression.observables)
-        return det_dedupe(obs)
-
-    def get_functions(self, include_from_stop_conditions=True):
-        """ Get functions in submodel
-
-        Returns:
-            :obj:`list` of :obj:`Function`: functions in submodel
-        """
-        funcs = []
-        for rate_law in self.get_rate_laws():
-            funcs.extend(rate_law.expression.functions)
-        if include_from_stop_conditions:
-            for stop_condition in self.get_stop_conditions():
-                funcs.extend(stop_condition.expression.functions)
-        funcs = det_dedupe(funcs)
-        funcs_to_flats = list(funcs)
-        while funcs_to_flats:
-            funcs_to_flat = funcs_to_flats.pop()
-            funcs.extend(funcs_to_flat.expression.functions)
-            funcs_to_flats.extend(funcs_to_flat.expression.functions)
-        return det_dedupe(funcs)
-
-    def get_reactions(self):
-        """ Get reactions in submodel
-
-        Returns:
-            :obj:`list` of :obj:`Reaction`: reactions in submodel
-        """
-        reactions = list(self.reactions)
-        for dfba_obj in self.get_dfba_objs():
-            if dfba_obj.expression:
-                reactions.extend(dfba_obj.expression.reactions)
-        return det_dedupe(reactions)
-
-    def get_rate_laws(self):
-        """ Get rate laws in submodel
-
-        Returns:
-            :obj:`list` of :obj:`RateLaw`: rate laws in submodel
-        """
-        rate_laws = []
-        for reaction in self.get_reactions():
-            rate_laws.extend(reaction.rate_laws)
-        return det_dedupe(rate_laws)
-
-    def get_dfba_objs(self):
-        """ Get dFBA objectives in submodel
-
-        Returns:
-            :obj:`list` of :obj:`DfbaObjective`: dFBA objectives in submodel
-        """
-        if self.dfba_obj:
-            return [self.dfba_obj]
-        return []
-
-    def get_dfba_obj_reactions(self):
-        """ Get dFBA objective reactions in submodel
-
-        Returns:
-            :obj:`list` of :obj:`DfbaObjReaction`: dFBA objective reactions in submodel
-        """
-        return list(self.dfba_obj_reactions)
-
-    def get_dfba_obj_species(self):
-        """ Get dFBA objective species in submodel
-
-        Returns:
-            :obj:`list` of :obj:`DfbaObjSpecies`: dFBA objective species in submodel
-        """
-        species = []
-        for rxn in self.get_dfba_obj_reactions():
-            species.extend(rxn.dfba_obj_species)
-        return det_dedupe(species)
-
-    def get_parameters(self):
-        """ Get parameters in submodel
-
-        Returns:
-            :obj:`list` of :obj:`Parameter`: parameters in submodel
-        """
-        parameters = []
-        for rate_law in self.get_rate_laws():
-            parameters.extend(rate_law.expression.parameters)
-        for function in self.get_functions():
-            parameters.extend(function.expression.parameters)
-        for stop_condition in self.get_stop_conditions():
-            parameters.extend(stop_condition.expression.parameters)
-        return det_dedupe(parameters)
-
-    def get_stop_conditions(self):
-        """ Get stop conditions that only involve species and compartments in the submodel
-
-        Returns:
-            :obj:`list` of :obj:`StopCondition`: stop conditions that only involve species and compartments in the submodel
-        """
-        species = set(self.get_species())
-        compartments = set(self.get_compartments())
-        stop_conditions = []
-        for stop_condition in self.model.stop_conditions:
-            if not set(stop_condition.get_species()).difference(species) and \
-               not set(stop_condition.get_compartments()).difference(compartments):
-                stop_conditions.append(stop_condition)
-        return det_dedupe(stop_conditions)
-
-    def get_evidence(self):
-        """ Get evidence of submodel
-
-        Returns:
-            :obj:`list` of :obj:`Evidence`: evidence for submodel
-        """
-        types = [
-            'compartments',
-            'species_types',
-            'species',
-            'distribution_init_concentrations',
-            'observables',
-            'functions',
-            'reactions',
-            'rate_laws',
-            'dfba_objs',
-            'dfba_obj_reactions',
-            'dfba_obj_species',
-            'parameters',
-            'stop_conditions',
-            'interpretations',
-            'changes',
-        ]
-        evidence = list(self.evidence)
-        for type in types:
-            get_func = getattr(self, 'get_' + type)
-            for obj in get_func():
-                evidence.extend(obj.evidence)
-        return det_dedupe(evidence)
-
-    def get_interpretations(self):
-        """ Get interpretations of submodel
-
-        Returns:
-            :obj:`list` of :obj:`Interpretation`: interpretations for submodel
-        """
-        types = [
-            'compartments',
-            'species_types',
-            'species',
-            'distribution_init_concentrations',
-            'observables',
-            'functions',
-            'reactions',
-            'rate_laws',
-            'dfba_objs',
-            'dfba_obj_reactions',
-            'dfba_obj_species',
-            'parameters',
-            'stop_conditions',
-            'changes',
-        ]
-        interpretations = list(self.interpretations)
-        for type in types:
-            get_func = getattr(self, 'get_' + type)
-            for obj in get_func():
-                interpretations.extend(obj.interpretations)
-        return det_dedupe(interpretations)
-
-    def get_references(self):
-        """ Get references of submodel
-
-        Returns:
-            :obj:`list` of :obj:`Reference`: references in submodel
-        """
-        types = [
-            'compartments',
-            'species_types',
-            'species',
-            'distribution_init_concentrations',
-            'observables',
-            'functions',
-            'reactions',
-            'rate_laws',
-            'dfba_objs',
-            'dfba_obj_reactions',
-            'dfba_obj_species',
-            'parameters',
-            'evidence',
-            'interpretations',
-            'stop_conditions',
-            'changes',
-        ]
-        references = list(self.references)
-        for type in types:
-            get_func = getattr(self, 'get_' + type)
-            for obj in get_func():
-                references.extend(obj.references)
-        return det_dedupe(references)
-
-    def get_authors(self):
-        """ Get authors of submodel
-
-        Returns:
-            :obj:`list` of :obj:`obj_model.Author`: authors of submodel
-        """
-        authors = []
-        for interpretation in self.get_interpretations():
-            authors.extend(interpretation.authors)
-        for change in self.get_changes():
-            authors.extend(change.authors)
-        return det_dedupe(authors)
-
-    def get_changes(self):
-        """ Get changes to submodel
-
-        Returns:
-            :obj:`list` of :obj:`obj_model.Change`: changes to submodel
-        """
-        return list(self.changes)
-
-    def get_components(self):
-        """ Get components of submodel
-
-        Returns:
-            :obj:`list` of :obj:`obj_model.Model`: components in submodel
-        """
-        return self.get_compartments() + \
-            self.get_species_types() + \
-            self.get_species() + \
-            self.get_distribution_init_concentrations() + \
-            self.get_observables() + \
-            self.get_functions() + \
-            self.get_reactions() + \
-            self.get_rate_laws() + \
-            self.get_dfba_objs() + \
-            self.get_dfba_obj_reactions() + \
-            self.get_dfba_obj_species() + \
-            self.get_parameters() + \
-            self.get_stop_conditions() + \
-            self.get_evidence() + \
-            self.get_interpretations() + \
-            self.get_references() + \
-            self.get_authors() + \
-            self.get_changes()
-
-    def gen_model(self):
-        """ Generate a separate model that contains just the submodel (its
-        compartments, species, reactions, rate laws, parameters) and its
-        metadata.
-
-        Returns:
-            :obj:`Model`: separate model with just this submodel
-        """
-        # metadata
-        # Model
-        # Taxon
-        # Environment
-
-        # Submodel
-
-        # inline models
-        # SpeciesCoefficient,
-        # RateLawExpression, DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
-        # DatabaseReference,
-        pass
+        return immediate_children
 
     def add_to_sbml_model(self, sbml_model):
         """ Add this metadata about this submodel to a SBML model.
@@ -1646,6 +1410,9 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         verbose_name = 'dFBA objective expression'
         merge = obj_model.ModelMerge.append
         expression_unit_registry = unit_registry
+        children = {
+            'submodel': ('reactions', 'dfba_obj_reactions'),
+        }
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
@@ -1759,6 +1526,9 @@ class DfbaObjective(obj_model.Model):
         expression_term_model = DfbaObjectiveExpression
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
+        children = {
+            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -1949,6 +1719,9 @@ class Compartment(obj_model.Model):
                            'init_density',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
+        children = {
+            'submodel': ('parent_compartment', 'sub_compartments', 'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2054,9 +1827,6 @@ class SpeciesType(obj_model.Model):
 
     Related attributes:
         species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distribution of initial concentrations of species at the beginning of
-            each cell cycle
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2082,6 +1852,9 @@ class SpeciesType(obj_model.Model):
                            'molecular_weight', 'charge', 'type',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
+        children = {
+            'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -2140,6 +1913,10 @@ class Species(obj_model.Model):
         indexed_attrs_tuples = (('species_type', 'compartment'), )
         expression_term_token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
         expression_term_units = 'units'
+        children = {
+            'submodel': ('species_type', 'compartment', 'distribution_init_concentration',
+                         'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -2339,6 +2116,9 @@ class DistributionInitConcentration(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         verbose_name = 'Initial species concentration'
         frozen_columns = 1
+        children = {
+            'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def gen_id(self):
         """ Generate string representation
@@ -2397,6 +2177,9 @@ class ObservableExpression(obj_model.Model, Expression):
         expression_term_models = ('Species', 'Observable')
         expression_is_linear = True
         expression_unit_registry = unit_registry
+        children = {
+            'submodel': ('species', 'observables'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -2472,6 +2255,9 @@ class Observable(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = ObservableExpression
         expression_term_units = 'units'
+        children = {
+            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
 
 class FunctionExpression(obj_model.Model, Expression):
@@ -2502,6 +2288,9 @@ class FunctionExpression(obj_model.Model, Expression):
         tabular_orientation = TabularOrientation.inline
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
+        children = {
+            'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -2574,6 +2363,9 @@ class Function(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = FunctionExpression
         expression_term_units = 'units'
+        children = {
+            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def validate(self):
         """ Check that the Function is valid
@@ -2644,6 +2436,9 @@ class StopConditionExpression(obj_model.Model, Expression):
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_type = bool
         expression_unit_registry = unit_registry
+        children = {
+            'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -2719,6 +2514,9 @@ class StopCondition(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = StopConditionExpression
         expression_term_units = 'units'
+        children = {
+            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -2885,6 +2683,9 @@ class Reaction(obj_model.Model):
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
         merge = obj_model.ModelMerge.append
+        children = {
+            'submodel': ('participants', 'rate_laws', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def validate(self):
         """ Check if the reaction is valid
@@ -3086,6 +2887,9 @@ class SpeciesCoefficient(obj_model.Model):
         frozen_columns = 1
         tabular_orientation = TabularOrientation.inline
         ordering = ('species', 'coefficient')
+        children = {
+            'submodel': ('species',),
+        }
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
@@ -3206,6 +3010,9 @@ class RateLawExpression(obj_model.Model, Expression):
         ordering = ('expression',)
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
+        children = {
+            'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -3286,6 +3093,9 @@ class RateLaw(obj_model.Model):
         # unique_together = (('reaction', 'direction'), )
         expression_term_model = RateLawExpression
         expression_term_units = 'units'
+        children = {
+            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -3406,6 +3216,9 @@ class DfbaObjSpecies(obj_model.Model):
         verbose_name = 'dFBA objective species'
         verbose_name_plural = 'dFBA objective species'
         merge = obj_model.ModelMerge.append
+        children = {
+            'submodel': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def gen_id(self):
         """ Generate identifier equal to
@@ -3501,6 +3314,9 @@ class DfbaObjReaction(obj_model.Model):
         verbose_name = 'dFBA objective reaction'
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
+        children = {
+            'submodel': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
+        }
 
     def add_to_sbml_model(self, sbml_model):
         """ Add a DfbaObjReaction to a SBML model.
@@ -3734,6 +3550,9 @@ class Evidence(obj_model.Model):
                            'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
                            'db_refs', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
+        children = {
+            'submodel': ('db_refs', 'evidence', 'references'),
+        }
 
     def validate(self):
         """ Determine if the evidence is valid
@@ -3825,6 +3644,9 @@ class Interpretation(obj_model.Model):
                            'value', 'std', 'units',
                            'type', 'method',
                            'db_refs', 'evidence', 'comments', 'references', 'authors')
+        children = {
+            'submodel': ('db_refs', 'evidence', 'references', 'authors'),
+        }
 
 
 class Reference(obj_model.Model):
@@ -3899,6 +3721,9 @@ class Reference(obj_model.Model):
                            'title', 'author', 'editor', 'year', 'type', 'publication', 'publisher',
                            'series', 'volume', 'number', 'issue', 'edition', 'chapter', 'pages',
                            'db_refs', 'comments')
+        children = {
+            'submodel': ('db_refs',),
+        }
 
 
 class Author(obj_model.Model):
@@ -3946,6 +3771,9 @@ class Author(obj_model.Model):
                            'email', 'website', 'address', 'orcid',
                            'db_refs', 'comments')
         frozen_columns = 2
+        children = {
+            'submodel': ('db_refs',),
+        }
 
 
 class Change(obj_model.Model):
@@ -4000,6 +3828,9 @@ class Change(obj_model.Model):
                            'type', 'target', 'target_submodel', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references',
                            'authors', 'date')
+        children = {
+            'submodel': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
+        }
 
 
 class DatabaseReference(obj_model.Model):

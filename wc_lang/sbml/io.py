@@ -208,9 +208,9 @@ class SubmodelSbmlExporter(object):
             :obj:`list` of :obj:`obj_model.Model`: `wc_lang` submodel and its `wc_lang` children
         """
         objects = [submodel] \
-            + submodel.get_compartments() \
-            + submodel.get_species() \
-            + submodel.get_parameters() \
+            + submodel.get_children(kind='submodel', __type=wc_lang.core.Compartment) \
+            + submodel.get_children(kind='submodel', __type=wc_lang.core.Species) \
+            + submodel.get_children(kind='submodel', __type=wc_lang.core.Parameter) \
             + submodel.reactions
         if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
             if submodel.dfba_obj:

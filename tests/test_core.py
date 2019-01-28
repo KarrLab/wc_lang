@@ -454,59 +454,69 @@ class TestCore(unittest.TestCase):
 
     def test_submodel_get_compartments(self):
         compartments = self.compartments
-        self.assertEqual(self.submdl_0.get_compartments(), compartments[0:1])
-        self.assertEqual(self.submdl_1.get_compartments(), compartments)
-        self.assertEqual(self.submdl_2.get_compartments(), compartments)
+
+        self.assertEqual(self.submdl_0.get_children(kind='submodel', __type=Compartment), compartments[0:1])
+        self.assertEqual(set(self.submdl_1.get_children(kind='submodel', __type=Compartment)), set(compartments))
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Compartment)), set(compartments))
 
     def test_submodel_get_species_types(self):
         species_types = self.species_types
-        self.assertEqual(set(self.submdl_0.get_species_types()), set([
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=SpeciesType)), set([
             species_types[0], species_types[1], species_types[2], species_types[5],
         ]))
-        self.assertEqual(set(self.submdl_1.get_species_types()), set([
+        self.assertEqual(set(self.submdl_1.get_children(kind='submodel', __type=SpeciesType)), set([
             species_types[0], species_types[1], species_types[3], species_types[6],
         ]))
-        self.assertEqual(set(self.submdl_2.get_species_types()), set([
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=SpeciesType)), set([
             species_types[0], species_types[1], species_types[3], species_types[4], species_types[6], species_types[7],
         ]))
 
     def test_submodel_get_species(self):
         species = self.species
-        self.assertEqual(set(self.submdl_0.get_species()), set([
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Species)), set([
             species[0], species[1], species[2], species[5],
         ]))
-        self.assertEqual(set(self.submdl_1.get_species()), set([
+        self.assertEqual(set(self.submdl_1.get_children(kind='submodel', __type=Species)), set([
             species[0], species[1], species[3], species[6],
         ]))
-        self.assertEqual(set(self.submdl_2.get_species()), set([
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Species)), set([
             species[0], species[1], species[3], species[4], species[6], species[7],
         ]))
 
     def test_submodel_get_evidence(self):
         species = self.species
         ev = species[2].evidence.create()
-        self.assertEqual(set(self.submdl_0.get_evidence()), set([ev]) | set(self.model.evidences[0:1]))
-        self.assertEqual(self.submdl_1.get_evidence(), [])
-        self.assertEqual(set(self.submdl_2.get_evidence()), set(self.model.evidences[1:2]))
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Evidence)),
+                         set([ev]) | set(self.model.evidences[0:1]))
+        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Evidence), [])
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Evidence)),
+                         set(self.model.evidences[1:2]))
 
     def test_submodel_get_interpretations(self):
         species = self.species
         interpretation = species[2].interpretations.create()
-        self.assertEqual(set(self.submdl_0.get_interpretations()), set([interpretation]) | set(self.model.interpretations[0:1]))
-        self.assertEqual(self.submdl_1.get_interpretations(), [])
-        self.assertEqual(set(self.submdl_2.get_interpretations()), set(self.model.interpretations[1:2]))
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Interpretation)),
+                         set([interpretation]) | set(self.model.interpretations[0:1]))
+        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Interpretation), [])
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Interpretation)),
+                         set(self.model.interpretations[1:2]))
 
     def test_submodel_get_references(self):
         species = self.species
-        species[2].references = self.references[0:1]
-        self.assertEqual(self.submdl_0.get_references(), self.references[0:1])
-        self.assertEqual(self.submdl_1.get_references(), [])
-        self.assertEqual(self.submdl_2.get_references(), self.references[0:2])
+        species[0].references = self.references[0:1]
+        species[2].references = self.references[1:2]
+        species[3].references = self.references[2:3]
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Reference)),
+                         set([self.references[0], self.references[1]]))
+        self.assertEqual(set(self.submdl_1.get_children(kind='submodel', __type=Reference)),
+                         set([self.references[0], self.references[2]]))
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Reference)),
+                         set([self.references[0], self.references[2]]))
 
     def test_submodel_get_components(self):
-        self.assertIn(self.submdl_0.reactions[0], self.submdl_0.get_components())
-        self.assertIn(self.submdl_1.reactions[0], self.submdl_1.get_components())
-        self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_components())
+        self.assertIn(self.submdl_0.reactions[0], self.submdl_0.get_children(kind='submodel'))
+        self.assertIn(self.submdl_1.reactions[0], self.submdl_1.get_children(kind='submodel'))
+        self.assertIn(self.submdl_1.reactions[0], self.submdl_2.get_children(kind='submodel'))
 
     def test_compartment_validate(self):
         comp = Compartment(id='c', geometry=wcm_ontology['WCM:3D_compartment'],
@@ -2003,7 +2013,7 @@ class TestCore(unittest.TestCase):
         self.assertIn(self.comp_0.comments, sbml_compartment.getNotesString())
 
         # Write species used by the submodel to the SBML document
-        for species in self.submdl_2.get_species():
+        for species in self.submdl_2.get_children(kind='submodel', __type=Species):
             sbml_species = species.add_to_sbml_model(sbml_model)
             self.assertTrue(sbml_species.hasRequiredAttributes())
             self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
@@ -2635,7 +2645,7 @@ class TestCoreFromFile(unittest.TestCase):
         self.dfba_submodel = self.model.submodels.get_one(id='submodel_1')
 
     def test_get_species(self):
-        species_ids = set([s.id for s in self.dfba_submodel.get_species()])
+        species_ids = set([s.id for s in self.dfba_submodel.get_children(kind='submodel', __type=Species)])
         self.assertEqual(species_ids, set([
             'specie_1[c]',
             'specie_1[e]',

@@ -145,8 +145,12 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(merged_submdl_ssa.framework, wcm_ontology['WCM:stochastic_simulation_algorithm'])
         self.assertEqual(merged_submdl_fba.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis'])
 
-        self.assertEqual(len(merged_submdl_ssa.get_species()), len(set(submdl_0.get_species()) | set(submdl_1.get_species())))
-        self.assertEqual(len(merged_submdl_fba.get_species()), len(set(submdl_2.get_species()) | set(submdl_3.get_species())))
+        self.assertEqual(len(merged_submdl_ssa.get_children(kind='submodel', __type=Species)),
+                         len(set(submdl_0.get_children(kind='submodel', __type=Species) +
+                                 submdl_1.get_children(kind='submodel', __type=Species))))
+        self.assertEqual(len(merged_submdl_fba.get_children(kind='submodel', __type=Species)),
+                         len(set(submdl_2.get_children(kind='submodel', __type=Species) +
+                                 submdl_3.get_children(kind='submodel', __type=Species))))
 
         self.assertEqual(len(merged_submdl_ssa.reactions), len(set(submdl_0.reactions) | set(submdl_1.reactions)))
         self.assertEqual(len(merged_submdl_fba.reactions), len(set(submdl_2.reactions) | set(submdl_3.reactions)))

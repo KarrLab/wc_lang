@@ -8,10 +8,11 @@
 """
 
 from .core import Transform
-import wc_lang.config.core
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 import pronto
+import wc_lang.config.core
+import wc_lang.core
 
 
 class CreateImplicitDfbaExchangeReactionsTransform(Transform):
@@ -46,7 +47,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
 
         for submodel in model.submodels:
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
-                for species in submodel.get_species():
+                for species in submodel.get_children(kind='submodel', __type=wc_lang.core.Species):
                     if species.compartment == ext_comp:
 
                         rxn = submodel.reactions.create(
