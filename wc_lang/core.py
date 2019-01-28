@@ -1269,8 +1269,8 @@ class Submodel(obj_model.Model):
             return InvalidObject(self, errors)
         return None
 
-    def get_children(self, kind=None, __type=None, recursive=True, __include_stop_conditions=True, 
-        **kwargs):
+    def get_children(self, kind=None, __type=None, recursive=True, __include_stop_conditions=True,
+                     **kwargs):
         """ Get a kind of children. 
 
         If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
@@ -1317,7 +1317,7 @@ class Submodel(obj_model.Model):
         return children
 
     def get_immediate_children(self, kind=None, __type=None, __include_stop_conditions=True,
-        **kwargs):
+                               **kwargs):
         """ Get a kind of children. 
 
         If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
@@ -1337,7 +1337,7 @@ class Submodel(obj_model.Model):
             __include_stop_conditions = kwargs.pop('__include_stop_conditions')
 
         immediate_children = super(Submodel, self).get_immediate_children(kind=kind)
-        
+
         if kind == 'submodel' and __include_stop_conditions:
             all_children = set(self.get_children(kind=kind, __include_stop_conditions=False))
 
@@ -1720,7 +1720,8 @@ class Compartment(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
-            'submodel': ('parent_compartment', 'sub_compartments', 'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': (  # 'parent_compartment', 'sub_compartments',
+                'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
@@ -2684,7 +2685,8 @@ class Reaction(obj_model.Model):
         expression_term_units = 'rate_units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('participants', 'rate_laws', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('participants', 'rate_laws',
+                         'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
