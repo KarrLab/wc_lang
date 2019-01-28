@@ -43,6 +43,7 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
                        UrlAttribute, EmailAttribute, DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
+                       ManyToOneRelatedManager,
                        InvalidObject, InvalidAttribute, TabularOrientation)
 from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
                                   ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
@@ -579,6 +580,57 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
         return validation
 
 
+class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
+    """ Submodels to model related manager """
+
+    def gen_models(self):
+        """ Generate separate models for each submodel, as well as a "core" model which contains the
+        model integration framework (compartments, species types, species, observables, functions,
+        stop conditions, etc.) and all model objects that are not associated with at least 1 submodel.
+
+        Returns:
+            :obj:`Model`: model with objects that (a) form the model integration framework or (b) are 
+                not associated with any submodel
+            :obj:`list` of :obj:`Model`: one model for each submodel
+
+        Raises:
+            :obj:`ValueError`: if submodels do not belong to a model
+        """
+        model = self.object
+        if not model:
+            raise ValueError('Submodels must belong to a model')
+
+        # cut submodels from model
+        submodels = self.cut(kind='submodel')
+
+        # get objects that won't be exported with at least one submodel to export as "core" model
+        core_model = model.copy()
+        objs_in_core = set(core_model.get_related())
+        for submodel in core_model.submodels:
+            objs_in_core.discard(submodel)
+            objs_in_core.difference_update(set(submodel.get_children(kind='submodel')))
+        objs_in_core.add(core_model)
+
+        # add additional objects to "core" model that define model integration framework
+        # * compartments
+        # * species types
+        # * species
+        # * observables
+        # * functions
+        # * stop conditions
+        for obj in list(objs_in_core):
+            objs_in_core.update(obj.get_children(kind='core_model'))
+
+        # generate "core" model which has
+        # * the model integration framework and
+        # * other objects not exported with at least one 1 submodel
+        for obj in objs_in_core:
+            obj.cut_relations(objs_in_core)
+
+        # return core model and separate models for each submodel
+        return (core_model, [submodel.model for submodel in submodels])
+
+
 class CommentAttribute(obj_model.LongStringAttribute):
     """ Comment attribute """
 
@@ -670,6 +722,9 @@ class Model(obj_model.Model):
         tabular_orientation = TabularOrientation.column
         children = {
             'submodel': ('taxon', 'env'),
+            'core_model': ('taxon', 'env',
+                           'compartments', 'species_types', 'species', 'distribution_init_concentrations',
+                           'observables', 'functions', 'stop_conditions'),
         }
 
     def __init__(self, **kwargs):
@@ -1142,6 +1197,10 @@ class Taxon(obj_model.Model):
                            'rank',
                            'db_refs', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
+        children = {
+            'submodel': ('db_refs', 'references'),
+            'core_model': ('db_refs', 'references'),
+        }
 
 
 class Environment(obj_model.Model):
@@ -1181,6 +1240,10 @@ class Environment(obj_model.Model):
                            'temp', 'temp_units', 'ph', 'ph_units',
                            'db_refs', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
+        children = {
+            'submodel': ('db_refs', 'references'),
+            'core_model': ('db_refs', 'references'),
+        }
 
 
 class Submodel(obj_model.Model):
@@ -1206,7 +1269,7 @@ class Submodel(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='submodels')
+    model = ManyToOneAttribute(Model, related_name='submodels', related_manager=SubmodelsToModelRelatedManager)
     framework = OntologyAttribute(wcm_ontology,
                                   namespace='WCM',
                                   terms=wcm_ontology['WCM:modeling_framework'].rchildren(),
@@ -1395,6 +1458,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('reactions', 'dfba_obj_reactions'),
+            'core_model': ('reactions', 'dfba_obj_reactions'),
         }
 
     def validate(self):
@@ -1511,6 +1575,7 @@ class DfbaObjective(obj_model.Model):
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def gen_id(self):
@@ -1705,6 +1770,9 @@ class Compartment(obj_model.Model):
         children = {
             'submodel': (  # 'parent_compartment', 'sub_compartments',
                 'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': (
+                'parent_compartment', 'sub_compartments',
+                'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
@@ -1838,6 +1906,7 @@ class SpeciesType(obj_model.Model):
         indexed_attrs_tuples = (('id',), )
         children = {
             'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def has_carbon(self):
@@ -1900,6 +1969,8 @@ class Species(obj_model.Model):
         children = {
             'submodel': ('species_type', 'compartment', 'distribution_init_concentration',
                          'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
+                           'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def gen_id(self):
@@ -2102,6 +2173,8 @@ class DistributionInitConcentration(obj_model.Model):
         frozen_columns = 1
         children = {
             'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('species',
+                           'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def gen_id(self):
@@ -2163,6 +2236,7 @@ class ObservableExpression(obj_model.Model, Expression):
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('species', 'observables'),
+            'core_model': ('species', 'observables'),
         }
 
     def serialize(self):
@@ -2241,6 +2315,7 @@ class Observable(obj_model.Model):
         expression_term_units = 'units'
         children = {
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
 
@@ -2274,6 +2349,7 @@ class FunctionExpression(obj_model.Model, Expression):
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+            'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
 
     def serialize(self):
@@ -2349,6 +2425,7 @@ class Function(obj_model.Model):
         expression_term_units = 'units'
         children = {
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
@@ -2422,6 +2499,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+            'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
 
     def serialize(self):
@@ -2500,6 +2578,7 @@ class StopCondition(obj_model.Model):
         expression_term_units = 'units'
         children = {
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
@@ -2598,6 +2677,8 @@ class Reaction(obj_model.Model):
         children = {
             'submodel': ('participants', 'rate_laws',
                          'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('participants', 'rate_laws',
+                           'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def validate(self):
@@ -2802,6 +2883,7 @@ class SpeciesCoefficient(obj_model.Model):
         ordering = ('species', 'coefficient')
         children = {
             'submodel': ('species',),
+            'core_model': ('species',),
         }
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
@@ -2925,6 +3007,7 @@ class RateLawExpression(obj_model.Model, Expression):
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
+            'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
 
     def serialize(self):
@@ -3008,6 +3091,7 @@ class RateLaw(obj_model.Model):
         expression_term_units = 'units'
         children = {
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def gen_id(self):
@@ -3131,6 +3215,7 @@ class DfbaObjSpecies(obj_model.Model):
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def gen_id(self):
@@ -3229,6 +3314,7 @@ class DfbaObjReaction(obj_model.Model):
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'core_model': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
     def add_to_sbml_model(self, sbml_model):
@@ -3465,6 +3551,7 @@ class Evidence(obj_model.Model):
         verbose_name_plural = 'Evidence'
         children = {
             'submodel': ('db_refs', 'evidence', 'references'),
+            'core_model': ('db_refs', 'evidence', 'references'),
         }
 
     def validate(self):
@@ -3559,6 +3646,7 @@ class Interpretation(obj_model.Model):
                            'db_refs', 'evidence', 'comments', 'references', 'authors')
         children = {
             'submodel': ('db_refs', 'evidence', 'references', 'authors'),
+            'core_model': ('db_refs', 'evidence', 'references', 'authors'),
         }
 
 
@@ -3636,6 +3724,7 @@ class Reference(obj_model.Model):
                            'db_refs', 'comments')
         children = {
             'submodel': ('db_refs',),
+            'core_model': ('db_refs',),
         }
 
 
@@ -3686,6 +3775,7 @@ class Author(obj_model.Model):
         frozen_columns = 2
         children = {
             'submodel': ('db_refs',),
+            'core_model': ('db_refs',),
         }
 
 
@@ -3743,6 +3833,7 @@ class Change(obj_model.Model):
                            'authors', 'date')
         children = {
             'submodel': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
+            'core_model': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
         }
 
 

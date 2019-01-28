@@ -12,6 +12,7 @@ from wc_lang.io import Writer, Reader, convert, create_template
 from wc_lang.util import migrate
 from wc_utils.workbook.io import read as read_workbook
 import cement
+import os
 import sys
 import wc_lang
 
@@ -31,10 +32,43 @@ class BaseController(cement.Controller):
         self._parser.print_help()
 
 
-class MergeController(cement.Controller):
+class CutSubmodelsController(cement.Controller):
+    """ Cut submodels into separate models """
+    class Meta:
+        label = 'cut-submodels'
+        description = 'Cut submodels into separate models'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['in_file'], dict(type=str, help='Path to model to cut')),
+            (['out_dir'], dict(type=str, help='Directory to save cut submodels')),
+        ]
+
+    @cement.ex(hide=True)
+    def _default(self):
+        args = self.app.pargs
+
+        # read model
+        model = Reader().run(args.in_file)[Model][0]
+
+        # split submodels into separate models
+        core, submodels = model.submodels.gen_models()
+
+        # create output directory, if it doesn't exist
+        if not os.path.isdir(args.out_dir):
+            os.makedirs(args.out_dir)
+
+        # save separated submodels to file
+        Writer().run(os.path.join(args.out_dir, 'core.xlsx'), core, set_repo_metadata_from_path=False)
+        for submodel in submodels:
+            Writer().run(os.path.join(args.out_dir, '{}.xlsx'.format(
+                submodel.submodels[0].id)), submodel, set_repo_metadata_from_path=False)
+
+
+class MergeModelsController(cement.Controller):
     """ Merge models """
     class Meta:
-        label = 'merge'
+        label = 'merge-models'
         description = 'Merge multiple models'
         stacked_on = 'base'
         stacked_type = 'nested'
@@ -263,9 +297,9 @@ class MigrateController(cement.Controller):
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        migrate(args.in_path, args.version, 
-            out_path=args.out_path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
-        
+        migrate(args.in_path, args.version,
+                out_path=args.out_path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
+
 
 class App(cement.App):
     """ Command line application """
@@ -274,7 +308,8 @@ class App(cement.App):
         base_controller = 'base'
         handlers = [
             BaseController,
-            MergeController,
+            CutSubmodelsController,
+            MergeModelsController,
             ValidateController,
             DifferenceController,
             TransformController,

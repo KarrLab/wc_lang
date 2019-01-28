@@ -42,6 +42,47 @@ class TestCli(unittest.TestCase):
                     app.run()
                 self.assertEqual(capturer.get_text(), wc_lang.__version__)
 
+    def test_cut_submodels(self):
+        timestamp = datetime.datetime(2018, 1, 1, 12, 0, 0)
+        model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1',
+                      created=timestamp, updated=timestamp)
+        model.submodels.create(id='submodel_1')
+        model.submodels.create(id='submodel_2')
+        model.references.create(id='ref_0')
+        model.references.create(id='ref_1', submodels=model.submodels[0:1])
+        model.references.create(id='ref_2', submodels=model.submodels[1:2])
+        model.references.create(id='ref_3', submodels=model.submodels[0:2])
+
+        in_path = path.join(self.tempdir, 'in.xlsx')
+        Writer().run(in_path, model, set_repo_metadata_from_path=False)
+
+        out_path = path.join(self.tempdir, 'out')
+        with __main__.App(argv=['cut-submodels', in_path, out_path]) as app:
+            app.run()
+
+        model_0 = Reader().run(path.join(out_path, 'core.xlsx'))[Model][0]
+        model_1 = Reader().run(path.join(out_path, 'submodel_1.xlsx'))[Model][0]
+        model_2 = Reader().run(path.join(out_path, 'submodel_2.xlsx'))[Model][0]
+
+        exp_model_0 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1',
+                            created=timestamp, updated=timestamp)
+        exp_model_0.references.create(id='ref_0')
+        self.assertTrue(model_0.is_equal(exp_model_0))
+
+        exp_model_1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1',
+                            created=timestamp, updated=timestamp)
+        exp_model_1.submodels.create(id='submodel_1')
+        exp_model_1.references.create(id='ref_1', submodels=exp_model_1.submodels)
+        exp_model_1.references.create(id='ref_3', submodels=exp_model_1.submodels)
+        self.assertTrue(model_1.is_equal(exp_model_1))
+
+        exp_model_2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1',
+                            created=timestamp, updated=timestamp)
+        exp_model_2.submodels.create(id='submodel_2')
+        exp_model_2.references.create(id='ref_2', submodels=exp_model_2.submodels)
+        exp_model_2.references.create(id='ref_3', submodels=exp_model_2.submodels)
+        self.assertTrue(model_2.is_equal(exp_model_2))
+
     def test_merge_models(self):
         in_paths = [
             path.join(self.tempdir, 'in-0.xlsx'),
@@ -58,7 +99,7 @@ class TestCli(unittest.TestCase):
         Writer().run(in_paths[1], model_1, set_repo_metadata_from_path=False)
 
         # merge models
-        with __main__.App(argv=['merge', '-p', in_paths[0], '-s', in_paths[1], '-o', out_path]) as app:
+        with __main__.App(argv=['merge-models', '-p', in_paths[0], '-s', in_paths[1], '-o', out_path]) as app:
             app.run()
 
         # read merged model
