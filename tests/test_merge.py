@@ -17,6 +17,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 
+
 class MergeTestCase(unittest.TestCase):
 
     def gen_models(self):
@@ -656,12 +657,12 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(set(model_2.get_related()), set(other_objs_in_self.keys()))
         self.assertEqual(set(model_1.get_related()), set(other_objs_in_self.values()))
 
-        x=sorted([rel.serialize() for rel in model_1.get_related()])
-        prev=None
+        x = sorted([rel.serialize() for rel in model_1.get_related()])
+        prev = None
         for y in x:
             if y == prev:
                 print(y)
-            prev=y
+            prev = y
 
         self.assertEqual(other_objs_in_self,
                          {o: s for s, o in zip(model_1.get_related(), model_2.get_related())})
@@ -1040,3 +1041,12 @@ class MergeTestCase(unittest.TestCase):
             model_1.copy().merge(model_2.copy())
         with self.assertRaisesRegex(ValueError, 'Cannot join'):
             model_2.copy().merge(model_1.copy())
+
+    def test_cut_and_merge(self):
+        _, _, model, _ = self.gen_models()
+
+        core_model, submodels = model.submodels.gen_models()
+        for submodel in submodels:
+            core_model.merge(submodel)
+
+        self.assertTrue(model.is_equal(core_model))
