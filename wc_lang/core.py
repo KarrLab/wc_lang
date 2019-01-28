@@ -405,13 +405,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                               '* glc[e] + atp[c] + h2o[c] ==> glc[e] + adp[c] + pi[c] + h[c]\n'
                               '* (3) Na[c] + (2) K[e] ==> (3) Na[e] + (2) K[c]'))
 
-        if validation.input_message:
-            validation.input_message += '\n\n'
-        validation.input_message += '\n\n'.join(input_message)
-
-        if validation.error_message:
-            validation.error_message += '\n\n'
-        validation.error_message += '\n\n'.join(error_message)
+        validation.input_message = '\n\n'.join(input_message)
+        validation.error_message = '\n\n'.join(error_message)
 
         return validation
 
@@ -494,13 +489,8 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
                               '* doi: 10.1016/j.tcb.2015.09.004\n'
                               '* chebi: CHEBI:15377, kegg.compound: C00001'))
 
-        if validation.input_message:
-            validation.input_message += '\n\n'
-        validation.input_message += '\n\n'.join(input_message)
-
-        if validation.error_message:
-            validation.error_message += '\n\n'
-        validation.error_message += '\n\n'.join(error_message)
+        validation.input_message = '\n\n'.join(input_message)
+        validation.error_message = '\n\n'.join(error_message)
 
         return validation
 
@@ -583,13 +573,8 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
                               '* doi: 10.1016/j.tcb.2015.09.004\n'
                               '* chebi: CHEBI:15377, kegg.compound: C00001'))
 
-        if validation.input_message:
-            validation.input_message += '\n\n'
-        validation.input_message += '\n\n'.join(input_message)
-
-        if validation.error_message:
-            validation.error_message += '\n\n'
-        validation.error_message += '\n\n'.join(error_message)
+        validation.input_message = '\n\n'.join(input_message)
+        validation.error_message = '\n\n'.join(error_message)
 
         return validation
 
@@ -1287,8 +1272,6 @@ class Submodel(obj_model.Model):
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
-        if 'recursive' in kwargs:
-            recursive = kwargs.pop('recursive')
         if '__include_stop_conditions' in kwargs:
             __include_stop_conditions = kwargs.pop('__include_stop_conditions')
 
@@ -2558,78 +2541,6 @@ class StopCondition(obj_model.Model):
         if errors:
             return InvalidObject(self, errors)
         return None
-
-    def get_species(self):
-        """ Get species involved in stop condition
-
-        Returns:
-            :obj:`list` of :obj:`Species`: species involved in stop condition
-        """
-        species = list(self.expression.species)
-        for function in self.get_functions():
-            species.extend(function.expression.species)
-        for observable in self.get_observables():
-            species.extend(observable.expression.species)
-        return det_dedupe(species)
-
-    def get_compartments(self):
-        """ Get compartments involved in stop condition
-
-        Returns:
-            :obj:`list` of :obj:`Compartment`: compartments involved in stop condition
-        """
-        compartments = list(self.expression.compartments)
-        for function in self.get_functions():
-            compartments.extend(function.expression.compartments)
-        for species in self.get_species():
-            compartments.append(species.compartment)
-        return det_dedupe(compartments)
-
-    def get_observables(self):
-        """ Get observables involved in stop condition
-
-        Returns:
-            :obj:`list` of :obj:`Observable`: observables involved in stop condition
-        """
-        observables = list(self.expression.observables)
-        for function in self.get_functions():
-            observables.extend(function.expression.observables)
-
-        observables = det_dedupe(observables)
-        observables_to_flatten = list(observables)
-        while observables_to_flatten:
-            observable_to_flatten = observables_to_flatten.pop()
-            observables.extend(observable_to_flatten.expression.observables)
-            observables_to_flatten.extend(observable_to_flatten.expression.observables)
-
-        return det_dedupe(observables)
-
-    def get_functions(self):
-        """ Get functions involved in stop condition
-
-        Returns:
-            :obj:`list` of :obj:`Function`: functions involved in stop condition
-        """
-        functions = list(self.expression.functions)
-
-        functions_to_flatten = list(functions)
-        while functions_to_flatten:
-            function_to_flatten = functions_to_flatten.pop()
-            functions.extend(function_to_flatten.expression.functions)
-            functions_to_flatten.extend(function_to_flatten.expression.functions)
-
-        return det_dedupe(functions)
-
-    def get_parameters(self):
-        """ Get parameters involved in stop condition
-
-        Returns:
-            :obj:`list` of :obj:`Parameter`: parameters involved in stop condition
-        """
-        parameters = list(self.expression.parameters)
-        for function in self.get_functions():
-            parameters.extend(function.expression.parameters)
-        return det_dedupe(parameters)
 
 
 class Reaction(obj_model.Model):
