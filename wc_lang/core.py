@@ -1771,7 +1771,7 @@ class Compartment(obj_model.Model):
             'submodel': (  # 'parent_compartment', 'sub_compartments',
                 'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': (
-                'parent_compartment', 'sub_compartments',
+                'parent_compartment', 'sub_compartments', 'init_density',
                 'db_refs', 'evidence', 'interpretations', 'references'),
         }
 
