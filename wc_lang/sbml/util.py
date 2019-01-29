@@ -21,6 +21,7 @@ import pint
 import types
 import warnings
 import wc_lang.core
+# import wc_lang.util
 
 
 class LibSbmlError(Exception):
@@ -121,7 +122,7 @@ class LibSbmlInterface(object):
             plugin = cls.call_libsbml(sbml_model.getPlugin, package_id)
             cls.call_libsbml(plugin.setStrict, True)
 
-        # Set units
+        # Set units        
         cls.set_units(model, sbml_model)
 
         # return SBML model
@@ -135,103 +136,106 @@ class LibSbmlInterface(object):
             model (:obj:`wc_lang.core.Model`): model
             sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
         """
-        cls.call_libsbml(sbml_model.setTimeUnits, 'second')
-        cls.call_libsbml(sbml_model.setExtentUnits, 'mole')
-        cls.call_libsbml(sbml_model.setSubstanceUnits, 'mole')
-        cls.call_libsbml(sbml_model.setVolumeUnits, 'litre')
+        import wc_lang.util
+
+        cls.call_libsbml(sbml_model.setTimeUnits, str(model.time_units))
+
+        assert len(wc_lang.core.Species.units.choices) == 1
+        units = str(wc_lang.core.Species.units.choices[0])
+        if units == 'molecule':
+            units = 'mole'
+        cls.call_libsbml(sbml_model.setExtentUnits, units)
+        cls.call_libsbml(sbml_model.setSubstanceUnits, units)
+
+        assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
+        units = str(wc_lang.core.Compartment.init_volume_units.choices[0])
+        if units == 'liter':
+            units = 'litre'
+        elif units == 'meter':
+            units = 'metre'
+        cls.call_libsbml(sbml_model.setVolumeUnits, units)
 
         # Define units
-        # Note that SBML Unit objects must have four attributes:
-        # * `kind`
-        # * `exponent`
-        # * `scale`
-        # * `multiplier`
-        per_second = cls.call_libsbml(sbml_model.createUnitDefinition)
-        cls.call_libsbml(per_second.setIdAttribute, 'per_second')
-        cls.add_unit(per_second, libsbml.UNIT_KIND_SECOND, exponent=-1)
-
-        unit_registry = wc_lang.core.DistributionInitConcentration.units.registry
-        molar = unit_registry.parse_expression('M')
-        molecule = unit_registry.parse_expression('molecule')
-        for unit in wc_lang.core.DistributionInitConcentration.units.choices:
-            sbml_unit_def = cls.call_libsbml(sbml_model.createUnitDefinition)
-            cls.call_libsbml(sbml_unit_def.setIdAttribute, str(unit))
-
-            if not isinstance(unit, unit_registry.Unit):
-                raise ValueError('Unsupported units "{}"'.format(
-                    unit))  # pragma: no cover # unreachable because all choices in above two cases
-            expr = unit_registry.parse_expression(str(unit))
-
-            try:
-                molar_units = unit_registry.parse_units('molar')
-                conversion = expr.to(molar_units)
-                scale = math.log10(conversion.magnitude)
-                assert int(scale) == scale
-                cls.add_unit(sbml_unit_def,
-                             getattr(libsbml, 'UNIT_KIND_MOLE'),
-                             exponent=1.,
-                             scale=int(scale))
-                continue
-            except pint.DimensionalityError:
-                pass
-
-            try:
-                molecule_units = unit_registry.parse_units('molecule')
-                conversion = expr.to(molecule_units)
-                scale = math.log10(conversion.magnitude)
-                assert int(scale) == scale
-                cls.add_unit(sbml_unit_def,
-                             getattr(libsbml, 'UNIT_KIND_ITEM'),
-                             exponent=1.,
-                             scale=int(scale))
-                continue
-            except pint.DimensionalityError:
-                pass
-
-            raise ValueError('Invalid unit {}'.format(str(unit)))  # pragma: no cover # unreachable because all choices in above two cases
-
-        mmol_per_gDW_per_hr = cls.call_libsbml(sbml_model.createUnitDefinition)
-        cls.call_libsbml(mmol_per_gDW_per_hr.setIdAttribute, 'mmol_per_gDW_per_hr')
-        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_MOLE, scale=-3)
-        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_GRAM, exponent=-1)
-        cls.add_unit(mmol_per_gDW_per_hr, libsbml.UNIT_KIND_SECOND, exponent=-1,
-                     multiplier=3600.0)
-
-        dimensionless = cls.call_libsbml(sbml_model.createUnitDefinition)
-        cls.call_libsbml(dimensionless.setIdAttribute, 'dimensionless_ud')
-        cls.add_unit(dimensionless, libsbml.UNIT_KIND_DIMENSIONLESS)
+        units = wc_lang.util.get_model_units(model)
+        for unit in units:
+            cls.add_unit_def(sbml_model, unit)
 
     @classmethod
-    def add_unit(cls, unit_definition, unit_kind, exponent=1, scale=0, multiplier=1.0):
-        """ Add an SBML `Unit` to an existing SBML `UnitDefinition`.
-
-        Provides the SBML level 3 version 1 default values for `exponent=1`, `scale=0`, and `multiplier=1.0`.
-        See the `libSBML documentation
-        <http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_unit_definition.html/>`_
-        and the SBML specs for details.
+    def add_unit_def(cls, sbml_model, unit):
+        """ Add unit definition to SBML model
 
         Args:
-            unit_definition (:obj:`libsbml.UnitDefinition`): a libSBML `UnitDefinition`
-            unit_kind (:obj:`libsbml.UnitDefinition`): the unit kind code for the SBML unit
-            exponent (:obj:`int`, optional): the exponent on the SBML unit
-            scale (:obj:`int`, optional): the scale of the SBML unit
-            multiplier (:obj:`float`, optional): the multiplier of the SBML unit
+            sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
+            unit (:obj:`unit_registry.Unit`): unit
 
         Returns:
-            :obj:`libsbml.Unit`: the new SBML Unit
-
-        Raises:
-            :obj:`LibSbmlError`: if a libSBML calls fails
+            :obj:`libsbml.UnitDefinition`: unit definition
         """
-        unit = cls.call_libsbml(unit_definition.createUnit)
-        cls.call_libsbml(unit.setKind, unit_kind)
+        id = str(unit) \
+            .replace(' / ', '_per_') \
+            .replace(' * ', '_times_') \
+            .replace(' ** ', '_pow_')
+        if id.startswith('1_per_'):
+            id = id[2:]
+        if hasattr(libsbml, 'UNIT_KIND_' + id.upper()):
+            return None        
+
+        unit_def = cls.call_libsbml(sbml_model.createUnitDefinition)
+        cls.call_libsbml(unit_def.setIdAttribute, id)
+
+        unit_registry = unit._REGISTRY
+        magnitude, root_units = unit_registry.parse_expression(str(unit)).to_root_units().to_tuple()
+
+        scale = int(math.floor(math.log10(magnitude)))
+        multiplier = magnitude / pow(10, scale)
+
+        for i_root_unit, (kind, exponent) in enumerate(root_units):
+            if i_root_unit == 0:
+                unit_scale = scale
+                unit_multiplier = multiplier
+            else:
+                unit_scale = 0
+                unit_multiplier = 1.
+            cls.add_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
+
+        return unit_def
+
+    @classmethod
+    def add_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
+        """ Add an SBML unit to a SBML unit definition
+
+        Each SBML unit has four attributes:
+
+        * `kind`
+        * `exponent`
+        * `scale`
+        * `multiplier`
+
+        Args:
+            unit_def (:obj:`libsbml.UnitDefinition`): SBML unit definition
+            kind (:obj:`str`): unit kind
+            exponent (:obj:`int`, optional): exponent of the unit
+            scale (:obj:`int`, optional): scale of the unit
+            multiplier (:obj:`float`, optional): multiplier of the unit
+
+        Returns:
+            :obj:`libsbml.Unit`: SBML unit
+        """
+        if kind == 'liter':
+            kind = 'litre'
+        elif kind == 'meter':
+            kind = 'metre'
+        kind_val = getattr(libsbml, 'UNIT_KIND_' + kind.upper())
+
+        unit = cls.call_libsbml(unit_def.createUnit)
+        cls.call_libsbml(unit.setKind, kind_val)
         cls.call_libsbml(unit.setExponent, exponent)
         cls.call_libsbml(unit.setScale, scale)
         cls.call_libsbml(unit.setMultiplier, multiplier)
         return unit
 
     @classmethod
-    def create_parameter(cls, model, id, value, units, name=None, constant=True):
+    def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
         """ Add an SBML Parameter to an SBML model.
 
         See the `libSBML documentation
@@ -239,34 +243,35 @@ class LibSbmlInterface(object):
         and the SBML specs for details.
 
         Args:
-            model (:obj:`libsbml.Model`): a libSBML Model
-            id (:obj:`str`): the id of the new SBML Parameter
-            value (:obj:`obj`): the value of the new SBML Parameter
-            units (:obj:`str`): the units of the new SBML Parameter
-            name (:obj:`str`, optional): the name of the new SBML Parameter
-            constant (:obj:`str`, optional): whether the new SBML Parameter is a constant
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            id (:obj:`str`): id
+            value (:obj:`obj`): value
+            units (:obj:`str`): units
+            name (:obj:`str`, optional): name
+            constant (:obj:`str`, optional): whether the Parameter is a constant
 
         Returns:
-            :obj:`libsbml.Parameter`: the new SBML Parameter
+            :obj:`libsbml.Parameter`: SBML parameter
 
         Raises:
             :obj:`LibSbmlError`: if a libSBML calls fails
             :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
         try:
-            cls.call_libsbml(model.getParameter, id)
-            raise ValueError("warning: '{}' is already in use as a Parameter id.".format(id))
-        except LibSbmlError as e:
-            sbml_parameter = cls.call_libsbml(model.createParameter)
-            cls.call_libsbml(sbml_parameter.setIdAttribute, id)
-            if not name is None:
-                cls.call_libsbml(sbml_parameter.setName, name)
-            if not value is None:
-                cls.call_libsbml(sbml_parameter.setValue, value)
-            if not units is None:
-                cls.call_libsbml(sbml_parameter.setUnits, units)
-            cls.call_libsbml(sbml_parameter.setConstant, constant)
-            return sbml_parameter
+            cls.call_libsbml(sbml_model.getParameter, id)
+            raise ValueError("A parameter with id '{}' already exists.".format(id))
+        except LibSbmlError:
+            pass
+        sbml_parameter = cls.call_libsbml(sbml_model.createParameter)
+        cls.call_libsbml(sbml_parameter.setIdAttribute, id)
+        if name is not None:
+            cls.call_libsbml(sbml_parameter.setName, name)
+        if value is not None:
+            cls.call_libsbml(sbml_parameter.setValue, value)
+        if units is not None:
+            cls.call_libsbml(sbml_parameter.setUnits, units)
+        cls.call_libsbml(sbml_parameter.setConstant, constant)
+        return sbml_parameter
 
     @classmethod
     def call_libsbml(cls, method, *args, returns_int=False, debug=False):
