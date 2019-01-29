@@ -397,6 +397,14 @@ class CutTestCase(unittest.TestCase):
         self.assertTrue(submodel_0.model.is_equal(gen_submodel_0()))
         self.assertTrue(submodel_1.model.is_equal(gen_submodel_1()))
 
+    def test_gen_models_with_1_submodel(self):
+        model = Model(id='model')
+        model.submodels.create(id='submodel')
+
+        core, submodels = model.submodels.gen_models()
+        self.assertTrue(model.is_equal(core))
+        self.assertEqual(submodels, [])
+
     def test_gen_models(self):
         model, _, _ = gen_model()
         core_model, submodels = model.submodels.gen_models()

@@ -598,6 +598,10 @@ class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
         """
         model = self.object
 
+        # if 1 or fewer submodels, return model
+        if len(model.submodels) <= 1:
+            return (model.copy(), [])
+
         # cut submodels from model
         submodels = self.cut(kind='submodel')
 
