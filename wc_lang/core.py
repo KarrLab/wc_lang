@@ -597,8 +597,6 @@ class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
             :obj:`ValueError`: if submodels do not belong to a model
         """
         model = self.object
-        if not model:
-            raise ValueError('Submodels must belong to a model')
 
         # cut submodels from model
         submodels = self.cut(kind='submodel')
