@@ -7,9 +7,13 @@
 """
 
 from obj_model import get_models as base_get_models
+from obj_model.units import UnitAttribute
 from wc_lang import core
 from wc_lang import io
 from wc_utils.util import git
+from wc_utils.util.list import det_dedupe
+from wc_utils.util.units import unit_registry
+import itertools
 
 
 def get_model_size(model):
@@ -105,3 +109,24 @@ def migrate(in_path, wc_lang_version, out_path=None, set_repo_metadata_from_path
     model = io.Reader().run(in_path)[core.Model][0]
     model.wc_lang_version = wc_lang_version
     io.Writer().run(out_path, model, set_repo_metadata_from_path=set_repo_metadata_from_path)
+
+
+def get_model_units(model):
+    """ Get units used in model
+
+    Args:
+        model (:obj:`core.Model`): model
+
+    Returns:
+        :obj:`list` of :obj:`unit_registry.Unit`: units used in model
+    """
+    units = []
+    for obj in itertools.chain([model], model.get_related()):
+        for attr in obj.Meta.attributes.values():
+            if isinstance(attr, UnitAttribute):
+                unit = getattr(obj, attr.name)
+                if unit:
+                    units.append(unit)
+
+    # return units
+    return det_dedupe(units)
