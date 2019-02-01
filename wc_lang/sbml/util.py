@@ -15,7 +15,7 @@ Includes
 
 from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
                      SBMLNamespaces, SBMLDocument)
-from wc_utils.util.units import unit_registry
+from wc_utils.util.units import unit_registry, are_units_equivalent
 import enum
 import libsbml
 import math
@@ -67,6 +67,7 @@ class LibSbmlUnitKind(int, enum.Enum):
     watt = 34
     weber = 35
 
+
 class LibSbmlError(Exception):
     ''' Exception raised when libSBML returns an error '''
 
@@ -80,7 +81,7 @@ class LibSbmlInterface(object):
     '''
 
     @classmethod
-    def create_doc(cls, level=3, version=1, packages=None):
+    def create_doc(cls, level=3, version=2, packages=None):
         """ Create an SBMLDocument that, optionally, uses package(s).
 
         Args:
@@ -112,7 +113,7 @@ class LibSbmlInterface(object):
         return doc
 
     @classmethod
-    def is_doc_compatible(cls, doc, level=3, version=1):
+    def is_doc_compatible(cls, doc, level=3, version=2):
         """ Check the compatibility of an SBML document with a specific level and version
 
         Args:
@@ -121,7 +122,8 @@ class LibSbmlInterface(object):
             version (:obj:`int`, optional): SBML version number
         """
         # SBML compatibility method for the version being used
-        return 0 == cls.call_libsbml(doc.checkL3v1Compatibility, returns_int=True)
+        method = getattr(doc, 'checkL{}v{}Compatibility'.format(level, version))
+        return 0 == cls.call_libsbml(method, returns_int=True)
 
     @classmethod
     def create_model(cls, doc):
@@ -158,7 +160,7 @@ class LibSbmlInterface(object):
             plugin = cls.call_libsbml(sbml_model.getPlugin, package_id)
             cls.call_libsbml(plugin.setStrict, True)
 
-        # Set units        
+        # Set units
         cls.create_units(model, sbml_model)
 
         # return SBML model
@@ -177,34 +179,33 @@ class LibSbmlInterface(object):
         """
         import wc_lang.util
 
-        cls.call_libsbml(sbml_model.setTimeUnits, str(model.time_units))
-
-        assert len(wc_lang.core.Species.units.choices) == 1
-        units = str(wc_lang.core.Species.units.choices[0])
-        if units == 'molecule':
-            units = 'mole'
-        cls.call_libsbml(sbml_model.setExtentUnits, units)
-        cls.call_libsbml(sbml_model.setSubstanceUnits, units)
-
-        assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
-        units = str(wc_lang.core.Compartment.init_volume_units.choices[0])
-        units = cls.normalize_unit_kind(units)
-        cls.call_libsbml(sbml_model.setVolumeUnits, units)
-
         # Define units
         units = wc_lang.util.get_model_units(model)
         units_to_sbml = {}
         for unit in units:
-            sbml_unit = cls.create_unit_def(unit, sbml_model)
+            sbml_unit = cls.create_unit(unit, sbml_model)
             if sbml_unit:
                 units_to_sbml[unit] = sbml_unit.getId()
+
+        # set top-level units (time, substance, extent, volume)
+        units = cls.gen_base_unit_id(model.time_units)
+        cls.call_libsbml(sbml_model.setTimeUnits, units)
+
+        assert len(wc_lang.core.Species.units.choices) == 1
+        units = cls.gen_base_unit_id(wc_lang.core.Species.units.choices[0])
+        cls.call_libsbml(sbml_model.setExtentUnits, units)
+        cls.call_libsbml(sbml_model.setSubstanceUnits, units)
+
+        assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
+        units = cls.gen_base_unit_id(wc_lang.core.Compartment.init_volume_units.choices[0])
+        cls.call_libsbml(sbml_model.setVolumeUnits, units)
 
         # return dictionary to SBML units
         return units_to_sbml
 
     @classmethod
-    def create_unit_def(cls, unit, sbml_model):
-        """ Add unit definition to SBML model
+    def create_unit(cls, unit, sbml_model):
+        """ Add a unit definition to a SBML model
 
         Args:            
             unit (:obj:`unit_registry.Unit`): unit
@@ -213,14 +214,9 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`libsbml.UnitDefinition`: unit definition
         """
-        id = str(unit) \
-            .replace(' / ', '_per_') \
-            .replace(' * ', '_times_') \
-            .replace(' ** ', '_pow_')
-        if id.startswith('1_per_'):
-            id = id[2:]
-        if hasattr(libsbml, 'UNIT_KIND_' + id.upper()):
-            return None        
+        id = cls.gen_unit_id(unit)
+        if hasattr(libsbml, 'UNIT_KIND_' + id[5:].upper()):
+            return None
 
         unit_def = cls.call_libsbml(sbml_model.createUnitDefinition)
         cls.call_libsbml(unit_def.setIdAttribute, id)
@@ -238,13 +234,44 @@ class LibSbmlInterface(object):
             else:
                 unit_scale = 0
                 unit_multiplier = 1.
-            cls.create_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
+            cls.create_base_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
 
         return unit_def
 
     @classmethod
-    def create_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
-        """ Add an SBML unit to a SBML unit definition
+    def gen_unit_id(cls, unit):
+        """ Generate an SBML unit id for a unit
+
+        Args:
+            unit (:obj:`unit_registry.Unit`): unit
+
+        Returns:
+            :obj:`str`: SBML id for unit
+        """
+        id = 'unit_' + str(unit) \
+            .replace(' / ', '_per_') \
+            .replace(' * ', '_times_') \
+            .replace(' ** ', '_pow_')
+        return id
+
+    @classmethod
+    def gen_base_unit_id(cls, unit):
+        """ Generate an SBML base unit id for a unit
+
+        Args:
+            unit (:obj:`unit_registry.Unit`): unit
+
+        Returns:
+            :obj:`str`: SBML id for base unit
+        """
+        unit_registry = unit._REGISTRY
+        if are_units_equivalent(unit, unit_registry.parse_units('molecule')):
+            return 'item'
+        return cls.normalize_unit_kind(str(unit))
+
+    @classmethod
+    def create_base_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
+        """ Add a unit to a SBML unit definition
 
         Each SBML unit has four attributes:
 
@@ -300,31 +327,57 @@ class LibSbmlInterface(object):
             :obj:`dict`: dictionary that maps ids of unit definitions to instance of `unit_registry.Quantity`
         """
         units = {}
-        for i_unit_def in range(sbml_model.getNumUnitDefinitions()):            
+
+        for type in ['Time', 'Substance', 'Volume']:
+            if not getattr(sbml_model, 'isSet' + type + 'Units')():
+                raise LibSbmlError('{} units must be set'.format(type))
+
+            sbml_unit_id = getattr(sbml_model, 'get' + type + 'Units')()
+            if sbml_unit_id == 'item':
+                units[sbml_unit_id] = unit_registry.parse_expression('molecule')
+            else:
+                units[sbml_unit_id] = unit_registry.parse_expression(sbml_unit_id)
+
+        assert sbml_model.getExtentUnits() == sbml_model.getSubstanceUnits(), \
+            LibSbmlError('Substance and extent units must be the same')
+        assert not sbml_model.isSetLengthUnits(), \
+            LibSbmlError('Length units must be unset')
+        assert not sbml_model.isSetAreaUnits(), \
+            LibSbmlError('Area units must be unset')
+
+        for i_unit_def in range(sbml_model.getNumUnitDefinitions()):
             sbml_unit_def = sbml_model.getUnitDefinition(i_unit_def)
-            unit = unit_registry.parse_units('1')
-            for i_unit in range(sbml_unit_def.getNumUnits()):
-                sbml_unit = sbml_unit_def.getUnit(i_unit)
-                unit *= unit_registry.parse_expression('{} * ({} * 10 ** {}) ** {}'.format(
-                    sbml_unit.multiplier, LibSbmlUnitKind(sbml_unit.kind).name, sbml_unit.scale, sbml_unit.exponent))
-            units[sbml_unit_def.getId()] = unit
+            units[sbml_unit_def.getId()] = cls.parse_unit(sbml_unit_def)
         return units
 
     @classmethod
-    def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
-        """ Add an SBML Parameter to an SBML model.
+    def parse_unit(cls, sbml_unit_def):
+        """ Parse a unit from an SBML unit definition.
 
-        See the `libSBML documentation
-        <http://sbml.org/Software/libSBML/docs/python-api/classlibsbml_1_1_parameter.html/>`_
-        and the SBML specs for details.
+        Args:
+            sbml_unit_def (:obj:`libSBML.UnitDefinition`): SBML unit definition
+        
+        Returns:
+            :obj:`unit_registry.Quantity`: units
+        """
+        unit = unit_registry.parse_units('1')
+        for i_unit in range(sbml_unit_def.getNumUnits()):
+            sbml_unit = sbml_unit_def.getUnit(i_unit)
+            unit *= unit_registry.parse_expression('{} * ({} * 10 ** {}) ** {}'.format(
+                sbml_unit.multiplier, LibSbmlUnitKind(sbml_unit.kind).name, sbml_unit.scale, sbml_unit.exponent))
+        return unit
+
+    @classmethod
+    def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
+        """ Add a parameter to an SBML model.
 
         Args:
             sbml_model (:obj:`libsbml.Model`): SBML model
             id (:obj:`str`): id
             value (:obj:`obj`): value
-            units (:obj:`str`): units
+            units (:obj:`unit_registry.Unit`): units
             name (:obj:`str`, optional): name
-            constant (:obj:`str`, optional): whether the Parameter is a constant
+            constant (:obj:`str`, optional): whether the parameter is a constant
 
         Returns:
             :obj:`libsbml.Parameter`: SBML parameter
@@ -333,11 +386,6 @@ class LibSbmlInterface(object):
             :obj:`LibSbmlError`: if a libSBML calls fails
             :obj:`ValueError`: if a `Parameter` with id `id` is already in use
         """
-        try:
-            cls.call_libsbml(sbml_model.getParameter, id)
-            raise ValueError("A parameter with id '{}' already exists.".format(id))
-        except LibSbmlError:
-            pass
         sbml_parameter = cls.call_libsbml(sbml_model.createParameter)
         cls.call_libsbml(sbml_parameter.setIdAttribute, id)
         if name is not None:
@@ -345,9 +393,35 @@ class LibSbmlInterface(object):
         if value is not None:
             cls.call_libsbml(sbml_parameter.setValue, value)
         if units is not None:
-            cls.call_libsbml(sbml_parameter.setUnits, units)
+            cls.call_libsbml(sbml_parameter.setUnits, cls.gen_unit_id(units))
         cls.call_libsbml(sbml_parameter.setConstant, constant)
         return sbml_parameter
+
+    @classmethod
+    def parse_parameter(cls, sbml_parameter):
+        """ Parse a parameter from an SBML parameter.
+
+        Args:
+            sbml_parameter (:obj:`libSBML.Parameter`): SBML parameter
+
+        Returns:
+            :obj:`str`: id
+            :obj:`str`: name
+            :obj:`float`: value
+            :obj:`unit_registry.Unit`: units
+        """
+        id = sbml_parameter.getId()
+        name = sbml_parameter.getName() or None
+        value = sbml_parameter.getValue()
+        sbml_model = sbml_parameter.getModel()
+        sbml_unit_def_id = sbml_parameter.getUnits()
+        sbml_unit_def = sbml_model.getUnitDefinition(sbml_unit_def_id)
+        if sbml_unit_def is None:
+            raise LibSbmlError('Unit {} must be defined'.format(sbml_unit_def_id))
+        units = cls.parse_unit(sbml_unit_def)
+        if not sbml_parameter.getConstant():
+            raise LibSbmlError('Parameters must be constant')
+        return (id, name, value, units)
 
     @classmethod
     def call_libsbml(cls, method, *args, returns_int=False, debug=False):
@@ -423,8 +497,8 @@ class LibSbmlInterface(object):
                 print('libSBML returns:', rc)
             return rc
 
-    @staticmethod
-    def str_to_xml_node(str):
+    @classmethod
+    def str_to_xml_node(cls, str):
         """ Convert a Python string to an XML string that can be stored as a Note in an SBML document.
 
         Args:
@@ -433,7 +507,5 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`libsbml.XMLNode`: an XML string that can be stored as a `Note` in an SBML document
         """
-        node = libsbml.XMLNode.convertStringToXMLNode("<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(xml.sax.saxutils.escape(str)))
-        if node is None:
-            raise LibSbmlError('Unable to create XML node from string')
-        return node
+        return cls.call_libsbml(libsbml.XMLNode.convertStringToXMLNode,
+                                "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(xml.sax.saxutils.escape(str)))
