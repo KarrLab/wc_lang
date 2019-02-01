@@ -1426,7 +1426,7 @@ class Submodel(obj_model.Model):
             call_libsbml(sbml_model.setName, self.name)
         # compartment, dfba_obj, and parameters are created separately
         if self.comments:
-            call_libsbml(sbml_model.appendNotes, LibSbmlInterface.str_to_xmlstr(self.comments))
+            call_libsbml(sbml_model.appendNotes, LibSbmlInterface.str_to_xml_node(self.comments))
         return sbml_model
 
 

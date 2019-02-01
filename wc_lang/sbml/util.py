@@ -15,20 +15,60 @@ Includes
 
 from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
                      SBMLNamespaces, SBMLDocument)
+from wc_utils.util.units import unit_registry
+import enum
 import libsbml
 import math
 import pint
 import types
 import warnings
 import wc_lang.core
+import xml.sax.saxutils
 # import wc_lang.util
 
 
+class LibSbmlUnitKind(int, enum.Enum):
+    """ SBML unit kinds """
+    ampere = 0
+    avogadro = 1
+    becquerel = 2
+    candela = 3
+    celsius = 4
+    coulomb = 5
+    dimensionless = 6
+    farad = 7
+    gram = 8
+    gray = 9
+    henry = 10
+    hertz = 11
+    invalid = 36
+    item = 12
+    joule = 13
+    katal = 14
+    kelvin = 15
+    kilogram = 16
+    liter = 17
+    litre = 18
+    lumen = 19
+    lux = 20
+    meter = 21
+    metre = 22
+    mole = 23
+    newton = 24
+    ohm = 25
+    pascal = 26
+    radian = 27
+    second = 28
+    siemens = 29
+    sievert = 30
+    steradian = 31
+    tesla = 32
+    volt = 33
+    watt = 34
+    weber = 35
+
 class LibSbmlError(Exception):
     ''' Exception raised when libSBML returns an error '''
-
-    def __init__(self, msg):
-        self.msg = msg
 
 
 class LibSbmlInterface(object):
@@ -107,10 +147,6 @@ class LibSbmlInterface(object):
 
         Returns:
             :obj:`libsbml.Model`: the SBML model
-
-        Raises:
-            :obj:`ValueError`: if unit is not supported
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
 
         # create model
@@ -135,6 +171,9 @@ class LibSbmlInterface(object):
         Args:
             model (:obj:`wc_lang.core.Model`): model
             sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
+
+        Returns:
+            :obj:`dict`: dictionary that maps units to ids of SBML unit definitions
         """
         import wc_lang.util
 
@@ -149,24 +188,27 @@ class LibSbmlInterface(object):
 
         assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
         units = str(wc_lang.core.Compartment.init_volume_units.choices[0])
-        if units == 'liter':
-            units = 'litre'
-        elif units == 'meter':
-            units = 'metre'
+        units = cls.normalize_unit_kind(units)
         cls.call_libsbml(sbml_model.setVolumeUnits, units)
 
         # Define units
         units = wc_lang.util.get_model_units(model)
+        units_to_sbml = {}
         for unit in units:
-            cls.add_unit_def(sbml_model, unit)
+            sbml_unit = cls.add_unit_def(unit, sbml_model)
+            if sbml_unit:
+                units_to_sbml[unit] = sbml_unit.getId()
+
+        # return dictionary to SBML units
+        return units_to_sbml
 
     @classmethod
-    def add_unit_def(cls, sbml_model, unit):
+    def add_unit_def(cls, unit, sbml_model):
         """ Add unit definition to SBML model
 
-        Args:
-            sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
+        Args:            
             unit (:obj:`unit_registry.Unit`): unit
+            sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
 
         Returns:
             :obj:`libsbml.UnitDefinition`: unit definition
@@ -221,10 +263,7 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`libsbml.Unit`: SBML unit
         """
-        if kind == 'liter':
-            kind = 'litre'
-        elif kind == 'meter':
-            kind = 'metre'
+        kind = cls.normalize_unit_kind(kind)
         kind_val = getattr(libsbml, 'UNIT_KIND_' + kind.upper())
 
         unit = cls.call_libsbml(unit_def.createUnit)
@@ -233,6 +272,45 @@ class LibSbmlInterface(object):
         cls.call_libsbml(unit.setScale, scale)
         cls.call_libsbml(unit.setMultiplier, multiplier)
         return unit
+
+    @classmethod
+    def normalize_unit_kind(cls, kind):
+        """ Normalize unit kind for SBML
+
+        Args
+            kind (:obj:`str`): unit kind
+
+        Returns:
+            :obj:`str`: normalized unit kind
+        """
+        if kind == 'liter':
+            kind = 'litre'
+        elif kind == 'meter':
+            kind = 'metre'
+        return kind
+
+    @classmethod
+    def parse_units(cls, sbml_model):
+        """ Parse SBML units to Python
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+
+        Returns:
+            :obj:`dict`: dictionary that maps ids of unit definitions to instance of `unit_registry.Quantity`
+        """
+        units = {}
+        for i_unit_def in range(sbml_model.getNumUnitDefinitions()):            
+            sbml_unit_def = sbml_model.getUnitDefinition(i_unit_def)
+            unit = unit_registry.parse_units('1')
+            for i_unit in range(sbml_unit_def.getNumUnits()):
+                sbml_unit = sbml_unit_def.getUnit(i_unit)
+                unit *= unit_registry.parse_expression('{} * ({} * 10 ** {}) ** {}'.format(
+                    sbml_unit.multiplier, LibSbmlUnitKind(sbml_unit.kind).name, sbml_unit.scale, sbml_unit.exponent))
+            units[sbml_unit_def.getId()] = unit
+        return units
+
+                
 
     @classmethod
     def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
@@ -348,14 +426,16 @@ class LibSbmlInterface(object):
             return rc
 
     @staticmethod
-    def str_to_xmlstr(str):
+    def str_to_xml_node(str):
         """ Convert a Python string to an XML string that can be stored as a Note in an SBML document.
 
         Args:
             str (:obj:`str`): a string
 
         Returns:
-            :obj:`str`: an XML string that can be stored as a `Note` in an SBML document
+            :obj:`libsbml.XMLNode`: an XML string that can be stored as a `Note` in an SBML document
         """
-        # TODO: GET libSBML to do this XML crap, but none of the obvious methods work
-        return "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(str)
+        node = libsbml.XMLNode.convertStringToXMLNode("<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(xml.sax.saxutils.escape(str)))
+        if node is None:
+            raise LibSbmlError('Unable to create XML node from string')
+        return node
