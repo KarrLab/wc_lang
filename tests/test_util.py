@@ -22,6 +22,7 @@ from wc_lang import io
 from wc_lang import util
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
+import obj_model.units
 import os.path
 import shutil
 import tempfile
@@ -183,48 +184,48 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(model.species[2].id, 'st_2[c_1]')
         self.assertEqual(model.species[3].id, 'st_2[c_2]')
 
-    def test_get_model_units(self):
+    def test_get_obj_units(self):
         model = Model()
         units = set([model.time_units])
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.compartments.create()
         model.compartments.create()
         for c in model.compartments:
             units.add(c.mass_units)
             units.add(c.init_volume_units)
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.species_types.create()
         model.species_types.create()
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         for c in model.compartments:
             for s in model.species_types:
                 model.species.create(compartment=c, species_type=s)
         for s in model.species:
             units.add(s.units)
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.distribution_init_concentrations.create(species=model.species[0], units=unit_registry.parse_units('M'))
         model.distribution_init_concentrations.create(species=model.species[1], units=unit_registry.parse_units('molecule'))
         for o in model.distribution_init_concentrations:
             units.add(o.units)
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.parameters.create(units=unit_registry.parse_units('g'))
         model.parameters.create(units=unit_registry.parse_units('l'))
         model.parameters.create(units=unit_registry.parse_units('s'))
         for p in model.parameters:
             units.add(p.units)
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.functions.create(units=unit_registry.parse_units('g / l'))
         model.functions.create(units=unit_registry.parse_units('g / s'))
         model.functions.create(units=unit_registry.parse_units('l / s'))
         for f in model.functions:
             units.add(f.units)
-        self.assertEqual(set(util.get_model_units(model)), units)
+        self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
 
 class MigrateTestCase(unittest.TestCase):
