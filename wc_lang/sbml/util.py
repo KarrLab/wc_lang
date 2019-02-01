@@ -159,13 +159,13 @@ class LibSbmlInterface(object):
             cls.call_libsbml(plugin.setStrict, True)
 
         # Set units        
-        cls.set_units(model, sbml_model)
+        cls.create_units(model, sbml_model)
 
         # return SBML model
         return sbml_model
 
     @classmethod
-    def set_units(cls, model, sbml_model):
+    def create_units(cls, model, sbml_model):
         """ Set time, extent, and substance units
 
         Args:
@@ -195,7 +195,7 @@ class LibSbmlInterface(object):
         units = wc_lang.util.get_model_units(model)
         units_to_sbml = {}
         for unit in units:
-            sbml_unit = cls.add_unit_def(unit, sbml_model)
+            sbml_unit = cls.create_unit_def(unit, sbml_model)
             if sbml_unit:
                 units_to_sbml[unit] = sbml_unit.getId()
 
@@ -203,7 +203,7 @@ class LibSbmlInterface(object):
         return units_to_sbml
 
     @classmethod
-    def add_unit_def(cls, unit, sbml_model):
+    def create_unit_def(cls, unit, sbml_model):
         """ Add unit definition to SBML model
 
         Args:            
@@ -238,12 +238,12 @@ class LibSbmlInterface(object):
             else:
                 unit_scale = 0
                 unit_multiplier = 1.
-            cls.add_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
+            cls.create_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
 
         return unit_def
 
     @classmethod
-    def add_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
+    def create_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
         """ Add an SBML unit to a SBML unit definition
 
         Each SBML unit has four attributes:
@@ -309,8 +309,6 @@ class LibSbmlInterface(object):
                     sbml_unit.multiplier, LibSbmlUnitKind(sbml_unit.kind).name, sbml_unit.scale, sbml_unit.exponent))
             units[sbml_unit_def.getId()] = unit
         return units
-
-                
 
     @classmethod
     def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
