@@ -4,7 +4,7 @@ git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
 natsort
 networkx
 pint >= 0.9
-git+https://github.com/KarrLab/pronto.git#egg=pronto-0.12.1 >= 0.12.1
+git+https://github.com/KarrLab/pronto.git#egg=pronto-0.12.2 >= 0.12.2
 python_libsbml >= 5.16.0
 scipy
 setuptools
