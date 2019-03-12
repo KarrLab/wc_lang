@@ -8,9 +8,8 @@
 
 from .core import Transform
 from wc_lang import Model, Reaction, RateLawDirection
-from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
 import copy
-import pronto
 import re
 
 
@@ -31,7 +30,7 @@ class SplitReversibleReactionsTransform(Transform):
             :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
         """
         for submodel in model.submodels:
-            if submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            if not are_terms_equivalent(submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
                 for rxn in list(submodel.reactions):
                     if rxn.reversible:
                         # remove reversible reaction

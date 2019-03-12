@@ -14,7 +14,6 @@ from wc_lang.core import (Model, Submodel, Reaction,
 from wc_utils.util.ontology import wcm_ontology
 import copy
 import itertools
-import pronto
 
 
 class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):

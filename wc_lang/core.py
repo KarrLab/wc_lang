@@ -56,7 +56,7 @@ from wc_lang.sbml.util import LibSbmlInterface, LibSbmlError
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
-from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
 from wc_utils.util.units import unit_registry, are_units_equivalent
 from wc_utils.workbook.core import get_column_letter
 import collections
@@ -859,7 +859,8 @@ class Model(obj_model.Model):
         roots = []
         for comp in self.get_compartments(__type=__type, **kwargs):
             if comp.parent_compartment is None \
-                    or comp.parent_compartment.biological_type != wcm_ontology['WCM:cellular_compartment']:
+                    or not are_terms_equivalent(comp.parent_compartment.biological_type,
+                                                wcm_ontology['WCM:cellular_compartment']):
                 roots.append(comp)
         return roots
 
@@ -1306,7 +1307,7 @@ class Submodel(obj_model.Model):
         else:
             errors = []
 
-        if self.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+        if are_terms_equivalent(self.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
             if not self.dfba_obj:
                 errors.append(InvalidAttribute(self.Meta.related_attributes['dfba_obj'],
                                                ['dFBA submodel must have an objective']))
@@ -1788,7 +1789,7 @@ class Compartment(obj_model.Model):
         else:
             errors = []
 
-        if self.geometry == wcm_ontology['WCM:3D_compartment']:
+        if are_terms_equivalent(self.geometry, wcm_ontology['WCM:3D_compartment']):
             if not self.init_density:
                 errors.append(InvalidAttribute(self.Meta.attributes['init_density'],
                                                ['Initial density must be defined for 3D compartments']))
@@ -2725,7 +2726,7 @@ class Reaction(obj_model.Model):
             errors.append(InvalidAttribute(self.Meta.attributes['flux_bound_units'],
                                            ['Units must be defined for the flux bounds']))
 
-        if self.submodel and self.submodel.framework != wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+        if self.submodel and not are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
             if not isnan(self.flux_min):
                 errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
                                                ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
@@ -2842,7 +2843,7 @@ class Reaction(obj_model.Model):
 
         # for dFBA submodels, write flux bounds to SBML document
         # uses version 2 of the 'Flux Balance Constraints' extension
-        if self.submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+        if are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
             fbc_reaction_plugin = call_libsbml(sbml_reaction.getPlugin, 'fbc')
             for bound in ['lower', 'upper']:
                 # make a unique ID for each flux bound parameter
