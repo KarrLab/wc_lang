@@ -9,9 +9,8 @@
 
 from .core import Transform
 from math import isnan
-from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
 from wc_utils.util.units import unit_registry
-import pronto
 import wc_lang.config.core
 
 
@@ -55,7 +54,7 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
         flux_max_bound = config['dfba']['flux_max_bound']
 
         for submodel in model.submodels:
-            if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            if are_terms_equivalent(submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
                 for rxn in submodel.reactions:
                     if rxn.reversible:
                         flux_min = flux_min_bound_reversible

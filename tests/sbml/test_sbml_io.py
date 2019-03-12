@@ -29,7 +29,7 @@ from wc_lang.transform.split_reversible_reactions import SplitReversibleReaction
 
 from wc_lang.sbml.util import LibSbmlInterface
 from wc_lang.io import Reader
-from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
 import wc_lang.sbml.io as sbml_io
 
 
@@ -147,7 +147,7 @@ class TestSbml(unittest.TestCase):
 
     def test_SbmlExporter(self):
         for submodel in self.model.get_submodels():
-            if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            if are_terms_equivalent(submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
                 sbml_doc = sbml_io.SubmodelSbmlExporter.run(submodel)
 
                 self.assertTrue(LibSbmlInterface.is_doc_compatible(sbml_doc))
