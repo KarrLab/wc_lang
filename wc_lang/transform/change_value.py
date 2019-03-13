@@ -97,7 +97,7 @@ class ChangeValueTransform(Transform):
         if other.__class__ is not self.__class__:
             return False
 
-        if self.attr_path != other.attr_path:
+        if not Model.are_attr_paths_equal(self.attr_path, other.attr_path):
             return False
 
         attr = Model.get_nested_attr(self.attr_path)
