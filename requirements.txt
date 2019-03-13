@@ -1,5 +1,4 @@
 cement >= 3.0.0
-enum34
 obj_model
 natsort
 networkx
