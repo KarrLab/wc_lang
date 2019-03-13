@@ -1,6 +1,6 @@
 cement >= 3.0.0
 enum34
-git+https://github.com/KarrLab/obj_model.git#egg=obj_model-0.0.5
+obj_model
 natsort
 networkx
 pint >= 0.9
@@ -10,4 +10,4 @@ scipy
 setuptools
 six
 stringcase
-git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils-0.0.1a5
+wc_utils
