@@ -661,7 +661,7 @@ class Model(obj_model.Model):
         version (:obj:`str`): version of the model
         url (:obj:`str`): url of the model Git repository
         branch (:obj:`str`): branch of the model Git repository
-        revision (:obj:`str`): revision of the model Git repository
+        revision (:obj:`str`): hash for git commit of the wc_lang version used by a model
         wc_lang_version (:obj:`str`): version of ``wc_lang``
         time_units (:obj:`unit_registry.Unit`): time units
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
