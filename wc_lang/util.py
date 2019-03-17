@@ -65,19 +65,6 @@ def get_models(inline=True):
     return base_get_models(module=core, inline=inline)
 
 
-def set_git_repo_metadata_from_path(model, path='.'):
-    """ Use Git to set the Git repository URL, branch, and revision metadata for a model
-
-    Args:
-        model (:obj:`core.Model`): model
-        path (:obj:`str`, optional): path to the Git repository for the model
-    """
-    md = git.get_repo_metadata(dirname=path)
-    model.url = md.url
-    model.branch = md.branch
-    model.revision = md.revision
-
-
 def gen_ids(model):
     """ Generate ids for model objects
 
