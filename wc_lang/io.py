@@ -13,7 +13,7 @@ Supported file types:
 """
 
 from wc_lang import core
-from wc_lang import util
+import obj_model.utils
 from wc_utils.util.string import indent_forest
 import obj_model
 import os
@@ -73,7 +73,7 @@ class Writer(obj_model.io.Writer):
 
         # default meta data for exported model
         if set_repo_metadata_from_path:
-            util.set_git_repo_metadata_from_path(model, path)
+            obj_model.utils.set_git_repo_metadata_from_path(model, path)
 
         # default meta data for exported file
         if title is None:

@@ -145,29 +145,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)
 
-    def test_set_git_repo_metadata_from_path(self):
-        model = Model()
-        self.assertEqual(model.url, '')
-
-        util.set_git_repo_metadata_from_path(model, path='.')
-        self.assertIn(model.url, [
-            'https://github.com/KarrLab/wc_lang.git',
-            'ssh://git@github.com/KarrLab/wc_lang.git',
-            'git@github.com:KarrLab/wc_lang.git',
-        ])
-
-    def test_set_git_repo_metadata_from_path_error(self):
-        tempdir = tempfile.mkdtemp()
-
-        model = Model()
-        self.assertEqual(model.url, '')
-
-        with self.assertRaisesRegex(ValueError, 'is not a Git repository'):
-            util.set_git_repo_metadata_from_path(model, path=tempdir)
-        self.assertEqual(model.url, '')
-
-        shutil.rmtree(tempdir)
-
     def test_gen_ids(self):
         model = Model()
         model.compartments.create(id='c_1')

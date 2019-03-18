@@ -6,7 +6,6 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 
 # API
 from .core import (RateLawDirection, TaxonRank,
-
                    Model, Taxon, Submodel, Compartment,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
@@ -15,10 +14,4 @@ from .core import (RateLawDirection, TaxonRank,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
                    Evidence, Interpretation, DatabaseReference, Reference, Author, Change,
-
                    Validator)
-from . import config
-from . import io
-from . import sbml
-from . import transform
-from . import util
