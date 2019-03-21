@@ -6,66 +6,142 @@ Includes
 * Higher level functions for creating SBML objects
 * Utilities for wrapping libSBML calls and initializing libSBML models
 
-:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2019-01-24
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
+:Date: 2019-03-21
 :Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
 
-from libsbml import (LIBSBML_OPERATION_SUCCESS, OperationReturnValue_toString,
-                     SBMLNamespaces, SBMLDocument)
-from wc_utils.util.units import unit_registry, are_units_equivalent
-import enum
+from wc_utils.util.units import unit_registry
 import libsbml
 import math
-import pint
+import obj_model
+import obj_model.expression
+import obj_model.units
+import re
 import types
 import warnings
 import wc_lang.core
-import xml.sax.saxutils
-# import wc_lang.util
 
 
-class LibSbmlUnitKind(int, enum.Enum):
-    """ SBML unit kinds """
-    ampere = 0
-    avogadro = 1
-    becquerel = 2
-    candela = 3
-    celsius = 4
-    coulomb = 5
-    dimensionless = 6
-    farad = 7
-    gram = 8
-    gray = 9
-    henry = 10
-    hertz = 11
-    invalid = 36
-    item = 12
-    joule = 13
-    katal = 14
-    kelvin = 15
-    kilogram = 16
-    liter = 17
-    litre = 18
-    lumen = 19
-    lux = 20
-    meter = 21
-    metre = 22
-    mole = 23
-    newton = 24
-    ohm = 25
-    pascal = 26
-    radian = 27
-    second = 28
-    siemens = 29
-    sievert = 30
-    steradian = 31
-    tesla = 32
-    volt = 33
-    watt = 34
-    weber = 35
+class SbmlModelMixin(object):
+    """ Mixin with methods for exporting/import models to/from SBML
+    """
+
+    def gen_sbml_id(self):
+        """ Generate SBML id from id
+
+        Returns:
+            :obj:`str`: SBML id
+        """
+        return self.__class__.__name__ + '__' \
+            + self.id \
+            .replace('[', '__RB__') \
+            .replace(']', '__LB__') \
+            .replace('-', '__DS__')
+
+    @classmethod
+    def parse_sbml_id(cls, sbml_id):
+        """ Parse id from SBML id
+
+        Args:
+            sbml_id (:obj:`str`): SBML id
+
+        Returns:
+            :obj:`str`: id
+        """
+        return sbml_id.partition(cls.__name__ + '__')[2] \
+            .replace('__RB__', '[') \
+            .replace('__LB__', ']') \
+            .replace('__DS__', '-')
+
+    def export_to_sbml(self, sbml_model):
+        """ Add object to SBML model.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+
+        Returns:
+            :obj:`object`: SBML object
+        """
+        pass  # pragma: no cover
+
+    def import_from_sbml(self, sbml):
+        """ Load object from SBML object
+
+        Args:
+            sbml (:obj:`object`): SBML object
+        """
+        pass  # pragma: no cover
+
+    def import_relations_from_sbml(self, sbml, objs):
+        """ Load object from SBML object
+
+        Args:
+            sbml (:obj:`object`): SBML object
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
+        pass  # pragma: no cover
+
+
+class SbmlAssignmentRuleMixin(SbmlModelMixin):
+    def export_to_sbml(self, sbml_model):
+        """ Add this metadata about this submodel to a SBML model.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+
+        Returns:
+            :obj:`libsbml.Model`: SBML model
+
+        Raises:
+            :obj:`LibSbmlError`: if calling `libsbml` raises an error
+        """
+        annots = []
+
+        sbml = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
+        LibSbmlInterface.call_libsbml(sbml.setVariable, 'variable')
+
+        LibSbmlInterface.call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
+        LibSbmlInterface.call_libsbml(sbml.setName, self.name)
+        LibSbmlInterface.set_math(sbml.setMath, self.expression)
+        annots.extend(['units', 'db_refs'])
+        LibSbmlInterface.set_commments(self, sbml)
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        annots = []
+
+        self.id = self.parse_sbml_id(LibSbmlInterface.call_libsbml(sbml.getIdAttribute))
+        self.name = LibSbmlInterface.call_libsbml(sbml.getName)
+        annots.append('units')
+        LibSbmlInterface.get_commments(self, sbml)
+
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        """ Load object from SBML object
+
+        Args:
+            sbml (:obj:`object`): SBML object
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
+        if self.expression:
+            self.expression.species = []
+            self.expression.observables = []
+        self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
 
 
 class LibSbmlError(Exception):
@@ -96,54 +172,118 @@ class LibSbmlInterface(object):
         packages = packages or {}
 
         # create name spaces for SBML document
-        namespaces = [SBMLNamespaces, level, version]
+        namespaces = [libsbml.SBMLNamespaces, level, version]
         for package_id, package_version in packages.items():
             namespaces.append(package_id)
             namespaces.append(package_version)
         sbml_ns = cls.call_libsbml(*namespaces)
+        cls.call_libsbml(sbml_ns.addNamespace, cls.XML_NAMESPACE, 'wcLang')
 
         # create SBML document
-        doc = cls.call_libsbml(SBMLDocument, sbml_ns)
+        sbml_doc = cls.call_libsbml(libsbml.SBMLDocument, sbml_ns)
 
         # set package requirements
         for package in packages:
-            cls.call_libsbml(doc.setPackageRequired, package, False)
+            cls.call_libsbml(sbml_doc.setPackageRequired, package, False)
 
         # return SBML document
-        return doc
+        return sbml_doc
 
     @classmethod
-    def is_doc_compatible(cls, doc, level=3, version=2):
+    def verify_doc(cls, sbml_doc, level=3, version=2, strict_units=True):
+        """ Verify that an SBML document is valid
+
+        * SBML-compatible
+        * Valid SBML
+        * Consistent
+
+
+        Args:
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
+            level (:obj:`int`, optional): SBML level number
+            version (:obj:`int`, optional): SBML version number
+            strict_units (:obj:`bool`, optional): if true, strictly verify that the units are
+                consistent
+
+        Raises:
+            :obj:`LibSbmlError`: if the document is invalid
+        """
+        cls.verify_doc_is_compatible(sbml_doc, level=level, version=version)
+        # todo: uncomment
+        # cls.verify_doc_is_valid_sbml(sbml_doc)
+        # cls.verify_doc_is_consistent(sbml_doc, strict_units=strict_units)
+
+    @classmethod
+    def verify_doc_is_compatible(cls, sbml_doc, level=3, version=2):
         """ Check the compatibility of an SBML document with a specific level and version
 
         Args:
-            doc (:obj:`libsbml.SBMLDocument`): SBML document
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
             level (:obj:`int`, optional): SBML level number
             version (:obj:`int`, optional): SBML version number
+
+        Raises:
+            :obj:`LibSbmlError`: if the document is not SBML-compatible
         """
         # SBML compatibility method for the version being used
-        method = getattr(doc, 'checkL{}v{}Compatibility'.format(level, version))
-        return 0 == cls.call_libsbml(method, returns_int=True)
+        method = getattr(sbml_doc, 'checkL{}v{}Compatibility'.format(level, version))
+        cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is incompatible')
 
     @classmethod
-    def create_model(cls, doc):
+    def verify_doc_is_valid_sbml(cls, sbml_doc):
+        """ Check that an SBML document is consistent
+
+        Args:
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
+
+        Raises:
+            :obj:`LibSbmlError`: if the document is not valid SBML
+        """
+        cls.call_libsbml(sbml_doc.validateSBML, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is invalid SBML')
+
+    @classmethod
+    def verify_doc_is_consistent(cls, sbml_doc, strict_units=True):
+        """ Check that an SBML document is consistent
+
+        Args:
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
+            strict_units (:obj:`bool`, optional): if true, strictly verify that the units are
+                consistent
+
+        Raises:
+            :obj:`LibSbmlError`: if the document is not consistent
+        """
+        cls.call_libsbml(sbml_doc.checkInternalConsistency, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is internally inconsistent')
+
+        if strict_units:
+            method = sbml_doc.checkConsistencyWithStrictUnits
+        else:
+            method = sbml_doc.checkConsistency
+        cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is inconsistent')
+
+    @classmethod
+    def create_model(cls, sbml_doc):
         """ Create a SBML model
 
         Args:
-            doc (:obj:`libsbml.SBMLDocument`): SBML document
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
 
         Returns:
             :obj:`libsbml.Model`: SBML model
         """
-        return cls.call_libsbml(doc.createModel)
+        return cls.call_libsbml(sbml_doc.createModel)
 
     @classmethod
-    def init_model(cls, model, doc, packages=None):
+    def init_model(cls, model, sbml_doc, packages=None):
         """ Create and initialize an SMBL model.
 
         Args:
             model (:obj:`wc_lang.core.Model`): model
-            doc (:obj:`libsbml.SBMLDocument`): a `libsbml` SBMLDocument
+            sbml_doc (:obj:`libsbml.SBMLDocument`): a `libsbml` SBMLDocument
             packages (:obj:`dict` that maps :obj:`str` to :obj:`int`, optional): dictionary of required packages
                 that maps package identifiers to package numbers
 
@@ -152,7 +292,7 @@ class LibSbmlInterface(object):
         """
 
         # create model
-        sbml_model = cls.create_model(doc)
+        sbml_model = cls.create_model(sbml_doc)
 
         # enable plugins for packages
         packages = packages or {}
@@ -168,7 +308,7 @@ class LibSbmlInterface(object):
 
     @classmethod
     def create_units(cls, model, sbml_model):
-        """ Set time, extent, and substance units
+        """ Set time, extent, and substance units of SBML model
 
         Args:
             model (:obj:`wc_lang.core.Model`): model
@@ -177,28 +317,25 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`dict`: dictionary that maps units to ids of SBML unit definitions
         """
-        import wc_lang.util
-
         # Define units
-        units = wc_lang.util.get_model_units(model)
+        units = obj_model.units.get_obj_units(model)
         units_to_sbml = {}
         for unit in units:
             sbml_unit = cls.create_unit(unit, sbml_model)
             if sbml_unit:
-                units_to_sbml[unit] = sbml_unit.getId()
+                units_to_sbml[unit] = cls.call_libsbml(sbml_unit.getIdAttribute)
 
         # set top-level units (time, substance, extent, volume)
-        units = cls.gen_base_unit_id(model.time_units)
-        cls.call_libsbml(sbml_model.setTimeUnits, units)
+        cls.set_unit(sbml_model.setTimeUnits, model.time_units)
 
         assert len(wc_lang.core.Species.units.choices) == 1
-        units = cls.gen_base_unit_id(wc_lang.core.Species.units.choices[0])
-        cls.call_libsbml(sbml_model.setExtentUnits, units)
-        cls.call_libsbml(sbml_model.setSubstanceUnits, units)
+        units = wc_lang.core.Species.units.choices[0]
+        cls.set_unit(sbml_model.setExtentUnits, units)
+        cls.set_unit(sbml_model.setSubstanceUnits, units)
 
         assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
-        units = cls.gen_base_unit_id(wc_lang.core.Compartment.init_volume_units.choices[0])
-        cls.call_libsbml(sbml_model.setVolumeUnits, units)
+        units = wc_lang.core.Compartment.init_volume_units.choices[0]
+        cls.set_unit(sbml_model.setVolumeUnits, units)
 
         # return dictionary to SBML units
         return units_to_sbml
@@ -215,7 +352,7 @@ class LibSbmlInterface(object):
             :obj:`libsbml.UnitDefinition`: unit definition
         """
         id = cls.gen_unit_id(unit)
-        if hasattr(libsbml, 'UNIT_KIND_' + id[5:].upper()):
+        if not id.startswith('unit_'):
             return None
 
         unit_def = cls.call_libsbml(sbml_model.createUnitDefinition)
@@ -248,26 +385,18 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`str`: SBML id for unit
         """
+        if not isinstance(unit, unit_registry.Unit):
+            raise ValueError('Cannot generate SBML id for `None` unit')
+
         id = 'unit_' + str(unit) \
             .replace(' / ', '_per_') \
             .replace(' * ', '_times_') \
             .replace(' ** ', '_pow_')
+
+        if hasattr(libsbml, 'UNIT_KIND_' + cls.normalize_unit_kind(id[5:], to_sbml_base_units=False).upper()):
+            id = cls.normalize_unit_kind(id[5:], to_sbml_base_units=False)
+
         return id
-
-    @classmethod
-    def gen_base_unit_id(cls, unit):
-        """ Generate an SBML base unit id for a unit
-
-        Args:
-            unit (:obj:`unit_registry.Unit`): unit
-
-        Returns:
-            :obj:`str`: SBML id for base unit
-        """
-        unit_registry = unit._REGISTRY
-        if are_units_equivalent(unit, unit_registry.parse_units('molecule')):
-            return 'item'
-        return cls.normalize_unit_kind(str(unit))
 
     @classmethod
     def create_base_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
@@ -290,10 +419,12 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`libsbml.Unit`: SBML unit
         """
+        id = kind
         kind = cls.normalize_unit_kind(kind)
         kind_val = getattr(libsbml, 'UNIT_KIND_' + kind.upper())
 
         unit = cls.call_libsbml(unit_def.createUnit)
+        cls.call_libsbml(unit.setIdAttribute, id)
         cls.call_libsbml(unit.setKind, kind_val)
         cls.call_libsbml(unit.setExponent, exponent)
         cls.call_libsbml(unit.setScale, scale)
@@ -301,11 +432,12 @@ class LibSbmlInterface(object):
         return unit
 
     @classmethod
-    def normalize_unit_kind(cls, kind):
+    def normalize_unit_kind(cls, kind, to_sbml_base_units=True):
         """ Normalize unit kind for SBML
 
         Args
             kind (:obj:`str`): unit kind
+            to_sbml_base_units (:obj:`bool`, optional): if :obj:`True`, map to fundamental SBML units
 
         Returns:
             :obj:`str`: normalized unit kind
@@ -314,6 +446,13 @@ class LibSbmlInterface(object):
             kind = 'litre'
         elif kind == 'meter':
             kind = 'metre'
+        elif kind == 'molecule':
+            kind = 'item'
+
+        if to_sbml_base_units:
+            if kind == 'gDCW':
+                kind = 'gram'
+
         return kind
 
     @classmethod
@@ -324,7 +463,7 @@ class LibSbmlInterface(object):
             sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
-            :obj:`dict`: dictionary that maps ids of unit definitions to instance of `unit_registry.Quantity`
+            :obj:`dict`: dictionary that maps ids of unit definitions to instance of `unit_registry.Unit`
         """
         units = {}
 
@@ -338,34 +477,54 @@ class LibSbmlInterface(object):
             else:
                 units[sbml_unit_id] = unit_registry.parse_expression(sbml_unit_id)
 
-        assert sbml_model.getExtentUnits() == sbml_model.getSubstanceUnits(), \
+        assert cls.call_libsbml(sbml_model.getExtentUnits) == cls.call_libsbml(sbml_model.getSubstanceUnits), \
             LibSbmlError('Substance and extent units must be the same')
-        assert not sbml_model.isSetLengthUnits(), \
+        assert not cls.call_libsbml(sbml_model.isSetLengthUnits), \
             LibSbmlError('Length units must be unset')
-        assert not sbml_model.isSetAreaUnits(), \
+        assert not cls.call_libsbml(sbml_model.isSetAreaUnits), \
             LibSbmlError('Area units must be unset')
 
-        for i_unit_def in range(sbml_model.getNumUnitDefinitions()):
-            sbml_unit_def = sbml_model.getUnitDefinition(i_unit_def)
-            units[sbml_unit_def.getId()] = cls.parse_unit(sbml_unit_def)
+        for i_unit_def in range(cls.call_libsbml(sbml_model.getNumUnitDefinitions, returns_int=True)):
+            sbml_unit_def = cls.call_libsbml(sbml_model.getUnitDefinition, i_unit_def)
+            units[cls.call_libsbml(sbml_unit_def.getIdAttribute)] = cls.parse_unit_id(cls.call_libsbml(sbml_unit_def.getIdAttribute))
         return units
 
     @classmethod
-    def parse_unit(cls, sbml_unit_def):
+    def parse_unit_id(cls, sbml_unit_def_id):
         """ Parse a unit from an SBML unit definition.
 
         Args:
-            sbml_unit_def (:obj:`libSBML.UnitDefinition`): SBML unit definition
-        
+            sbml_unit_def_id (:obj:`str`): id of SBML unit definition
+
         Returns:
-            :obj:`unit_registry.Quantity`: units
+            :obj:`unit_registry.Unit`: units
         """
-        unit = unit_registry.parse_units('1')
-        for i_unit in range(sbml_unit_def.getNumUnits()):
-            sbml_unit = sbml_unit_def.getUnit(i_unit)
-            unit *= unit_registry.parse_expression('{} * ({} * 10 ** {}) ** {}'.format(
-                sbml_unit.multiplier, LibSbmlUnitKind(sbml_unit.kind).name, sbml_unit.scale, sbml_unit.exponent))
-        return unit
+        if sbml_unit_def_id.startswith('unit_'):
+            return unit_registry.parse_units(sbml_unit_def_id.partition('unit_')[2]
+                                             .replace('_per_', ' / ')
+                                             .replace('_times_', ' * ')
+                                             .replace('_pow_', ' ** '))
+        else:
+            if sbml_unit_def_id == 'item':
+                sbml_unit_def_id = 'molecule'
+            return unit_registry.parse_units(sbml_unit_def_id)
+
+    @classmethod
+    def set_unit(cls, sbml_set_unit_func, unit):
+        unit_id = cls.gen_unit_id(unit)
+        cls.call_libsbml(sbml_set_unit_func, unit_id)
+
+    @classmethod
+    def get_unit(cls, sbml_get_unit_func):
+        """ Get units from SBML unit definition id
+
+        Args:
+            sbml_unit_def_id (:obj:`str`): id of unit definition            
+
+        Returns:
+            :obj:`unit_registry.Unit`: units
+        """
+        return cls.parse_unit_id(cls.call_libsbml(sbml_get_unit_func))
 
     @classmethod
     def create_parameter(cls, sbml_model, id, value, units, name=None, constant=True):
@@ -392,8 +551,7 @@ class LibSbmlInterface(object):
             cls.call_libsbml(sbml_parameter.setName, name)
         if value is not None:
             cls.call_libsbml(sbml_parameter.setValue, value)
-        if units is not None:
-            cls.call_libsbml(sbml_parameter.setUnits, cls.gen_unit_id(units))
+        cls.set_unit(sbml_parameter.setUnits, units)
         cls.call_libsbml(sbml_parameter.setConstant, constant)
         return sbml_parameter
 
@@ -410,18 +568,191 @@ class LibSbmlInterface(object):
             :obj:`float`: value
             :obj:`unit_registry.Unit`: units
         """
-        id = sbml_parameter.getId()
-        name = sbml_parameter.getName() or None
-        value = sbml_parameter.getValue()
-        sbml_model = sbml_parameter.getModel()
-        sbml_unit_def_id = sbml_parameter.getUnits()
-        sbml_unit_def = sbml_model.getUnitDefinition(sbml_unit_def_id)
-        if sbml_unit_def is None:
-            raise LibSbmlError('Unit {} must be defined'.format(sbml_unit_def_id))
-        units = cls.parse_unit(sbml_unit_def)
-        if not sbml_parameter.getConstant():
+        if not cls.call_libsbml(sbml_parameter.getConstant):
             raise LibSbmlError('Parameters must be constant')
+
+        id = cls.call_libsbml(sbml_parameter.getIdAttribute)
+        name = cls.call_libsbml(sbml_parameter.getName)
+        value = cls.call_libsbml(sbml_parameter.getValue)
+        units = cls.get_unit(sbml_parameter.getUnits)
         return (id, name, value, units)
+
+    @classmethod
+    def set_math(cls, set_math_func, expression):
+        """ Set the math of an SBMl object
+
+        Args:
+            set_math_func (:obj:`callable`): function to set the math of an SBML object
+            expression (:obj:`obj_model.expression.Expression`): expression
+        """
+        str_formula = expression._parsed_expression.get_str(cls._obj_model_token_to_str)
+        sbml_formula = cls.call_libsbml(libsbml.parseL3Formula, str_formula)
+        cls.call_libsbml(set_math_func, sbml_formula)
+
+    @staticmethod
+    def _obj_model_token_to_str(token):
+        """ Get a string representation of a token that represents an instance of :obj:`Model`.
+
+        Args:
+            token (:obj:`obj_model.expression.ObjModelToken`): token that represents an instance of :obj:`Model`
+
+        Returns:
+            :obj:`str`: string representation of a token that represents an instance of :obj:`Model`.
+        """
+        return token.model.gen_sbml_id()
+
+    @classmethod
+    def get_math(cls, get_math_func, Expression, model_objs):
+        """ Get the math of an SBMl object
+
+        Args:
+            get_math_func (:obj:`callable`): function to get the math of an SBML object
+            Expression (:obj:`type`): type of expression
+            model_objs (:obj:`dict`, optional): dictionary that maps classes of model objects to dictonaries
+                that map ids of model objects to model objects
+
+        Returns:
+            :obj:`obj_model.expression.Expression`: expression
+        """
+        sbml_formula = cls.call_libsbml(get_math_func)
+        str_formula = cls.call_libsbml(libsbml.formulaToL3String, sbml_formula)
+        str_formula = str_formula \
+            .replace('__RB__', '[') \
+            .replace('__LB__', ']') \
+            .replace('__DS__', '-')
+        str_formula = re.sub(r'[A-Za-z0-9]+__', '', str_formula)
+        expression, error = Expression.deserialize(str_formula, model_objs)
+        assert error is None, str(error)
+        return expression
+
+    XML_NAMESPACE = 'https://www.wholecell.org/ns/wc_lang'
+
+    @classmethod
+    def set_annotations(cls, model_obj, nested_attr_paths, sbml_obj):
+        """ Export annotations from a model object to an SBML object
+
+        Args:
+            model_obj (:obj:`obj_model.Model`): model object
+            nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
+            sbml_obj (:obj:`object`): SBML object
+        """
+        cls.call_libsbml(sbml_obj.setAnnotation, cls.gen_annotations(model_obj, nested_attr_paths, sbml_obj))
+
+    @classmethod
+    def gen_annotations(cls, model_obj, nested_attr_paths, sbml_obj):
+        """ Export annotations from a model object to an SBML object
+
+        Args:
+            model_obj (:obj:`obj_model.Model`): model object
+            nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
+            sbml_obj (:obj:`object`): SBML object
+        """
+        key_vals = []
+        for nested_attr_name, nested_attr_path in nested_attr_paths.items():
+            attr = model_obj.get_nested_attr(nested_attr_path)
+            val = model_obj.get_nested_attr_val(nested_attr_path)
+
+            serialized_val = attr.serialize(val)
+            if serialized_val is None:
+                serialized_val = ''
+            key_vals.append(('<wcLang:property>'
+                             '<wcLang:key>{}</wcLang:key>'
+                             '<wcLang:value>{}</wcLang:value>'
+                             '</wcLang:property>').format(
+                nested_attr_name, serialized_val))
+
+        return '<annotation><wcLang:annotation>{}</wcLang:annotation></annotation>'.format(''.join(key_vals))
+
+    @classmethod
+    def get_annotations(cls, model_obj, nested_attr_paths, sbml_obj, model_objs=None):
+        """ Import annotations from a model object to an SBML object
+
+        Args:
+            model_obj (:obj:`obj_model.Model`): model object
+            nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
+            sbml_obj (:obj:`object`): SBML object
+            model_objs (:obj:`dict`, optional): dictionary that maps classes of model objects to dictonaries
+                that map ids of model objects to model objects
+        """
+        for nested_attr_path in nested_attr_paths.values():
+            attr = model_obj.get_nested_attr(nested_attr_path)
+            val = attr.get_none_value()
+            model_obj.set_nested_attr_val(nested_attr_path, val)
+
+        for nested_attr_name, val in cls.parse_annotations(sbml_obj).items():
+            nested_attr_path = nested_attr_paths.get(nested_attr_name, None)
+            if nested_attr_path:
+                attr = model_obj.get_nested_attr(nested_attr_path)
+                if isinstance(attr, obj_model.RelatedAttribute):
+                    val, error = attr.deserialize(val, model_objs)
+                else:
+                    val, error = attr.deserialize(val)
+                assert error is None, 'Error parsing {}.{} from {}: {}'.format(
+                    model_obj.__class__.__name__, attr_name, str(val), str(error))
+                model_obj.set_nested_attr_val(nested_attr_path, val)
+
+    @classmethod
+    def parse_annotations(cls, sbml_obj):
+        """ Import annotations from a model object to an SBML object
+
+        Args:
+            sbml_obj (:obj:`object`): SBML object
+
+        Returns:
+            :obj:`dict`: dictionary of names and values of annotated attributes
+        """
+        sbml_annots = cls.call_libsbml(sbml_obj.getAnnotation)
+        key_vals = {}
+
+        for i_annot in range(cls.call_libsbml(sbml_annots.getNumChildren, returns_int=True)):
+            sbml_annot = cls.call_libsbml(sbml_annots.getChild, i_annot)
+            if cls.call_libsbml(sbml_annot.getName) == 'annotation' and cls.call_libsbml(sbml_annot.getURI) == cls.XML_NAMESPACE:
+
+                for i_child in range(cls.call_libsbml(sbml_annot.getNumChildren, returns_int=True)):
+                    key_val = cls.call_libsbml(sbml_annot.getChild, i_child)
+
+                    for i_g_child in range(cls.call_libsbml(key_val.getNumChildren, returns_int=True)):
+                        g_child = cls.call_libsbml(key_val.getChild, i_g_child)
+                        if cls.call_libsbml(g_child.getName) == 'key':
+                            attr_name = cls.call_libsbml(g_child.toXMLString)[12:-13]
+                        elif cls.call_libsbml(g_child.getName) == 'value':
+                            val = cls.call_libsbml(g_child.toXMLString)[14:-15]
+
+                    key_vals[attr_name] = val
+
+        return key_vals
+
+    @staticmethod
+    def gen_nested_attr_paths(dotted_attr_paths):
+        nested_attr_paths = {}
+        for dotted_attr_path in dotted_attr_paths:
+            nested_attr_paths[dotted_attr_path] = [(attr_name, ) for attr_name in dotted_attr_path.split('.')]
+        return nested_attr_paths
+
+    @classmethod
+    def set_commments(cls, model_obj, sbml_obj):
+        """ Export comments from a model object to an SBML object
+
+        Args:
+            model_obj (:obj:`obj_model.Model`): model object
+            sbml_obj (:obj:`object`): SBML object
+        """
+        if model_obj.comments:
+            cls.call_libsbml(sbml_obj.setNotes, cls.str_to_xml_node(model_obj.comments))
+
+    @classmethod
+    def get_commments(cls, model_obj, sbml_obj):
+        """ Import comments from an SBML object to a model object
+
+        Args:
+            model_obj (:obj:`obj_model.Model`): model object
+            sbml_obj (:obj:`object`): SBML object
+        """
+        if cls.call_libsbml(sbml_obj.isSetNotes):
+            sbml_notes = cls.call_libsbml(sbml_obj.getNotes)
+            model_obj.comments = cls.str_from_xml_node(cls.call_libsbml(sbml_notes.getChild, 0))
+        else:
+            model_obj.comments = ''
 
     @classmethod
     def call_libsbml(cls, method, *args, returns_int=False, debug=False):
@@ -444,11 +775,11 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`obj` or `int`: if the call does not return an error, return the `libsbml`
                 method's return value, either an object that has been created or retrieved, or an integer
-                value, or the `libsbml` success return code, `LIBSBML_OPERATION_SUCCESS`
+                value, or the `libsbml` success return code, :obj:`libsbml.LIBSBML_OPERATION_SUCCESS`
 
         Raises:
             :obj:`LibSbmlError`: if the `libsbml` call raises an exception, or returns None, or
-            returns a known integer error code != `LIBSBML_OPERATION_SUCCESS`
+            returns a known integer error code != :obj:`libsbml.LIBSBML_OPERATION_SUCCESS`
         """
         new_args = []
         for arg in args:
@@ -473,18 +804,18 @@ class LibSbmlInterface(object):
                     print('libSBML returns an int:', rc)
                 return rc
 
-            if rc == LIBSBML_OPERATION_SUCCESS:
+            if rc == libsbml.LIBSBML_OPERATION_SUCCESS:
                 if debug:
                     print('libSBML returns: LIBSBML_OPERATION_SUCCESS')
                 return rc
             else:
-                error_code = OperationReturnValue_toString(rc)
+                error_code = libsbml.OperationReturnValue_toString(rc)
                 if error_code is None:
                     if debug:
                         print("libSBML returns:", rc)
                     warnings.warn("call_libsbml: unknown error code {} returned by '{}'."
                                   "\nPerhaps an integer value is being returned; if so, to avoid this warning "
-                                  "pass 'returns_int=True' to call_libsbml().".format(error_code, call_str), UserWarning)
+                                  "pass 'returns_int=True' to call_libsbml().".format(error_code, call_str), wc_lang.core.WcLangWarning)
                     return rc
                 else:
                     raise LibSbmlError("LibSBML returned error code '{}' when executing '{}'."
@@ -508,4 +839,41 @@ class LibSbmlInterface(object):
             :obj:`libsbml.XMLNode`: an XML string that can be stored as a `Note` in an SBML document
         """
         return cls.call_libsbml(libsbml.XMLNode.convertStringToXMLNode,
-                                "<p xmlns=\"http://www.w3.org/1999/xhtml\">{}</p>".format(xml.sax.saxutils.escape(str)))
+                                '<p xmlns="http://www.w3.org/1999/xhtml">{}</p>'.format(str))
+
+    @classmethod
+    def str_from_xml_node(cls, xml_node):
+        """ Convert an XML string (e.g., from a Note in an SBML document) to a Python string.
+
+        Args:
+            xml_node (:obj:`libsbml.XMLNode`): an XML string that can be stored as a `Note` in an SBML document
+
+        Returns:
+            :obj:`str`: a string
+        """
+        prefix = '<p xmlns="http://www.w3.org/1999/xhtml">'
+        suffix = '</p>'
+        text = cls.call_libsbml(xml_node.toXMLString)
+        text = text[len(prefix):-len(suffix)]
+        text = text.replace('\n  ', '\n').strip()
+        return text
+
+    @classmethod
+    def raise_if_error(cls, sbml_obj, message):
+        """ Raise an error, if an SBML object has errors
+
+        Args:
+            sbml_obj (:obj:`libSBML.SBase`): SBML object
+            message (:obj:`str`): summary of error
+
+        Raises:
+            :obj:`LibSbmlError`: if the SBML object has errors
+        """
+        if cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True) > 0:
+            errors = []
+            for i_error in range(cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)):
+                errors.append('{}: {}'.format(cls.call_libsbml(cls.call_libsbml(sbml_obj.getError, i_error).getShortMessage),
+                                              cls.call_libsbml(cls.call_libsbml(sbml_obj.getError, i_error).getMessage)))
+            raise LibSbmlError('{}:\n  {}'.format(message,
+                                                  sbml_obj.__class__.__name__,
+                                                  '\n  '.join(errors)))

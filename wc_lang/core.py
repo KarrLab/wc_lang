@@ -52,7 +52,7 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
 from six import with_metaclass
-from wc_lang.sbml.util import LibSbmlInterface, LibSbmlError
+from wc_lang.sbml.util import SbmlModelMixin, SbmlAssignmentRuleMixin, LibSbmlInterface
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
@@ -61,12 +61,14 @@ from wc_utils.util.units import unit_registry, are_units_equivalent
 from wc_utils.workbook.core import get_column_letter
 import collections
 import datetime
+import libsbml
 import networkx
 import obj_model
 import obj_model.chem
 import pkg_resources
 import pronto.term
 import re
+import scipy.constants
 import six
 import stringcase
 import token
@@ -656,7 +658,7 @@ class CommentAttribute(obj_model.LongStringAttribute):
             setattr(left, self.name, left_val + self.SEPARATOR + right_val)
 
 
-class Model(obj_model.Model):
+class Model(obj_model.Model, SbmlModelMixin):
     """ Model
 
     Attributes:
@@ -728,6 +730,8 @@ class Model(obj_model.Model):
                            'compartments', 'species_types', 'species', 'distribution_init_concentrations',
                            'observables', 'functions', 'stop_conditions'),
         }
+        sbml_attrs = ('id', 'name', 'version', 'url', 'branch', 'revision',
+                      'wc_lang_version', 'time_units', 'db_refs', 'comments', 'updated', 'created')
 
     def __init__(self, **kwargs):
         """
@@ -1174,8 +1178,70 @@ class Model(obj_model.Model):
             if isinstance(attr, obj_model.RelatedAttribute):
                 attr.merge(self, other, other_objs_in_self, self_objs_in_other)
 
+    def export_to_sbml(self, sbml_model):
+        """ Add this metadata about this submodel to a SBML model.
 
-class Taxon(obj_model.Model):
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+
+        Returns:
+            :obj:`libsbml.Model`: SBML model
+        """
+        annots = []
+
+        call_libsbml(sbml_model.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml_model.setName, self.name)
+        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version'])
+        annots.append('db_refs')
+        LibSbmlInterface.set_commments(self, sbml_model)
+        annots.extend(['updated', 'created'])
+
+        if self.taxon:
+            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.db_refs', 'taxon.comments'])
+        if self.env:
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units',
+                           'env.db_refs', 'env.comments'])
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model)
+
+        return sbml_model
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
+        annots = []
+
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version'])
+        LibSbmlInterface.get_commments(self, sbml)
+        annots.extend(['updated', 'created'])
+
+        if 'taxon.id' in parsed_annots:
+            self.taxon = Taxon()
+            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.comments'])
+        if 'env.id' in parsed_annots:
+            self.env = Environment()
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.comments'])
+
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        # identifiers
+        annots = []
+        annots.append('db_refs')
+        if self.taxon:
+            annots.append('taxon.db_refs')
+        if self.env:
+            annots.append('env.db_refs')
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+
+
+class Taxon(obj_model.Model, SbmlModelMixin):
     """ Biological taxon (e.g. family, genus, species, strain, etc.)
 
     Attributes:
@@ -1204,9 +1270,10 @@ class Taxon(obj_model.Model):
             'submodel': ('db_refs', 'references'),
             'core_model': ('db_refs', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'rank', 'db_refs', 'comments')
 
 
-class Environment(obj_model.Model):
+class Environment(obj_model.Model, SbmlModelMixin):
     """ Environment
 
     Attributes:
@@ -1247,9 +1314,10 @@ class Environment(obj_model.Model):
             'submodel': ('db_refs', 'references'),
             'core_model': ('db_refs', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'ph', 'ph_units', 'db_refs', 'comments')
 
 
-class Submodel(obj_model.Model):
+class Submodel(obj_model.Model, SbmlModelMixin):
     """ Submodel
 
     Attributes:
@@ -1293,6 +1361,7 @@ class Submodel(obj_model.Model):
             'submodel': ('model', 'reactions', 'dfba_obj', 'dfba_obj_reactions',
                          'db_refs', 'evidence', 'interpretations', 'references', 'changes'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'framework', 'db_refs', 'comments')
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1410,7 +1479,7 @@ class Submodel(obj_model.Model):
 
         return immediate_children
 
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this metadata about this submodel to a SBML model.
 
         Args:
@@ -1418,20 +1487,71 @@ class Submodel(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Model`: SBML model
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        call_libsbml(sbml_model.setIdAttribute, self.id)
-        if self.name:
-            call_libsbml(sbml_model.setName, self.name)
-        # compartment, dfba_obj, and parameters are created separately
-        if self.comments:
-            call_libsbml(sbml_model.appendNotes, LibSbmlInterface.str_to_xml_node(self.comments))
+        annots = []
+
+        call_libsbml(sbml_model.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml_model.setName, self.name)
+        annots.extend(['framework', 'db_refs'])
+        LibSbmlInterface.set_commments(self, sbml_model)
+
+        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
+                       'model.db_refs',
+                       'model.comments', 'model.updated', 'model.created'])
+        if self.model.taxon:
+            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.db_refs', 'model.taxon.comments'])
+        if self.model.env:
+            annots.extend(['model.env.id', 'model.env.name',
+                           'model.env.temp', 'model.env.temp_units',
+                           'model.env.ph', 'model.env.ph_units',
+                           'model.env.db_refs', 'model.env.comments'])
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model)
+
         return sbml_model
 
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
 
-class DfbaObjectiveExpression(obj_model.Model, Expression):
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
+        annots = []
+
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+        annots.append('framework')
+        LibSbmlInterface.get_commments(self, sbml)
+
+        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
+                       'model.comments', 'model.updated', 'model.created'])
+
+        if 'model.taxon.id' in parsed_annots:
+            self.model.taxon = Taxon()
+            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.comments'])
+        if 'model.env.id' in parsed_annots:
+            self.model.env = Environment()
+            annots.extend(['model.env.id', 'model.env.name',
+                           'model.env.temp', 'model.env.temp_units',
+                           'model.env.ph', 'model.env.ph_units',
+                           'model.env.comments'])
+
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        # identifiers
+        annots = []
+        annots.append('db_refs')
+        annots.append('model.db_refs')
+        if self.model.taxon:
+            annots.append('model.taxon.db_refs')
+        if self.model.env:
+            annots.append('model.env.db_refs')
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+
+
+class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
     """ A mathematical expression of Reactions and DfbaObjReactions
 
     The expression used by a :obj:`DfbaObjective`.
@@ -1463,6 +1583,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
             'submodel': ('reactions', 'dfba_obj_reactions'),
             'core_model': ('reactions', 'dfba_obj_reactions'),
         }
+        sbml_attrs = ('expression', 'reactions', 'dfba_obj_reactions')
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
@@ -1529,8 +1650,21 @@ class DfbaObjectiveExpression(obj_model.Model, Expression):
         """
         return Expression.deserialize(cls, value, objects)
 
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
 
-class DfbaObjective(obj_model.Model):
+        Args:
+            other (:obj:`obj_model.Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        super(DfbaObjectiveExpression, self).merge_attrs(other, other_objs_in_self, self_objs_in_other)
+        Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
+
+
+class DfbaObjective(obj_model.Model, SbmlModelMixin):
     """ dFBA objective function
 
     Attributes:
@@ -1580,6 +1714,8 @@ class DfbaObjective(obj_model.Model):
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'submodel', 'expression', 'units',
+                      'reaction_rate_units', 'coefficient_units', 'db_refs', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -1611,9 +1747,7 @@ class DfbaObjective(obj_model.Model):
             return InvalidObject(self, errors)
         return None
 
-    ACTIVE_OBJECTIVE = 'active_objective'
-
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this DfbaObjective to a SBML model.
 
         This uses version 2 of the 'Flux Balance Constraints' extension. SBML assumes that an
@@ -1624,35 +1758,107 @@ class DfbaObjective(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Objective`: SBML objective
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        # issue warning if objective function not linear
+        # warn if objective is not linear
         if not self.expression._parsed_expression.is_linear:
-            warnings.warn("submodel '{}' can't add non-linear objective function to SBML FBC model".format(
-                self.submodel.id), UserWarning)
+            warnings.warn("SBML export doesn't support the non-linear objective for submodel '{}'".format(
+                self.submodel.id), WcLangWarning)
             return
-        fbc_model_plugin = call_libsbml(sbml_model.getPlugin, 'fbc')
-        sbml_objective = call_libsbml(fbc_model_plugin.createObjective)
-        call_libsbml(sbml_objective.setType, 'maximize')
+
+        annots = []
+
+        sbml_plugin = call_libsbml(sbml_model.getPlugin, 'fbc')
+        sbml = call_libsbml(sbml_plugin.createObjective)
+
+        # sense
+        call_libsbml(sbml.setType, 'maximize')
+
+        # set objective as active
         # In SBML 3 FBC 2, the 'activeObjective' attribute must be set on ListOfObjectives.
         # Since a submodel has only one Objective, it must be the active one.
-        call_libsbml(sbml_objective.setIdAttribute, DfbaObjective.ACTIVE_OBJECTIVE)
-        list_of_objectives = call_libsbml(fbc_model_plugin.getListOfObjectives)
-        call_libsbml(list_of_objectives.setActiveObjective, DfbaObjective.ACTIVE_OBJECTIVE)
-        for idx, reaction in enumerate(self.expression.reactions):
-            sbml_flux_objective = call_libsbml(sbml_objective.createFluxObjective)
-            call_libsbml(sbml_flux_objective.setReaction, reaction.id)
-            call_libsbml(sbml_flux_objective.setCoefficient,
-                         self.expression._parsed_expression.lin_coeffs[Reaction][reaction])
-        for idx, dfba_obj_reaction in enumerate(self.expression.dfba_obj_reactions):
-            sbml_flux_objective = call_libsbml(sbml_objective.createFluxObjective)
-            call_libsbml(sbml_flux_objective.setReaction, dfba_obj_reaction.id)
-            call_libsbml(sbml_flux_objective.setCoefficient,
-                         self.expression._parsed_expression.lin_coeffs[DfbaObjReaction][dfba_obj_reaction])
+        list_of_objectives = call_libsbml(sbml_plugin.getListOfObjectives)
+        call_libsbml(list_of_objectives.setActiveObjective, self.gen_sbml_id())
 
-        return sbml_objective
+        # id, name
+        call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml.setName, self.name)
+
+        # expression
+        for rxn in self.expression.reactions:
+            sbml_rxn_id = rxn.gen_sbml_id()
+            coeff = self.expression._parsed_expression.lin_coeffs[Reaction][rxn]
+            sbml_flux_obj = call_libsbml(sbml.createFluxObjective)
+            call_libsbml(sbml_flux_obj.setReaction, sbml_rxn_id)
+            call_libsbml(sbml_flux_obj.setCoefficient, coeff)
+
+        for dfba_obj_rxn in self.expression.dfba_obj_reactions:
+            sbml_rxn_id = dfba_obj_rxn.gen_sbml_id()
+            coeff = self.expression._parsed_expression.lin_coeffs[DfbaObjReaction][dfba_obj_rxn]
+            sbml_flux_obj = call_libsbml(sbml.createFluxObjective)
+            call_libsbml(sbml_flux_obj.setReaction, sbml_rxn_id)
+            call_libsbml(sbml_flux_obj.setCoefficient, coeff)
+
+        # units, identifiers
+        annots.extend(['units', 'reaction_rate_units', 'coefficient_units', 'db_refs'])
+
+        # comments
+        LibSbmlInterface.set_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        # return SBML objective
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Objective`): SBML objective
+        """
+        annots = []
+
+        # id, name
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+
+        # units, identifiers
+        annots.extend(['units', 'reaction_rate_units', 'coefficient_units'])
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        # submodel
+        self.submodel = self.model.submodels[0]
+
+        # expression
+        if self.expression:
+            self.expression.reactions = []
+            self.expression.dfba_obj_reactions = []
+
+        expression = []
+        for i_flux_obj in range(call_libsbml(sbml.getNumFluxObjectives, returns_int=True)):
+            sbml_flux_obj = call_libsbml(sbml.getFluxObjective, i_flux_obj)
+            sbml_rxn_id = call_libsbml(sbml_flux_obj.getReaction)
+            coeff = call_libsbml(sbml_flux_obj.getCoefficient)
+
+            if sbml_rxn_id.startswith('Reaction__'):
+                wc_lang_rxn_id = Reaction.parse_sbml_id(sbml_rxn_id)
+            else:
+                wc_lang_rxn_id = DfbaObjReaction.parse_sbml_id(sbml_rxn_id)
+
+            expression.append('{} * {}'.format(coeff, wc_lang_rxn_id))
+
+        expression.sort()
+        self.expression, error = DfbaObjectiveExpression.deserialize(' + '.join(expression), objs)
+        assert error is None, str(error)
+
+        # identifiers
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
 
     def get_products(self, __type=None, **kwargs):
         """ Get the species produced by this objective function
@@ -1692,7 +1898,7 @@ class DfbaObjective(obj_model.Model):
         return det_dedupe(products)
 
 
-class Compartment(obj_model.Model):
+class Compartment(obj_model.Model, SbmlModelMixin):
     """ Compartment
 
     Attributes:
@@ -1741,14 +1947,14 @@ class Compartment(obj_model.Model):
                                  default=wcm_ontology['WCM:3D_compartment'],
                                  none=True)
     parent_compartment = ManyToOneAttribute('Compartment', related_name='sub_compartments')
+    mass_units = UnitAttribute(unit_registry,
+                               choices=(unit_registry.parse_units('g'),),
+                               default=unit_registry.parse_units('g'))
     distribution_init_volume = OntologyAttribute(wcm_ontology,
                                                  namespace='WCM',
                                                  terms=wcm_ontology['WCM:random_distribution'].rchildren(),
                                                  default=wcm_ontology['WCM:normal_distribution'],
                                                  verbose_name='Initial volume distribution')
-    mass_units = UnitAttribute(unit_registry,
-                               choices=(unit_registry.parse_units('g'),),
-                               default=unit_registry.parse_units('g'))
     mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
     std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume standard deviation')
     init_volume_units = UnitAttribute(unit_registry,
@@ -1777,6 +1983,10 @@ class Compartment(obj_model.Model):
                 'parent_compartment', 'sub_compartments', 'init_density',
                 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
+                      'parent_compartment', 'mass_units', 'distribution_init_volume',
+                      'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
+                      'db_refs', 'comments')
 
     def validate(self):
         """ Check that the compartment is valid
@@ -1839,7 +2049,7 @@ class Compartment(obj_model.Model):
             tot += comp.mean_init_volume
         return tot
 
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this compartment to a SBML model.
 
         Args:
@@ -1847,22 +2057,76 @@ class Compartment(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Compartment`: SBML compartment
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_compartment = call_libsbml(sbml_model.createCompartment)
-        call_libsbml(sbml_compartment.setIdAttribute, self.id)
-        call_libsbml(sbml_compartment.setName, self.name)
-        call_libsbml(sbml_compartment.setSpatialDimensions, 3)
-        call_libsbml(sbml_compartment.setSize, 1.0)  # todo: set based on calculated concentrations and density
-        call_libsbml(sbml_compartment.setConstant, False)
-        if self.comments:
-            call_libsbml(sbml_compartment.setNotes, self.comments, True)
-        return sbml_compartment
+        annots = []
+
+        sbml = call_libsbml(sbml_model.createCompartment)
+
+        call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml.setName, self.name)
+
+        if self.geometry == wcm_ontology['WCM:3D_compartment']:
+            call_libsbml(sbml.setSpatialDimensions, 3)
+        else:
+            raise ValueError('Unsupported geometry {}'.format(str(self.geometry)))
+
+        call_libsbml(sbml.setSize, self.mean_init_volume)
+        LibSbmlInterface.set_unit(sbml.setUnits, self.init_volume_units)
+        call_libsbml(sbml.setConstant, False)
+        annots.extend(['biological_type', 'physical_type',
+                       'parent_compartment', 'mass_units',
+                       'distribution_init_volume', 'std_init_volume',
+                       'init_density'])
+
+        if self.db_refs:
+            annots.append('db_refs')
+        LibSbmlInterface.set_commments(self, sbml)
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Compartment`): SBML compartment
+        """
+        annots = []
+
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+
+        dims = call_libsbml(sbml.getSpatialDimensions, returns_int=True)
+        if dims == 3:
+            self.geometry == wcm_ontology['WCM:3D_compartment']
+        else:
+            raise ValueError('Unsupported spatial dimensions {}'.format(dims))
+
+        self.mean_init_volume = call_libsbml(sbml.getSize)
+        self.init_volume_units = LibSbmlInterface.get_unit(sbml.getUnits)
+        annots.extend(['biological_type', 'physical_type',
+                       'mass_units',
+                       'distribution_init_volume', 'std_init_volume'])
+
+        LibSbmlInterface.get_commments(self, sbml)
+
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        annots = []
+
+        # parent, density
+        annots.extend(['parent_compartment', 'init_density'])
+
+        # identifiers
+        annots.append('db_refs')
+
+        # get annotations
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
-class SpeciesType(obj_model.Model):
+class SpeciesType(obj_model.Model, SbmlModelMixin):
     """ Species type
 
     Attributes:
@@ -1911,6 +2175,8 @@ class SpeciesType(obj_model.Model):
             'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
+                      'db_refs', 'comments')
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -1921,7 +2187,7 @@ class SpeciesType(obj_model.Model):
         return self.empirical_formula and self.empirical_formula['C'] > 0
 
 
-class Species(obj_model.Model):
+class Species(obj_model.Model, SbmlModelMixin):
     """ Species (tuple of species type, compartment)
 
     Attributes:
@@ -1975,6 +2241,8 @@ class Species(obj_model.Model):
             'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
                            'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'species_type', 'compartment', 'units',
+                      'db_refs', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -2009,7 +2277,7 @@ class Species(obj_model.Model):
         """
         st = cls.species_type.related_class.id.pattern[1:-1]
         comp = cls.compartment.related_class.id.pattern[1:-1]
-        match = re.match(r'^(' + st + ')\[(' + comp + ')\]$', id)
+        match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id)
         if not match:
             raise ValueError('{} is not a valid id')
 
@@ -2062,28 +2330,7 @@ class Species(obj_model.Model):
             rv.append(s)
         return rv
 
-    def gen_sbml_id(self):
-        """ Make a Species id that satisfies the SBML string id syntax.
-
-        Replaces the '[' and ']' in Species.id with double-underscores '__'.
-        See Finney and Hucka, "Systems Biology Markup Language (SBML) Level 2: Structures and
-        Facilities for Model Definitions", 2003, section 3.4.
-
-        Returns:
-            :obj:`str`: SBML id
-        """
-        return '{}__{}__'.format(self.species_type.id, self.compartment.id)
-
-    @staticmethod
-    def sbml_id_to_id(sbml_id):
-        """ Convert an `sbml_id` to its species id.
-
-        Returns:
-            :obj:`str`: species id
-        """
-        return sbml_id.replace('__', '[', 1).replace('__', ']', 1)
-
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this species to a SBML model.
 
         Args:
@@ -2091,34 +2338,109 @@ class Species(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Species`: SBML species
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
-        sbml_species = call_libsbml(sbml_model.createSpecies)
-        # initDefaults() isn't wrapped in call_libsbml because it returns None
-        sbml_species.initDefaults()
-        call_libsbml(sbml_species.setIdAttribute, self.gen_sbml_id())
+        annots = []
 
-        # add some SpeciesType data
-        call_libsbml(sbml_species.setName, self.species_type.name)
-        if self.species_type.comments:
-            call_libsbml(sbml_species.setNotes, self.species_type.comments, True)
+        sbml = call_libsbml(sbml_model.createSpecies)
+        sbml.initDefaults()  # isn't wrapped in call_libsbml because it returns None
 
-        # set Compartment, which must already be in the SBML document
-        call_libsbml(sbml_species.setCompartment, self.compartment.id)
+        # id, name
+        call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml.setName, self.name)
 
-        # set the initial concentration
-        call_libsbml(sbml_species.setInitialConcentration, self.distribution_init_concentration.mean)
+        # species type, compartment
+        annots.extend(['species_type.id', 'species_type.name',
+                       'species_type.structure', 'species_type.empirical_formula',
+                       'species_type.molecular_weight', 'species_type.charge',
+                       'species_type.type', 'species_type.db_refs',
+                       'species_type.comments'])
+        call_libsbml(sbml.setCompartment, self.compartment.gen_sbml_id())
 
-        # set units
-        unit_xml_id = str(self.distribution_init_concentration.units)
-        call_libsbml(sbml_species.setSubstanceUnits, unit_xml_id)
+        # initial concentration
+        if self.distribution_init_concentration:
+            if are_units_equivalent(self.distribution_init_concentration.units, unit_registry.parse_units('molecule'),
+                                    check_same_magnitude=True):
+                init_amount = self.distribution_init_concentration.mean
+            else:
+                prefix = ((1. * self.distribution_init_concentration.units) /
+                          (1. * unit_registry.parse_units('M'))).to_base_units().magnitude
+                init_amount = self.distribution_init_concentration.mean \
+                    * self.compartment.mean_init_volume \
+                    * scipy.constants.Avogadro \
+                    * prefix
+            call_libsbml(sbml.setInitialAmount, init_amount)
+        annots.extend(['distribution_init_concentration.id',
+                       'distribution_init_concentration.name',
+                       'distribution_init_concentration.distribution',
+                       'distribution_init_concentration.mean',
+                       'distribution_init_concentration.std',
+                       'distribution_init_concentration.units',
+                       'distribution_init_concentration.db_refs',
+                       'distribution_init_concentration.comments'])
 
-        return sbml_species
+        # units
+        LibSbmlInterface.set_unit(sbml.setSubstanceUnits, self.units)
+
+        # comments
+        if self.db_refs:
+            annots.append('db_refs')
+        LibSbmlInterface.set_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Species`): SBML species
+        """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
+        annots = []
+
+        # id, name
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+
+        # species type
+        self.species_type = self.model.species_types.get_or_create(
+            id=parsed_annots['species_type.id'])
+        annots.extend(['species_type.name',
+                       'species_type.structure', 'species_type.empirical_formula',
+                       'species_type.molecular_weight', 'species_type.charge',
+                       'species_type.type', 'species_type.comments'])
+
+        # initial concentration
+        if call_libsbml(sbml.isSetInitialAmount):
+            self.distribution_init_concentration = self.model.distribution_init_concentrations.create()
+            annots.extend(['distribution_init_concentration.id',
+                           'distribution_init_concentration.name',
+                           'distribution_init_concentration.distribution',
+                           'distribution_init_concentration.mean',
+                           'distribution_init_concentration.std',
+                           'distribution_init_concentration.units',
+                           'distribution_init_concentration.comments'])
+
+        # units
+        self.units = LibSbmlInterface.get_unit(sbml.getSubstanceUnits)
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        self.compartment = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
+
+        # identifiers
+        annots = ['db_refs', 'species_type.db_refs', 'distribution_init_concentration.db_refs']
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
-class DistributionInitConcentration(obj_model.Model):
+class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
     """ Distribution of the initial concentration of a species
     at the beginning of each cell cycle
 
@@ -2179,6 +2501,7 @@ class DistributionInitConcentration(obj_model.Model):
             'core_model': ('species',
                            'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'db_refs', 'comments')
 
     def gen_id(self):
         """ Generate string representation
@@ -2213,7 +2536,7 @@ class DistributionInitConcentration(obj_model.Model):
         return None
 
 
-class ObservableExpression(obj_model.Model, Expression):
+class ObservableExpression(obj_model.Model, Expression, SbmlModelMixin):
     """ A mathematical expression of Observables and Species
 
     The expression used by a `Observable`.
@@ -2241,6 +2564,7 @@ class ObservableExpression(obj_model.Model, Expression):
             'submodel': ('species', 'observables'),
             'core_model': ('species', 'observables'),
         }
+        sbml_attrs = ('expression', 'species', 'observables')
 
     def serialize(self):
         """ Generate string representation
@@ -2275,8 +2599,21 @@ class ObservableExpression(obj_model.Model, Expression):
         """
         return Expression.validate(self, self.observable)
 
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
 
-class Observable(obj_model.Model):
+        Args:
+            other (:obj:`obj_model.Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        super(ObservableExpression, self).merge_attrs(other, other_objs_in_self, self_objs_in_other)
+        Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
+
+
+class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
     """ Observable: a linear function of other Observbles and Species
 
     Attributes:
@@ -2320,9 +2657,10 @@ class Observable(obj_model.Model):
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'db_refs', 'comments')
 
 
-class FunctionExpression(obj_model.Model, Expression):
+class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
     """ A mathematical expression of Functions, Observbles, Parameters and Python functions
 
     The expression used by a :obj:`Function`.
@@ -2354,6 +2692,7 @@ class FunctionExpression(obj_model.Model, Expression):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
+        sbml_attrs = ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments')
 
     def serialize(self):
         """ Generate string representation
@@ -2388,8 +2727,21 @@ class FunctionExpression(obj_model.Model, Expression):
         """
         return Expression.validate(self, self.function)
 
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
 
-class Function(obj_model.Model):
+        Args:
+            other (:obj:`obj_model.Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        super(FunctionExpression, self).merge_attrs(other, other_objs_in_self, self_objs_in_other)
+        Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
+
+
+class Function(obj_model.Model, SbmlAssignmentRuleMixin):
     """ Function: a mathematical expression of Functions, Observbles, Parameters and Python functions
 
     Attributes:
@@ -2430,6 +2782,7 @@ class Function(obj_model.Model):
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'db_refs', 'comments')
 
     def validate(self):
         """ Check that the Function is valid
@@ -2504,6 +2857,7 @@ class StopConditionExpression(obj_model.Model, Expression):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
+        sbml_attrs = ()
 
     def serialize(self):
         """ Generate string representation
@@ -2537,6 +2891,19 @@ class StopConditionExpression(obj_model.Model, Expression):
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
         return Expression.validate(self, self.stop_condition)
+
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
+
+        Args:
+            other (:obj:`obj_model.Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        super(StopConditionExpression, self).merge_attrs(other, other_objs_in_self, self_objs_in_other)
+        Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
 
 
 class StopCondition(obj_model.Model):
@@ -2583,6 +2950,7 @@ class StopCondition(obj_model.Model):
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ()
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -2625,7 +2993,7 @@ class StopCondition(obj_model.Model):
         return None
 
 
-class Reaction(obj_model.Model):
+class Reaction(obj_model.Model, SbmlModelMixin):
     """ Reaction
 
     Attributes:
@@ -2683,6 +3051,9 @@ class Reaction(obj_model.Model):
             'core_model': ('participants', 'rate_laws',
                            'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
+                      'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
+                      'db_refs', 'comments')
 
     def validate(self):
         """ Check if the reaction is valid
@@ -2812,7 +3183,7 @@ class Reaction(obj_model.Model):
         """
         return list(set(self.rate_laws.get_one(direction=direction).expression.species) - set(self.get_reactants()))
 
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this reaction to a SBML model.
 
         Args:
@@ -2820,49 +3191,163 @@ class Reaction(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Reaction`: SBML reaction
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
+        annots = {}
 
         # create SBML reaction in SBML document
-        sbml_reaction = call_libsbml(sbml_model.createReaction)
-        call_libsbml(sbml_reaction.setIdAttribute, self.id)
-        call_libsbml(sbml_reaction.setName, self.name)
-        call_libsbml(sbml_reaction.setReversible, self.reversible)
-        call_libsbml(sbml_reaction.setFast, False)
-        if self.comments:
-            call_libsbml(sbml_reaction.setNotes, self.comments, True)
+        sbml_rxn = call_libsbml(sbml_model.createReaction)
 
-        # write reaction participants to SBML document
+        # id, name
+        call_libsbml(sbml_rxn.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml_rxn.setName, self.name)
+
+        # participants
         for participant in self.participants:
             if participant.coefficient < 0:
-                species_reference = call_libsbml(sbml_reaction.createReactant)
-                call_libsbml(species_reference.setStoichiometry, -participant.coefficient)
+                sbml_part = call_libsbml(sbml_rxn.createReactant)
+                call_libsbml(sbml_part.setStoichiometry, -participant.coefficient)
             elif 0 < participant.coefficient:
-                species_reference = call_libsbml(sbml_reaction.createProduct)
-                call_libsbml(species_reference.setStoichiometry, participant.coefficient)
-            call_libsbml(species_reference.setSpecies, participant.species.gen_sbml_id())
-            call_libsbml(species_reference.setConstant, True)
+                sbml_part = call_libsbml(sbml_rxn.createProduct)
+                call_libsbml(sbml_part.setStoichiometry, participant.coefficient)
+            call_libsbml(sbml_part.setSpecies, participant.species.gen_sbml_id())
+            call_libsbml(sbml_part.setConstant, True)
 
-        # for dFBA submodels, write flux bounds to SBML document
-        # uses version 2 of the 'Flux Balance Constraints' extension
+        # reversibility
+        if self.reversible and self.rate_laws.get_one(direction=RateLawDirection.backward) \
+                and not are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
+            raise ValueError('Reversible reactions with backward rate laws must be split before export to SBML')
+        call_libsbml(sbml_rxn.setReversible, self.reversible)
+
+        # rate_units
+        annots['rate_units'] = 'rate_units'
+
+        # dFBA flux bounds
         if are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
-            fbc_reaction_plugin = call_libsbml(sbml_reaction.getPlugin, 'fbc')
-            for bound, value in [('lower', self.flux_min), ('upper', self.flux_max)]:
-                # make a unique ID for each flux bound parameter
-                # ids for wc_lang Parameters all start with 'parameter'
-                param_id = "_reaction_{}_{}_bound".format(self.id, bound)
-                param = LibSbmlInterface.create_parameter(sbml_model, param_id, value,
-                                                          self.flux_bound_units)
-                if bound == 'lower':
-                    call_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
-                if bound == 'upper':
-                    call_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
-        return sbml_reaction
+            sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
+            for bound, value in [('Lower', self.flux_min), ('Upper', self.flux_max)]:
+                if not isnan(value) and value is not None:
+                    param_id = "__Reaction__Flux{}Bound__{}".format(bound, self.gen_sbml_id())
+                    param = LibSbmlInterface.create_parameter(sbml_model, param_id, value,
+                                                              self.flux_bound_units)
+                    call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
+
+        # identifiers, comments
+        if self.db_refs:
+            annots['db_refs'] = 'db_refs'
+        LibSbmlInterface.set_commments(self, sbml_rxn)
+
+        # forward rate law
+        rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
+        if rl:
+            rl.export_to_sbml(sbml_rxn)
+
+        # backward rate law
+        rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
+        if rl:
+            annots['rate_laws.backward.id'] = (('rate_laws', {'direction': rl.direction}), 'id')
+            annots['rate_laws.backward.name'] = (('rate_laws', {'direction': rl.direction}), 'name')
+            annots['rate_laws.backward.type'] = (('rate_laws', {'direction': rl.direction}), 'type')
+            annots['rate_laws.backward.expression'] = (('rate_laws', {'direction': rl.direction}), 'expression')
+            annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
+            annots['rate_laws.backward.db_refs'] = (('rate_laws', {'direction': rl.direction}), 'db_refs')
+            annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
+
+        # annotations
+        LibSbmlInterface.set_annotations(self, annots, sbml_rxn)
+
+        # return reaction
+        return sbml_rxn
+
+    def import_from_sbml(self, sbml_rxn):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Reaction`): SBML reaction
+        """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml_rxn)
+        annots = {}
+
+        # id, name
+        self.id = self.parse_sbml_id(call_libsbml(sbml_rxn.getIdAttribute))
+        self.name = call_libsbml(sbml_rxn.getName)
+
+        # rate units
+        annots['rate_units'] = 'rate_units'
+
+        # reversibility
+        self.reversible = call_libsbml(sbml_rxn.getReversible)
+
+        # dFBA flux bounds
+        sbml_doc = call_libsbml(sbml_rxn.getSBMLDocument)
+        if LibSbmlInterface.call_libsbml(sbml_doc.isSetPackageRequired, 'fbc'):
+            sbml_model = call_libsbml(sbml_rxn.getModel)
+            sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
+            for bound, attr_name, sense in [('Lower', 'flux_min', -1.), ('Upper', 'flux_max', 1.)]:
+                if call_libsbml(getattr(sbml_plugin, 'isSet' + bound + 'FluxBound')):
+                    param_id = call_libsbml(getattr(sbml_plugin, 'get' + bound + 'FluxBound'))
+                    _, _, val, self.flux_bound_units = LibSbmlInterface.parse_parameter(
+                        call_libsbml(sbml_model.getParameter, param_id))
+                else:
+                    val = sense * float('nan')
+                setattr(self, attr_name, val)
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml_rxn)
+
+        # forward rate law
+        if call_libsbml(sbml_rxn.isSetKineticLaw):
+            rl = self.rate_laws.get_or_create(direction=RateLawDirection.forward)
+            rl.model = self.model
+            rl.import_from_sbml(call_libsbml(sbml_rxn.getKineticLaw))
+
+        # backward rate law
+        if 'rate_laws.backward.id' in parsed_annots:
+            rl = self.rate_laws.get_or_create(direction=RateLawDirection.backward)
+            rl.model = self.model
+            annots['rate_laws.backward.id'] = (('rate_laws', {'direction': rl.direction}), 'id')
+            annots['rate_laws.backward.name'] = (('rate_laws', {'direction': rl.direction}), 'name')
+            annots['rate_laws.backward.type'] = (('rate_laws', {'direction': rl.direction}), 'type')
+            annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
+            annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
+
+        # annotations
+        LibSbmlInterface.get_annotations(self, annots, sbml_rxn)
+
+    def import_relations_from_sbml(self, sbml_rxn, objs):
+        annots = {}
+
+        # submodel
+        self.submodel = self.model.submodels[0]
+
+        # participants
+        for num_func, get_func, sense in [(sbml_rxn.getNumReactants, sbml_rxn.getReactant, -1),
+                                          (sbml_rxn.getNumProducts, sbml_rxn.getProduct, 1)]:
+            for i_part in range(call_libsbml(num_func, returns_int=True)):
+                sbml_part = call_libsbml(get_func, i_part)
+                species = objs[Species][Species.parse_sbml_id(call_libsbml(sbml_part.getSpecies))]
+                coeff = sense * call_libsbml(sbml_part.getStoichiometry)
+                part = species.species_coefficients.get_or_create(coefficient=coeff)
+                self.participants.append(part)
+
+        # identifiers
+        annots['db_refs'] = 'db_refs'
+
+        # forward rate law
+        rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
+        if rl:
+            rl.import_relations_from_sbml(call_libsbml(sbml_rxn.getKineticLaw), objs)
+
+        # backward rate law
+        rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
+        if rl:
+            annots['rate_laws.backward.expression'] = (('rate_laws', {'direction': RateLawDirection.backward}), 'expression')
+            annots['rate_laws.backward.db_refs'] = (('rate_laws', {'direction': rl.direction}), 'db_refs')
+
+        # get annotations
+        LibSbmlInterface.get_annotations(self, annots, sbml_rxn, objs)
 
 
-class SpeciesCoefficient(obj_model.Model):
+class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
     """ A tuple of a species and a coefficient
 
     Attributes:
@@ -2886,6 +3371,7 @@ class SpeciesCoefficient(obj_model.Model):
             'submodel': ('species',),
             'core_model': ('species',),
         }
+        sbml_attrs = ('species', 'coefficient')
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
@@ -2980,7 +3466,7 @@ class SpeciesCoefficient(obj_model.Model):
             return (None, InvalidAttribute(attr, ['Invalid species coefficient']))
 
 
-class RateLawExpression(obj_model.Model, Expression):
+class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
     """ Rate law expression
 
     Attributes:
@@ -3010,6 +3496,7 @@ class RateLawExpression(obj_model.Model, Expression):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
+        sbml_attrs = ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments')
 
     def serialize(self):
         """ Generate string representation
@@ -3045,8 +3532,21 @@ class RateLawExpression(obj_model.Model, Expression):
         """
         return Expression.validate(self, self.rate_laws[0])
 
+    def merge_attrs(self, other, other_objs_in_self, self_objs_in_other):
+        """ Merge attributes of two objects
 
-class RateLaw(obj_model.Model):
+        Args:
+            other (:obj:`obj_model.Model`): other model
+            other_objs_in_self (:obj:`dict`): dictionary that maps instances of objects in another model to objects
+                in a model
+            self_objs_in_other (:obj:`dict`): dictionary that maps instances of objects in a model to objects
+                in another model
+        """
+        super(RateLawExpression, self).merge_attrs(other, other_objs_in_self, self_objs_in_other)
+        Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
+
+
+class RateLaw(obj_model.Model, SbmlModelMixin):
     """ Rate law
 
     Attributes:
@@ -3094,6 +3594,7 @@ class RateLaw(obj_model.Model):
             'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'db_refs', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -3162,8 +3663,81 @@ class RateLaw(obj_model.Model):
             return InvalidObject(self, errors)
         return None
 
+    def export_to_sbml(self, sbml_rxn):
+        """ Add this reaction to a SBML reaction.
 
-class DfbaObjSpecies(obj_model.Model):
+        Args:
+            sbml_rxn (:obj:`libsbml.Reaction`): SBML reaction
+
+        Returns:
+            :obj:`libsbml.KineticLaw`: SBML kinetic law
+        """
+        annots = []
+
+        # create SBML reaction in SBML document
+        sbml = call_libsbml(sbml_rxn.createKineticLaw)
+
+        # id, name
+        call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml.setName, self.name)
+
+        # type
+        annots.append('type')
+
+        # expression
+        LibSbmlInterface.set_math(sbml.setMath, self.expression)
+
+        # units
+        annots.append('units')
+
+        # comments
+        annots.append('db_refs')
+        LibSbmlInterface.set_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        # return SBML kinetic law
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.KineticLaw`): SBML kinetic law
+        """
+        annots = []
+
+        # id, name
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+
+        # type
+        annots.append('type')
+
+        # units
+        annots.append('units')
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml)
+
+        # annotations
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        # expression
+        if self.expression:
+            self.expression.species = []
+            self.expression.observables = []
+            self.expression.functions = []
+            self.expression.parameters = []
+        self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
+
+        # identifiers
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
+
+
+class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
     """ DfbaObjSpecies
 
     A dFBA objective reaction contains a list of DfbaObjSpecies instances. Distinct DfbaObjSpecies
@@ -3218,6 +3792,7 @@ class DfbaObjSpecies(obj_model.Model):
             'submodel': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'db_refs', 'comments')
 
     def gen_id(self):
         """ Generate identifier equal to
@@ -3266,7 +3841,7 @@ class DfbaObjSpecies(obj_model.Model):
         return None
 
 
-class DfbaObjReaction(obj_model.Model):
+class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
     """ A pseudo-reaction used to represent the interface between metabolism and other
     cell processes.
 
@@ -3317,8 +3892,9 @@ class DfbaObjReaction(obj_model.Model):
             'submodel': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
             'core_model': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
         }
+        sbml_attrs = ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'db_refs', 'comments')
 
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add a DfbaObjReaction to a SBML model.
 
         DfbaObjReactions are added to the SBML model because they can be used in a dFBA submodel's
@@ -3332,47 +3908,101 @@ class DfbaObjReaction(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Reaction`: SBML reaction
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
         """
+        annots = []
 
         # create SBML reaction in SBML document
-        sbml_reaction = call_libsbml(sbml_model.createReaction)
-        call_libsbml(sbml_reaction.setIdAttribute, self.id)
-        call_libsbml(sbml_reaction.setName, self.name)
-        call_libsbml(sbml_reaction.setReversible, False)
-        call_libsbml(sbml_reaction.setFast, False)
-        if self.comments:
-            call_libsbml(sbml_reaction.setNotes, self.comments, True)
+        sbml_rxn = call_libsbml(sbml_model.createReaction)
+        call_libsbml(sbml_rxn.setReversible, False)
 
-        # write dFBA objective reaction participants to SBML document
+        sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
+        for bound, value in [('Lower', -float('inf')), ('Upper', float('inf'))]:
+            param_id = "__DfbaObjReaction__Flux{}Bound__{}".format(self.id, bound)
+            param = LibSbmlInterface.create_parameter(sbml_model, param_id, value, self.units)
+            call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
+
+        # id, name
+        call_libsbml(sbml_rxn.setIdAttribute, self.gen_sbml_id())
+        call_libsbml(sbml_rxn.setName, self.name)
+
+        # participants
         for dfba_obj_species in self.dfba_obj_species:
             if dfba_obj_species.value < 0:
-                species_reference = call_libsbml(sbml_reaction.createReactant)
-                call_libsbml(species_reference.setStoichiometry, -dfba_obj_species.value)
-            elif 0 < dfba_obj_species.value:
-                species_reference = call_libsbml(sbml_reaction.createProduct)
-                call_libsbml(species_reference.setStoichiometry, dfba_obj_species.value)
+                sbml_part = call_libsbml(sbml_rxn.createReactant)
+                coeff = -dfba_obj_species.value
+            else:
+                sbml_part = call_libsbml(sbml_rxn.createProduct)
+                coeff = dfba_obj_species.value
             id = dfba_obj_species.species.gen_sbml_id()
-            call_libsbml(species_reference.setSpecies, id)
-            call_libsbml(species_reference.setConstant, True)
+            call_libsbml(sbml_part.setIdAttribute, dfba_obj_species.gen_sbml_id())
+            # call_libsbml(sbml_part.setName, dfba_obj_species.name) # because libSBML has a bug in SpeciesReference.setName
+            call_libsbml(sbml_part.setSpecies, id)
+            call_libsbml(sbml_part.setConstant, True)
+            call_libsbml(sbml_part.setStoichiometry, coeff)
+            LibSbmlInterface.set_annotations(dfba_obj_species, LibSbmlInterface.gen_nested_attr_paths([
+                                             'name', 'units', 'db_refs']), sbml_part)
+            LibSbmlInterface.set_commments(dfba_obj_species, sbml_part)
 
-        # the dFBA objective reaction does not constrain the optimization, so set its bounds to 0 and INF
-        fbc_reaction_plugin = call_libsbml(sbml_reaction.getPlugin, 'fbc')
-        for bound, value in [('lower', 0.), ('upper', float('inf'))]:
-            # make a unique ID for each flux bound parameter
-            # ids for wc_lang Parameters all start with 'parameter'
-            param_id = "_dfba_obj_reaction_{}_{}_bound".format(self.id, bound)
-            param = LibSbmlInterface.create_parameter(sbml_model, param_id, value, self.units)
-            if bound == 'lower':
-                call_libsbml(fbc_reaction_plugin.setLowerFluxBound, param_id)
-            if bound == 'upper':
-                call_libsbml(fbc_reaction_plugin.setUpperFluxBound, param_id)
-        return sbml_reaction
+        # units, identifiers
+        annots.extend(['units', 'cell_size_units', 'db_refs'])
+
+        # comments
+        LibSbmlInterface.set_commments(self, sbml_rxn)
+
+        # annotations
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_rxn)
+
+        # return SBML reaction
+        return sbml_rxn
+
+    def import_from_sbml(self, sbml_rxn):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Reaction`): SBML reaction
+        """
+        annots = []
+
+        # id, name
+        self.id = self.parse_sbml_id(call_libsbml(sbml_rxn.getIdAttribute))
+        self.name = call_libsbml(sbml_rxn.getName)
+
+        # units
+        annots.extend(['units', 'cell_size_units'])
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml_rxn)
+
+        # annotations
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_rxn)
+
+    def import_relations_from_sbml(self, sbml_rxn, objs):
+        # submodel
+        self.submodel = self.model.submodels[0]
+
+        # participants
+        for num_func, get_func, sense in [(sbml_rxn.getNumReactants, sbml_rxn.getReactant, -1),
+                                          (sbml_rxn.getNumProducts, sbml_rxn.getProduct, 1)]:
+            for i_part in range(call_libsbml(num_func, returns_int=True)):
+                sbml_part = call_libsbml(get_func, i_part)
+                species = objs[Species][Species.parse_sbml_id(call_libsbml(sbml_part.getSpecies))]
+                value = sense * call_libsbml(sbml_part.getStoichiometry)
+
+                dfba_obj_species = self.dfba_obj_species.create()
+                dfba_obj_species.id = DfbaObjSpecies.parse_sbml_id(call_libsbml(sbml_part.getIdAttribute))
+                # dfba_obj_species.name = call_libsbml(sbml_part.getName) # because libSBML has a bug in SpeciesReference.setName
+                dfba_obj_species.model = self.model
+                dfba_obj_species.species = species
+                dfba_obj_species.value = value
+                LibSbmlInterface.get_annotations(dfba_obj_species, LibSbmlInterface.gen_nested_attr_paths([
+                                                 'name', 'units', 'db_refs']), sbml_part, objs)
+                LibSbmlInterface.get_commments(dfba_obj_species, sbml_part)
+
+        # identifiers
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml_rxn, objs)
 
 
-class Parameter(obj_model.Model):
+class Parameter(obj_model.Model, SbmlModelMixin):
     """ Parameter
 
     Attributes:
@@ -3418,8 +4048,9 @@ class Parameter(obj_model.Model):
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_value = 'value'
         expression_term_units = 'units'
+        sbml_attrs = ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'db_refs', 'comments')
 
-    def add_to_sbml_model(self, sbml_model):
+    def export_to_sbml(self, sbml_model):
         """ Add this parameter to a SBML model.
 
         Args:
@@ -3427,17 +4058,40 @@ class Parameter(obj_model.Model):
 
         Returns:
             :obj:`libsbml.Parameter`: SBML parameter
-
-        Raises:
-            :obj:`LibSbmlError`: if calling `libsbml` raises an error
-            :obj:`ValueError`: if units are undefined
         """
-        # prefix id with 'parameter' so ids for wc_lang Parameters don't collide with ids for other SBML objects
-        sbml_id = "parameter_{}".format(self.id)
-        sbml_parameter = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, self.units,
-                                                           name=self.name)
+        annots = []
 
-        return sbml_parameter
+        sbml_id = self.gen_sbml_id()
+        sbml = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, self.units,
+                                                 name=self.name)
+        annots.extend(['type', 'std', 'db_refs'])
+        LibSbmlInterface.set_commments(self, sbml)
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+        return sbml
+
+    def import_from_sbml(self, sbml):
+        """ Load from SBML
+
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
+        annots = []
+
+        self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
+        self.name = call_libsbml(sbml.getName)
+        self.value = call_libsbml(sbml.getValue)
+        self.units = LibSbmlInterface.get_unit(sbml.getUnits)
+        annots.extend(['type', 'std'])
+        LibSbmlInterface.get_commments(self, sbml)
+
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        # identifiers
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
 
 
 class Evidence(obj_model.Model):
@@ -3537,6 +4191,7 @@ class Evidence(obj_model.Model):
             'submodel': ('db_refs', 'evidence', 'references'),
             'core_model': ('db_refs', 'evidence', 'references'),
         }
+        sbml_attrs = ()
 
     def validate(self):
         """ Determine if the evidence is valid
@@ -3632,6 +4287,7 @@ class Interpretation(obj_model.Model):
             'submodel': ('db_refs', 'evidence', 'references', 'authors'),
             'core_model': ('db_refs', 'evidence', 'references', 'authors'),
         }
+        sbml_attrs = ()
 
 
 class Reference(obj_model.Model):
@@ -3710,6 +4366,7 @@ class Reference(obj_model.Model):
             'submodel': ('db_refs',),
             'core_model': ('db_refs',),
         }
+        sbml_attrs = ()
 
 
 class Author(obj_model.Model):
@@ -3761,6 +4418,7 @@ class Author(obj_model.Model):
             'submodel': ('db_refs',),
             'core_model': ('db_refs',),
         }
+        sbml_attrs = ()
 
 
 class Change(obj_model.Model):
@@ -3819,6 +4477,7 @@ class Change(obj_model.Model):
             'submodel': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
             'core_model': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
         }
+        sbml_attrs = ()
 
 
 class DatabaseReference(obj_model.Model):
@@ -3862,6 +4521,7 @@ class DatabaseReference(obj_model.Model):
         attribute_order = ('database', 'id')
         frozen_columns = 2
         ordering = ('database', 'id', )
+        sbml_attrs = ('database', 'id')
 
     def serialize(self):
         """ Generate string representation
@@ -3913,3 +4573,8 @@ class Validator(obj_model.Validator):
             :obj:`InvalidObjectSet` or `None`: list of invalid objects/models and their errors
         """
         return super(Validator, self).run(model, get_related=get_related)
+
+
+class WcLangWarning(UserWarning):
+    """ WC-Lang warning """
+    pass  # pragma: no cover

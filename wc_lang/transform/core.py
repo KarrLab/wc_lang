@@ -8,7 +8,7 @@
 
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
-from wc_lang import Model
+from wc_lang.core import Model
 import sys
 
 

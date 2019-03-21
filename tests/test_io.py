@@ -370,9 +370,8 @@ class TestExampleModel(unittest.TestCase):
         _, self.filename = tempfile.mkstemp(suffix='.xlsx')
 
     def tearDown(self):
-        print(self.filename)
-        #if os.path.isfile(self.filename):
-        #     os.remove(self.filename)
+        if os.path.isfile(self.filename):
+             os.remove(self.filename)
 
     def test_read_write(self):
         fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')

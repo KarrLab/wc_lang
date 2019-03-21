@@ -7,6 +7,10 @@
 """
 
 import wc_lang
+import wc_lang.io
+import wc_lang.config
+import wc_lang.sbml
+import wc_lang.sbml.io
 import types
 import unittest
 

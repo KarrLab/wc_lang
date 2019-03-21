@@ -13,8 +13,8 @@ Supported file types:
 """
 
 from wc_lang import core
-import obj_model.utils
 from wc_utils.util.string import indent_forest
+import obj_model.utils
 import obj_model
 import os
 import wc_lang

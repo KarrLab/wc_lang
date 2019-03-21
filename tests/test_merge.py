@@ -657,13 +657,6 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(set(model_2.get_related()), set(other_objs_in_self.keys()))
         self.assertEqual(set(model_1.get_related()), set(other_objs_in_self.values()))
 
-        x = sorted([rel.serialize() for rel in model_1.get_related()])
-        prev = None
-        for y in x:
-            if y == prev:
-                print(y)
-            prev = y
-
         self.assertEqual(other_objs_in_self,
                          {o: s for s, o in zip(model_1.get_related(), model_2.get_related())})
 
@@ -718,7 +711,6 @@ class MergeTestCase(unittest.TestCase):
     def test_merge(self):
         model_1, model_2, model_3, _ = self.gen_models()
         model_1.merge(model_2)
-        print(model_1.difference(model_3))
         self.assertTrue(model_1.is_equal(model_3))
         self.assertNotIn(model_2, model_1.get_related())
 

@@ -14,7 +14,7 @@ from . import set_finite_dfba_flux_bounds
 from . import split_reversible_reactions
 
 
-class PrepareForWcSimTransform(Transform):
+class PrepForWcSimTransform(Transform):
     """ Prepare a model for simulation by making implicit information in the model
     explicit.
 

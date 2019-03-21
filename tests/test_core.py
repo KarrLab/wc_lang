@@ -14,7 +14,6 @@ import re
 import unittest
 import wc_lang
 import wc_lang.config.core
-from libsbml import SBMLDocument
 from obj_model import InvalidAttribute
 from obj_model.expression import ExpressionManyToOneAttribute
 from test.support import EnvironmentVarGuard
@@ -33,7 +32,6 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
-from wc_lang.sbml.util import LibSbmlInterface
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
@@ -1986,148 +1984,6 @@ class TestCore(unittest.TestCase):
         self.model.id = 'invalid-id'
         invalid = self.model.validate()
         self.assertNotEqual(invalid, None, str(invalid))
-
-    def test_sbml_data_exchange(self):
-        call_libsbml = LibSbmlInterface.call_libsbml
-
-        # create an SBMLDocument that uses version 2 of the 'Flux Balance Constraints' extension
-        document = LibSbmlInterface.create_doc(packages={'fbc': 2})
-
-        # Initialize the SBML document's model
-        sbml_model = LibSbmlInterface.init_model(None, document)
-
-        # Write a dFBA Submodel to an SBML document
-        self.submdl_2.comments = 'test submodel comment'
-        sbml_model = self.submdl_2.add_to_sbml_model(sbml_model)
-        self.assertEqual(sbml_model.getIdAttribute(), self.submdl_2.id)
-        self.assertEqual(sbml_model.getName(), self.submdl_2.name)
-        self.assertIn(self.submdl_2.comments, sbml_model.getNotesString())
-
-        # Write Compartments to the SBML document
-        self.comp_0.comments = 'test comment'
-        sbml_compartment = self.comp_0.add_to_sbml_model(sbml_model)
-        self.assertTrue(sbml_compartment.hasRequiredAttributes())
-        self.assertEqual(sbml_compartment.getIdAttribute(), self.comp_0.id)
-        self.assertEqual(sbml_compartment.getName(), self.comp_0.name)
-        # self.assertEqual(sbml_compartment.getSize(), self.comp_0.volume_mean)
-        self.assertIn(self.comp_0.comments, sbml_compartment.getNotesString())
-
-        # Write species used by the submodel to the SBML document
-        for species in self.submdl_2.get_children(kind='submodel', __type=Species):
-            sbml_species = species.add_to_sbml_model(sbml_model)
-            self.assertTrue(sbml_species.hasRequiredAttributes())
-            self.assertEqual(sbml_species.getIdAttribute(), species.gen_sbml_id())
-            self.assertEqual(sbml_species.getName(), species.species_type.name)
-            self.assertEqual(sbml_species.getCompartment(), species.compartment.id)
-            self.assertEqual(sbml_species.getInitialConcentration(), species.distribution_init_concentration.mean)
-
-        # Write reactions used by the submodel to an SBML document
-        self.rxn_2.flux_min = 100
-        self.rxn_2.flux_max = 200
-        self.rxn_2.flux_bound_units = unit_registry.parse_units('M s^-1')
-        self.rxn_2.comments = 'comments'
-        sbml_reaction = self.rxn_2.add_to_sbml_model(sbml_model)
-        self.assertTrue(sbml_reaction.hasRequiredAttributes())
-        self.assertEqual(sbml_reaction.getIdAttribute(), self.rxn_2.id)
-        self.assertEqual(sbml_reaction.getName(), self.rxn_2.name)
-        fbc_plugin = sbml_reaction.getPlugin('fbc')
-        sbml_model = document.getModel()
-        self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(),
-                         self.rxn_2.flux_min)
-        self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
-                         self.rxn_2.flux_max)
-        self.assertEqual(len(sbml_reaction.getListOfReactants()) + len(sbml_reaction.getListOfProducts()),
-                         len(self.rxn_2.participants))
-        for reactant in sbml_reaction.getListOfReactants():
-            for participant in self.rxn_2.participants:
-                if reactant.getSpecies() == participant.species.gen_sbml_id():
-                    self.assertEqual(reactant.getStoichiometry(), -participant.coefficient)
-        for product in sbml_reaction.getListOfProducts():
-            for participant in self.rxn_2.participants:
-                if product.getSpecies() == participant.species.gen_sbml_id():
-                    self.assertEqual(product.getStoichiometry(), participant.coefficient)
-
-        # Write the dFBA objective reaction to the SBML document
-        sbml_dfba_obj_reaction = self.dfba_obj_reaction.add_to_sbml_model(sbml_model)
-        self.assertTrue(sbml_dfba_obj_reaction.hasRequiredAttributes())
-        self.assertEqual(sbml_dfba_obj_reaction.getIdAttribute(), self.dfba_obj_reaction.id)
-        self.assertEqual(sbml_dfba_obj_reaction.getName(), self.dfba_obj_reaction.name)
-        self.assertIn(self.dfba_obj_reaction.comments, sbml_dfba_obj_reaction.getNotesString())
-        fbc_plugin = sbml_dfba_obj_reaction.getPlugin('fbc')
-        sbml_model = document.getModel()
-        self.assertEqual(sbml_model.getParameter(fbc_plugin.getLowerFluxBound()).getValue(), 0)
-        self.assertEqual(sbml_model.getParameter(fbc_plugin.getUpperFluxBound()).getValue(),
-                         float('inf'))
-        self.assertEqual(len(sbml_dfba_obj_reaction.getListOfReactants()) +
-                         len(sbml_dfba_obj_reaction.getListOfProducts()),
-                         len(self.dfba_obj_reaction.dfba_obj_species))
-
-        # Write parameters to the SBML document
-        param = self.model.parameters.create(
-            id='param_custom_units', name='param custom units',
-            value=100, units=unit_registry.parse_units('g'))
-        param.submodel = self.model.submodels[0]
-        self.parameters.append(param)
-
-        param = self.model.parameters.create(
-            id='param_mmol_gDCW_hour',
-            value=100, units=unit_registry.parse_units('mmol/gDCW/hour'))
-        param.submodel = self.model.submodels[0]
-        self.parameters.append(param)
-
-        for param in self.parameters:
-            sbml_param = param.add_to_sbml_model(sbml_model)
-            self.assertTrue(sbml_param.hasRequiredAttributes())
-            self.assertIn(param.id, sbml_param.getIdAttribute())
-            self.assertEqual(sbml_param.getName(), param.name)
-            self.assertEqual(sbml_param.getValue(), param.value)
-
-            units = param.units
-            param.units = None
-            with self.assertRaisesRegex(ValueError, 'Units must be defined'):
-                param.add_to_sbml_model(sbml_model)
-            param.units = units
-
-        # Write an objective function to the model
-        #   create DfbaObjective
-        rxn_id = 'rxn_2'
-        dfba_obj_reaction_id = 'dfba_obj_reaction_1'
-        objs = {
-            Reaction: {
-                rxn_id: self.rxn_2,
-            },
-            DfbaObjReaction: {
-                dfba_obj_reaction_id: self.dfba_obj_reaction},
-        }
-        of_expr, _ = DfbaObjectiveExpression.deserialize('dfba_obj_reaction_1 + 2*rxn_2', objs)
-        of = self.submdl_2.dfba_obj = DfbaObjective(expression=of_expr)
-
-        #   write DfbaObjective to the model, and test
-        sbml_objective = of.add_to_sbml_model(sbml_model)
-        self.assertEqual(call_libsbml(sbml_objective.getNumFluxObjectives, returns_int=True), 2)
-        self.assertEqual(len(call_libsbml(sbml_objective.getListOfFluxObjectives)), 2)
-        for flux_objective in call_libsbml(sbml_objective.getListOfFluxObjectives):
-            if call_libsbml(flux_objective.getReaction) == rxn_id:
-                self.assertEqual(call_libsbml(flux_objective.getCoefficient), 2.0)
-            elif call_libsbml(flux_objective.getReaction) == dfba_obj_reaction_id:
-                self.assertEqual(call_libsbml(flux_objective.getCoefficient), 1.0)
-            else:
-                self.fail("reaction {} unexpected".format(call_libsbml(flux_objective.getReaction)))
-
-        # Check the SBML document
-        self.assertTrue(LibSbmlInterface.is_doc_compatible(document))
-        for i in range(document.checkConsistency()):
-            print(document.getError(i).getShortMessage())
-            print(document.getError(i).getMessage())
-        self.assertEqual(call_libsbml(document.checkConsistency), 0)
-
-        # exceptions -- dFBA objective isn't linear
-        expression, invalid_attribute = DfbaObjectiveExpression.deserialize('rxn_2', objs)
-        self.assertEqual(invalid_attribute, None)
-        obj_func = DfbaObjective(expression=expression, submodel=Submodel(id='Metabolism'))
-        expression._parsed_expression.is_linear = False
-        with pytest.warns(UserWarning):
-            obj_func.add_to_sbml_model(sbml_model)
 
     def test_dfba_obj_get_products(self):
         model = Model()

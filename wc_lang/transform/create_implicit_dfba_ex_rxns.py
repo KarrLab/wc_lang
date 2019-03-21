@@ -54,16 +54,13 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                             id=rxn_id_template.format(submodel.id,
                                                       species.species_type.id,
                                                       species.compartment.id),
-                            name=rxn_name_template.format(submodel.name,
-                                                          species.species_type.name,
-                                                          species.compartment.name),
+                            name=rxn_name_template.format(submodel.name or submodel.id,
+                                                          species.species_type.name or species.species_type.id,
+                                                          species.compartment.name or species.compartment.id),
                             reversible=True)
 
-                        part = species.species_coefficients.get_one(coefficient=1.)
-                        if part:
-                            rxn.participants.append(part)
-                        else:
-                            rxn.participants.create(species=species, coefficient=1.)
+                        part = species.species_coefficients.get_or_create(coefficient=1.)
+                        rxn.participants.append(part)
 
                         if species.species_type.has_carbon():
                             rxn.flux_min = -ex_flux_bound_carbon

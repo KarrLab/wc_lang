@@ -1,15 +1,15 @@
 """ Tests of SBML utils
 
+:Author: Jonathan Karr <karr@mssm.edu>
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
-:Date: 2017-09-22
-:Copyright: 2017, Karr Lab
+:Date: 2019-03-21
+:Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
 
 import capturer
+import libsbml
 import mock
-import os
-import six
 import unittest
 import warnings
 
@@ -20,7 +20,7 @@ from libsbml import (LIBSBML_OPERATION_SUCCESS, SBMLDocument, OperationReturnVal
                      UnitDefinition, SBMLNamespaces, UNIT_KIND_SECOND, UNIT_KIND_MOLE, UNIT_KIND_AMPERE,
                      UNIT_KIND_AVOGADRO)
 
-from wc_lang.core import Model
+from wc_lang.core import Model, Species, ObservableExpression, WcLangWarning
 from wc_lang.sbml.util import LibSbmlError, LibSbmlInterface
 from wc_utils.util.units import unit_registry, are_units_equivalent
 
@@ -131,7 +131,7 @@ class TestSbml(unittest.TestCase):
         # check the SBML document
         return_val = LibSbmlInterface.call_libsbml(self.document.checkConsistency, returns_int=True)
         self.assertEqual(return_val, 0)
-        self.assertTrue(LibSbmlInterface.is_doc_compatible(self.document))
+        LibSbmlInterface.verify_doc_is_compatible(self.document)
 
         # check seconds unit
         unit_def = LibSbmlInterface.call_libsbml(sbml_model.getUnitDefinition, 'unit_1_per_second')
@@ -151,14 +151,30 @@ class TestSbml(unittest.TestCase):
 class TestLibsbmlInterface(unittest.TestCase):
 
     def setUp(self):
-        sbmlns = LibSbmlInterface.call_libsbml(SBMLNamespaces, 3, 1, "fbc", 1)
+        sbmlns = LibSbmlInterface.call_libsbml(SBMLNamespaces, 3, 2, "fbc", 2)
         self.sbml_document = LibSbmlInterface.call_libsbml(SBMLDocument, sbmlns)
+        LibSbmlInterface.call_libsbml(self.sbml_document.setPackageRequired, 'fbc', False)
         self.sbml_model = LibSbmlInterface.call_libsbml(self.sbml_document.createModel)
+        plugin = LibSbmlInterface.call_libsbml(self.sbml_model.getPlugin, 'fbc')
+        LibSbmlInterface.call_libsbml(plugin.setStrict, True)
 
-    def test_gen_base_unit_id(self):
-        self.assertEqual(LibSbmlInterface.gen_base_unit_id(unit_registry.parse_units('mole')), 'mole')
-        self.assertEqual(LibSbmlInterface.gen_base_unit_id(unit_registry.parse_units('meter')), 'metre')
-        self.assertEqual(LibSbmlInterface.gen_base_unit_id(unit_registry.parse_units('liter')), 'litre')
+    def test_verify_doc_is_consistent(self):
+        self.setUp()
+        self.sbml_model.setTimeUnits('second')
+        LibSbmlInterface.verify_doc_is_consistent(self.sbml_document)
+
+        self.setUp()
+        self.sbml_model.setTimeUnits('metre')
+        with self.assertRaisesRegex(LibSbmlError, 'inconsistent'):
+            LibSbmlInterface.verify_doc_is_consistent(self.sbml_document)
+
+        self.setUp()
+        self.sbml_model.setTimeUnits('hour')
+        with self.assertRaisesRegex(LibSbmlError, 'inconsistent'):
+            LibSbmlInterface.verify_doc_is_consistent(self.sbml_document, strict_units=False)
+
+    def test_verify_doc(self):
+        LibSbmlInterface.verify_doc(self.sbml_document)
 
     def normalize_unit_kind(self):
         self.assertEqual(LibSbmlInterface.normalize_unit_kind(unit_registry.parse_units('meter')), 'metre')
@@ -207,6 +223,7 @@ class TestLibsbmlInterface(unittest.TestCase):
             unit_registry.parse_units('g/s'),
             unit_registry.parse_units('g/s**2'),
             unit_registry.parse_units('g/(l * ms)^2'),
+            unit_registry.parse_units('gDCW / s'),
         ]
         for unit in units:
             LibSbmlInterface.create_unit(unit, self.sbml_model)
@@ -219,11 +236,13 @@ class TestLibsbmlInterface(unittest.TestCase):
             'unit_gram_per_second': units[3],
             'unit_gram_per_second_pow_2': units[4],
             'unit_gram_per_liter_pow_2_per_millisecond_pow_2': units[5],
+            'unit_gDCW_per_second': units[6],
         }
         parsed_units = LibSbmlInterface.parse_units(self.sbml_model)
         self.assertEqual(parsed_units.keys(), exp_units.keys())
         for key in exp_units:
-            self.assertTrue(are_units_equivalent(parsed_units[key], exp_units[key]))
+            self.assertTrue(are_units_equivalent(parsed_units[key], exp_units[key]),
+                            '{} != {}'.format(str(parsed_units[key]), str(exp_units[key])))
 
     def test_parse_units_error(self):
         with self.assertRaisesRegex(LibSbmlError, 'units must be set'):
@@ -273,7 +292,7 @@ class TestLibsbmlInterface(unittest.TestCase):
 
         id, name, value, units = LibSbmlInterface.parse_parameter(parameter)
         self.assertEqual(id, 'parameter_1')
-        self.assertEqual(name, None)
+        self.assertEqual(name, '')
         self.assertEqual(value, 1.5)
         self.assertEqual(units, unit_registry.parse_expression('s^-1'))
 
@@ -286,25 +305,87 @@ class TestLibsbmlInterface(unittest.TestCase):
         with self.assertRaisesRegex(LibSbmlError, 'must be constant'):
             LibSbmlInterface.parse_parameter(parameter)
 
-        units = unit_registry.parse_units('g^-1')
-        parameter = LibSbmlInterface.create_parameter(self.sbml_model, 'parameter_1', 1.5, units,
-                                                      constant=False)
-        with self.assertRaisesRegex(LibSbmlError, 'must be defined'):
-            LibSbmlInterface.parse_parameter(parameter)
+    def test_set_get_math(self):
+        model = Model(version='1.2.3', wc_lang_version='4.5.6')
+
+        spec_1_c = Species(id='spec_1[c]')
+        spec_2_c = Species(id='spec_2[c]')
+        model_objs = {Species: {spec_1_c.id: spec_1_c, spec_2_c.id: spec_2_c}}
+
+        expression, error = ObservableExpression.deserialize('spec_1[c] + spec_2[c]', model_objs)
+        assert error is None, str(error)
+
+        sbml_doc = LibSbmlInterface.create_doc()
+        sbml_model = LibSbmlInterface.init_model(model, sbml_doc)
+        rule = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
+        LibSbmlInterface.set_math(rule.setMath, expression)
+
+        self.assertEqual(libsbml.formulaToL3String(LibSbmlInterface.call_libsbml(rule.getMath)),
+                         'Species__spec_1__RB__c__LB__ + Species__spec_2__RB__c__LB__')
+
+        expression_2 = LibSbmlInterface.get_math(rule.getMath, ObservableExpression, model_objs)
+        self.assertTrue(expression_2.is_equal(expression))
+        self.assertEqual(expression_2._parsed_expression._obj_model_tokens,
+                         expression._parsed_expression._obj_model_tokens)
+
+    def test_export_import_annotations(self):
+        model = Model()
+        sbml_doc = LibSbmlInterface.create_doc()
+        sbml_model = LibSbmlInterface.init_model(model, sbml_doc)
+        LibSbmlInterface.set_annotations(model, {'version': 'version', 'wc_lang_version': 'wc_lang_version'}, sbml_model)
+
+        model_2 = Model()
+        LibSbmlInterface.get_annotations(model_2, {'version': 'version', 'wc_lang_version': 'wc_lang_version'}, sbml_model)
+        self.assertEqual(model_2.version, model.version)
+        self.assertEqual(model_2.wc_lang_version, model.wc_lang_version)
+
+        model_3 = Model()
+        LibSbmlInterface.get_annotations(model_3, {'version': [('version',)], 'wc_lang_version': [('wc_lang_version', )]}, sbml_model)
+        self.assertEqual(model_3.version, model.version)
+        self.assertEqual(model_3.wc_lang_version, model.wc_lang_version)
+
+    def test_gen_nested_attr_paths(self):
+        self.assertEqual(LibSbmlInterface.gen_nested_attr_paths(['version', 'wc_lang_version']),
+                         {'version': [('version',)], 'wc_lang_version': [('wc_lang_version', )]})
+
+        self.assertEqual(LibSbmlInterface.gen_nested_attr_paths(['model.version', 'model.wc_lang_version']),
+                         {'model.version': [('model', ), ('version',)], 'model.wc_lang_version': [('model', ), ('wc_lang_version', )]})
 
     def test_str_to_xml_node(self):
+        node = LibSbmlInterface.str_to_xml_node('')
+        self.assertEqual(node.getNumChildren(), 0)
+
         node = LibSbmlInterface.str_to_xml_node('test')
         self.assertEqual(node.getNumChildren(), 1)
         self.assertEqual(node.getChild(0).getCharacters(), 'test')
 
-        node = LibSbmlInterface.str_to_xml_node('<test')
+        node = LibSbmlInterface.str_to_xml_node('&lt;test')
         self.assertEqual(node.getNumChildren(), 1)
+        self.assertEqual(node.getChild(0).toXMLString(), '&lt;test')
         self.assertEqual(node.getChild(0).getCharacters(), '<test')
+
+    def test_str_to_from_xml_node(self):
+        for text in ['test', 'line1\nline2', 'line1<br/>line2', '<p>line1</p>\n<p>line2</p>']:
+            node = LibSbmlInterface.str_to_xml_node(text)
+            self.assertEqual(LibSbmlInterface.str_from_xml_node(node), text)
 
     def test_str_to_xml_node_error(self):
         with self.assertRaisesRegex(LibSbmlError, 'libSBML returned None'):
             with mock.patch('libsbml.XMLNode.convertStringToXMLNode', return_value=None):
                 LibSbmlInterface.str_to_xml_node('test')
+
+    def test_export_import_comments(self):
+        for comments in ['', 'My comments', 'My\ncomments', 'My<br/>comments', '<p>My</p>\n<p>comments</p>']:
+            sbml_doc = LibSbmlInterface.create_doc()
+            sbml_model = LibSbmlInterface.create_model(sbml_doc)
+
+            model = Model(comments=comments)
+            LibSbmlInterface.set_commments(model, sbml_model)
+
+            model_2 = Model()
+            LibSbmlInterface.get_commments(model_2, sbml_model)
+
+            self.assertEqual(model_2.comments, comments)
 
 
 class TestDebug(unittest.TestCase):
@@ -322,9 +403,10 @@ class TestDebug(unittest.TestCase):
         sbml_model = LibSbmlInterface.call_libsbml(self.document.createModel)
         unit_def = LibSbmlInterface.call_libsbml(sbml_model.createUnitDefinition)
         unit = LibSbmlInterface.create_base_unit(unit_def, 'avogadro')
-        with capturer.CaptureOutput() as capture_output:
-            LibSbmlInterface.call_libsbml(unit.getKind, returns_int=False, debug=True)
-            self.assertRegex(capture_output.get_text(), 'libSBML returns:')
+        with self.assertWarnsRegex(WcLangWarning, 'unknown error code'):
+            with capturer.CaptureOutput() as capture_output:
+                LibSbmlInterface.call_libsbml(unit.getKind, returns_int=False, debug=True)
+                self.assertRegex(capture_output.get_text(), 'libSBML returns:')
 
         with capturer.CaptureOutput() as capture_output:
             LibSbmlInterface.call_libsbml(self.document.getIdAttribute, debug=True)
