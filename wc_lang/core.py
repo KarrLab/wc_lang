@@ -35,7 +35,7 @@ This module also defines numerous classes that serve as attributes of these clas
 """
 
 from enum import Enum, EnumMeta
-from math import ceil, floor, exp, log, log10, isnan
+from math import ceil, floor, exp, log, log10, isinf, isnan
 from natsort import natsorted, ns
 from obj_model import (BooleanAttribute, EnumAttribute,
                        FloatAttribute,
@@ -591,7 +591,7 @@ class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
         stop conditions, etc.) and all model objects that are not associated with at least 1 submodel.
 
         Returns:
-            :obj:`Model`: model with objects that (a) form the model integration framework or (b) are 
+            :obj:`Model`: model with objects that (a) form the model integration framework or (b) are
                 not associated with any submodel
             :obj:`list` of :obj:`Model`: one model for each submodel
 
@@ -1391,7 +1391,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
 
     def get_children(self, kind=None, __type=None, recursive=True, __include_stop_conditions=True,
                      **kwargs):
-        """ Get a kind of children. 
+        """ Get a kind of children.
 
         If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
         in each class.
@@ -1436,7 +1436,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
 
     def get_immediate_children(self, kind=None, __type=None, __include_stop_conditions=True,
                                **kwargs):
-        """ Get a kind of children. 
+        """ Get a kind of children.
 
         If :obj:`kind` is :obj:`None`, children are defined to be the values of the related attributes defined
         in each class.
@@ -2074,9 +2074,12 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.set_unit(sbml.setUnits, self.init_volume_units)
         call_libsbml(sbml.setConstant, False)
         annots.extend(['biological_type', 'physical_type',
-                       'parent_compartment', 'mass_units',
+                       'parent_compartment',
                        'distribution_init_volume', 'std_init_volume',
                        'init_density'])
+
+        param_id = '__mass__' + self.gen_sbml_id()
+        LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units)
 
         if self.db_refs:
             annots.append('db_refs')
@@ -2106,8 +2109,11 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         self.mean_init_volume = call_libsbml(sbml.getSize)
         self.init_volume_units = LibSbmlInterface.get_unit(sbml.getUnits)
         annots.extend(['biological_type', 'physical_type',
-                       'mass_units',
                        'distribution_init_volume', 'std_init_volume'])
+
+        param_id = '__mass__' + self.gen_sbml_id()
+        sbml_model = call_libsbml(sbml.getModel)
+        _, _, _, self.mass_units = LibSbmlInterface.parse_parameter(call_libsbml(sbml_model.getParameter, param_id))
 
         LibSbmlInterface.get_commments(self, sbml)
 
@@ -2380,6 +2386,7 @@ class Species(obj_model.Model, SbmlModelMixin):
 
         # units
         LibSbmlInterface.set_unit(sbml.setSubstanceUnits, self.units)
+        LibSbmlInterface.call_libsbml(sbml.setHasOnlySubstanceUnits, True)
 
         # comments
         if self.db_refs:
@@ -3224,12 +3231,15 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         # dFBA flux bounds
         if are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
             sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
-            for bound, value in [('Lower', self.flux_min), ('Upper', self.flux_max)]:
-                if not isnan(value) and value is not None:
-                    param_id = "__Reaction__Flux{}Bound__{}".format(bound, self.gen_sbml_id())
-                    param = LibSbmlInterface.create_parameter(sbml_model, param_id, value,
-                                                              self.flux_bound_units)
-                    call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
+            default_flux_bound_units = self.Meta.attributes['flux_bound_units'].choices[0]
+            for bound, value, sense in [('Lower', self.flux_min, -1.), ('Upper', self.flux_max, 1.)]:
+                if isnan(value) or value is None:
+                    value = sense * float('inf')
+
+                param_id = "__Reaction__Flux{}Bound__{}".format(bound, self.gen_sbml_id())
+                param = LibSbmlInterface.create_parameter(sbml_model, param_id, value,
+                                                          self.flux_bound_units or default_flux_bound_units)
+                call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
 
         # identifiers, comments
         if self.db_refs:
@@ -3239,6 +3249,10 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         # forward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
         if rl:
+            modifiers = set(rl.expression.species).difference(set(part.species for part in self.participants))
+            for modifier in modifiers:
+                call_libsbml(sbml_rxn.addModifier, call_libsbml(sbml_model.getSpecies, modifier.gen_sbml_id()))
+
             rl.export_to_sbml(sbml_rxn)
 
         # backward rate law
@@ -3283,12 +3297,12 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             sbml_model = call_libsbml(sbml_rxn.getModel)
             sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
             for bound, attr_name, sense in [('Lower', 'flux_min', -1.), ('Upper', 'flux_max', 1.)]:
-                if call_libsbml(getattr(sbml_plugin, 'isSet' + bound + 'FluxBound')):
-                    param_id = call_libsbml(getattr(sbml_plugin, 'get' + bound + 'FluxBound'))
-                    _, _, val, self.flux_bound_units = LibSbmlInterface.parse_parameter(
-                        call_libsbml(sbml_model.getParameter, param_id))
-                else:
-                    val = sense * float('nan')
+                param_id = call_libsbml(getattr(sbml_plugin, 'get' + bound + 'FluxBound'))
+                _, _, val, self.flux_bound_units = LibSbmlInterface.parse_parameter(
+                    call_libsbml(sbml_model.getParameter, param_id))
+                if isinf(val):
+                    val = float('nan')
+                    self.flux_bound_units = None
                 setattr(self, attr_name, val)
 
         # comments

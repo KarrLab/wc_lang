@@ -71,7 +71,7 @@ class TestSbml(unittest.TestCase):
     def test_returns_int(self):
         sbml_model = LibSbmlInterface.call_libsbml(self.document.createModel)
         avogadro_unit_def = LibSbmlInterface.call_libsbml(sbml_model.createUnitDefinition)
-        avogadro_unit = LibSbmlInterface.create_base_unit(avogadro_unit_def, 'avogadro')
+        avogadro_unit = LibSbmlInterface.create_base_unit('avogadro_unit_def', avogadro_unit_def, 'avogadro')
 
         # All 4 cases:
         # {returns_int == {T, F}} x {returns_int should be set in {T, F}}
@@ -99,7 +99,7 @@ class TestSbml(unittest.TestCase):
         # fails to raise warning because UNIT_KIND_AMPERE == LIBSBML_OPERATION_SUCCESS == 0
         # this situation cannot be avoided by wrap_libsbm, but causes no harm
         ampere_unit_def = LibSbmlInterface.call_libsbml(sbml_model.createUnitDefinition)
-        ampere_unit = LibSbmlInterface.create_base_unit(ampere_unit_def, 'ampere')
+        ampere_unit = LibSbmlInterface.create_base_unit('ampere_unit_def', ampere_unit_def, 'ampere')
         self.assertEqual(
             LibSbmlInterface.call_libsbml(ampere_unit.getKind, returns_int=False), UNIT_KIND_AMPERE)
 
@@ -166,7 +166,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.setUp()
         self.sbml_model.setTimeUnits('metre')
         with self.assertRaisesRegex(LibSbmlError, 'inconsistent'):
-            LibSbmlInterface.verify_doc_is_consistent(self.sbml_document)
+            LibSbmlInterface.verify_doc_is_consistent(self.sbml_document, strict_units=True)
 
         self.setUp()
         self.sbml_model.setTimeUnits('hour')
@@ -189,7 +189,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         exp = -1
         default_scale = 0
         default_multiplier = 1.0
-        unit = LibSbmlInterface.create_base_unit(per_second, 'second', exponent=exp)
+        unit = LibSbmlInterface.create_base_unit('per_second', per_second, 'second', exponent=exp)
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getExponent, returns_int=True), exp)
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getKind, returns_int=True), UNIT_KIND_SECOND)
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getScale, returns_int=True), default_scale)
@@ -201,7 +201,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         exp = -4
         scale = 3
         mult = 1.23
-        unit = LibSbmlInterface.create_base_unit(strange_unit, 'mole',
+        unit = LibSbmlInterface.create_base_unit('strange_unit', strange_unit, 'mole',
                                                  exponent=exp, scale=scale, multiplier=mult)
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getExponent, returns_int=True), exp)
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getKind, returns_int=True), UNIT_KIND_MOLE)
@@ -209,7 +209,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.assertEqual(LibSbmlInterface.call_libsbml(unit.getMultiplier), mult)
 
         with self.assertRaisesRegex(AttributeError, 'no attribute'):
-            LibSbmlInterface.create_base_unit(strange_unit, 'NOT_A_UNIT')
+            LibSbmlInterface.create_base_unit('strange_unit', strange_unit, 'NOT_A_UNIT')
 
     def test_parse_units(self):
         self.sbml_model.setTimeUnits('second')
@@ -252,7 +252,7 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.per_second_id = 'unit_1_per_second'
         self.per_second = LibSbmlInterface.call_libsbml(self.sbml_model.createUnitDefinition)
         LibSbmlInterface.call_libsbml(self.per_second.setIdAttribute, self.per_second_id)
-        LibSbmlInterface.create_base_unit(self.per_second, 'second', exponent=-1)
+        LibSbmlInterface.create_base_unit('unit_1_per_second', self.per_second, 'second', exponent=-1)
 
         id = 'id1'
         name = 'name1'
@@ -295,15 +295,6 @@ class TestLibsbmlInterface(unittest.TestCase):
         self.assertEqual(name, '')
         self.assertEqual(value, 1.5)
         self.assertEqual(units, unit_registry.parse_expression('s^-1'))
-
-    def test_parse_parameter_error(self):
-        units = unit_registry.parse_units('s^-1')
-        LibSbmlInterface.create_unit(units, self.sbml_model)
-
-        parameter = LibSbmlInterface.create_parameter(self.sbml_model, 'parameter_1', 1.5, units,
-                                                      constant=False)
-        with self.assertRaisesRegex(LibSbmlError, 'must be constant'):
-            LibSbmlInterface.parse_parameter(parameter)
 
     def test_set_get_math(self):
         model = Model(version='1.2.3', wc_lang_version='4.5.6')
@@ -402,7 +393,7 @@ class TestDebug(unittest.TestCase):
 
         sbml_model = LibSbmlInterface.call_libsbml(self.document.createModel)
         unit_def = LibSbmlInterface.call_libsbml(sbml_model.createUnitDefinition)
-        unit = LibSbmlInterface.create_base_unit(unit_def, 'avogadro')
+        unit = LibSbmlInterface.create_base_unit('avogadro_unit_def', unit_def, 'avogadro')
         with self.assertWarnsRegex(WcLangWarning, 'unknown error code'):
             with capturer.CaptureOutput() as capture_output:
                 LibSbmlInterface.call_libsbml(unit.getKind, returns_int=False, debug=True)

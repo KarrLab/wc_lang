@@ -13,9 +13,10 @@ import os
 import shutil
 import tempfile
 import unittest
-from wc_lang import Model
+from wc_lang.core import Model, WcLangWarning
 from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
+from wc_lang.sbml import util as sbml_util
 from wc_lang.transform.prep_for_sbml import PrepForSbmlTransform
 from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
@@ -51,20 +52,22 @@ class SbmlIoTestCase(unittest.TestCase):
             model_2.merge(submodel_2)
         self.assertTrue(model_2.is_equal(model))
 
-    def test_SbmlExporter_warning(self):
+    def test_SbmlExporter_error(self):
         model = Model(id='model')
         submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
         model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
         model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
 
-        with self.assertWarnsRegex(UserWarning, 'Model is invalid'):
-            sbml_io.SbmlExporter.run(model)
+        with self.assertRaisesRegex(sbml_util.LibSbmlError, 'Document is invalid'):
+            with self.assertRaisesRegex(WcLangWarning, 'Model is invalid'):
+                sbml_io.SbmlExporter.run(model)
 
     def test_write_read(self):
         submodels = sbml_io.SbmlWriter().run(self.model, self.dirname)
         model = sbml_io.SbmlReader().run(self.dirname)
 
         sbml_compat_model = PrepForSbmlTransform().run(self.model.copy())
+        print(model.difference(sbml_compat_model))
         self.assertTrue(model.is_equal(sbml_compat_model))
 
     def test_writer_errors(self):

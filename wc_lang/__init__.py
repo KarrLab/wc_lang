@@ -14,4 +14,4 @@ from .core import (RateLawDirection, TaxonRank,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
                    Evidence, Interpretation, DatabaseReference, Reference, Author, Change,
-                   Validator)
+                   Validator, WcLangWarning)

@@ -102,12 +102,16 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
         annots = []
 
         sbml = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
-        LibSbmlInterface.call_libsbml(sbml.setVariable, 'variable')
 
         LibSbmlInterface.call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
         LibSbmlInterface.call_libsbml(sbml.setName, self.name)
         LibSbmlInterface.set_math(sbml.setMath, self.expression)
-        annots.extend(['units', 'db_refs'])
+
+        param_id = '__param__' + self.gen_sbml_id()
+        LibSbmlInterface.create_parameter(sbml_model, param_id, None, self.units, constant=False)
+        LibSbmlInterface.call_libsbml(sbml.setVariable, param_id)
+
+        annots.extend(['db_refs'])
         LibSbmlInterface.set_commments(self, sbml)
 
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
@@ -124,7 +128,12 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
 
         self.id = self.parse_sbml_id(LibSbmlInterface.call_libsbml(sbml.getIdAttribute))
         self.name = LibSbmlInterface.call_libsbml(sbml.getName)
-        annots.append('units')
+
+        param_id = LibSbmlInterface.call_libsbml(sbml.getVariable)
+        sbml_model = LibSbmlInterface.call_libsbml(sbml.getModel)
+        _, _, _, self.units = LibSbmlInterface.parse_parameter(
+            LibSbmlInterface.call_libsbml(sbml_model.getParameter, param_id))
+
         LibSbmlInterface.get_commments(self, sbml)
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
@@ -190,13 +199,12 @@ class LibSbmlInterface(object):
         return sbml_doc
 
     @classmethod
-    def verify_doc(cls, sbml_doc, level=3, version=2, strict_units=True):
+    def verify_doc(cls, sbml_doc, level=3, version=2, strict_units=False):
         """ Verify that an SBML document is valid
 
         * SBML-compatible
         * Valid SBML
         * Consistent
-
 
         Args:
             sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
@@ -209,9 +217,8 @@ class LibSbmlInterface(object):
             :obj:`LibSbmlError`: if the document is invalid
         """
         cls.verify_doc_is_compatible(sbml_doc, level=level, version=version)
-        # todo: uncomment
-        # cls.verify_doc_is_valid_sbml(sbml_doc)
-        # cls.verify_doc_is_consistent(sbml_doc, strict_units=strict_units)
+        cls.verify_doc_is_valid_sbml(sbml_doc)
+        cls.verify_doc_is_consistent(sbml_doc, strict_units=strict_units)
 
     @classmethod
     def verify_doc_is_compatible(cls, sbml_doc, level=3, version=2):
@@ -227,8 +234,8 @@ class LibSbmlInterface(object):
         """
         # SBML compatibility method for the version being used
         method = getattr(sbml_doc, 'checkL{}v{}Compatibility'.format(level, version))
-        cls.call_libsbml(method, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is incompatible')
+        n_errors = cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is incompatible', n_errors=n_errors)
 
     @classmethod
     def verify_doc_is_valid_sbml(cls, sbml_doc):
@@ -240,11 +247,11 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if the document is not valid SBML
         """
-        cls.call_libsbml(sbml_doc.validateSBML, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is invalid SBML')
+        n_errors = cls.call_libsbml(sbml_doc.validateSBML, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is invalid SBML', n_errors=n_errors)
 
     @classmethod
-    def verify_doc_is_consistent(cls, sbml_doc, strict_units=True):
+    def verify_doc_is_consistent(cls, sbml_doc, strict_units=False):
         """ Check that an SBML document is consistent
 
         Args:
@@ -255,15 +262,15 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if the document is not consistent
         """
-        cls.call_libsbml(sbml_doc.checkInternalConsistency, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is internally inconsistent')
+        n_errors = cls.call_libsbml(sbml_doc.checkInternalConsistency, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is internally inconsistent', n_errors=n_errors)
 
         if strict_units:
             method = sbml_doc.checkConsistencyWithStrictUnits
         else:
             method = sbml_doc.checkConsistency
-        cls.call_libsbml(method, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is inconsistent')
+        n_errors = cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is inconsistent', n_errors=n_errors)
 
     @classmethod
     def create_model(cls, sbml_doc):
@@ -319,6 +326,7 @@ class LibSbmlInterface(object):
         """
         # Define units
         units = obj_model.units.get_obj_units(model)
+
         units_to_sbml = {}
         for unit in units:
             sbml_unit = cls.create_unit(unit, sbml_model)
@@ -344,7 +352,7 @@ class LibSbmlInterface(object):
     def create_unit(cls, unit, sbml_model):
         """ Add a unit definition to a SBML model
 
-        Args:            
+        Args:
             unit (:obj:`unit_registry.Unit`): unit
             sbml_model (:obj:`libsbml.Model`): SBML model that encodes the model
 
@@ -371,7 +379,7 @@ class LibSbmlInterface(object):
             else:
                 unit_scale = 0
                 unit_multiplier = 1.
-            cls.create_base_unit(unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
+            cls.create_base_unit(id, unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
 
         return unit_def
 
@@ -399,7 +407,7 @@ class LibSbmlInterface(object):
         return id
 
     @classmethod
-    def create_base_unit(cls, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
+    def create_base_unit(cls, unit_def_id, unit_def, kind, exponent=1, scale=0, multiplier=1.0):
         """ Add a unit to a SBML unit definition
 
         Each SBML unit has four attributes:
@@ -410,6 +418,7 @@ class LibSbmlInterface(object):
         * `multiplier`
 
         Args:
+            unit_def_id (:obj:`str`): id of SBML unit definition
             unit_def (:obj:`libsbml.UnitDefinition`): SBML unit definition
             kind (:obj:`str`): unit kind
             exponent (:obj:`int`, optional): exponent of the unit
@@ -419,7 +428,7 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`libsbml.Unit`: SBML unit
         """
-        id = kind
+        id = unit_def_id + '_' + kind
         kind = cls.normalize_unit_kind(kind)
         kind_val = getattr(libsbml, 'UNIT_KIND_' + kind.upper())
 
@@ -519,7 +528,7 @@ class LibSbmlInterface(object):
         """ Get units from SBML unit definition id
 
         Args:
-            sbml_unit_def_id (:obj:`str`): id of unit definition            
+            sbml_unit_def_id (:obj:`str`): id of unit definition
 
         Returns:
             :obj:`unit_registry.Unit`: units
@@ -568,9 +577,6 @@ class LibSbmlInterface(object):
             :obj:`float`: value
             :obj:`unit_registry.Unit`: units
         """
-        if not cls.call_libsbml(sbml_parameter.getConstant):
-            raise LibSbmlError('Parameters must be constant')
-
         id = cls.call_libsbml(sbml_parameter.getIdAttribute)
         name = cls.call_libsbml(sbml_parameter.getName)
         value = cls.call_libsbml(sbml_parameter.getValue)
@@ -585,7 +591,7 @@ class LibSbmlInterface(object):
             set_math_func (:obj:`callable`): function to set the math of an SBML object
             expression (:obj:`obj_model.expression.Expression`): expression
         """
-        str_formula = expression._parsed_expression.get_str(cls._obj_model_token_to_str)
+        str_formula = expression._parsed_expression.get_str(cls._obj_model_token_to_str, with_units=True, number_units=' dimensionless')
         sbml_formula = cls.call_libsbml(libsbml.parseL3Formula, str_formula)
         cls.call_libsbml(set_math_func, sbml_formula)
 
@@ -599,7 +605,12 @@ class LibSbmlInterface(object):
         Returns:
             :obj:`str`: string representation of a token that represents an instance of :obj:`Model`.
         """
-        return token.model.gen_sbml_id()
+        if isinstance(token.model, wc_lang.core.Compartment):
+            return '__mass__' + token.model.gen_sbml_id()
+        elif isinstance(token.model, (wc_lang.core.Observable, wc_lang.core.Function)):
+            return '__param__' + token.model.gen_sbml_id()
+        else:
+            return token.model.gen_sbml_id()
 
     @classmethod
     def get_math(cls, get_math_func, Expression, model_objs):
@@ -616,6 +627,11 @@ class LibSbmlInterface(object):
         """
         sbml_formula = cls.call_libsbml(get_math_func)
         str_formula = cls.call_libsbml(libsbml.formulaToL3String, sbml_formula)
+        str_formula = str_formula \
+            .replace('__mass__Compartment__', 'Compartment__') \
+            .replace('__param__Observable__', 'Observable__') \
+            .replace('__param__Function__', 'Function__') \
+            .replace(' dimensionless', '')
         str_formula = str_formula \
             .replace('__RB__', '[') \
             .replace('__LB__', ']') \
@@ -859,21 +875,57 @@ class LibSbmlInterface(object):
         return text
 
     @classmethod
-    def raise_if_error(cls, sbml_obj, message):
+    def raise_if_error(cls, sbml_obj, message, n_errors=None):
         """ Raise an error, if an SBML object has errors
 
         Args:
             sbml_obj (:obj:`libSBML.SBase`): SBML object
             message (:obj:`str`): summary of error
+            n_errors (:obj:`int`, optional): number of errors to retrieve
 
         Raises:
             :obj:`LibSbmlError`: if the SBML object has errors
         """
-        if cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True) > 0:
+        if n_errors is None:
+            n_errors = cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)
+
+        if n_errors > 0:
             errors = []
-            for i_error in range(cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)):
-                errors.append('{}: {}'.format(cls.call_libsbml(cls.call_libsbml(sbml_obj.getError, i_error).getShortMessage),
-                                              cls.call_libsbml(cls.call_libsbml(sbml_obj.getError, i_error).getMessage)))
-            raise LibSbmlError('{}:\n  {}'.format(message,
-                                                  sbml_obj.__class__.__name__,
-                                                  '\n  '.join(errors)))
+            warns = []
+            for i_error in range(n_errors):
+                error = cls.call_libsbml(sbml_obj.getError, i_error)
+                msg = '\n  {}: {}: {}'.format(cls.call_libsbml(error.getSeverityAsString),
+                                              cls.call_libsbml(error.getShortMessage),
+                                              cls.call_libsbml(error.getMessage))
+                if cls.call_libsbml(error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
+                    warns.append(msg)
+                else:
+                    errors.append(msg)
+
+            sbml_doc = cls.call_libsbml(sbml_obj.getSBMLDocument)
+            error_log = cls.call_libsbml(sbml_doc.getErrorLog)
+            n_log_errors = cls.call_libsbml(error_log.getNumErrors, returns_int=True)
+            log_errors = []
+            log_warns = []
+            for i_log_error in range(n_log_errors):
+                log_error = cls.call_libsbml(error_log.getError, i_log_error)
+                msg = '\n  {}: {}: {}'.format(cls.call_libsbml(log_error.getSeverityAsString),
+                                              cls.call_libsbml(log_error.getShortMessage),
+                                              cls.call_libsbml(log_error.getMessage))
+                if cls.call_libsbml(log_error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
+                    log_warns.append(msg)
+                else:
+                    log_errors.append(msg)
+
+            if warns or log_warns:
+                warnings.warn('{}:{}{}'.format(message,
+                                               sbml_obj.__class__.__name__,
+                                               ''.join(warns),
+                                               ''.join(log_warns)),
+                              wc_lang.core.WcLangWarning)
+
+            if errors or log_errors:
+                raise LibSbmlError('{}:{}{}'.format(message,
+                                                    sbml_obj.__class__.__name__,
+                                                    ''.join(errors),
+                                                    ''.join(log_errors)))
