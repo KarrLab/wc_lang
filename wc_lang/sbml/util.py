@@ -652,7 +652,10 @@ class LibSbmlInterface(object):
             nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
             sbml_obj (:obj:`object`): SBML object
         """
-        cls.call_libsbml(sbml_obj.setAnnotation, cls.gen_annotations(model_obj, nested_attr_paths, sbml_obj))
+        cls.call_libsbml(sbml_obj.setAnnotation,
+                         '<annotation><wcLang:annotation>'
+                         + cls.gen_annotations(model_obj, nested_attr_paths, sbml_obj)
+                         + '</wcLang:annotation></annotation>')
 
     @classmethod
     def gen_annotations(cls, model_obj, nested_attr_paths, sbml_obj):
@@ -677,7 +680,7 @@ class LibSbmlInterface(object):
                              '</wcLang:property>').format(
                 nested_attr_name, serialized_val))
 
-        return '<annotation><wcLang:annotation>{}</wcLang:annotation></annotation>'.format(''.join(key_vals))
+        return ''.join(key_vals)
 
     @classmethod
     def get_annotations(cls, model_obj, nested_attr_paths, sbml_obj, model_objs=None):
@@ -744,6 +747,82 @@ class LibSbmlInterface(object):
         for dotted_attr_path in dotted_attr_paths:
             nested_attr_paths[dotted_attr_path] = [(attr_name, ) for attr_name in dotted_attr_path.split('.')]
         return nested_attr_paths
+
+    @classmethod
+    def gen_authors_annotation(cls, model):
+        authors_sbml = ''
+        for au in model.authors:
+            authors_sbml += ('<wcLang:author>'
+                             '<wcLang:id>{}</wcLang:id>'
+                             '<wcLang:name>{}</wcLang:name>'
+                             '<wcLang:lastName>{}</wcLang:lastName>'
+                             '<wcLang:firstName>{}</wcLang:firstName>'
+                             '<wcLang:middleName>{}</wcLang:middleName>'
+                             '<wcLang:title>{}</wcLang:title>'
+                             '<wcLang:organization>{}</wcLang:organization>'
+                             '<wcLang:email>{}</wcLang:email>'
+                             '<wcLang:website>{}</wcLang:website>'
+                             '<wcLang:address>{}</wcLang:address>'
+                             '<wcLang:orcid>{}</wcLang:orcid>'
+                             '<wcLang:db_refs>{}</wcLang:db_refs>'
+                             '<wcLang:comments>{}</wcLang:comments>'
+                             '</wcLang:author>').format(
+                au.id, au.name, au.last_name, au.first_name, au.middle_name,
+                au.title, au.organization, au.email, au.website, au.address,
+                au.orcid, wc_lang.core.Author.Meta.attributes['db_refs'].serialize(au.db_refs),
+                au.comments)
+        return '<wcLang:authors>{}</wcLang:authors>'.format(authors_sbml)
+
+    @classmethod
+    def get_authors_annotation(cls, model, sbml_model, model_objs):
+        sbml_annots = cls.call_libsbml(sbml_model.getAnnotation)
+        for i_annot in range(cls.call_libsbml(sbml_annots.getNumChildren, returns_int=True)):
+            sbml_annot = cls.call_libsbml(sbml_annots.getChild, i_annot)
+            if cls.call_libsbml(sbml_annot.getName) == 'annotation' and cls.call_libsbml(sbml_annot.getURI) == cls.XML_NAMESPACE:
+                for i_annot_prop in range(cls.call_libsbml(sbml_annot.getNumChildren, returns_int=True)):
+                    sbml_authors = cls.call_libsbml(sbml_annot.getChild, i_annot_prop)
+                    if cls.call_libsbml(sbml_authors.getName) == 'authors':
+                        for i_author in range(cls.call_libsbml(sbml_authors.getNumChildren, returns_int=True)):
+                            sbml_au = cls.call_libsbml(sbml_authors.getChild, i_author)
+                            au = model.authors.create()
+                            for i_prop in range(cls.call_libsbml(sbml_au.getNumChildren, returns_int=True)):
+                                sbml_prop = cls.call_libsbml(sbml_au.getChild, i_prop)
+
+                                key = cls.call_libsbml(sbml_prop.getName)
+                                print(key)
+
+                                val = cls.call_libsbml(sbml_prop.toXMLString)
+                                val = val.partition('>')[2]
+                                val = val[0:val.rfind('<')]
+
+                                if key == 'id':
+                                    au.id = val
+                                elif key == 'name':
+                                    au.name = val
+                                elif key == 'lastName':
+                                    au.last_name = val
+                                elif key == 'firstName':
+                                    au.first_name = val
+                                elif key == 'middleName':
+                                    au.middle_name = val
+                                elif key == 'title':
+                                    au.title = val
+                                elif key == 'organization':
+                                    au.organization = val
+                                elif key == 'email':
+                                    au.email = val
+                                elif key == 'website':
+                                    au.website = val
+                                elif key == 'address':
+                                    au.address = val
+                                elif key == 'orcid':
+                                    au.orcid = val
+                                elif key == 'db_refs':
+                                    attr = wc_lang.core.Author.Meta.attributes['db_refs']
+                                    au.db_refs, error = attr.deserialize(val, model_objs)
+                                    assert error is None, str(error)
+                                elif key == 'comments':
+                                    au.comments = val
 
     @classmethod
     def set_commments(cls, model_obj, sbml_obj):

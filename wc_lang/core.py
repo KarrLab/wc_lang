@@ -1202,7 +1202,11 @@ class Model(obj_model.Model, SbmlModelMixin):
             annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units',
                            'env.db_refs', 'env.comments'])
 
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model)
+        xml_annotation = '<annotation><wcLang:annotation>' \
+                         + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
+                         + LibSbmlInterface.gen_authors_annotation(self) \
+                         + '</wcLang:annotation></annotation>'                        
+        call_libsbml(sbml_model.setAnnotation, xml_annotation)
 
         return sbml_model
 
@@ -1239,6 +1243,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         if self.env:
             annots.append('env.db_refs')
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+        LibSbmlInterface.get_authors_annotation(self, sbml, objs)
 
 
 class Taxon(obj_model.Model, SbmlModelMixin):
@@ -1506,7 +1511,11 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                            'model.env.ph', 'model.env.ph_units',
                            'model.env.db_refs', 'model.env.comments'])
 
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model)
+        xml_annotation = '<annotation><wcLang:annotation>' \
+            + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
+            + LibSbmlInterface.gen_authors_annotation(self.model) \
+            + '</wcLang:annotation></annotation>'            
+        call_libsbml(sbml_model.setAnnotation, xml_annotation)
 
         return sbml_model
 
@@ -1537,7 +1546,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                            'model.env.ph', 'model.env.ph_units',
                            'model.env.comments'])
 
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)        
 
     def import_relations_from_sbml(self, sbml, objs):
         # identifiers
@@ -1549,6 +1558,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         if self.model.env:
             annots.append('model.env.db_refs')
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+        LibSbmlInterface.get_authors_annotation(self.model, sbml, objs)
 
 
 class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
@@ -4432,7 +4442,11 @@ class Author(obj_model.Model):
             'submodel': ('db_refs',),
             'core_model': ('db_refs',),
         }
-        sbml_attrs = ()
+        sbml_attrs = ('id', 'name', 'model',
+                      'last_name', 'first_name', 'middle_name',
+                      'title', 'organization',
+                      'email', 'website', 'address', 'orcid',
+                      'db_refs', 'comments')
 
 
 class Change(obj_model.Model):
