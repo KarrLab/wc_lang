@@ -267,6 +267,22 @@ class TestCli(unittest.TestCase):
         model_2 = Reader().run(filename)[Model][0]
         self.assertEqual(model_2.wc_lang_version, version)
 
+    def test_export_import(self):
+        filename = path.join(path.dirname(__file__), 'fixtures', 'sbml-io.xlsx')
+        filename_transformed = path.join(path.dirname(__file__), 'fixtures', 'sbml-io-transformed.xlsx')
+        sbml_dir = self.tempdir
+        filename_2 = path.join(self.tempdir, 'export.xlsx')
+
+        with __main__.App(argv=['export', filename, sbml_dir]) as app:
+            app.run()
+
+        with __main__.App(argv=['import', sbml_dir, filename_2]) as app:
+            app.run()
+
+        model = Reader().run(filename_transformed)[Model][0]
+        model_2 = Reader().run(filename_2)[Model][0]
+        self.assertTrue(model_2.is_equal(model))
+
     def test_raw_cli(self):
         with mock.patch('sys.argv', ['wc-lang', '--help']):
             with self.assertRaises(SystemExit) as context:

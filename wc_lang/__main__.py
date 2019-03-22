@@ -15,6 +15,7 @@ import cement
 import os
 import sys
 import wc_lang
+import wc_lang.sbml.io
 
 
 class BaseController(cement.Controller):
@@ -301,6 +302,46 @@ class MigrateController(cement.Controller):
                 out_path=args.out_path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
+class ExportController(cement.Controller):
+    """ Export a model to SBML """
+
+    class Meta:
+        label = 'export'
+        description = 'Export a model to SBML'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['in_path'], dict(type=str, help='Path to model to export')),
+            (['out_dir'], dict(type=str, help='Directory to save exported model')),
+        ]
+
+    @cement.ex(hide=True)
+    def _default(self):
+        args = self.app.pargs
+        model = Reader().run(args.in_path)[Model][0]
+        wc_lang.sbml.io.SbmlWriter().run(model, args.out_dir)
+
+
+class ImportController(cement.Controller):
+    """ Import a model from SBML """
+
+    class Meta:
+        label = 'import'
+        description = 'Import a model from SBML'
+        stacked_on = 'base'
+        stacked_type = 'nested'
+        arguments = [
+            (['in_dir'], dict(type=str, help='Directory with model to import')),
+            (['out_path'], dict(type=str, help='Path to save model')),
+        ]
+
+    @cement.ex(hide=True)
+    def _default(self):
+        args = self.app.pargs
+        model = wc_lang.sbml.io.SbmlReader().run(args.in_dir)
+        Writer().run(args.out_path, model, set_repo_metadata_from_path=False)
+
+
 class App(cement.App):
     """ Command line application """
     class Meta:
@@ -318,6 +359,8 @@ class App(cement.App):
             CreateTemplateController,
             UpdateVersionMetadataController,
             MigrateController,
+            ExportController,
+            ImportController,
         ]
 
 
