@@ -23,3 +23,15 @@ class PrepForSbmlTransformTestCase(unittest.TestCase):
         sbml_model = wc_lang.io.Reader().run(filename)[Model][0]
 
         self.assertTrue(model.is_equal(sbml_model))
+
+    def test_run_twice(self):
+        filename = os.path.join(os.path.dirname(__file__), '..', 'fixtures', 'sbml-io.xlsx')
+        model = wc_lang.io.Reader().run(filename)[Model][0]
+        transform = PrepForSbmlTransform()
+        transform.run(model)
+        transform.run(model)
+
+        filename = os.path.join(os.path.dirname(__file__), '..', 'fixtures', 'sbml-io-transformed.xlsx')
+        sbml_model = wc_lang.io.Reader().run(filename)[Model][0]
+
+        self.assertTrue(model.is_equal(sbml_model))

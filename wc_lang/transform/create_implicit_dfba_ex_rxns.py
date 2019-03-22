@@ -48,26 +48,39 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
             if are_terms_equivalent(submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
                 for species in submodel.get_children(kind='submodel', __type=wc_lang.core.Species):
                     if species.compartment == ext_comp:
-
-                        rxn = submodel.reactions.create(
-                            model=model,
-                            id=rxn_id_template.format(submodel.id,
-                                                      species.species_type.id,
-                                                      species.compartment.id),
-                            name=rxn_name_template.format(submodel.name or submodel.id,
-                                                          species.species_type.name or species.species_type.id,
-                                                          species.compartment.name or species.compartment.id),
-                            reversible=True)
-
-                        part = species.species_coefficients.get_or_create(coefficient=1.)
-                        rxn.participants.append(part)
-
+                        id = rxn_id_template.format(submodel.id,
+                                                    species.species_type.id,
+                                                    species.compartment.id)
+                        name = rxn_name_template.format(submodel.name or submodel.id,
+                                                        species.species_type.name or species.species_type.id,
+                                                        species.compartment.name or species.compartment.id)
+                        participants = [species.species_coefficients.get_or_create(coefficient=1.)]
+                        reversible = True
                         if species.species_type.has_carbon():
-                            rxn.flux_min = -ex_flux_bound_carbon
-                            rxn.flux_max = ex_flux_bound_carbon
+                            flux_min = -ex_flux_bound_carbon
+                            flux_max = ex_flux_bound_carbon
                         else:
-                            rxn.flux_min = -ex_flux_bound_no_carbon
-                            rxn.flux_max = ex_flux_bound_no_carbon
-                        rxn.flux_bound_units = unit_registry.parse_units('M s^-1')
+                            flux_min = -ex_flux_bound_no_carbon
+                            flux_max = ex_flux_bound_no_carbon
+                        flux_bound_units = unit_registry.parse_units('M s^-1')
+
+                        rxn = model.reactions.get_one(id=id)
+                        if rxn:
+                            assert rxn.submodel == submodel
+                            assert rxn.name == name
+                            assert rxn.participants == participants
+                            assert rxn.reversible == reversible
+                            assert rxn.Meta.attributes['flux_min'].value_equal(rxn.flux_min, flux_min)
+                            assert rxn.Meta.attributes['flux_max'].value_equal(rxn.flux_max, flux_max)
+                            assert rxn.Meta.attributes['flux_bound_units'].value_equal(rxn.flux_bound_units, flux_bound_units)
+                        else:
+                            rxn = model.reactions.create(id=id)
+                            rxn.submodel = submodel
+                            rxn.name = name
+                            rxn.participants = participants
+                            rxn.reversible = reversible
+                            rxn.flux_min = flux_min
+                            rxn.flux_max = flux_max
+                            rxn.flux_bound_units = flux_bound_units
 
         return model
