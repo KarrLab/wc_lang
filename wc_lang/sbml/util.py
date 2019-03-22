@@ -146,9 +146,6 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        if self.expression:
-            self.expression.species = []
-            self.expression.observables = []
         self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
 
@@ -234,8 +231,8 @@ class LibSbmlInterface(object):
         """
         # SBML compatibility method for the version being used
         method = getattr(sbml_doc, 'checkL{}v{}Compatibility'.format(level, version))
-        n_errors = cls.call_libsbml(method, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is incompatible', n_errors=n_errors)
+        cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is incompatible')
 
     @classmethod
     def verify_doc_is_valid_sbml(cls, sbml_doc):
@@ -247,8 +244,8 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if the document is not valid SBML
         """
-        n_errors = cls.call_libsbml(sbml_doc.validateSBML, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is invalid SBML', n_errors=n_errors)
+        cls.call_libsbml(sbml_doc.validateSBML, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is invalid SBML')
 
     @classmethod
     def verify_doc_is_consistent(cls, sbml_doc, strict_units=False):
@@ -262,15 +259,15 @@ class LibSbmlInterface(object):
         Raises:
             :obj:`LibSbmlError`: if the document is not consistent
         """
-        n_errors = cls.call_libsbml(sbml_doc.checkInternalConsistency, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is internally inconsistent', n_errors=n_errors)
+        cls.call_libsbml(sbml_doc.checkInternalConsistency, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is internally inconsistent')
 
         if strict_units:
             method = sbml_doc.checkConsistencyWithStrictUnits
         else:
             method = sbml_doc.checkConsistency
-        n_errors = cls.call_libsbml(method, returns_int=True)
-        cls.raise_if_error(sbml_doc, 'Document is inconsistent', n_errors=n_errors)
+        cls.call_libsbml(method, returns_int=True)
+        cls.raise_if_error(sbml_doc, 'Document is inconsistent')
 
     @classmethod
     def create_model(cls, sbml_doc):
@@ -789,7 +786,6 @@ class LibSbmlInterface(object):
                                 sbml_prop = cls.call_libsbml(sbml_au.getChild, i_prop)
 
                                 key = cls.call_libsbml(sbml_prop.getName)
-                                print(key)
 
                                 val = cls.call_libsbml(sbml_prop.toXMLString)
                                 val = val.partition('>')[2]
@@ -954,20 +950,17 @@ class LibSbmlInterface(object):
         return text
 
     @classmethod
-    def raise_if_error(cls, sbml_obj, message, n_errors=None):
+    def raise_if_error(cls, sbml_obj, message):
         """ Raise an error, if an SBML object has errors
 
         Args:
             sbml_obj (:obj:`libSBML.SBase`): SBML object
             message (:obj:`str`): summary of error
-            n_errors (:obj:`int`, optional): number of errors to retrieve
 
         Raises:
             :obj:`LibSbmlError`: if the SBML object has errors
         """
-        if n_errors is None:
-            n_errors = cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)
-
+        n_errors = cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)
         if n_errors > 0:
             errors = []
             warns = []

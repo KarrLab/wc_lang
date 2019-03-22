@@ -211,6 +211,13 @@ class TestLibsbmlInterface(unittest.TestCase):
         with self.assertRaisesRegex(AttributeError, 'no attribute'):
             LibSbmlInterface.create_base_unit('strange_unit', strange_unit, 'NOT_A_UNIT')
 
+    def test_gen_unit_id(self):
+        self.assertEqual(LibSbmlInterface.gen_unit_id(unit_registry.parse_units('meter / second')), 'unit_meter_per_second')
+        self.assertEqual(LibSbmlInterface.gen_unit_id(unit_registry.parse_units('second')), 'second')
+
+        with self.assertRaisesRegex(ValueError, 'Cannot generate SBML id'):
+            LibSbmlInterface.gen_unit_id(None)
+
     def test_parse_units(self):
         self.sbml_model.setTimeUnits('second')
         self.sbml_model.setSubstanceUnits('item')

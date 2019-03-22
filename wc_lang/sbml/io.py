@@ -83,7 +83,7 @@ class SbmlWriter(object):
 
         # create a directory to save SBML-encoded XML documents for model
         if not os.path.isdir(dirname):
-            os.mkdirs(dirname)
+            os.makedirs(dirname)
 
         # encode models in SBML and save to XML file
         for model, model_id in zip(all_models, all_models_ids):
@@ -113,19 +113,15 @@ class SbmlReader(object):
         sbml_reader = LibSbmlInterface.call_libsbml(libsbml.SBMLReader)
 
         paths = glob.glob(os.path.join(dirname, '*.xml'))
-        if 'core.xml' in paths:
-            paths.remove('core.xml')
-            paths.insert(0, 'core.xml')
+        core_path = os.path.join(dirname, 'core.xml')
+        if core_path in paths:
+            paths.remove(core_path)
+            paths.insert(0, core_path)
 
         for path in paths:
             # read model from XML file
             sbml_doc = LibSbmlInterface.call_libsbml(sbml_reader.readSBMLFromFile, path)
-            if LibSbmlInterface.call_libsbml(sbml_doc.getNumErrors, returns_int=True):
-                errors = []
-                for i_error in range(LibSbmlInterface.call_libsbml(sbml_doc.getNumErrors, returns_int=True)):
-                    errors.append(LibSbmlInterface.call_libsbml(LibSbmlInterface.call_libsbml(sbml_doc.getError, i_error).getMessage))
-                raise ValueError('Model could not be read from {}:\n * {}'.format(
-                    path, '\n * '.join(errors)))
+            LibSbmlInterface.raise_if_error(sbml_doc, 'Model could not be read from {}'.format(path))
 
             # convert SBML-encoded model to wc_lang
             model = SbmlImporter.run(sbml_doc)

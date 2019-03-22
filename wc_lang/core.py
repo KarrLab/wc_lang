@@ -1205,7 +1205,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         xml_annotation = '<annotation><wcLang:annotation>' \
                          + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
                          + LibSbmlInterface.gen_authors_annotation(self) \
-                         + '</wcLang:annotation></annotation>'                        
+                         + '</wcLang:annotation></annotation>'
         call_libsbml(sbml_model.setAnnotation, xml_annotation)
 
         return sbml_model
@@ -1514,7 +1514,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         xml_annotation = '<annotation><wcLang:annotation>' \
             + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
             + LibSbmlInterface.gen_authors_annotation(self.model) \
-            + '</wcLang:annotation></annotation>'            
+            + '</wcLang:annotation></annotation>'
         call_libsbml(sbml_model.setAnnotation, xml_annotation)
 
         return sbml_model
@@ -1546,7 +1546,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                            'model.env.ph', 'model.env.ph_units',
                            'model.env.comments'])
 
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)        
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         # identifiers
@@ -1846,10 +1846,6 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         self.submodel = self.model.submodels[0]
 
         # expression
-        if self.expression:
-            self.expression.reactions = []
-            self.expression.dfba_obj_reactions = []
-
         expression = []
         for i_flux_obj in range(call_libsbml(sbml.getNumFluxObjectives, returns_int=True)):
             sbml_flux_obj = call_libsbml(sbml.getFluxObjective, i_flux_obj)
@@ -2088,8 +2084,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                        'distribution_init_volume', 'std_init_volume',
                        'init_density'])
 
-        param_id = '__mass__' + self.gen_sbml_id()
-        LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units)
+        if self.init_density:
+            param_id = '__mass__' + self.gen_sbml_id()
+            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units)
 
         if self.db_refs:
             annots.append('db_refs')
@@ -2123,7 +2120,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         param_id = '__mass__' + self.gen_sbml_id()
         sbml_model = call_libsbml(sbml.getModel)
-        _, _, _, self.mass_units = LibSbmlInterface.parse_parameter(call_libsbml(sbml_model.getParameter, param_id))
+        sbml_param = sbml_model.getParameter(param_id)  # not wrapped in `call_libsbml` because `None` return is valid
+        if sbml_param:
+            _, _, _, self.mass_units = LibSbmlInterface.parse_parameter(sbml_param)
 
         LibSbmlInterface.get_commments(self, sbml)
 
@@ -3750,11 +3749,6 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
 
     def import_relations_from_sbml(self, sbml, objs):
         # expression
-        if self.expression:
-            self.expression.species = []
-            self.expression.observables = []
-            self.expression.functions = []
-            self.expression.parameters = []
         self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
 
         # identifiers
