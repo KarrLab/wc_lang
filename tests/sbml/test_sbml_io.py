@@ -71,7 +71,7 @@ class SbmlIoTestCase(unittest.TestCase):
     def test_write_read(self):
         shutil.rmtree(self.dirname)
 
-        submodels = sbml_io.SbmlWriter().run(self.model, self.dirname)
+        sbml_io.SbmlWriter().run(self.model, self.dirname)
         model = sbml_io.SbmlReader().run(self.dirname)
 
         sbml_compat_model = PrepForSbmlTransform().run(self.model.copy())
