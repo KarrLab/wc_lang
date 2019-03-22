@@ -20,22 +20,34 @@ class ChangeValueTransform(Transform):
 
             Examples:
 
-            * model.name --> 'name'
-            * model.reactions.get_one(id='rxn_1').reversible --> (('reactions', {'id': 'rxn_1'}), 'reversible')
-            * model.parameters.get_one(id='param_1').value --> (('parameters', {'id': 'param_1'}), 'value')
-            * model \
-                .reactions.get_one(id='rxn_1') \
-                .rate_laws.get_one(direction=RateLawDirection.forward) \
-                .expression \
-                .parameters.get_one(id='param_1') \
-                .value
-              --> (
-                    ('reactions', {'id': 'rxn_1'},
-                    ('rate_laws', {'direction': RateLawDirection.forward}),
-                    'expression',
-                    ('parameters', {'id': 'param_1'}),
-                    'value',
-                  )
+            ::
+
+                model.name --> 'name'
+
+            ::
+
+                model.reactions.get_one(id='rxn_1').reversible --> (('reactions', {'id': 'rxn_1'}), 'reversible')
+
+            ::
+
+                model.parameters.get_one(id='param_1').value --> (('parameters', {'id': 'param_1'}), 'value')
+
+            ::
+
+                model \
+                    .reactions.get_one(id='rxn_1') \
+                    .rate_laws.get_one(direction=RateLawDirection.forward) \
+                    .expression \
+                    .parameters.get_one(id='param_1') \
+                    .value
+                  --> (
+                        ('reactions', {'id': 'rxn_1'},
+                        ('rate_laws', {'direction': RateLawDirection.forward}),
+                        'expression',
+                        ('parameters', {'id': 'param_1'}),
+                        'value',
+                      )
+
         value (:obj:`object`): new value
     """
 
@@ -69,13 +81,14 @@ class ChangeValueTransform(Transform):
         """ Generate a string representation of `attr_path`
 
         Returns:
-            :obj:`str`: string representation of `attr_path`R
+            :obj:`str`: string representation of `attr_path`
         """
         return json.dumps(self.attr_path)
 
     @staticmethod
     def attr_path_from_str(str):
         """ Generate `attr_path` from its string representation
+
         Args:
             str (:obj:`str`): string representation of `attr_path`
 

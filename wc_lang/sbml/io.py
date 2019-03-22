@@ -1,11 +1,57 @@
 """ Encoding/decoding `wc_lang` models to/from SBML and
-reading/writing SBML-encoded models to/from XML files.
+reading/writing SBML-encoded models to/from XML files, one per submodel.
 
-Note, `wc_lang` and SBML do not have equivalent semantics.
-Consequently, (a) `wc_lang` models must be exported as multiple
-SBML models, one for each submodel and (b) SBML models which
-utilize features, such as events, which are not supported by
-`wc_lang` cannot be imported.
+This enables WC-Lang-encoded models to be "round-tripped" with this sequence of operations:
+
+1. Model is transformed to remove metadata that can't be exported to SBML
+2. Model is split into multiple models, each with one submodel
+3. Each model with one submodel is exported to SBML
+4. Each model with one submodel is imported from SBML
+5. Models with individual submodels are merged into a single model
+
+WC-Lang models are exported to SBML with the following class mapping:
+
+=============================  =====================
+WC-Lang                        SBML
+=============================  =====================
+Model                          Model
+Taxon                          Model.annotation
+Environment                    Model.annotation
+Submodel                       Model
+Compartment                    Compartment
+SpeciesType                    Species.annotation
+Species                        Species
+DistributionInitConcentration  Species.initialAmount
+Observable                     AssignmentRule
+ObservableExpression           AssignmentRule.math
+Function                       AssignmentRule
+FunctionExpression             AssignmentRule.math
+Reaction                       Reaction
+SpeciesCoefficient             SpeciesReference
+RateLaw                        KineticLaw
+RateLawExpression              KineticLaw.math
+Parameter                      Parameter
+DfbaObjective                  Objective
+DfbaObjectiveExpression        FluxObjective
+DfbaObjReaction                Reaction
+DfbaObjSpecies                 SpeciesReference
+StopCondition                  --
+StopConditionExpression        --
+Evidence                       --
+Interpretation                 --
+Reference                      --
+Author                         Model.annotation
+Change                         --
+DatabaseReference              SBase.annotation
+pint.Unit                      UnitDefinition
+obj_model.Model.comments       SBase.notes
+=============================  =====================
+
+In addition, WC-Lang attributes which have no equivalent SBML attribute are mapped to
+``SBase.annotation``.
+
+Note, that because WC-Lang and SBML have different semantics, some of aspects of
+WC-Lang cannot be mapped to SBML and vice-versa.
 
 :Author: Jonathan Karr <karr@mssm.edu>
 :Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
@@ -13,38 +59,6 @@ utilize features, such as events, which are not supported by
 :Copyright: 2017-2019, Karr Lab
 :License: MIT
 """
-
-'''
-wc_lang to SBML mapping to support FBA modeling
-Individual wc_lang submodels that use dFBA are mapped to individual SBML documents and files.
-
-WC                              SBML                                                                  Status
------                           -----                                                                 ------
-Model                           Model                                                                 Ignored
-Taxon                           None, perhaps make SBML annotations                                   Ignored
-Submodel                        Model                                                                 Implemented
-DfbaObjective                   Objective                                                             Mostly Implemented
-Compartment                     Compartment                                                           Implemented
-SpeciesType                     SpeciesType aren't defined                                            NA
-Species                         Species                                                               Implemented
-DistributionInitConcentration   Distributions of initial concentrations are incorporated in Species   NA
-Reaction                        Reaction, with FbcReactionPlugin for DFBA submodels                   Implemented
-SpeciesCoefficient              SpeciesReference in a Reaction                                        Implemented
-RateLaw                         KineticLaw                                                            Ignored
-RateLawExpression
-DfbaObjSpecies
-DfbaObjReaction                 TBD
-Parameter                       Parameter                                                             Implemented
-Reference
-DatabaseReference
-
-wc_lang attribute to SBML mapping:
-
-WC Model                SBML Model
---------                ----------
-comments                notes
-references              notes, as a Python dict
-'''
 
 from obj_model.utils import group_objects_by_model
 from wc_lang.transform.prep_for_sbml import PrepForSbmlTransform
@@ -69,6 +83,9 @@ class SbmlWriter(object):
         Args:
             model (:obj:`wc_lang.core.Model`): `wc_lang` model
             dirname (:obj:`str`): path to directory to save SBML-encoded XML files for each submodel
+
+        Raises:
+            :obj:`ValueError`: if the model could not be written to a SBML-encoded file
         """
         # validate model
         model = PrepForSbmlTransform().run(model.copy())
@@ -152,7 +169,10 @@ class SbmlExporter(object):
             model (:obj:`wc_lang.core.Model`): `wc_lang` model with at most 1 submodel
 
         Returns:
-            :obj:`libsbml.Model`: SBML-encoded model
+            :obj:`libsbml.SBMLDocument`: SBML document with SBML-encoded model
+
+        Raises:
+            :obj:`ValueError`: if the model cannot be exported to SBML because it contains multiple submodels
         """
         # verify model has at most 1 submodel
         if len(model.submodels) > 1:

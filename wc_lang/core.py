@@ -216,8 +216,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
-            :obj:`tuple` of `list` of `SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
-                and cleaning error
+            :obj:`list` of :obj:`SpeciesCoefficient`: cleaned value
+            :obj:`InvalidAttribute`: cleaning error
         """
         errors = []
 
@@ -272,10 +272,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             global_comp (:obj:`Compartment`): global compartment of the reaction
 
         Returns:
-            :obj:`tuple`:
-
-                * :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
-                * :obj:`list` of :obj:`Exception`: list of errors
+            :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
+            :obj:`list` of :obj:`Exception`: list of errors
         """
         parts_str = re.findall(r'(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I)
 
@@ -450,8 +448,8 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
             decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
-            :obj:`tuple` of `list` of `DatabaseReference`, `InvalidAttribute` or `None`: tuple of cleaned value
-                and cleaning error
+            :obj:`list` of :obj:`DatabaseReference`: cleaned value
+            :obj:`InvalidAttribute`: cleaning error
         """
         value = value or ''
         value = value.strip()
@@ -534,8 +532,8 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
             decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
-            :obj:`tuple` of `list` of `DatabaseReference`, `InvalidAttribute` or `None`: tuple of cleaned value
-                and cleaning error
+            :obj:`list` of :obj:`DatabaseReference`: cleaned value
+            :obj:`InvalidAttribute`: cleaning error
         """
         value = value or ''
         value = value.strip()
@@ -593,10 +591,8 @@ class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
         Returns:
             :obj:`Model`: model with objects that (a) form the model integration framework or (b) are
                 not associated with any submodel
-            :obj:`list` of :obj:`Model`: one model for each submodel
 
-        Raises:
-            :obj:`ValueError`: if submodels do not belong to a model
+            :obj:`list` of :obj:`Model`: one model for each submodel
         """
         model = self.object
 
@@ -648,9 +644,6 @@ class CommentAttribute(obj_model.LongStringAttribute):
             right (:obj:`Model`): an element in a second model to merge
             right_objs_in_left (:obj:`dict`): mapping from objects in right model to objects in left model
             left_objs_in_right (:obj:`dict`): mapping from objects in left model to objects in right model
-
-        Raises:
-            :obj:`ValueError`: if the attributes of the elements of the models are different
         """
         left_val = getattr(left, self.name)
         right_val = getattr(right, self.name)
@@ -676,29 +669,30 @@ class Model(obj_model.Model, SbmlModelMixin):
         updated (:obj:`datetime`): date updated
 
     Related attributes:
-        taxon (:obj:`Taxon`): taxon
-        env (:obj:`Environment`): environment
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        compartments (:obj:`list` of :obj:`Compartment`): compartments
-        species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distributions of initial concentrations of species at the beginning of
-            each cell cycle
-        observables (:obj:`list` of :obj:`Observable`): observables
-        functions (:obj:`list` of :obj:`Function`): functions
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
-        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
-        evidences (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
-        references (:obj:`list` of :obj:`Reference`): references
-        authors (:obj:`list` of :obj:`Author`): authors
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * taxon (:obj:`Taxon`): taxon
+        * env (:obj:`Environment`): environment
+        * submodels (:obj:`list` of :obj:`Submodel`): submodels
+        * compartments (:obj:`list` of :obj:`Compartment`): compartments
+        * species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        * species (:obj:`list` of :obj:`Species`): species
+        * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+          distributions of initial concentrations of species at the beginning of
+          each cell cycle
+        * observables (:obj:`list` of :obj:`Observable`): observables
+        * functions (:obj:`list` of :obj:`Function`): functions
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+        * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * evidences (:obj:`list` of :obj:`Evidence`): evidence
+        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * references (:obj:`list` of :obj:`Reference`): references
+        * authors (:obj:`list` of :obj:`Author`): authors
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -736,10 +730,7 @@ class Model(obj_model.Model, SbmlModelMixin):
     def __init__(self, **kwargs):
         """
         Args:
-            **kwargs (:obj:`dict`, optional): dictionary of keyword arguments with keys equal to the names of the model attributes
-
-        Raises:
-            :obj:`TypeError`: if keyword argument is not a defined attribute
+            kwargs (:obj:`dict`, optional): dictionary of keyword arguments with keys equal to the names of the model attributes
         """
         super(Model, self).__init__(**kwargs)
 
@@ -830,7 +821,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching
                 objects
 
         Returns:
@@ -846,8 +837,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Compartment`: compartments
@@ -877,8 +867,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`SpeciesType`: species types
@@ -893,8 +882,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Species`: species
@@ -910,8 +898,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`DistributionInitConcentration`: initial distributions
@@ -927,8 +914,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Observables`: observables
@@ -943,8 +929,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Function`: functions
@@ -959,8 +944,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Reaction`: reactions
@@ -975,8 +959,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`RateLaw`: rate laws
@@ -1002,8 +985,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`DfbaObjReaction`: dFBA objective reactions
@@ -1018,8 +1000,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`DfbaObjSpecies`: dFBA objective species
@@ -1034,8 +1015,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Parameter`: parameters
@@ -1050,8 +1030,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`StopCondition`: stop conditions
@@ -1088,8 +1067,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Reference`: references
@@ -1104,8 +1082,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Author`: authors
@@ -1120,8 +1097,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`list` of :obj:`Change`: changes
@@ -1136,8 +1112,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
-                objects
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
             :obj:`obj_model.Model`: component with `id`, or `None` if there is no component with `id`=`id`
@@ -1179,7 +1154,7 @@ class Model(obj_model.Model, SbmlModelMixin):
                 attr.merge(self, other, other_objs_in_self, self_objs_in_other)
 
     def export_to_sbml(self, sbml_model):
-        """ Add this metadata about this submodel to a SBML model.
+        """ Add this metadata about this model to a SBML model.
 
         Args:
             sbml_model (:obj:`libsbml.Model`): SBML model
@@ -1211,7 +1186,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         return sbml_model
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML model
 
         Args:
             sbml (:obj:`libsbml.Model`): SBML model
@@ -1235,6 +1210,13 @@ class Model(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML model
+
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # identifiers
         annots = []
         annots.append('db_refs')
@@ -1337,11 +1319,12 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
-            if not initialized, then `dfba_obj_reaction` is used as the objective function
-        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): the growth reaction for a dFBA submodel
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
+          if not initialized, then `dfba_obj_reaction` is used as the objective function
+        * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): the growth reaction for a dFBA submodel
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -1405,7 +1388,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
             kind (:obj:`str`, optional): kind of children to get
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
             recursive (:obj:`bool`, optional): if :obj:`True`, get children recursively
-            kwargs (:obj:`dict` of `str`: `object`): dictionary of attribute name/value pairs
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs
 
         Returns:
             :obj:`list` of :obj:`Model`: children
@@ -1449,7 +1432,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         Args:
             kind (:obj:`str`, optional): kind of children to get
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            kwargs (:obj:`dict` of `str`: `object`): dictionary of attribute name/value pairs
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs
 
         Returns:
             :obj:`list` of :obj:`Model`: children
@@ -1485,7 +1468,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         return immediate_children
 
     def export_to_sbml(self, sbml_model):
-        """ Add this metadata about this submodel to a SBML model.
+        """ Add metadata about the submodel to a SBML model.
 
         Args:
             sbml_model (:obj:`libsbml.Model`): SBML model
@@ -1520,7 +1503,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         return sbml_model
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML model
 
         Args:
             sbml (:obj:`libsbml.Model`): SBML model
@@ -1549,6 +1532,13 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML model
+
+        Args:
+            sbml (:obj:`libsbml.Model`): SBML model
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # identifiers
         annots = []
         annots.append('db_refs')
@@ -1573,7 +1563,8 @@ class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
         dfba_obj_reactions (:obj:`list` of :obj:`Species`): dFBA objective reactions used by this expression
 
     Related attributes:
-        dfba_obj (:obj:`DfbaObjective`): dFBA objective
+
+        * dfba_obj (:obj:`DfbaObjective`): dFBA objective
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -1758,7 +1749,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         return None
 
     def export_to_sbml(self, sbml_model):
-        """ Add this DfbaObjective to a SBML model.
+        """ Add this dFBA objective to a SBML model.
 
         This uses version 2 of the 'Flux Balance Constraints' extension. SBML assumes that an
         DfbaObjective is a linear combination of reaction fluxes.
@@ -1821,7 +1812,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         return sbml
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML objective
 
         Args:
             sbml (:obj:`libsbml.Objective`): SBML objective
@@ -1842,6 +1833,13 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML objective
+
+        Args:
+            sbml (:obj:`libsbml.Objective`): SBML objective
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # submodel
         self.submodel = self.model.submodels[0]
 
@@ -1871,7 +1869,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching
                 objects
 
         Returns:
@@ -1928,11 +1926,12 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        sub_compartments (:obj:`list` of :obj:`Compartment`): compartments contained in this compartment
-        species (:obj:`list` of :obj:`Species`): species in this compartment
-        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
-        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
+
+        * sub_compartments (:obj:`list` of :obj:`Compartment`): compartments contained in this compartment
+        * species (:obj:`list` of :obj:`Species`): species in this compartment
+        * function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        * rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        * stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2063,6 +2062,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         Returns:
             :obj:`libsbml.Compartment`: SBML compartment
+
+        Raises:
+            :obj:`ValueError`: if the geometry cannot be exported to SBML
         """
         annots = []
 
@@ -2097,10 +2099,13 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         return sbml
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML compartment
 
         Args:
             sbml (:obj:`libsbml.Compartment`): SBML compartment
+
+        Raises:
+            :obj:`ValueError`: if the geometry cannot be imported from SBML
         """
         annots = []
 
@@ -2129,6 +2134,13 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML compartment
+
+        Args:
+            sbml (:obj:`libsbml.Compartment`): SBML compartment
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         annots = []
 
         # parent, density
@@ -2160,7 +2172,8 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        species (:obj:`list` of :obj:`Species`): species
+
+        * species (:obj:`list` of :obj:`Species`): species
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2219,14 +2232,15 @@ class Species(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        distribution_init_concentration (:obj:`DistributionInitConcentration`):
-            distribution of initial concentration
-        species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
-        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
-        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
-        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
-        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+
+        * distribution_init_concentration (:obj:`DistributionInitConcentration`):
+          distribution of initial concentration
+        * species_coefficients (:obj:`list` of :obj:`SpeciesCoefficient`): participations in reactions and observables
+        * rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        * observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        * stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
+        * function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
     """
     id = StringAttribute(primary=True, unique=True)
     name = StringAttribute()
@@ -2289,6 +2303,9 @@ class Species(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`str`: species type id
             :obj:`str`: compartment id
+
+        Raises:
+            :obj:`ValueError`: if the id does not have the format `{species.id}[{compartment.id}]`
         """
         st = cls.species_type.related_class.id.pattern[1:-1]
         comp = cls.compartment.related_class.id.pattern[1:-1]
@@ -2408,7 +2425,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         return sbml
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML species
 
         Args:
             sbml (:obj:`libsbml.Species`): SBML species
@@ -2449,6 +2466,13 @@ class Species(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML species
+
+        Args:
+            sbml (:obj:`libsbml.Species`): SBML species
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         self.compartment = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
 
         # identifiers
@@ -2564,7 +2588,8 @@ class ObservableExpression(obj_model.Model, Expression, SbmlModelMixin):
         observables (:obj:`list` of :obj:`Observable`): other Observables used by this Observable expression
 
     Related attributes:
-        observable (:obj:`Observable`): observable
+
+        * observable (:obj:`Observable`): observable
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -2645,10 +2670,11 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
-        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
-        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
+
+        * observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        * function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        * rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        * stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2691,7 +2717,8 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
-        function (:obj:`Function`): function
+
+        * function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
@@ -2773,9 +2800,10 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
-        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
+
+        * function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        * rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        * stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -2854,7 +2882,8 @@ class StopConditionExpression(obj_model.Model, Expression):
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
-        stop_condition (:obj:`StopCondition`): stop condition
+        
+        * stop_condition (:obj:`StopCondition`): stop condition
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
@@ -2923,10 +2952,10 @@ class StopConditionExpression(obj_model.Model, Expression):
 
 
 class StopCondition(obj_model.Model):
-    """ StopCondition: Simulation of a model terminates when its StopCondition is true.
+    """ StopCondition: Simulation of a model terminates when one of its stop conditions is true.
 
-    A mathematical expression of Functions, Observbles, Parameters and Python functions `StopCondition`s
-    are optional. It must return a Boolean.
+    A Boolean expression of Functions, Observbles, Parameters and Python functions. Stop conditions
+    are optional.
 
     Attributes:
         id (:obj:`str`): unique id
@@ -2941,7 +2970,8 @@ class StopCondition(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        expressions (:obj:`Expressions`): expressions
+        
+        * expressions (:obj:`Expressions`): expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3029,9 +3059,10 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
-            rate law, and rate_laws[0] is the backward rate law
-        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
+
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
+          rate law, and rate_laws[0] is the backward rate law
+        * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3146,7 +3177,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
-            **kwargs (:obj:`dict` of `str`:`object`): dictionary of attribute name/value pairs to find matching
+            kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching
                 objects
 
         Returns:
@@ -3207,6 +3238,9 @@ class Reaction(obj_model.Model, SbmlModelMixin):
 
         Returns:
             :obj:`libsbml.Reaction`: SBML reaction
+
+        Raises:
+            :obj:`ValueError`: if the reaction has a backward rate law which cannot be exported to SBML
         """
         annots = {}
 
@@ -3282,7 +3316,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         return sbml_rxn
 
     def import_from_sbml(self, sbml_rxn):
-        """ Load from SBML
+        """ Load from SBML reaction
 
         Args:
             sbml (:obj:`libsbml.Reaction`): SBML reaction
@@ -3337,6 +3371,13 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, annots, sbml_rxn)
 
     def import_relations_from_sbml(self, sbml_rxn, objs):
+        """ Load relationships from SBML reaction
+
+        Args:
+            sbml (:obj:`libsbml.Reaction`): SBML reaction
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         annots = {}
 
         # submodel
@@ -3378,8 +3419,9 @@ class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
         coefficient (:obj:`float`): coefficient
 
     Related attributes:
-        reaction (:obj:`Reaction`): reaction
-        observables (:obj:`Observable`): observables
+
+        * reaction (:obj:`Reaction`): reaction
+        * observables (:obj:`Observable`): observables
     """
     species = ManyToOneAttribute(Species, related_name='species_coefficients')
     coefficient = FloatAttribute(nan=False)
@@ -3500,7 +3542,8 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
-        rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
+
+        * rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
@@ -3687,7 +3730,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         return None
 
     def export_to_sbml(self, sbml_rxn):
-        """ Add this reaction to a SBML reaction.
+        """ Add this rate law to a SBML reaction.
 
         Args:
             sbml_rxn (:obj:`libsbml.Reaction`): SBML reaction
@@ -3724,7 +3767,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         return sbml
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML kinetic law
 
         Args:
             sbml (:obj:`libsbml.KineticLaw`): SBML kinetic law
@@ -3748,6 +3791,13 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML kinetic law
+
+        Args:
+            sbml (:obj:`libsbml.KineticLaw`): SBML kinetic law
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # expression
         self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
 
@@ -3877,8 +3927,9 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): the components of this dFBA objective reaction
+
+        * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): the components of this dFBA objective reaction
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -3913,7 +3964,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         sbml_attrs = ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'db_refs', 'comments')
 
     def export_to_sbml(self, sbml_model):
-        """ Add a DfbaObjReaction to a SBML model.
+        """ Add a dFBA objective reaction to a SBML model.
 
         DfbaObjReactions are added to the SBML model because they can be used in a dFBA submodel's
         objective function. In fact the default objective function is the submodel's dFBA objective reaction.
@@ -3974,7 +4025,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         return sbml_rxn
 
     def import_from_sbml(self, sbml_rxn):
-        """ Load from SBML
+        """ Load from SBML reaction
 
         Args:
             sbml (:obj:`libsbml.Reaction`): SBML reaction
@@ -3995,6 +4046,13 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_rxn)
 
     def import_relations_from_sbml(self, sbml_rxn, objs):
+        """ Load relationships from SBML reaction
+
+        Args:
+            sbml (:obj:`libsbml.Reaction`): SBML reaction
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # submodel
         self.submodel = self.model.submodels[0]
 
@@ -4038,11 +4096,12 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        density_compartment (:obj:`Compartment`): compartments whose density is represented by the parameter
-        observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
-        function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
-        rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
-        stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
+
+        * density_compartment (:obj:`Compartment`): compartments whose density is represented by the parameter
+        * observable_expressions (:obj:`list` of :obj:`ObservableExpression`): observable expressions
+        * function_expressions (:obj:`list` of :obj:`FunctionExpression`): function expressions
+        * rate_law_expressions (:obj:`list` of :obj:`RateLawExpression`): rate law expressions
+        * stop_condition_expressions (:obj:`list` of :obj:`StopConditionExpression`): stop condition expressions
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -4090,10 +4149,10 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         return sbml
 
     def import_from_sbml(self, sbml):
-        """ Load from SBML
+        """ Load from SBML parameter
 
         Args:
-            sbml (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Parameter`): SBML parameter
         """
         parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = []
@@ -4108,6 +4167,13 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML parameter
+
+        Args:
+            sbml (:obj:`libsbml.Parameter`): SBML parameter
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
         # identifiers
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
 
@@ -4128,7 +4194,7 @@ class Evidence(obj_model.Model):
         temp (:obj:`float`): temperature at which the evidence was observed
         temp_units (:obj:`unit_registry.Unit`): temperature units
         ph (:obj:`float`): pH at which the evidence was observed
-        ph_units (:obj:`unit_registry.Unit): pH units
+        ph_units (:obj:`unit_registry.Unit`): pH units
         growth_media (:obj:`str`): growth media at which the evidence was observed
         condition (:obj:`str`): experimental conditions (e.g. control)
         experiment_type (:obj:`str`): type of experiment (e.g. RNA-seq)
@@ -4142,26 +4208,27 @@ class Evidence(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        compartments (:obj:`list` of :obj:`Compartment`): compartments
-        species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distributions of initial concentrations of species at the beginning of each
-            cell cycle
-        observables (:obj:`list` of :obj:`Observable`): observables
-        functions (:obj:`list` of :obj:`Function`): functions
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
-        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
-        changes (:obj:`list` of :obj:`Change`): change
-        reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
-            supports (e.g. averages supported by this and other evidence)
+
+        * submodels (:obj:`list` of :obj:`Submodel`): submodels
+        * compartments (:obj:`list` of :obj:`Compartment`): compartments
+        * species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        * species (:obj:`list` of :obj:`Species`): species
+        * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+          distributions of initial concentrations of species at the beginning of each
+          cell cycle
+        * observables (:obj:`list` of :obj:`Observable`): observables
+        * functions (:obj:`list` of :obj:`Function`): functions
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+        * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * changes (:obj:`list` of :obj:`Change`): change
+        * reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
+          supports (e.g. averages supported by this and other evidence)
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -4261,23 +4328,24 @@ class Interpretation(obj_model.Model):
         authors (:obj:`list` of :obj:`Author`): authors
 
     Related attributes:
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        compartments (:obj:`list` of :obj:`Compartment`): compartments
-        species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distributions of initial concentrations of species at the beginning of each
-            cell cycle
-        observables (:obj:`list` of :obj:`Observable`): observables
-        functions (:obj:`list` of :obj:`Function`): functions
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
-        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * submodels (:obj:`list` of :obj:`Submodel`): submodels
+        * compartments (:obj:`list` of :obj:`Compartment`): compartments
+        * species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        * species (:obj:`list` of :obj:`Species`): species
+        * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+          distributions of initial concentrations of species at the beginning of each
+          cell cycle
+        * observables (:obj:`list` of :obj:`Observable`): observables
+        * functions (:obj:`list` of :obj:`Function`): functions
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+        * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -4333,24 +4401,25 @@ class Reference(obj_model.Model):
         comments (:obj:`str`): comments
 
     Related attributes:
-        taxon (:obj:`Taxon`): taxon
-        env (:obj:`Environment`): environment
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        compartments (:obj:`list` of :obj:`Compartment`): compartments
-        species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distributions of initial concentrations of species at the beginning of
-            each cell cycle
-        observables (:obj:`list` of :obj:`Observable`): observables
-        functions (:obj:`list` of :obj:`Function`): functions
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
-        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * taxon (:obj:`Taxon`): taxon
+        * env (:obj:`Environment`): environment
+        * submodels (:obj:`list` of :obj:`Submodel`): submodels
+        * compartments (:obj:`list` of :obj:`Compartment`): compartments
+        * species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        * species (:obj:`list` of :obj:`Species`): species
+        * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
+          distributions of initial concentrations of species at the beginning of
+          each cell cycle
+        * observables (:obj:`list` of :obj:`Observable`): observables
+        * functions (:obj:`list` of :obj:`Function`): functions
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+        * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute()
@@ -4407,8 +4476,9 @@ class Author(obj_model.Model):
         comments (:obj:`str`): comments
 
     Related attributes:
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
     name = StringAttribute(min_length=1)
@@ -4510,28 +4580,28 @@ class DatabaseReference(obj_model.Model):
         id (:obj:`str`): id of database entry
 
     Related attributes:
-        model (:obj:`Model`): model
-        taxon (:obj:`Taxon`): taxon
-        env (:obj:`Environment`): environment
-        submodels (:obj:`list` of :obj:`Submodel`): submodels
-        compartments (:obj:`list` of :obj:`Compartment`): compartments
-        species_types (:obj:`list` of :obj:`SpeciesType`): species types
-        species (:obj:`list` of :obj:`Species`): species
-        distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`):
-            distributions of initial concentrations of species at the beginning of
-            each cell cycle
-        observables (:obj:`list` of :obj:`Observable`): observables
-        functions (:obj:`list` of :obj:`Function`): functions
-        reactions (:obj:`list` of :obj:`Reaction`): reactions
-        rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
-        dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
-        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
-        dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
-        stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        parameters (:obj:`list` of :obj:`Parameter`): parameters
-        references (:obj:`list` of :obj:`Reference`): references
-        authors (:obj:`list` of :obj:`Author`): authors
-        changes (:obj:`list` of :obj:`Change`): changes
+
+        * model (:obj:`Model`): model
+        * taxon (:obj:`Taxon`): taxon
+        * env (:obj:`Environment`): environment
+        * submodels (:obj:`list` of :obj:`Submodel`): submodels
+        * compartments (:obj:`list` of :obj:`Compartment`): compartments
+        * species_types (:obj:`list` of :obj:`SpeciesType`): species types
+        * species (:obj:`list` of :obj:`Species`): species
+        * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): distributions
+          of initial concentrations of species at the beginning of each cell cycle
+        * observables (:obj:`list` of :obj:`Observable`): observables
+        * functions (:obj:`list` of :obj:`Function`): functions
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
+        * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
+        * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
+        * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
+        * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
+        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * references (:obj:`list` of :obj:`Reference`): references
+        * authors (:obj:`list` of :obj:`Author`): authors
+        * changes (:obj:`list` of :obj:`Change`): changes
     """
 
     database = StringAttribute(min_length=1)
@@ -4562,8 +4632,8 @@ class DatabaseReference(obj_model.Model):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`tuple` of :obj:`DatabaseReference`, `InvalidAttribute` or `None`: tuple
-                of cleaned value and cleaning error
+            :obj:`DatabaseReference`: cleaned value
+            :obj:`InvalidAttribute`: cleaning error
         """
         if ': ' not in value:
             return (None, InvalidAttribute(cls.Meta.attributes['id'], ['Invalid format']))
