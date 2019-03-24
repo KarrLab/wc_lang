@@ -1162,28 +1162,43 @@ class Model(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`libsbml.Model`: SBML model
         """
-        annots = []
+        if self.submodels:
+            return
 
         call_libsbml(sbml_model.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml_model.setName, self.name)
-        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version'])
-        annots.append('db_refs')
         LibSbmlInterface.set_commments(self, sbml_model)
-        annots.extend(['updated', 'created'])
+
+        return sbml_model
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML model.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        if self.submodels:
+            return
+
+        annots = []
+
+        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version',
+                       'db_refs',
+                       'updated', 'created'])
 
         if self.taxon:
             annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.db_refs', 'taxon.comments'])
+
         if self.env:
             annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units',
                            'env.db_refs', 'env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
-                         + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
+                         + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml) \
                          + LibSbmlInterface.gen_authors_annotation(self) \
                          + '</wcLang:annotation></annotation>'
-        call_libsbml(sbml_model.setAnnotation, xml_annotation)
-
-        return sbml_model
+        call_libsbml(sbml.setAnnotation, xml_annotation)
 
     def import_from_sbml(self, sbml):
         """ Load from SBML model
@@ -1191,23 +1206,9 @@ class Model(obj_model.Model, SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.Model`): SBML model
         """
-        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
-        annots = []
-
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
-        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version'])
         LibSbmlInterface.get_commments(self, sbml)
-        annots.extend(['updated', 'created'])
-
-        if 'taxon.id' in parsed_annots:
-            self.taxon = Taxon()
-            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.comments'])
-        if 'env.id' in parsed_annots:
-            self.env = Environment()
-            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.comments'])
-
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships from SBML model
@@ -1217,14 +1218,23 @@ class Model(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        # identifiers
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = []
-        annots.append('db_refs')
-        if self.taxon:
-            annots.append('taxon.db_refs')
-        if self.env:
-            annots.append('env.db_refs')
+
+        # identifiers
+        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version', 'db_refs', 'updated', 'created'])
+
+        if 'taxon.id' in parsed_annots:
+            self.taxon = Taxon()
+            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.db_refs', 'taxon.comments'])
+
+        if 'env.id' in parsed_annots:
+            self.env = Environment()
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.db_refs', 'env.comments'])
+
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+
+        # authors
         LibSbmlInterface.get_authors_annotation(self, sbml, objs)
 
 
@@ -1476,18 +1486,30 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`libsbml.Model`: SBML model
         """
-        annots = []
-
         call_libsbml(sbml_model.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml_model.setName, self.name)
-        annots.extend(['framework', 'db_refs'])
         LibSbmlInterface.set_commments(self, sbml_model)
+
+        return sbml_model
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML model.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Model`): SBML model
+        """
+        annots = []
+
+        annots.extend(['framework', 'db_refs'])
 
         annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
                        'model.db_refs',
                        'model.comments', 'model.updated', 'model.created'])
+
         if self.model.taxon:
             annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.db_refs', 'model.taxon.comments'])
+
         if self.model.env:
             annots.extend(['model.env.id', 'model.env.name',
                            'model.env.temp', 'model.env.temp_units',
@@ -1495,12 +1517,10 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                            'model.env.db_refs', 'model.env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
-            + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_model) \
+            + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml) \
             + LibSbmlInterface.gen_authors_annotation(self.model) \
             + '</wcLang:annotation></annotation>'
-        call_libsbml(sbml_model.setAnnotation, xml_annotation)
-
-        return sbml_model
+        call_libsbml(sbml.setAnnotation, xml_annotation)
 
     def import_from_sbml(self, sbml):
         """ Load from SBML model
@@ -1508,28 +1528,9 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.Model`): SBML model
         """
-        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
-        annots = []
-
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
-        annots.append('framework')
         LibSbmlInterface.get_commments(self, sbml)
-
-        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
-                       'model.comments', 'model.updated', 'model.created'])
-
-        if 'model.taxon.id' in parsed_annots:
-            self.model.taxon = Taxon()
-            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.comments'])
-        if 'model.env.id' in parsed_annots:
-            self.model.env = Environment()
-            annots.extend(['model.env.id', 'model.env.name',
-                           'model.env.temp', 'model.env.temp_units',
-                           'model.env.ph', 'model.env.ph_units',
-                           'model.env.comments'])
-
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships from SBML model
@@ -1539,15 +1540,28 @@ class Submodel(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        # identifiers
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = []
-        annots.append('db_refs')
-        annots.append('model.db_refs')
-        if self.model.taxon:
-            annots.append('model.taxon.db_refs')
-        if self.model.env:
-            annots.append('model.env.db_refs')
+
+        # identifiers
+        annots.extend(['framework', 'db_refs'])
+
+        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
+                       'model.db_refs', 'model.comments', 'model.updated', 'model.created'])
+
+        if 'model.taxon.id' in parsed_annots:
+            self.model.taxon = Taxon()
+            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.db_refs', 'model.taxon.comments'])
+        if 'model.env.id' in parsed_annots:
+            self.model.env = Environment()
+            annots.extend(['model.env.id', 'model.env.name',
+                           'model.env.temp', 'model.env.temp_units',
+                           'model.env.ph', 'model.env.ph_units',
+                           'model.env.db_refs', 'model.env.comments'])
+
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+
+        # authors
         LibSbmlInterface.get_authors_annotation(self.model, sbml, objs)
 
 
@@ -1766,8 +1780,6 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
                 self.submodel.id), WcLangWarning)
             return
 
-        annots = []
-
         sbml_plugin = call_libsbml(sbml_model.getPlugin, 'fbc')
         sbml = call_libsbml(sbml_plugin.createObjective)
 
@@ -1784,6 +1796,19 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml.setName, self.name)
 
+        # comments
+        LibSbmlInterface.set_commments(self, sbml)
+
+        # return SBML objective
+        return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML objective.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Objective`): SBML objective
+        """
         # expression
         for rxn in self.expression.reactions:
             sbml_rxn_id = rxn.gen_sbml_id()
@@ -1800,16 +1825,8 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
             call_libsbml(sbml_flux_obj.setCoefficient, coeff)
 
         # units, identifiers
-        annots.extend(['units', 'reaction_rate_units', 'coefficient_units', 'db_refs'])
-
-        # comments
-        LibSbmlInterface.set_commments(self, sbml)
-
-        # annotations
+        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'db_refs']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
-        # return SBML objective
-        return sbml
 
     def import_from_sbml(self, sbml):
         """ Load from SBML objective
@@ -1817,20 +1834,12 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.Objective`): SBML objective
         """
-        annots = []
-
         # id, name
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
 
-        # units, identifiers
-        annots.extend(['units', 'reaction_rate_units', 'coefficient_units'])
-
         # comments
         LibSbmlInterface.get_commments(self, sbml)
-
-        # annotations
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships from SBML objective
@@ -1861,8 +1870,9 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         self.expression, error = DfbaObjectiveExpression.deserialize(' + '.join(expression), objs)
         assert error is None, str(error)
 
-        # identifiers
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
+        # units, identifiers
+        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'db_refs']
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
     def get_products(self, __type=None, **kwargs):
         """ Get the species produced by this objective function
@@ -2066,8 +2076,6 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the geometry cannot be exported to SBML
         """
-        annots = []
-
         sbml = call_libsbml(sbml_model.createCompartment)
 
         call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
@@ -2081,22 +2089,28 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         call_libsbml(sbml.setSize, self.mean_init_volume)
         LibSbmlInterface.set_unit(sbml.setUnits, self.init_volume_units)
         call_libsbml(sbml.setConstant, False)
-        annots.extend(['biological_type', 'physical_type',
-                       'parent_compartment',
-                       'distribution_init_volume', 'std_init_volume',
-                       'init_density'])
 
         if self.init_density:
             param_id = '__mass__' + self.gen_sbml_id()
             LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units)
 
-        if self.db_refs:
-            annots.append('db_refs')
         LibSbmlInterface.set_commments(self, sbml)
 
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
         return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML compartment.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Compartment`): SBML compartment
+        """
+        annots = ['biological_type', 'physical_type',
+                  'parent_compartment',
+                  'distribution_init_volume', 'std_init_volume',
+                  'init_density', 'db_refs']
+
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
         """ Load from SBML compartment
@@ -2107,8 +2121,6 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the geometry cannot be imported from SBML
         """
-        annots = []
-
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
 
@@ -2120,8 +2132,6 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         self.mean_init_volume = call_libsbml(sbml.getSize)
         self.init_volume_units = LibSbmlInterface.get_unit(sbml.getUnits)
-        annots.extend(['biological_type', 'physical_type',
-                       'distribution_init_volume', 'std_init_volume'])
 
         param_id = '__mass__' + self.gen_sbml_id()
         sbml_model = call_libsbml(sbml.getModel)
@@ -2131,8 +2141,6 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         LibSbmlInterface.get_commments(self, sbml)
 
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships from SBML compartment
 
@@ -2141,15 +2149,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        annots = []
-
-        # parent, density
-        annots.extend(['parent_compartment', 'init_density'])
-
-        # identifiers
-        annots.append('db_refs')
-
-        # get annotations
+        annots = ['biological_type', 'physical_type',
+                  'distribution_init_volume', 'std_init_volume',
+                  'parent_compartment', 'init_density', 'db_refs']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
@@ -2371,22 +2373,12 @@ class Species(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`libsbml.Species`: SBML species
         """
-        annots = []
-
         sbml = call_libsbml(sbml_model.createSpecies)
         sbml.initDefaults()  # isn't wrapped in call_libsbml because it returns None
 
         # id, name
         call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml.setName, self.name)
-
-        # species type, compartment
-        annots.extend(['species_type.id', 'species_type.name',
-                       'species_type.structure', 'species_type.empirical_formula',
-                       'species_type.molecular_weight', 'species_type.charge',
-                       'species_type.type', 'species_type.db_refs',
-                       'species_type.comments'])
-        call_libsbml(sbml.setCompartment, self.compartment.gen_sbml_id())
 
         # initial concentration
         if self.distribution_init_concentration:
@@ -2401,28 +2393,42 @@ class Species(obj_model.Model, SbmlModelMixin):
                     * scipy.constants.Avogadro \
                     * prefix
             call_libsbml(sbml.setInitialAmount, init_amount)
-        annots.extend(['distribution_init_concentration.id',
-                       'distribution_init_concentration.name',
-                       'distribution_init_concentration.distribution',
-                       'distribution_init_concentration.mean',
-                       'distribution_init_concentration.std',
-                       'distribution_init_concentration.units',
-                       'distribution_init_concentration.db_refs',
-                       'distribution_init_concentration.comments'])
 
         # units
         LibSbmlInterface.set_unit(sbml.setSubstanceUnits, self.units)
         LibSbmlInterface.call_libsbml(sbml.setHasOnlySubstanceUnits, True)
 
         # comments
-        if self.db_refs:
-            annots.append('db_refs')
         LibSbmlInterface.set_commments(self, sbml)
 
-        # annotations
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
         return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML species.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Species`): SBML species
+        """
+        # compartment
+        call_libsbml(sbml.setCompartment, self.compartment.gen_sbml_id())
+
+        # species type, initial concentration, identifiers
+        annots = ['species_type.id', 'species_type.name',
+                  'species_type.structure', 'species_type.empirical_formula',
+                  'species_type.molecular_weight', 'species_type.charge',
+                  'species_type.type', 'species_type.db_refs',
+                  'species_type.comments',
+                  'distribution_init_concentration.id',
+                  'distribution_init_concentration.name',
+                  'distribution_init_concentration.distribution',
+                  'distribution_init_concentration.mean',
+                  'distribution_init_concentration.std',
+                  'distribution_init_concentration.units',
+                  'distribution_init_concentration.db_refs',
+                  'distribution_init_concentration.comments',
+                  'db_refs']
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
         """ Load from SBML species
@@ -2430,12 +2436,31 @@ class Species(obj_model.Model, SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.Species`): SBML species
         """
-        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
-        annots = []
-
         # id, name
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
+
+        # units
+        self.units = LibSbmlInterface.get_unit(sbml.getSubstanceUnits)
+
+        # comments
+        LibSbmlInterface.get_commments(self, sbml)
+
+    def import_relations_from_sbml(self, sbml, objs):
+        """ Load relationships from SBML species
+
+        Args:
+            sbml (:obj:`libsbml.Species`): SBML species
+            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
+                map the ids of WC-Lang objects to WC-Lang objects
+        """
+        self.compartment = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
+
+        # identifiers
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
+        annots = []
+
+        annots.extend(['db_refs', 'species_type.db_refs', 'distribution_init_concentration.db_refs'])
 
         # species type
         self.species_type = self.model.species_types.get_or_create(
@@ -2456,27 +2481,6 @@ class Species(obj_model.Model, SbmlModelMixin):
                            'distribution_init_concentration.units',
                            'distribution_init_concentration.comments'])
 
-        # units
-        self.units = LibSbmlInterface.get_unit(sbml.getSubstanceUnits)
-
-        # comments
-        LibSbmlInterface.get_commments(self, sbml)
-
-        # annotations
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
-    def import_relations_from_sbml(self, sbml, objs):
-        """ Load relationships from SBML species
-
-        Args:
-            sbml (:obj:`libsbml.Species`): SBML species
-            objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
-                map the ids of WC-Lang objects to WC-Lang objects
-        """
-        self.compartment = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
-
-        # identifiers
-        annots = ['db_refs', 'species_type.db_refs', 'distribution_init_concentration.db_refs']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
@@ -2882,7 +2886,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
-        
+
         * stop_condition (:obj:`StopCondition`): stop condition
     """
 
@@ -2970,7 +2974,7 @@ class StopCondition(obj_model.Model):
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
-        
+
         * expressions (:obj:`Expressions`): expressions
     """
     id = SlugAttribute()
@@ -3242,8 +3246,6 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the reaction has a backward rate law which cannot be exported to SBML
         """
-        annots = {}
-
         # create SBML reaction in SBML document
         sbml_rxn = call_libsbml(sbml_model.createReaction)
 
@@ -3251,25 +3253,11 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         call_libsbml(sbml_rxn.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml_rxn.setName, self.name)
 
-        # participants
-        for participant in self.participants:
-            if participant.coefficient < 0:
-                sbml_part = call_libsbml(sbml_rxn.createReactant)
-                call_libsbml(sbml_part.setStoichiometry, -participant.coefficient)
-            elif 0 < participant.coefficient:
-                sbml_part = call_libsbml(sbml_rxn.createProduct)
-                call_libsbml(sbml_part.setStoichiometry, participant.coefficient)
-            call_libsbml(sbml_part.setSpecies, participant.species.gen_sbml_id())
-            call_libsbml(sbml_part.setConstant, True)
-
         # reversibility
         if self.reversible and self.rate_laws.get_one(direction=RateLawDirection.backward) \
                 and not are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
             raise ValueError('Reversible reactions with backward rate laws must be split before export to SBML')
         call_libsbml(sbml_rxn.setReversible, self.reversible)
-
-        # rate_units
-        annots['rate_units'] = 'rate_units'
 
         # dFBA flux bounds
         if are_terms_equivalent(self.submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
@@ -3285,9 +3273,41 @@ class Reaction(obj_model.Model, SbmlModelMixin):
                 call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
 
         # identifiers, comments
-        if self.db_refs:
-            annots['db_refs'] = 'db_refs'
         LibSbmlInterface.set_commments(self, sbml_rxn)
+
+        # forward rate law
+        rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
+        if rl:
+            rl.export_to_sbml(sbml_model)
+
+        # return reaction
+        return sbml_rxn
+
+    def export_relations_to_sbml(self, sbml_model, sbml_rxn):
+        """ Add relationships to/from object to SBML reaction.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml_rxn (:obj:`libsbml.Reaction`): SBML reaction
+        """
+        annots = {}
+
+        # participants
+        for participant in self.participants:
+            if participant.coefficient < 0:
+                sbml_part = call_libsbml(sbml_rxn.createReactant)
+                call_libsbml(sbml_part.setStoichiometry, -participant.coefficient)
+            elif 0 < participant.coefficient:
+                sbml_part = call_libsbml(sbml_rxn.createProduct)
+                call_libsbml(sbml_part.setStoichiometry, participant.coefficient)
+            call_libsbml(sbml_part.setSpecies, participant.species.gen_sbml_id())
+            call_libsbml(sbml_part.setConstant, True)
+
+        # rate_units
+        annots['rate_units'] = 'rate_units'
+
+        # identifiers
+        annots['db_refs'] = 'db_refs'
 
         # forward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
@@ -3295,8 +3315,6 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             modifiers = set(rl.expression.species).difference(set(part.species for part in self.participants))
             for modifier in modifiers:
                 call_libsbml(sbml_rxn.addModifier, call_libsbml(sbml_model.getSpecies, modifier.gen_sbml_id()))
-
-            rl.export_to_sbml(sbml_rxn)
 
         # backward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
@@ -3312,24 +3330,15 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         # annotations
         LibSbmlInterface.set_annotations(self, annots, sbml_rxn)
 
-        # return reaction
-        return sbml_rxn
-
     def import_from_sbml(self, sbml_rxn):
         """ Load from SBML reaction
 
         Args:
             sbml (:obj:`libsbml.Reaction`): SBML reaction
         """
-        parsed_annots = LibSbmlInterface.parse_annotations(sbml_rxn)
-        annots = {}
-
         # id, name
         self.id = self.parse_sbml_id(call_libsbml(sbml_rxn.getIdAttribute))
         self.name = call_libsbml(sbml_rxn.getName)
-
-        # rate units
-        annots['rate_units'] = 'rate_units'
 
         # reversibility
         self.reversible = call_libsbml(sbml_rxn.getReversible)
@@ -3357,19 +3366,6 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             rl.model = self.model
             rl.import_from_sbml(call_libsbml(sbml_rxn.getKineticLaw))
 
-        # backward rate law
-        if 'rate_laws.backward.id' in parsed_annots:
-            rl = self.rate_laws.get_or_create(direction=RateLawDirection.backward)
-            rl.model = self.model
-            annots['rate_laws.backward.id'] = (('rate_laws', {'direction': rl.direction}), 'id')
-            annots['rate_laws.backward.name'] = (('rate_laws', {'direction': rl.direction}), 'name')
-            annots['rate_laws.backward.type'] = (('rate_laws', {'direction': rl.direction}), 'type')
-            annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
-            annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
-
-        # annotations
-        LibSbmlInterface.get_annotations(self, annots, sbml_rxn)
-
     def import_relations_from_sbml(self, sbml_rxn, objs):
         """ Load relationships from SBML reaction
 
@@ -3378,6 +3374,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml_rxn)
         annots = {}
 
         # submodel
@@ -3393,6 +3390,9 @@ class Reaction(obj_model.Model, SbmlModelMixin):
                 part = species.species_coefficients.get_or_create(coefficient=coeff)
                 self.participants.append(part)
 
+        # rate units
+        annots['rate_units'] = 'rate_units'
+
         # identifiers
         annots['db_refs'] = 'db_refs'
 
@@ -3402,9 +3402,15 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             rl.import_relations_from_sbml(call_libsbml(sbml_rxn.getKineticLaw), objs)
 
         # backward rate law
-        rl = self.rate_laws.get_one(direction=RateLawDirection.backward)
-        if rl:
+        if 'rate_laws.backward.id' in parsed_annots:
+            rl = self.rate_laws.get_or_create(direction=RateLawDirection.backward)
+            rl.model = self.model
+            annots['rate_laws.backward.id'] = (('rate_laws', {'direction': rl.direction}), 'id')
+            annots['rate_laws.backward.name'] = (('rate_laws', {'direction': rl.direction}), 'name')
+            annots['rate_laws.backward.type'] = (('rate_laws', {'direction': rl.direction}), 'type')
             annots['rate_laws.backward.expression'] = (('rate_laws', {'direction': RateLawDirection.backward}), 'expression')
+            annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
+            annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
             annots['rate_laws.backward.db_refs'] = (('rate_laws', {'direction': rl.direction}), 'db_refs')
 
         # get annotations
@@ -3729,42 +3735,52 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
             return InvalidObject(self, errors)
         return None
 
-    def export_to_sbml(self, sbml_rxn):
+    def export_to_sbml(self, sbml_model):
         """ Add this rate law to a SBML reaction.
 
         Args:
-            sbml_rxn (:obj:`libsbml.Reaction`): SBML reaction
+            sbml_model (:obj:`libsbml.Model`): SBML model
 
         Returns:
             :obj:`libsbml.KineticLaw`: SBML kinetic law
         """
-        annots = []
+        if self.direction != RateLawDirection.forward:
+            return
 
-        # create SBML reaction in SBML document
+        sbml_rxn = sbml_model.getReaction(self.reaction.gen_sbml_id())
+        if not sbml_rxn or sbml_rxn.getKineticLaw():
+            return
         sbml = call_libsbml(sbml_rxn.createKineticLaw)
 
         # id, name
         call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml.setName, self.name)
 
-        # type
-        annots.append('type')
+        # comments
+        LibSbmlInterface.set_commments(self, sbml)
+
+        # return SBML kinetic law
+        return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML kinetic law.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.KineticLaw`): SBML kinetic law
+        """
+        if self.direction != RateLawDirection.forward:
+            return
+
+        sbml_rxn = call_libsbml(sbml_model.getReaction, self.reaction.gen_sbml_id())
+        sbml = call_libsbml(sbml_rxn.getKineticLaw)
 
         # expression
         LibSbmlInterface.set_math(sbml.setMath, self.expression)
 
-        # units
-        annots.append('units')
-
-        # comments
-        annots.append('db_refs')
-        LibSbmlInterface.set_commments(self, sbml)
-
-        # annotations
+        # type, units, identifiers
+        annots = ['type', 'units', 'db_refs']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
-        # return SBML kinetic law
-        return sbml
 
     def import_from_sbml(self, sbml):
         """ Load from SBML kinetic law
@@ -3978,8 +3994,6 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`libsbml.Reaction`: SBML reaction
         """
-        annots = []
-
         # create SBML reaction in SBML document
         sbml_rxn = call_libsbml(sbml_model.createReaction)
         call_libsbml(sbml_rxn.setReversible, False)
@@ -3994,6 +4008,19 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         call_libsbml(sbml_rxn.setIdAttribute, self.gen_sbml_id())
         call_libsbml(sbml_rxn.setName, self.name)
 
+        # comments
+        LibSbmlInterface.set_commments(self, sbml_rxn)
+
+        # return SBML reaction
+        return sbml_rxn
+
+    def export_relations_to_sbml(self, sbml_model, sbml_rxn):
+        """ Add relationships to/from object to SBML reaction.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml_rxn (:obj:`libsbml.Reaction`): SBML reaction
+        """
         # participants
         for dfba_obj_species in self.dfba_obj_species:
             if dfba_obj_species.value < 0:
@@ -4013,16 +4040,8 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
             LibSbmlInterface.set_commments(dfba_obj_species, sbml_part)
 
         # units, identifiers
-        annots.extend(['units', 'cell_size_units', 'db_refs'])
-
-        # comments
-        LibSbmlInterface.set_commments(self, sbml_rxn)
-
-        # annotations
+        annots = ['units', 'cell_size_units', 'db_refs']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_rxn)
-
-        # return SBML reaction
-        return sbml_rxn
 
     def import_from_sbml(self, sbml_rxn):
         """ Load from SBML reaction
@@ -4136,17 +4155,23 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`libsbml.Parameter`: SBML parameter
         """
-        annots = []
-
         sbml_id = self.gen_sbml_id()
         sbml = LibSbmlInterface.create_parameter(sbml_model, sbml_id, self.value, self.units,
                                                  name=self.name)
-        annots.extend(['type', 'std', 'db_refs'])
+
         LibSbmlInterface.set_commments(self, sbml)
 
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
         return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML parameter.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.Parameter`): SBML parameter
+        """
+        annots = ['type', 'std', 'db_refs']
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
         """ Load from SBML parameter
@@ -4154,17 +4179,11 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.Parameter`): SBML parameter
         """
-        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
-        annots = []
-
         self.id = self.parse_sbml_id(call_libsbml(sbml.getIdAttribute))
         self.name = call_libsbml(sbml.getName)
         self.value = call_libsbml(sbml.getValue)
         self.units = LibSbmlInterface.get_unit(sbml.getUnits)
-        annots.extend(['type', 'std'])
         LibSbmlInterface.get_commments(self, sbml)
-
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships from SBML parameter
@@ -4174,8 +4193,8 @@ class Parameter(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        # identifiers
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
+        annots = ['type', 'std', 'db_refs']
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
 class Evidence(obj_model.Model):
@@ -4456,7 +4475,7 @@ class Reference(obj_model.Model):
         sbml_attrs = ()
 
 
-class Author(obj_model.Model):
+class Author(obj_model.Model, SbmlModelMixin):
     """ An author of a model
 
     Attributes:
@@ -4513,7 +4532,7 @@ class Author(obj_model.Model):
                       'db_refs', 'comments')
 
 
-class Change(obj_model.Model):
+class Change(obj_model.Model, SbmlModelMixin):
     """ A change to a model
 
     Attributes:
@@ -4572,7 +4591,7 @@ class Change(obj_model.Model):
         sbml_attrs = ()
 
 
-class DatabaseReference(obj_model.Model):
+class DatabaseReference(obj_model.Model, SbmlModelMixin):
     """ Reference to a source database entry
 
     Attributes:

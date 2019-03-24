@@ -45,6 +45,7 @@ class SbmlIoTestCase(unittest.TestCase):
 
             sbml_doc = sbml_io.SbmlExporter.run(submodel)
             submodel_2 = sbml_io.SbmlImporter.run(sbml_doc)
+            print(submodel_2.difference(submodel))
             self.assertTrue(submodel_2.is_equal(submodel))
             all_submodels_2.append(submodel_2)
 

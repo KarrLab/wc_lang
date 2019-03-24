@@ -63,6 +63,15 @@ class SbmlModelMixin(object):
         """
         pass  # pragma: no cover
 
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML object.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.SBase`): SBML object
+        """
+        pass  # pragma: no cover
+
     def import_from_sbml(self, sbml):
         """ Load object from SBML object
 
@@ -94,24 +103,28 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
         Returns:
             :obj:`libsbml.AssignmentRule`: SBML assignment rule
         """
-        annots = []
-
         sbml = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
 
         LibSbmlInterface.call_libsbml(sbml.setIdAttribute, self.gen_sbml_id())
         LibSbmlInterface.call_libsbml(sbml.setName, self.name)
-        LibSbmlInterface.set_math(sbml.setMath, self.expression)
 
         param_id = '__param__' + self.gen_sbml_id()
         LibSbmlInterface.create_parameter(sbml_model, param_id, None, self.units, constant=False)
         LibSbmlInterface.call_libsbml(sbml.setVariable, param_id)
 
-        annots.extend(['db_refs'])
         LibSbmlInterface.set_commments(self, sbml)
 
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
-
         return sbml
+
+    def export_relations_to_sbml(self, sbml_model, sbml):
+        """ Add relationships to/from object to SBML object.
+
+        Args:
+            sbml_model (:obj:`libsbml.Model`): SBML model
+            sbml (:obj:`libsbml.SBase`): SBML object
+        """
+        LibSbmlInterface.set_math(sbml.setMath, self.expression)
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml)
 
     def import_from_sbml(self, sbml):
         """ Load expression from SBML assignment rule
@@ -119,8 +132,6 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
         Args:
             sbml (:obj:`libsbml.AssignmentRule`): SBML assignment rule
         """
-        annots = []
-
         self.id = self.parse_sbml_id(LibSbmlInterface.call_libsbml(sbml.getIdAttribute))
         self.name = LibSbmlInterface.call_libsbml(sbml.getName)
 
@@ -130,8 +141,6 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
             LibSbmlInterface.call_libsbml(sbml_model.getParameter, param_id))
 
         LibSbmlInterface.get_commments(self, sbml)
-
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_relations_from_sbml(self, sbml, objs):
         """ Load relationships to/from expression from SBML assignment rule
@@ -157,6 +166,8 @@ class LibSbmlInterface(object):
     libSBML method calls to enable more compact usage.
     '''
 
+    XML_NAMESPACE = 'https://www.wholecell.org/ns/wc_lang'
+
     @classmethod
     def create_doc(cls, level=3, version=2, packages=None):
         """ Create an SBMLDocument that, optionally, uses package(s).
@@ -173,11 +184,11 @@ class LibSbmlInterface(object):
         packages = packages or {}
 
         # create name spaces for SBML document
-        namespaces = [libsbml.SBMLNamespaces, level, version]
+        namespaces = [level, version]
         for package_id, package_version in packages.items():
             namespaces.append(package_id)
             namespaces.append(package_version)
-        sbml_ns = cls.call_libsbml(*namespaces)
+        sbml_ns = cls.call_libsbml(libsbml.SBMLNamespaces, *namespaces)
         cls.call_libsbml(sbml_ns.addNamespace, cls.XML_NAMESPACE, 'wcLang')
 
         # create SBML document
@@ -560,7 +571,7 @@ class LibSbmlInterface(object):
         """ Parse a parameter from an SBML parameter.
 
         Args:
-            sbml_parameter (:obj:`libSBML.Parameter`): SBML parameter
+            sbml_parameter (:obj:`libsbml.Parameter`): SBML parameter
 
         Returns:
             :obj:`str`: id
@@ -576,7 +587,7 @@ class LibSbmlInterface(object):
 
     @classmethod
     def set_math(cls, set_math_func, expression):
-        """ Set the math of an SBMl object
+        """ Set the math of an SBML object
 
         Args:
             set_math_func (:obj:`callable`): function to set the math of an SBML object
@@ -605,7 +616,7 @@ class LibSbmlInterface(object):
 
     @classmethod
     def get_math(cls, get_math_func, Expression, model_objs):
-        """ Get the math of an SBMl object
+        """ Get the math of an SBML object
 
         Args:
             get_math_func (:obj:`callable`): function to get the math of an SBML object
@@ -631,8 +642,6 @@ class LibSbmlInterface(object):
         expression, error = Expression.deserialize(str_formula, model_objs)
         assert error is None, str(error)
         return expression
-
-    XML_NAMESPACE = 'https://www.wholecell.org/ns/wc_lang'
 
     @classmethod
     def set_annotations(cls, model_obj, nested_attr_paths, sbml_obj):
@@ -928,7 +937,8 @@ class LibSbmlInterface(object):
                         print("libSBML returns:", rc)
                     warnings.warn("call_libsbml: unknown error code {} returned by '{}'."
                                   "\nPerhaps an integer value is being returned; if so, to avoid this warning "
-                                  "pass 'returns_int=True' to call_libsbml().".format(error_code, call_str), wc_lang.core.WcLangWarning)
+                                  "pass 'returns_int=True' to call_libsbml().".format(error_code, call_str),
+                                  wc_lang.core.WcLangWarning)
                     return rc
                 else:
                     raise LibSbmlError("LibSBML returned error code '{}' when executing '{}'."
@@ -972,54 +982,70 @@ class LibSbmlInterface(object):
         return text
 
     @classmethod
-    def raise_if_error(cls, sbml_obj, message):
+    def raise_if_error(cls, sbml_doc, message):
         """ Raise an error, if an SBML object has errors
 
         Args:
-            sbml_obj (:obj:`libSBML.SBase`): SBML object
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
             message (:obj:`str`): summary of error
 
         Raises:
             :obj:`LibSbmlError`: if the SBML object has errors
         """
-        n_errors = cls.call_libsbml(sbml_obj.getNumErrors, returns_int=True)
-        if n_errors > 0:
-            errors = []
-            warns = []
-            for i_error in range(n_errors):
-                error = cls.call_libsbml(sbml_obj.getError, i_error)
-                msg = '\n  {}: {}: {}'.format(cls.call_libsbml(error.getSeverityAsString),
-                                              cls.call_libsbml(error.getShortMessage),
-                                              cls.call_libsbml(error.getMessage))
-                if cls.call_libsbml(error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
-                    warns.append(msg)
-                else:
-                    errors.append(msg)
+        errors, warns, log_errors, log_warns = cls.get_errors_warnings(sbml_doc)
 
-            sbml_doc = cls.call_libsbml(sbml_obj.getSBMLDocument)
-            error_log = cls.call_libsbml(sbml_doc.getErrorLog)
-            n_log_errors = cls.call_libsbml(error_log.getNumErrors, returns_int=True)
-            log_errors = []
-            log_warns = []
-            for i_log_error in range(n_log_errors):
-                log_error = cls.call_libsbml(error_log.getError, i_log_error)
-                msg = '\n  {}: {}: {}'.format(cls.call_libsbml(log_error.getSeverityAsString),
-                                              cls.call_libsbml(log_error.getShortMessage),
-                                              cls.call_libsbml(log_error.getMessage))
-                if cls.call_libsbml(log_error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
-                    log_warns.append(msg)
-                else:
-                    log_errors.append(msg)
+        if warns or log_warns:
+            warnings.warn('{}:{}{}'.format(message,
+                                           sbml_doc.__class__.__name__,
+                                           ''.join(warns),
+                                           ''.join(log_warns)),
+                          wc_lang.core.WcLangWarning)
 
-            if warns or log_warns:
-                warnings.warn('{}:{}{}'.format(message,
-                                               sbml_obj.__class__.__name__,
-                                               ''.join(warns),
-                                               ''.join(log_warns)),
-                              wc_lang.core.WcLangWarning)
+        if errors or log_errors:
+            raise LibSbmlError('{}:{}{}'.format(message,
+                                                sbml_doc.__class__.__name__,
+                                                ''.join(errors),
+                                                ''.join(log_errors)))
 
-            if errors or log_errors:
-                raise LibSbmlError('{}:{}{}'.format(message,
-                                                    sbml_obj.__class__.__name__,
-                                                    ''.join(errors),
-                                                    ''.join(log_errors)))
+    @classmethod
+    def get_errors_warnings(cls, sbml_doc):
+        """ Get libSBML errors and warnings
+
+        Args:
+            sbml_doc (:obj:`libsbml.SBMLDocument`): SBML document
+
+        Returns:
+            :obj:`list` of :obj:`str`: error messages
+            :obj:`list` of :obj:`str`: warning messages
+            :obj:`list` of :obj:`str`: log error messages
+            :obj:`list` of :obj:`str`: log warning messages
+        """
+        errors = []
+        warns = []
+        n_errors = cls.call_libsbml(sbml_doc.getNumErrors, returns_int=True)
+        for i_error in range(n_errors):
+            error = cls.call_libsbml(sbml_doc.getError, i_error)
+            msg = '\n  {}: {}: {}'.format(cls.call_libsbml(error.getSeverityAsString),
+                                          cls.call_libsbml(error.getShortMessage),
+                                          cls.call_libsbml(error.getMessage))
+            if cls.call_libsbml(error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
+                warns.append(msg)
+            else:
+                errors.append(msg)
+
+        sbml_doc = cls.call_libsbml(sbml_doc.getSBMLDocument)
+        error_log = cls.call_libsbml(sbml_doc.getErrorLog)
+        n_log_errors = cls.call_libsbml(error_log.getNumErrors, returns_int=True)
+        log_errors = []
+        log_warns = []
+        for i_log_error in range(n_log_errors):
+            log_error = cls.call_libsbml(error_log.getError, i_log_error)
+            msg = '\n  {}: {}: {}'.format(cls.call_libsbml(log_error.getSeverityAsString),
+                                          cls.call_libsbml(log_error.getShortMessage),
+                                          cls.call_libsbml(log_error.getMessage))
+            if cls.call_libsbml(log_error.getSeverity, returns_int=True) in [libsbml.LIBSBML_SEV_INFO, libsbml.LIBSBML_SEV_WARNING]:
+                log_warns.append(msg)
+            else:
+                log_errors.append(msg)
+
+        return (errors, warns, log_errors, log_warns)

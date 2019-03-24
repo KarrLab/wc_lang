@@ -189,35 +189,22 @@ class SbmlExporter(object):
             if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
                 packages['fbc'] = 2
 
-        # Create an SBML document
+        # create an SBML document
         sbml_doc = LibSbmlInterface.create_doc(packages=packages)
 
-        # Create a SBML model
+        # create a SBML model
         sbml_model = LibSbmlInterface.init_model(model, sbml_doc, packages=packages)
 
-        # get model objects, grouped by type
-        model_objs = group_objects_by_model(model.get_related())
-
         # add objects to SBML model
-        # dependencies among libSBML model classes constrain the order
-        model_order = []
-        if model.submodels:
-            model_order.append(wc_lang.core.Submodel)
-        else:
-            model_order.append(wc_lang.core.Model)
-        model_order.extend([
-            wc_lang.core.Compartment,
-            wc_lang.core.Parameter,
-            wc_lang.core.Species,
-            wc_lang.core.Observable,
-            wc_lang.core.Function,
-            wc_lang.core.Reaction,
-            wc_lang.core.DfbaObjReaction,
-            wc_lang.core.DfbaObjective,
-        ])
-        for model in model_order:
-            for obj in model_objs.get(model, []):
-                obj.export_to_sbml(sbml_model)
+        related_objs = model.get_related()
+        sbml_objs = []
+        for obj in related_objs:
+            sbml_obj = obj.export_to_sbml(sbml_model)
+            sbml_objs.append(sbml_obj)
+
+        # add object relationships to SBML
+        for obj, sbml_obj in zip(related_objs, sbml_objs):
+            obj.export_relations_to_sbml(sbml_model, sbml_obj)
 
         # verify document is compatible with SBML, valid SBML, and consistent
         LibSbmlInterface.verify_doc(sbml_doc)
