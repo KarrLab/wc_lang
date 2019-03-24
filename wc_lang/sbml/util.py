@@ -10,7 +10,7 @@
 :License: MIT
 """
 
-from wc_utils.util.units import unit_registry
+from wc_utils.util.units import unit_registry, are_units_equivalent
 import libsbml
 import math
 import obj_model
@@ -366,6 +366,22 @@ class LibSbmlInterface(object):
         scale = int(math.floor(math.log10(magnitude)))
         multiplier = magnitude / pow(10, scale)
 
+        if are_units_equivalent(unit, unit_registry.parse_units('molecule / mole')):
+            scale = 0
+            multiplier = 1.
+            root_units = [
+                ('item', 1.), 
+                ('mole', -1.),
+                ]
+
+        if are_units_equivalent(unit, unit_registry.parse_units('1 / molecule / second')):
+            scale = 0
+            multiplier = 1.
+            root_units = [
+                ('item', -1.), 
+                ('second', -1.),
+                ]
+
         for i_root_unit, (kind, exponent) in enumerate(root_units):
             if i_root_unit == 0:
                 unit_scale = scale
@@ -586,7 +602,7 @@ class LibSbmlInterface(object):
         return (id, name, value, units)
 
     @classmethod
-    def set_math(cls, set_math_func, expression):
+    def set_math(cls, set_math_func, expression, units_transform=None):
         """ Set the math of an SBML object
 
         Args:
@@ -594,6 +610,8 @@ class LibSbmlInterface(object):
             expression (:obj:`obj_model.expression.Expression`): expression
         """
         str_formula = expression._parsed_expression.get_str(cls._obj_model_token_to_str, with_units=True, number_units=' dimensionless')
+        if units_transform:
+            str_formula = units_transform.format(str_formula)
         sbml_formula = cls.call_libsbml(libsbml.parseL3Formula, str_formula)
         cls.call_libsbml(set_math_func, sbml_formula)
 
@@ -615,7 +633,7 @@ class LibSbmlInterface(object):
             return token.model.gen_sbml_id()
 
     @classmethod
-    def get_math(cls, get_math_func, Expression, model_objs):
+    def get_math(cls, get_math_func, Expression, model_objs, units_transform=None):
         """ Get the math of an SBML object
 
         Args:
@@ -629,6 +647,8 @@ class LibSbmlInterface(object):
         """
         sbml_formula = cls.call_libsbml(get_math_func)
         str_formula = cls.call_libsbml(libsbml.formulaToL3String, sbml_formula)
+        if units_transform:
+            str_formula = units_transform(str_formula)
         str_formula = str_formula \
             .replace('__mass__Compartment__', 'Compartment__') \
             .replace('__param__Observable__', 'Observable__') \
