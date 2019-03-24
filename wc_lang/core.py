@@ -2092,7 +2092,20 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         if self.init_density:
             param_id = '__mass__' + self.gen_sbml_id()
-            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units)
+            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units, constant=False)
+
+            rule = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
+            rule_id = '__mass_rule__' + self.gen_sbml_id()
+            LibSbmlInterface.call_libsbml(rule.setIdAttribute, rule_id)
+            LibSbmlInterface.call_libsbml(rule.setVariable, param_id)
+            formula_parts = []
+            for species in self.species:
+                formula_part = '{} * {} gram'.format(species.gen_sbml_id(), species.species_type.molecular_weight)
+                formula_parts.append(formula_part)
+            str_formula = '({}) / {} {}'.format(' + '.join(formula_parts), scipy.constants.Avogadro,
+                                                LibSbmlInterface.gen_unit_id(Species.Meta.attributes['units'].choices[0]))
+            sbml_formula = call_libsbml(libsbml.parseL3Formula, str_formula)
+            call_libsbml(rule.setMath, sbml_formula)
 
         LibSbmlInterface.set_commments(self, sbml)
 
