@@ -2092,7 +2092,8 @@ class Compartment(obj_model.Model, SbmlModelMixin):
 
         if self.init_density:
             param_id = '__mass__' + self.gen_sbml_id()
-            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume * self.init_density.value, self.mass_units, constant=False)
+            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume *
+                                              self.init_density.value, self.mass_units, constant=False)
 
             rule = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
             rule_id = '__mass_rule__' + self.gen_sbml_id()
@@ -3291,7 +3292,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         # forward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
         if rl:
-            rl.export_to_sbml(sbml_model) # because law = libsbml.KineticLaw(3, 2); reaction.setKineticLaw(law); doesn't work
+            rl.export_to_sbml(sbml_model)  # because law = libsbml.KineticLaw(3, 2); reaction.setKineticLaw(law); doesn't work
 
         # return reaction
         return sbml_rxn
@@ -3789,7 +3790,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         sbml = call_libsbml(sbml_rxn.getKineticLaw)
 
         # expression
-        LibSbmlInterface.set_math(sbml.setMath, self.expression, units_transform='({}) * 1 item')
+        LibSbmlInterface.set_math(sbml.setMath, self.expression, units_transform='({}) * 1 mole')
 
         # type, units, identifiers
         annots = ['type', 'units', 'db_refs']
@@ -3829,7 +3830,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         """
         # expression
         def units_transform(formula):
-            formula = re.sub(r'^(.*?) \* 1 item$', r'\1', formula)
+            formula = re.sub(r'^(.*?) \* 1 mole$', r'\1', formula)
             if formula[0] == '(' and formula[-1] == ')':
                 formula = formula[1:-1]
             return formula

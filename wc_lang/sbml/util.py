@@ -17,6 +17,7 @@ import obj_model
 import obj_model.expression
 import obj_model.units
 import re
+import scipy
 import types
 import warnings
 import wc_lang.core
@@ -202,7 +203,7 @@ class LibSbmlInterface(object):
         return sbml_doc
 
     @classmethod
-    def verify_doc(cls, sbml_doc, level=3, version=2, strict_units=False):
+    def verify_doc(cls, sbml_doc, level=3, version=2, strict_units=True):
         """ Verify that an SBML document is valid, and raise an exception if the document is not valid
 
         * SBML-compatible
@@ -247,7 +248,7 @@ class LibSbmlInterface(object):
         cls.raise_if_error(sbml_doc, 'Document is invalid SBML')
 
     @classmethod
-    def verify_doc_is_consistent(cls, sbml_doc, strict_units=False):
+    def verify_doc_is_consistent(cls, sbml_doc, strict_units=True):
         """ Check that an SBML document is consistent, 
         and raise an exception if the document is not consistent
 
@@ -361,26 +362,42 @@ class LibSbmlInterface(object):
         cls.call_libsbml(unit_def.setIdAttribute, id)
 
         unit_registry = unit._REGISTRY
-        magnitude, root_units = unit_registry.parse_expression(str(unit)).to_root_units().to_tuple()
 
+        original_unit = unit
+
+        quant = unit_registry.parse_expression(str(unit))
+
+        mag, bases = quant.to_reduced_units().to_tuple()
+        mole_bases = []
+        has_molecule = False
+        for base, exp in bases:
+            if base == 'molecule':
+                has_molecule = True
+                base = 'mole'
+            mole_bases.append((base, exp))
+        mole_bases = tuple(mole_bases)
+        if has_molecule:
+            quant = unit_registry.Quantity.from_tuple((mag, mole_bases))
+
+        magnitude, root_units = quant.to_root_units().to_tuple()
         scale = int(math.floor(math.log10(magnitude)))
         multiplier = magnitude / pow(10, scale)
 
-        if are_units_equivalent(unit, unit_registry.parse_units('molecule / mole')):
-            scale = 0
-            multiplier = 1.
-            root_units = [
-                ('item', 1.), 
-                ('mole', -1.),
-                ]
+        if not root_units:
+            root_units = [('dimensionless', 1.), ]
 
-        if are_units_equivalent(unit, unit_registry.parse_units('1 / molecule / second')):
+        if are_units_equivalent(original_unit, unit_registry.parse_units('molecule / mole')):
+            scale = 0
+            multiplier = 1.
+            root_units = [('dimensionless', 1.), ]
+
+        elif are_units_equivalent(original_unit, unit_registry.parse_units('M')):
             scale = 0
             multiplier = 1.
             root_units = [
-                ('item', -1.), 
-                ('second', -1.),
-                ]
+                ('mole', 1.),
+                ('liter', -1.),
+            ]
 
         for i_root_unit, (kind, exponent) in enumerate(root_units):
             if i_root_unit == 0:
@@ -389,6 +406,7 @@ class LibSbmlInterface(object):
             else:
                 unit_scale = 0
                 unit_multiplier = 1.
+
             cls.create_base_unit(id, unit_def, kind, exponent=exponent, scale=unit_scale, multiplier=unit_multiplier)
 
         return unit_def
@@ -469,7 +487,7 @@ class LibSbmlInterface(object):
         elif kind == 'meter':
             kind = 'metre'
         elif kind == 'molecule':
-            kind = 'item'
+            kind = 'mole'
 
         if to_sbml_base_units:
             if kind == 'gDCW':
@@ -497,7 +515,7 @@ class LibSbmlInterface(object):
                 raise LibSbmlError('{} units must be set'.format(type))
 
             sbml_unit_id = getattr(sbml_model, 'get' + type + 'Units')()
-            if sbml_unit_id == 'item':
+            if sbml_unit_id == 'mole':
                 units[sbml_unit_id] = unit_registry.parse_expression('molecule')
             else:
                 units[sbml_unit_id] = unit_registry.parse_expression(sbml_unit_id)
@@ -508,10 +526,10 @@ class LibSbmlInterface(object):
             LibSbmlError('Length units must be unset')
         assert not cls.call_libsbml(sbml_model.isSetAreaUnits), \
             LibSbmlError('Area units must be unset')
-
         for i_unit_def in range(cls.call_libsbml(sbml_model.getNumUnitDefinitions, returns_int=True)):
             sbml_unit_def = cls.call_libsbml(sbml_model.getUnitDefinition, i_unit_def)
-            units[cls.call_libsbml(sbml_unit_def.getIdAttribute)] = cls.parse_unit_id(cls.call_libsbml(sbml_unit_def.getIdAttribute))
+            sbml_unit_def_id = cls.call_libsbml(sbml_unit_def.getIdAttribute)
+            units[sbml_unit_def_id] = cls.parse_unit_id(sbml_unit_def_id)
         return units
 
     @classmethod
@@ -530,8 +548,8 @@ class LibSbmlInterface(object):
                                              .replace('_times_', ' * ')
                                              .replace('_pow_', ' ** '))
         else:
-            if sbml_unit_def_id == 'item':
-                sbml_unit_def_id = 'molecule'
+            if sbml_unit_def_id == 'mole':
+                return unit_registry.parse_units('molecule')
             return unit_registry.parse_units(sbml_unit_def_id)
 
     @classmethod

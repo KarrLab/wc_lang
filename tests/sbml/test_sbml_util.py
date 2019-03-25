@@ -129,6 +129,7 @@ class TestSbml(unittest.TestCase):
         sbml_model = LibSbmlInterface.init_model(model, self.document, packages={'fbc': 2})
 
         # check the SBML document
+        LibSbmlInterface.verify_doc(self.document)
         return_val = LibSbmlInterface.call_libsbml(self.document.checkConsistency, returns_int=True)
         self.assertEqual(return_val, 0)
         LibSbmlInterface.verify_doc_is_compatible(self.document)
@@ -220,12 +221,13 @@ class TestLibsbmlInterface(unittest.TestCase):
 
     def test_parse_units(self):
         self.sbml_model.setTimeUnits('second')
-        self.sbml_model.setSubstanceUnits('item')
-        self.sbml_model.setExtentUnits('item')
+        self.sbml_model.setSubstanceUnits('mole')
+        self.sbml_model.setExtentUnits('mole')
         self.sbml_model.setVolumeUnits('litre')
         units = [
             unit_registry.parse_units('g'),
             unit_registry.parse_units('l'),
+            unit_registry.parse_units('molecule'),
             unit_registry.parse_units('g/l'),
             unit_registry.parse_units('g/s'),
             unit_registry.parse_units('g/s**2'),
@@ -237,13 +239,13 @@ class TestLibsbmlInterface(unittest.TestCase):
 
         exp_units = {
             'second': unit_registry.parse_units('second'),
-            'item': unit_registry.parse_units('molecule'),
+            'mole': unit_registry.parse_units('molecule'),
             'litre': unit_registry.parse_units('liter'),
-            'unit_gram_per_liter': units[2],
-            'unit_gram_per_second': units[3],
-            'unit_gram_per_second_pow_2': units[4],
-            'unit_gram_per_liter_pow_2_per_millisecond_pow_2': units[5],
-            'unit_gDCW_per_second': units[6],
+            'unit_gram_per_liter': units[3],
+            'unit_gram_per_second': units[4],
+            'unit_gram_per_second_pow_2': units[5],
+            'unit_gram_per_liter_pow_2_per_millisecond_pow_2': units[6],
+            'unit_gDCW_per_second': units[7],
         }
         parsed_units = LibSbmlInterface.parse_units(self.sbml_model)
         self.assertEqual(parsed_units.keys(), exp_units.keys())
