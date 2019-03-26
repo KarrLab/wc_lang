@@ -371,7 +371,7 @@ class TestExampleModel(unittest.TestCase):
 
     def tearDown(self):
         if os.path.isfile(self.filename):
-             os.remove(self.filename)
+            os.remove(self.filename)
 
     def test_read_write(self):
         fixture_filename = os.path.join(os.path.dirname(__file__), 'fixtures', 'example-model.xlsx')
