@@ -43,6 +43,7 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
                        UrlAttribute, EmailAttribute, DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
+                       AttributeGroup,
                        ManyToOneRelatedManager,
                        InvalidObject, InvalidAttribute, TabularOrientation)
 from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
@@ -1702,7 +1703,8 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
     model = ManyToOneAttribute(Model, related_name='dfba_objs', verbose_related_name='dFBA objectives')
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
     expression = ExpressionOneToOneAttribute(DfbaObjectiveExpression, related_name='dfba_obj',
-                                             min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
+                                             min_related=1, min_related_rev=1, verbose_related_name='dFBA objective',
+                                             verbose_name='Value')
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('dimensionless'),),
                           default=unit_registry.parse_units('dimensionless'))
@@ -1720,7 +1722,8 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', 'expression', 'units', 'reaction_rate_units', 'coefficient_units',
+        attribute_order = ('id', 'name', 'submodel', AttributeGroup('Expression', ('expression', 'units')), 
+                           'reaction_rate_units', 'coefficient_units',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
         expression_term_units = 'units'
@@ -1969,13 +1972,13 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                                                  namespace='WCM',
                                                  terms=wcm_ontology['WCM:random_distribution'].rchildren(),
                                                  default=wcm_ontology['WCM:normal_distribution'],
-                                                 verbose_name='Initial volume distribution')
-    mean_init_volume = FloatAttribute(min=0, verbose_name='Initial volume mean')
-    std_init_volume = FloatAttribute(min=0, verbose_name='Initial volume standard deviation')
+                                                 verbose_name='Distribution')
+    mean_init_volume = FloatAttribute(min=0, verbose_name='Mean')
+    std_init_volume = FloatAttribute(min=0, verbose_name='Standard deviation')
     init_volume_units = UnitAttribute(unit_registry,
                                       choices=(unit_registry.parse_units('l'),),
                                       default=unit_registry.parse_units('l'),
-                                      verbose_name='Initial volume units')
+                                      verbose_name='Units')
     init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
@@ -1987,7 +1990,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'mass_units',
-                           'distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units',
+                           AttributeGroup('Initial volume', ('distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units')),
                            'init_density',
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
@@ -3091,11 +3094,11 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     rate_units = UnitAttribute(unit_registry,
                                choices=(unit_registry.parse_units('s^-1'),),
                                default=unit_registry.parse_units('s^-1'))
-    flux_min = FloatAttribute(nan=True)
-    flux_max = FloatAttribute(min=0, nan=True)
+    flux_min = FloatAttribute(nan=True, verbose_name='Minimum')
+    flux_max = FloatAttribute(min=0, nan=True, verbose_name='Maximum')
     flux_bound_units = UnitAttribute(unit_registry,
                                      choices=(unit_registry.parse_units('M s^-1'),),
-                                     default=None, none=True)
+                                     default=None, none=True, verbose_name='Units')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='reactions')
@@ -3105,7 +3108,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
-                           'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
+                           'rate_units', AttributeGroup('Flux', ('flux_min', 'flux_max', 'flux_bound_units')),
                            'db_refs', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
@@ -4279,7 +4282,7 @@ class Evidence(obj_model.Model):
                              terms=wcm_ontology['WCM:evidence'].rchildren(),
                              default=None, none=True)
     taxon = StringAttribute()
-    genetic_variant = StringAttribute()
+    genetic_variant = StringAttribute(verbose_name='Variant')
     temp = FloatAttribute(nan=True, verbose_name='Temperature')
     temp_units = UnitAttribute(unit_registry,
                                choices=(unit_registry.parse_units('celsius'),),
@@ -4305,8 +4308,8 @@ class Evidence(obj_model.Model):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
                            'type',
-                           'taxon', 'genetic_variant',
-                           'temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition',
+                           AttributeGroup('Genotype', ('taxon', 'genetic_variant')),
+                           AttributeGroup('Environment', ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')),
                            'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
                            'db_refs', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
