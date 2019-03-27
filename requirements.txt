@@ -9,4 +9,5 @@ scipy
 setuptools
 six
 stringcase
+wc_onto
 wc_utils

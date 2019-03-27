@@ -14,7 +14,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
                           Evidence, DatabaseReference, Reference)
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
 
@@ -158,21 +158,21 @@ class MergeTestCase(unittest.TestCase):
         models[3].parameters.create(id='p_6', units=unit_registry.parse_units('s^-1'))
 
         # submodels
-        models[0].submodels.create(id='submodel_11', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[0].submodels.create(id='submodel_12', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        models[0].submodels.create(id='submodel_11', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[0].submodels.create(id='submodel_12', framework=onto['WC:dynamic_flux_balance_analysis'])
 
-        models[1].submodels.create(id='submodel_21', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[1].submodels.create(id='submodel_22', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        models[1].submodels.create(id='submodel_21', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[1].submodels.create(id='submodel_22', framework=onto['WC:dynamic_flux_balance_analysis'])
 
-        models[2].submodels.create(id='submodel_11', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[2].submodels.create(id='submodel_12', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
-        models[2].submodels.create(id='submodel_21', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[2].submodels.create(id='submodel_22', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        models[2].submodels.create(id='submodel_11', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[2].submodels.create(id='submodel_12', framework=onto['WC:dynamic_flux_balance_analysis'])
+        models[2].submodels.create(id='submodel_21', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[2].submodels.create(id='submodel_22', framework=onto['WC:dynamic_flux_balance_analysis'])
 
-        models[3].submodels.create(id='submodel_11', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[3].submodels.create(id='submodel_12', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
-        models[3].submodels.create(id='submodel_21', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        models[3].submodels.create(id='submodel_22', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        models[3].submodels.create(id='submodel_11', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[3].submodels.create(id='submodel_12', framework=onto['WC:dynamic_flux_balance_analysis'])
+        models[3].submodels.create(id='submodel_21', framework=onto['WC:stochastic_simulation_algorithm'])
+        models[3].submodels.create(id='submodel_22', framework=onto['WC:dynamic_flux_balance_analysis'])
 
         # reactions
         models[0].reactions.create(id='rxn_11', submodel=models[0].submodels[0])
@@ -581,7 +581,7 @@ class MergeTestCase(unittest.TestCase):
 
         for model in models:
             for ref in model.references:
-                ref.type = wcm_ontology['WCM:article']
+                ref.type = onto['WC:article']
 
         # generate ids
         for model in models:

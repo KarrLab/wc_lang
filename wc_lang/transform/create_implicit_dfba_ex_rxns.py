@@ -8,7 +8,8 @@
 """
 
 from .core import Transform
-from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
+from wc_onto import onto
+from wc_utils.util.ontology import are_terms_equivalent
 from wc_utils.util.units import unit_registry
 import wc_lang.config.core
 import wc_lang.core
@@ -45,7 +46,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
 
         for submodel in model.submodels:
-            if are_terms_equivalent(submodel.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis']):
+            if are_terms_equivalent(submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
                 for species in submodel.get_children(kind='submodel', __type=wc_lang.core.Species):
                     if species.compartment == ext_comp:
                         id = rxn_id_template.format(submodel.id,

@@ -20,7 +20,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           )
 from wc_lang import io
 from wc_lang import util
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import obj_model.units
 import os.path
@@ -43,7 +43,7 @@ class TestUtil(unittest.TestCase):
         self.species = species = []
         for i in range(8):
             spec_type = mdl.species_types.create(id='spec_type_{}'.format(
-                i), name='species type {}'.format(i), type=wcm_ontology['WCM:metabolite'])
+                i), name='species type {}'.format(i), type=onto['WC:metabolite'])
             species_types.append(spec_type)
 
             if i != 3:
@@ -58,9 +58,9 @@ class TestUtil(unittest.TestCase):
             conc.id = conc.gen_id()
             conc.model = mdl
 
-        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        self.submdl_0 = submdl_0 = mdl.submodels.create(id='submdl_0', framework=onto['WC:stochastic_simulation_algorithm'])
+        self.submdl_1 = submdl_1 = mdl.submodels.create(id='submdl_1', framework=onto['WC:stochastic_simulation_algorithm'])
+        self.submdl_2 = submdl_2 = mdl.submodels.create(id='submdl_2', framework=onto['WC:dynamic_flux_balance_analysis'])
         self.submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(id='rxn_0', model=mdl)

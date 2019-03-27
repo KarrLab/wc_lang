@@ -20,7 +20,7 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.util.chem import EmpiricalFormula
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
@@ -68,7 +68,7 @@ class TestSimpleModel(unittest.TestCase):
             spec_type = mdl.species_types.create(
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
-                type=wcm_ontology['WCM:metabolite'],
+                type=onto['WC:metabolite'],
                 structure='C' * (i + 1),
                 empirical_formula=EmpiricalFormula('C' + str(i + 1)),
                 molecular_weight=12 * (i + 1),
@@ -127,11 +127,11 @@ class TestSimpleModel(unittest.TestCase):
             functions.append(func)
 
         self.submdl_0 = submdl_0 = mdl.submodels.create(
-            id='submodel_0', name='submodel 0', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+            id='submodel_0', name='submodel 0', framework=onto['WC:stochastic_simulation_algorithm'])
         self.submdl_1 = submdl_1 = mdl.submodels.create(
-            id='submodel_1', name='submodel 1', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
+            id='submodel_1', name='submodel 1', framework=onto['WC:stochastic_simulation_algorithm'])
         self.submdl_2 = submdl_2 = mdl.submodels.create(
-            id='submodel_2', name='submodel 2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+            id='submodel_2', name='submodel 2', framework=onto['WC:dynamic_flux_balance_analysis'])
         self.submodels = submodels = [submdl_0, submdl_1, submdl_2]
 
         self.rxn_0 = rxn_0 = submdl_0.reactions.create(

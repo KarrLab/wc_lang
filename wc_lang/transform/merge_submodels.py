@@ -11,7 +11,7 @@ from wc_lang.core import (Model, Submodel, Reaction,
                           DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction,
                           Evidence, Interpretation, DatabaseReference, Reference,
                           Change)
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 import copy
 import itertools
 
@@ -53,9 +53,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             name = "-".join([submodel.name for submodel in submodels])
 
             # instantiate merged submodel
-            merged_submodel = Submodel(model=model, id=id, name=name, framework=wcm_ontology[framework])
+            merged_submodel = Submodel(model=model, id=id, name=name, framework=onto[framework])
 
-            if  framework == 'WCM:dynamic_flux_balance_analysis':
+            if  framework == 'WC:dynamic_flux_balance_analysis':
                 merged_dfba_obj = merged_submodel.dfba_obj = model.dfba_objs.create(
                     name='dFBA objective ({})'.format(', '.join(submodel.name for submodel in submodels)),
                     units=dfba_obj_units)
@@ -136,7 +136,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                     submodel.dfba_obj_reactions.remove(dfba_obj_rxn)
                     merged_submodel.dfba_obj_reactions.append(dfba_obj_rxn)
 
-            if framework == 'WCM:dynamic_flux_balance_analysis':
+            if framework == 'WC:dynamic_flux_balance_analysis':
                 merged_dfba_obj.expression, error = DfbaObjectiveExpression.deserialize(
                     ' + '.join(merged_dfba_expression),
                     objs_for_merged_dfba_expression)

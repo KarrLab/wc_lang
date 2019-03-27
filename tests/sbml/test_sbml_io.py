@@ -19,7 +19,7 @@ from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
 from wc_lang.sbml import util as sbml_util
 from wc_lang.transform.prep_for_sbml import PrepForSbmlTransform
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
 
@@ -56,13 +56,13 @@ class SbmlIoTestCase(unittest.TestCase):
 
     def test_SbmlExporter_error(self):
         model = Model(id='model')
-        model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
-        model.submodels.create(id='Metabolism_2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        model.submodels.create(id='Metabolism', framework=onto['WC:dynamic_flux_balance_analysis'])
+        model.submodels.create(id='Metabolism_2', framework=onto['WC:dynamic_flux_balance_analysis'])
         with self.assertRaisesRegex(ValueError, 'Only 1 submodel can be encoded'):
             sbml_io.SbmlExporter.run(model)
 
         model = Model(id='model')
-        submodel = model.submodels.create(id='Metabolism', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        submodel = model.submodels.create(id='Metabolism', framework=onto['WC:dynamic_flux_balance_analysis'])
         model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
         model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
         with self.assertRaisesRegex(sbml_util.LibSbmlError, 'Document is invalid'):
@@ -90,7 +90,7 @@ class SbmlIoTestCase(unittest.TestCase):
 
 class SbmlIoInCoreTestCase(unittest.TestCase):
     def test_Compartment_to_from_sbml(self):
-        c = Compartment(id='c', name='cytosol', geometry=wcm_ontology['WCM:3D_compartment'])
+        c = Compartment(id='c', name='cytosol', geometry=onto['WC:3D_compartment'])
 
         sbml_doc = sbml_util.LibSbmlInterface.create_doc()
         sbml_model = sbml_util.LibSbmlInterface.create_model(sbml_doc)
@@ -109,7 +109,7 @@ class SbmlIoInCoreTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unsupported geometry'):
             c.export_to_sbml(sbml_model)
 
-        c = Compartment(id='c', name='cytosol', geometry=wcm_ontology['WCM:3D_compartment'])
+        c = Compartment(id='c', name='cytosol', geometry=onto['WC:3D_compartment'])
         sbml_doc = sbml_util.LibSbmlInterface.create_doc()
         sbml_model = sbml_util.LibSbmlInterface.create_model(sbml_doc)
         sbml_c = c.export_to_sbml(sbml_model)

@@ -10,7 +10,7 @@
 from test.support import EnvironmentVarGuard
 from wc_lang import Model
 from wc_lang.transform.set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import mock
 import unittest
@@ -19,7 +19,7 @@ import unittest
 class SetFiniteDfbaFluxBoundsTransformTestCase(unittest.TestCase):
     def test(self):
         model = Model()
-        submodel = model.submodels.create(framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        submodel = model.submodels.create(framework=onto['WC:dynamic_flux_balance_analysis'])
         rxn_1 = model.reactions.create(submodel=submodel, reversible=True,
                                        flux_min=None, flux_max=None)
         rxn_2 = model.reactions.create(submodel=submodel, reversible=False,

@@ -10,7 +10,7 @@
 from wc_lang import Model
 from wc_lang.transform import CreateImplicitDfbaExchangeReactionsTransform
 from wc_utils.util.chem import EmpiricalFormula
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 import unittest
 import wc_lang.config.core
 
@@ -20,7 +20,7 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
         config = wc_lang.config.core.get_config()['wc_lang']['dfba']
 
         model = Model()
-        submodel = model.submodels.create(id='submdl', name='submodel', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        submodel = model.submodels.create(id='submdl', name='submodel', framework=onto['WC:dynamic_flux_balance_analysis'])
 
         comps = [
             model.compartments.create(id='c', name='cytosol'),

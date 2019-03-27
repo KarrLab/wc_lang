@@ -10,7 +10,7 @@ from wc_lang import (Model,
                      Species, SpeciesCoefficient, Reaction,
                      DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 import unittest
 
 
@@ -28,16 +28,16 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         species = []
         for i in range(5):
             st = mdl.species_types.create(id='spec_type_{}'.format(i),
-                                          type=wcm_ontology['WCM:metabolite'])
+                                          type=onto['WC:metabolite'])
             s = mdl.species.create(species_type=st,
                                    compartment=cmp)
             s.id = s.gen_id()
             species.append(s)
 
-        submdl_0 = mdl.submodels.create(id='submdl_0', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        submdl_1 = mdl.submodels.create(id='submdl_1', framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        submdl_2 = mdl.submodels.create(id='submdl_2', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
-        submdl_3 = mdl.submodels.create(id='submdl_3', framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        submdl_0 = mdl.submodels.create(id='submdl_0', framework=onto['WC:stochastic_simulation_algorithm'])
+        submdl_1 = mdl.submodels.create(id='submdl_1', framework=onto['WC:stochastic_simulation_algorithm'])
+        submdl_2 = mdl.submodels.create(id='submdl_2', framework=onto['WC:dynamic_flux_balance_analysis'])
+        submdl_3 = mdl.submodels.create(id='submdl_3', framework=onto['WC:dynamic_flux_balance_analysis'])
 
         rxn_0_0 = mdl.reactions.create(id='rxn_0_0', submodel=submdl_0)
         rxn_0_0.participants.add(SpeciesCoefficient(species=species[0], coefficient=-1))
@@ -119,8 +119,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
         MergeAlgorithmicallyLikeSubmodelsTransform().run(merged_mdl)
-        merged_submdl_ssa = merged_mdl.submodels.get_one(framework=wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        merged_submdl_fba = merged_mdl.submodels.get_one(framework=wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        merged_submdl_ssa = merged_mdl.submodels.get_one(framework=onto['WC:stochastic_simulation_algorithm'])
+        merged_submdl_fba = merged_mdl.submodels.get_one(framework=onto['WC:dynamic_flux_balance_analysis'])
 
         """ Test submodels merged corrected """
         self.assertEqual(len(merged_mdl.compartments), len(mdl.compartments))
@@ -142,8 +142,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
             '{1}_{0}'.format(submdl_2.id, submdl_3.id),
         ])
 
-        self.assertEqual(merged_submdl_ssa.framework, wcm_ontology['WCM:stochastic_simulation_algorithm'])
-        self.assertEqual(merged_submdl_fba.framework, wcm_ontology['WCM:dynamic_flux_balance_analysis'])
+        self.assertEqual(merged_submdl_ssa.framework, onto['WC:stochastic_simulation_algorithm'])
+        self.assertEqual(merged_submdl_fba.framework, onto['WC:dynamic_flux_balance_analysis'])
 
         self.assertEqual(len(merged_submdl_ssa.get_children(kind='submodel', __type=Species)),
                          len(set(submdl_0.get_children(kind='submodel', __type=Species) +

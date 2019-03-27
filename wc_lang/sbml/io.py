@@ -63,7 +63,8 @@ WC-Lang cannot be mapped to SBML and vice-versa.
 from obj_model.utils import group_objects_by_model
 from wc_lang.transform.prep_for_sbml import PrepForSbmlTransform
 from wc_lang.sbml.util import LibSbmlInterface
-from wc_utils.util.ontology import wcm_ontology, are_terms_equivalent
+from wc_onto import onto
+from wc_utils.util.ontology import are_terms_equivalent
 from wc_utils.util.units import unit_registry
 import abc
 import glob
@@ -186,7 +187,7 @@ class SbmlExporter(object):
         # determine SBML packages needed to export model
         packages = {}
         for submodel in model.submodels:
-            if submodel.framework == wcm_ontology['WCM:dynamic_flux_balance_analysis']:
+            if submodel.framework == onto['WC:dynamic_flux_balance_analysis']:
                 packages['fbc'] = 2
 
         # create an SBML document

@@ -11,7 +11,7 @@ from obj_model import RelatedAttribute
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType,
                      Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import unittest
 
@@ -22,9 +22,9 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
         c = model.compartments.create(id='c')
 
-        t0 = model.species_types.create(id='s0', type=wcm_ontology['WCM:metabolite'])
-        t1 = model.species_types.create(id='s1', type=wcm_ontology['WCM:metabolite'])
-        t2 = model.species_types.create(id='s2', type=wcm_ontology['WCM:metabolite'])
+        t0 = model.species_types.create(id='s0', type=onto['WC:metabolite'])
+        t1 = model.species_types.create(id='s1', type=onto['WC:metabolite'])
+        t2 = model.species_types.create(id='s2', type=onto['WC:metabolite'])
 
         s0 = model.species.create(id='s0[c]', species_type=t0, compartment=c)
         s1 = model.species.create(id='s1[c]', species_type=t1, compartment=c)
