@@ -4513,7 +4513,6 @@ class Author(obj_model.Model, SbmlModelMixin):
         email (:obj:`str`): email address
         website (:obj:`str`): website
         address (:obj:`str`): physical address
-        orcid (:obj:`str`): ORCID
         db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
         comments (:obj:`str`): comments
 
@@ -4533,7 +4532,6 @@ class Author(obj_model.Model, SbmlModelMixin):
     email = EmailAttribute()
     website = UrlAttribute()
     address = LongStringAttribute()
-    orcid = RegexAttribute(pattern=r'^\d{4}-\d{4}-\d{4}-(\d{3}X|\d{4})$', verbose_name='ORCID')
     db_refs = DatabaseReferenceManyToManyAttribute(related_name='authors')
     comments = LongStringAttribute()
 
@@ -4541,7 +4539,7 @@ class Author(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name',
                            'last_name', 'first_name', 'middle_name',
                            'title', 'organization',
-                           'email', 'website', 'address', 'orcid',
+                           'email', 'website', 'address',
                            'db_refs', 'comments')
         frozen_columns = 2
         children = {
@@ -4551,8 +4549,27 @@ class Author(obj_model.Model, SbmlModelMixin):
         sbml_attrs = ('id', 'name', 'model',
                       'last_name', 'first_name', 'middle_name',
                       'title', 'organization',
-                      'email', 'website', 'address', 'orcid',
+                      'email', 'website', 'address',
                       'db_refs', 'comments')
+
+    def get_identifier(self, namespace):
+        """ Get the author's id in a namespace (e.g., `github.user`, `orcid`)
+
+        Args:
+            namespace (:obj:`str`): namespace of the identifier to retrieve
+        
+        Returns:
+            :obj:`str`: user's id in :obj:`namespace`
+
+        Raises:
+            :obj:`ValueError`: if the author has multiple ids in :obj:`namespace`
+        """
+        identifiers = self.db_refs.get(database=namespace)
+        if len(identifiers) == 1:
+            return identifiers[0].id
+        if len(identifiers) > 1:
+            raise ValueError('Author {} has multiple {} ids'.format(self.id, namespace))
+        return None
 
 
 class Change(obj_model.Model, SbmlModelMixin):

@@ -821,13 +821,12 @@ class LibSbmlInterface(object):
                              '<wcLang:email>{}</wcLang:email>'
                              '<wcLang:website>{}</wcLang:website>'
                              '<wcLang:address>{}</wcLang:address>'
-                             '<wcLang:orcid>{}</wcLang:orcid>'
                              '<wcLang:db_refs>{}</wcLang:db_refs>'
                              '<wcLang:comments>{}</wcLang:comments>'
                              '</wcLang:author>').format(
                 au.id, au.name, au.last_name, au.first_name, au.middle_name,
                 au.title, au.organization, au.email, au.website, au.address,
-                au.orcid, wc_lang.core.Author.Meta.attributes['db_refs'].serialize(au.db_refs),
+                wc_lang.core.Author.Meta.attributes['db_refs'].serialize(au.db_refs),
                 au.comments)
         return '<wcLang:authors>{}</wcLang:authors>'.format(authors_sbml)
 
@@ -880,8 +879,6 @@ class LibSbmlInterface(object):
                                     au.website = val
                                 elif key == 'address':
                                     au.address = val
-                                elif key == 'orcid':
-                                    au.orcid = val
                                 elif key == 'db_refs':
                                     attr = wc_lang.core.Author.Meta.attributes['db_refs']
                                     au.db_refs, error = attr.deserialize(val, model_objs)

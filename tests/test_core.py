@@ -2490,6 +2490,18 @@ class TestCore(unittest.TestCase):
         rl.expression.species = [species_3, species_6, species_1, species_5]
         self.assertEqual(set(rxn.get_modifiers()), set([species_6, species_1]))
 
+    def test_author_get_identifier(self):
+        author = Author()
+        author.db_refs.create(database='github.user', id='jonrkarr')
+        author.db_refs.create(database='orcid', id='0000-0002-2605-5080')
+        author.db_refs.create(database='github.organization', id='karrlab')
+        author.db_refs.create(database='github.organization', id='wholecell')
+        self.assertEqual(author.get_identifier('github.user'), 'jonrkarr')
+        self.assertEqual(author.get_identifier('orcid'), '0000-0002-2605-5080')
+        self.assertEqual(author.get_identifier('linkedin.user'), None)
+        with self.assertRaisesRegex(ValueError, 'has multiple'):
+            author.get_identifier('github.organization')
+
 
 class TestCoreFromFile(unittest.TestCase):
 
