@@ -4583,7 +4583,7 @@ class Change(obj_model.Model, SbmlModelMixin):
     model = ManyToOneAttribute(Model, related_name='changes')
 
     type = OntologyAttribute(onto, namespace='WC',
-                             terms=onto['WC:change_provenance'].rchildren())
+                             terms=onto['WC:change'].rchildren())
     target = LongStringAttribute()
     target_submodel = ManyToOneAttribute(Submodel, related_name='changes')
     target_type = OntologyAttribute(onto, namespace='WC',
