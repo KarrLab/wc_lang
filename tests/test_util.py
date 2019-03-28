@@ -171,6 +171,7 @@ class TestUtil(unittest.TestCase):
         for c in model.compartments:
             units.add(c.mass_units)
             units.add(c.init_volume_units)
+            units.add(c.ph_units)
         self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
 
         model.species_types.create()

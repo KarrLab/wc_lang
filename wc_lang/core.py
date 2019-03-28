@@ -1193,7 +1193,7 @@ class Model(obj_model.Model, SbmlModelMixin):
             annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.identifiers', 'taxon.comments'])
 
         if self.env:
-            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units',
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units',
                            'env.identifiers', 'env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
@@ -1232,7 +1232,7 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         if 'env.id' in parsed_annots:
             self.env = Environment()
-            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.identifiers', 'env.comments'])
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.identifiers', 'env.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
@@ -1281,8 +1281,6 @@ class Environment(obj_model.Model, SbmlModelMixin):
         model (:obj:`Model`): model
         temp (:obj:`float`): temperature
         temp_units (:obj:`unit_registry.Unit`): temperature units
-        ph (:obj:`float`): pH
-        ph_units (:obj:`unit_registry.Unit`): pH units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -1295,25 +1293,20 @@ class Environment(obj_model.Model, SbmlModelMixin):
                                choices=(unit_registry.parse_units('celsius'),),
                                default=unit_registry.parse_units('celsius'),
                                verbose_name='Temperature units')
-    ph = FloatAttribute(verbose_name='pH')
-    ph_units = UnitAttribute(unit_registry,
-                             choices=(unit_registry.parse_units('dimensionless'),),
-                             default=unit_registry.parse_units('dimensionless'),
-                             verbose_name='pH units')
     identifiers = IdentifierOneToManyAttribute(related_name='env')
     comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='env')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
-                           'temp', 'temp_units', 'ph', 'ph_units',
+                           'temp', 'temp_units',
                            'identifiers', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
         children = {
             'submodel': ('identifiers', 'references'),
             'core_model': ('identifiers', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'ph', 'ph_units', 'identifiers', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'identifiers', 'comments')
 
 
 class Submodel(obj_model.Model, SbmlModelMixin):
@@ -1515,7 +1508,6 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         if self.model.env:
             annots.extend(['model.env.id', 'model.env.name',
                            'model.env.temp', 'model.env.temp_units',
-                           'model.env.ph', 'model.env.ph_units',
                            'model.env.identifiers', 'model.env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
@@ -1558,7 +1550,6 @@ class Submodel(obj_model.Model, SbmlModelMixin):
             self.model.env = Environment()
             annots.extend(['model.env.id', 'model.env.name',
                            'model.env.temp', 'model.env.temp_units',
-                           'model.env.ph', 'model.env.ph_units',
                            'model.env.identifiers', 'model.env.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
@@ -1933,6 +1924,8 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         init_volume_units (:obj:`unit_registry.Unit`): units of volume
         init_density (:obj:`Parameter`): function that calculates the density during the initialization of
             each simulation
+        ph (:obj:`float`): pH
+        ph_units (:obj:`unit_registry.Unit`): pH units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -1973,14 +1966,19 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                                                  namespace='WC',
                                                  terms=onto['WC:random_distribution'].rchildren(),
                                                  default=onto['WC:normal_distribution'],
-                                                 verbose_name='Distribution')
-    mean_init_volume = FloatAttribute(min=0, verbose_name='Mean')
-    std_init_volume = FloatAttribute(min=0, verbose_name='Standard deviation')
+                                                 verbose_name='Volume distribution')
+    mean_init_volume = FloatAttribute(min=0, verbose_name='Volume mean')
+    std_init_volume = FloatAttribute(min=0, verbose_name='Volume standard deviation')
     init_volume_units = UnitAttribute(unit_registry,
                                       choices=(unit_registry.parse_units('l'),),
                                       default=unit_registry.parse_units('l'),
-                                      verbose_name='Units')
+                                      verbose_name='Volume units')
     init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
+    ph = FloatAttribute(verbose_name='pH')
+    ph_units = UnitAttribute(unit_registry,
+                             choices=(unit_registry.parse_units('dimensionless'),),
+                             default=unit_registry.parse_units('dimensionless'),
+                             verbose_name='pH units')
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     interpretations = ManyToManyAttribute('Interpretation', related_name='compartments')
@@ -1993,6 +1991,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                            'mass_units',
                            AttributeGroup('Initial volume', ('distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units')),
                            'init_density',
+                           AttributeGroup('pH', ('ph', 'ph_units')),
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
@@ -2005,7 +2004,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         sbml_attrs = ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
                       'parent_compartment', 'mass_units', 'distribution_init_volume',
                       'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
-                      'identifiers', 'comments')
+                      'ph', 'ph_units', 'identifiers', 'comments')
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2126,7 +2125,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         annots = ['biological_type', 'physical_type',
                   'parent_compartment',
                   'distribution_init_volume', 'std_init_volume',
-                  'init_density', 'identifiers']
+                  'init_density', 'ph', 'ph_units', 'identifiers']
 
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
@@ -2169,7 +2168,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         """
         annots = ['biological_type', 'physical_type',
                   'distribution_init_volume', 'std_init_volume',
-                  'parent_compartment', 'init_density', 'identifiers']
+                  'parent_compartment', 'init_density', 'ph', 'ph_units', 'identifiers']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
