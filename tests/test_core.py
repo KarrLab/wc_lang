@@ -22,7 +22,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Reaction, Compartment,
                           SpeciesType, Species,
                           SpeciesCoefficient, Parameter, Reference,
-                          DatabaseReference,
+                          Identifier,
                           RateLaw, RateLawExpression, RateLawDirection,
                           Function, FunctionExpression,
                           Observable, ObservableExpression,
@@ -209,7 +209,7 @@ class TestCore(unittest.TestCase):
         mdl.interpretations.create(id='int_2', submodels=[submdl_2])
 
         self.references = references = []
-        self.db_refs = db_refs = []
+        self.identifiers = identifiers = []
         for i in range(3):
             ref = parameters[i].references.create(
                 id='ref_{}'.format(i), name='reference {}'.format(i),
@@ -217,8 +217,8 @@ class TestCore(unittest.TestCase):
                 type=None)
             references.append(ref)
 
-            x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
-            db_refs.append(x_ref)
+            x_ref = ref.identifiers.create(namespace='x', id='y' * (i + 1))
+            identifiers.append(x_ref)
 
         mdl.authors.create(id='First_Last', name='First Last', last_name='Last', first_name='First')
         mdl.authors.create(id='First_Middle_Last', name='First Middel Last', last_name='Last', first_name='First', middle_name='Middle')
@@ -248,7 +248,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(submodel.reactions, [reaction])
 
         for submodel in self.submodels:
-            self.assertEqual(submodel.db_refs, [])
+            self.assertEqual(submodel.identifiers, [])
             self.assertEqual(submodel.references, [])
 
         # compartment
@@ -256,7 +256,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.compartments[1].species, self.species[3:4])
 
         for compartment in self.compartments:
-            self.assertEqual(compartment.db_refs, [])
+            self.assertEqual(compartment.identifiers, [])
             self.assertEqual(compartment.references, [])
 
         # species type
@@ -264,7 +264,7 @@ class TestCore(unittest.TestCase):
             self.assertEqual(species_type.species, [species])
 
         for species_type in self.species_types:
-            self.assertEqual(species_type.db_refs, [])
+            self.assertEqual(species_type.identifiers, [])
             self.assertEqual(species_type.references, [])
 
         # specie
@@ -311,7 +311,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.reactions[2].rate_laws[0].expression.species, self.species[7:8])
 
         for reaction in self.reactions:
-            self.assertEqual(reaction.db_refs, [])
+            self.assertEqual(reaction.identifiers, [])
             self.assertEqual(reaction.references, [])
             self.assertEqual(len(reaction.rate_laws), 1)
 
@@ -336,9 +336,9 @@ class TestCore(unittest.TestCase):
             self.assertEqual(reference.parameters, [parameter])
             self.assertEqual(parameter.references, [reference])
 
-        for reference, database_reference in zip(self.references, self.db_refs):
-            self.assertEqual(reference.db_refs, [database_reference])
-            self.assertEqual(database_reference.references, [reference])
+        for reference, identifier in zip(self.references, self.identifiers):
+            self.assertEqual(reference.identifiers, [identifier])
+            self.assertEqual(identifier.references, [reference])
 
         # reaction participant
         for species in self.species[0:5]:
@@ -349,10 +349,10 @@ class TestCore(unittest.TestCase):
                 self.assertIn(reaction, part.reactions)
             self.assertEqual(set(x.reaction for x in reaction.rate_laws), set([reaction]))
 
-        # database references
-        for reference, database_reference in zip(self.references, self.db_refs):
-            self.assertEqual(reference.db_refs, [database_reference])
-            self.assertEqual(database_reference.references, [reference])
+        # identifiers
+        for reference, identifier in zip(self.references, self.identifiers):
+            self.assertEqual(reference.identifiers, [identifier])
+            self.assertEqual(identifier.references, [reference])
 
     def test_taxon_rank_class(self):
         self.assertEqual(TaxonRank['class'], TaxonRank['classis'])
@@ -1390,30 +1390,30 @@ class TestCore(unittest.TestCase):
         ]
         self.assertEqual(Parameter.validate_unique(params), None)
 
-    def test_database_reference_serialize(self):
-        self.assertEqual(self.db_refs[0].serialize(), '{}: {}'.format('x', 'y'))
-        self.assertEqual(self.db_refs[1].serialize(), '{}: {}'.format('x', 'yy'))
-        self.assertEqual(self.db_refs[2].serialize(), '{}: {}'.format('x', 'yyy'))
+    def test_identifier_serialize(self):
+        self.assertEqual(self.identifiers[0].serialize(), '{}: {}'.format('x', 'y'))
+        self.assertEqual(self.identifiers[1].serialize(), '{}: {}'.format('x', 'yy'))
+        self.assertEqual(self.identifiers[2].serialize(), '{}: {}'.format('x', 'yyy'))
 
-    def test_database_reference_deserialize(self):
+    def test_identifier_deserialize(self):
         objs = {
-            DatabaseReference: {
+            Identifier: {
             }
         }
-        db_refs, errors = Model.Meta.attributes['db_refs'].deserialize('db_1: id_1, db_2: id_2', objs)
-        self.assertEqual(len(db_refs), 2)
+        identifiers, errors = Model.Meta.attributes['identifiers'].deserialize('db_1: id_1, db_2: id_2', objs)
+        self.assertEqual(len(identifiers), 2)
         self.assertEqual(errors, None)
-        self.assertEqual(len(objs[DatabaseReference]), 2)
+        self.assertEqual(len(objs[Identifier]), 2)
 
-        db_refs, errors = Submodel.Meta.attributes['db_refs'].deserialize('db_2: id_2, db_3: id_3, db_4: id_4', objs)
-        self.assertEqual(len(db_refs), 3)
+        identifiers, errors = Submodel.Meta.attributes['identifiers'].deserialize('db_2: id_2, db_3: id_3, db_4: id_4', objs)
+        self.assertEqual(len(identifiers), 3)
         self.assertEqual(errors, None)
-        self.assertEqual(len(objs[DatabaseReference]), 4)
+        self.assertEqual(len(objs[Identifier]), 4)
 
-        db_refs, errors = Model.Meta.attributes['db_refs'].deserialize('db_1', objs)
+        identifiers, errors = Model.Meta.attributes['identifiers'].deserialize('db_1', objs)
         self.assertNotEqual(errors, None)
 
-        db_refs, errors = Submodel.Meta.attributes['db_refs'].deserialize('db_1', objs)
+        identifiers, errors = Submodel.Meta.attributes['identifiers'].deserialize('db_1', objs)
         self.assertNotEqual(errors, None)
 
     def test_ReactionParticipantAttribute_serialize(self):
@@ -2492,10 +2492,10 @@ class TestCore(unittest.TestCase):
 
     def test_author_get_identifier(self):
         author = Author()
-        author.db_refs.create(database='github.user', id='jonrkarr')
-        author.db_refs.create(database='orcid', id='0000-0002-2605-5080')
-        author.db_refs.create(database='github.organization', id='karrlab')
-        author.db_refs.create(database='github.organization', id='wholecell')
+        author.identifiers.create(namespace='github.user', id='jonrkarr')
+        author.identifiers.create(namespace='orcid', id='0000-0002-2605-5080')
+        author.identifiers.create(namespace='github.organization', id='karrlab')
+        author.identifiers.create(namespace='github.organization', id='wholecell')
         self.assertEqual(author.get_identifier('github.user'), 'jonrkarr')
         self.assertEqual(author.get_identifier('orcid'), '0000-0002-2605-5080')
         self.assertEqual(author.get_identifier('linkedin.user'), None)

@@ -11,7 +11,7 @@ from test.support import EnvironmentVarGuard
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      Species, Compartment, SpeciesCoefficient,
                      DfbaObjSpecies, DfbaObjReaction,
-                     Parameter, Reference, DatabaseReference, Function, FunctionExpression,
+                     Parameter, Reference, Identifier, Function, FunctionExpression,
                      StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
@@ -213,7 +213,7 @@ class TestSimpleModel(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.db_refs = db_refs = []
+        self.identifiers = identifiers = []
         for i in range(3):
             param = mdl.parameters.create(
                 id='param_{}'.format(i), name='parameter {}'.format(i),
@@ -227,8 +227,8 @@ class TestSimpleModel(unittest.TestCase):
             ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.db_refs.create(database='x', id='y' * (i + 1))
-            db_refs.append(x_ref)
+            x_ref = ref.identifiers.create(namespace='x', id='y' * (i + 1))
+            identifiers.append(x_ref)
 
         param = mdl.parameters.create(
             id='param_stop_cond', name='parameter - stop condition',

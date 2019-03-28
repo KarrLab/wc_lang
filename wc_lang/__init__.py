@@ -13,5 +13,5 @@ from .core import (RateLawDirection, TaxonRank,
                    Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
-                   Evidence, Interpretation, DatabaseReference, Reference, Author, Change,
+                   Evidence, Interpretation, Identifier, Reference, Author, Change,
                    Validator, WcLangWarning)

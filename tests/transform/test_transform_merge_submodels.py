@@ -111,10 +111,10 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         mdl.references.create(id='ref_2', submodels=[submdl_2], dfba_objs=[dfba_obj_2])
         mdl.references.create(id='ref_2', submodels=[submdl_3], dfba_objs=[dfba_obj_3])
 
-        submdl_0.db_refs.create(id='xref_0')
-        submdl_1.db_refs.create(id='xref_1')
-        submdl_2.db_refs.create(id='xref_2', dfba_objs=[dfba_obj_2])
-        submdl_3.db_refs.create(id='xref_3', dfba_objs=[dfba_obj_3])
+        submdl_0.identifiers.create(id='xref_0')
+        submdl_1.identifiers.create(id='xref_1')
+        submdl_2.identifiers.create(id='xref_2', dfba_objs=[dfba_obj_2])
+        submdl_3.identifiers.create(id='xref_3', dfba_objs=[dfba_obj_3])
 
         """ Merge algorithmically-like submodels """
         merged_mdl = mdl.copy()
@@ -172,5 +172,5 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(len(set(submdl_0.references) | set(submdl_1.references)), len(merged_submdl_ssa.references))
         self.assertEqual(len(merged_submdl_fba.references), len(set(submdl_2.references) | set(submdl_3.references)))
 
-        self.assertEqual(len(set(submdl_0.db_refs) | set(submdl_1.db_refs)), len(merged_submdl_ssa.db_refs))
-        self.assertEqual(len(merged_submdl_fba.db_refs), len(set(submdl_2.db_refs) | set(submdl_3.db_refs)))
+        self.assertEqual(len(set(submdl_0.identifiers) | set(submdl_1.identifiers)), len(merged_submdl_ssa.identifiers))
+        self.assertEqual(len(merged_submdl_fba.identifiers), len(set(submdl_2.identifiers) | set(submdl_3.identifiers)))

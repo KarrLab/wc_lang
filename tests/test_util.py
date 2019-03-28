@@ -16,7 +16,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Function, FunctionExpression,
                           StopCondition, StopConditionExpression,
                           Evidence, Interpretation,
-                          Reference, Author, Change, DatabaseReference,
+                          Reference, Author, Change, Identifier,
                           )
 from wc_lang import io
 from wc_lang import util
@@ -101,7 +101,7 @@ class TestUtil(unittest.TestCase):
 
         self.parameters = parameters = []
         self.references = references = []
-        self.db_refs = db_refs = []
+        self.identifiers = identifiers = []
         for i in range(3):
             param = mdl.parameters.create(id='param_{}'.format(i))
             parameters.append(param)
@@ -110,8 +110,8 @@ class TestUtil(unittest.TestCase):
             ref.model = mdl
             references.append(ref)
 
-            x_ref = ref.db_refs.create(database='Y', id='x')
-            db_refs.append(x_ref)
+            x_ref = ref.identifiers.create(namespace='Y', id='x')
+            identifiers.append(x_ref)
 
     def test_get_model_size(self):
         model = self.model
@@ -140,7 +140,7 @@ class TestUtil(unittest.TestCase):
         inline_models = set([
             SpeciesCoefficient, RateLawExpression,
             DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
-            DatabaseReference,
+            Identifier,
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)

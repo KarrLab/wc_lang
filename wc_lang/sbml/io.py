@@ -42,7 +42,7 @@ Interpretation                 --
 Reference                      --
 Author                         Model.annotation
 Change                         --
-DatabaseReference              SBase.annotation
+Identifier              SBase.annotation
 pint.Unit                      UnitDefinition
 obj_model.Model.comments       SBase.notes
 =============================  =====================

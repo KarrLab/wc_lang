@@ -125,7 +125,7 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
             sbml (:obj:`libsbml.SBase`): SBML object
         """
         LibSbmlInterface.set_math(sbml.setMath, self.expression)
-        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml)
+        LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml)
 
     def import_from_sbml(self, sbml):
         """ Load expression from SBML assignment rule
@@ -152,7 +152,7 @@ class SbmlAssignmentRuleMixin(SbmlModelMixin):
                 map the ids of WC-Lang objects to WC-Lang objects
         """
         self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs)
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml, objs)
 
 
 class LibSbmlError(Exception):
@@ -821,12 +821,12 @@ class LibSbmlInterface(object):
                              '<wcLang:email>{}</wcLang:email>'
                              '<wcLang:website>{}</wcLang:website>'
                              '<wcLang:address>{}</wcLang:address>'
-                             '<wcLang:db_refs>{}</wcLang:db_refs>'
+                             '<wcLang:identifiers>{}</wcLang:identifiers>'
                              '<wcLang:comments>{}</wcLang:comments>'
                              '</wcLang:author>').format(
                 au.id, au.name, au.last_name, au.first_name, au.middle_name,
                 au.title, au.organization, au.email, au.website, au.address,
-                wc_lang.core.Author.Meta.attributes['db_refs'].serialize(au.db_refs),
+                wc_lang.core.Author.Meta.attributes['identifiers'].serialize(au.identifiers),
                 au.comments)
         return '<wcLang:authors>{}</wcLang:authors>'.format(authors_sbml)
 
@@ -879,9 +879,9 @@ class LibSbmlInterface(object):
                                     au.website = val
                                 elif key == 'address':
                                     au.address = val
-                                elif key == 'db_refs':
-                                    attr = wc_lang.core.Author.Meta.attributes['db_refs']
-                                    au.db_refs, error = attr.deserialize(val, model_objs)
+                                elif key == 'identifiers':
+                                    attr = wc_lang.core.Author.Meta.attributes['identifiers']
+                                    au.identifiers, error = attr.deserialize(val, model_objs)
                                     assert error is None, str(error)
                                 elif key == 'comments':
                                     au.comments = val

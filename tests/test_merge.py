@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Evidence, DatabaseReference, Reference)
+                          Evidence, Identifier, Reference)
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
@@ -510,32 +510,32 @@ class MergeTestCase(unittest.TestCase):
         models[3].stop_conditions[1].expression, _ = StopConditionExpression.deserialize('2. > 0.', {})
         models[3].stop_conditions[2].expression, _ = StopConditionExpression.deserialize('3. > 0.', {})
 
-        # database references
-        models[0].db_refs.create(database='db_0', id='id_0', submodels=models[0].submodels)
-        models[0].db_refs.create(database='db_0', id='id_1', submodels=models[0].submodels)
-        models[0].db_refs.create(database='db_1', id='id_0', submodels=models[0].submodels)
-        models[0].db_refs.create(database='db_1', id='id_1', submodels=models[0].submodels)
+        # identifiers
+        models[0].identifiers.create(namespace='db_0', id='id_0', submodels=models[0].submodels)
+        models[0].identifiers.create(namespace='db_0', id='id_1', submodels=models[0].submodels)
+        models[0].identifiers.create(namespace='db_1', id='id_0', submodels=models[0].submodels)
+        models[0].identifiers.create(namespace='db_1', id='id_1', submodels=models[0].submodels)
 
-        models[1].db_refs.create(database='db_0', id='id_0', submodels=models[1].submodels)
-        models[1].db_refs.create(database='db_0', id='id_2', submodels=models[1].submodels)
-        models[1].db_refs.create(database='db_2', id='id_0', submodels=models[1].submodels)
-        models[1].db_refs.create(database='db_2', id='id_2', submodels=models[1].submodels)
+        models[1].identifiers.create(namespace='db_0', id='id_0', submodels=models[1].submodels)
+        models[1].identifiers.create(namespace='db_0', id='id_2', submodels=models[1].submodels)
+        models[1].identifiers.create(namespace='db_2', id='id_0', submodels=models[1].submodels)
+        models[1].identifiers.create(namespace='db_2', id='id_2', submodels=models[1].submodels)
 
-        models[2].db_refs.create(database='db_0', id='id_0', submodels=models[2].submodels)
-        models[2].db_refs.create(database='db_0', id='id_1', submodels=models[2].submodels[0:2])
-        models[2].db_refs.create(database='db_1', id='id_0', submodels=models[2].submodels[0:2])
-        models[2].db_refs.create(database='db_1', id='id_1', submodels=models[2].submodels[0:2])
-        models[2].db_refs.create(database='db_0', id='id_2', submodels=models[2].submodels[2:4])
-        models[2].db_refs.create(database='db_2', id='id_0', submodels=models[2].submodels[2:4])
-        models[2].db_refs.create(database='db_2', id='id_2', submodels=models[2].submodels[2:4])
+        models[2].identifiers.create(namespace='db_0', id='id_0', submodels=models[2].submodels)
+        models[2].identifiers.create(namespace='db_0', id='id_1', submodels=models[2].submodels[0:2])
+        models[2].identifiers.create(namespace='db_1', id='id_0', submodels=models[2].submodels[0:2])
+        models[2].identifiers.create(namespace='db_1', id='id_1', submodels=models[2].submodels[0:2])
+        models[2].identifiers.create(namespace='db_0', id='id_2', submodels=models[2].submodels[2:4])
+        models[2].identifiers.create(namespace='db_2', id='id_0', submodels=models[2].submodels[2:4])
+        models[2].identifiers.create(namespace='db_2', id='id_2', submodels=models[2].submodels[2:4])
 
-        models[3].db_refs.create(database='db_0', id='id_0', submodels=models[3].submodels)
-        models[3].db_refs.create(database='db_0', id='id_1', submodels=models[3].submodels[0:2])
-        models[3].db_refs.create(database='db_1', id='id_0', submodels=models[3].submodels[0:2])
-        models[3].db_refs.create(database='db_1', id='id_1', submodels=models[3].submodels[0:2])
-        models[3].db_refs.create(database='db_0', id='id_2', submodels=models[3].submodels[2:4])
-        models[3].db_refs.create(database='db_2', id='id_0', submodels=models[3].submodels[2:4])
-        models[3].db_refs.create(database='db_2', id='id_2', submodels=models[3].submodels[2:4])
+        models[3].identifiers.create(namespace='db_0', id='id_0', submodels=models[3].submodels)
+        models[3].identifiers.create(namespace='db_0', id='id_1', submodels=models[3].submodels[0:2])
+        models[3].identifiers.create(namespace='db_1', id='id_0', submodels=models[3].submodels[0:2])
+        models[3].identifiers.create(namespace='db_1', id='id_1', submodels=models[3].submodels[0:2])
+        models[3].identifiers.create(namespace='db_0', id='id_2', submodels=models[3].submodels[2:4])
+        models[3].identifiers.create(namespace='db_2', id='id_0', submodels=models[3].submodels[2:4])
+        models[3].identifiers.create(namespace='db_2', id='id_2', submodels=models[3].submodels[2:4])
 
         # evidence
         models[0].evidences.create(id='ev_0', submodels=models[0].submodels[0:1])
@@ -604,11 +604,11 @@ class MergeTestCase(unittest.TestCase):
             'ref_0': model_1.references.get_one(id='ref_0'),
             'ref_1': model_1.references.get_one(id='ref_1'),
         })
-        self.assertEqual(map[DatabaseReference], {
-            'db_0: id_0': model_1.db_refs.get_one(database='db_0', id='id_0'),
-            'db_0: id_1': model_1.db_refs.get_one(database='db_0', id='id_1'),
-            'db_1: id_0': model_1.db_refs.get_one(database='db_1', id='id_0'),
-            'db_1: id_1': model_1.db_refs.get_one(database='db_1', id='id_1'),
+        self.assertEqual(map[Identifier], {
+            'db_0: id_0': model_1.identifiers.get_one(namespace='db_0', id='id_0'),
+            'db_0: id_1': model_1.identifiers.get_one(namespace='db_0', id='id_1'),
+            'db_1: id_0': model_1.identifiers.get_one(namespace='db_1', id='id_0'),
+            'db_1: id_1': model_1.identifiers.get_one(namespace='db_1', id='id_1'),
         })
 
     def test_gen_merge_map(self):
@@ -623,16 +623,16 @@ class MergeTestCase(unittest.TestCase):
                          model_1.compartments.get_one(id='c_0'))
         self.assertEqual(other_objs_in_self[model_2.references.get_one(id='ref_0')],
                          model_1.references.get_one(id='ref_0'))
-        self.assertEqual(other_objs_in_self[model_2.db_refs.get_one(database='db_0', id='id_0')],
-                         model_1.db_refs.get_one(database='db_0', id='id_0'))
+        self.assertEqual(other_objs_in_self[model_2.identifiers.get_one(namespace='db_0', id='id_0')],
+                         model_1.identifiers.get_one(namespace='db_0', id='id_0'))
 
         self.assertIn(model_2.compartments[1], other_objs_not_in_self)
         self.assertIn(model_2.submodels[0], other_objs_not_in_self)
         self.assertIn(model_2.submodels[1], other_objs_not_in_self)
         self.assertIn(model_2.references.get_one(id='ref_2'), other_objs_not_in_self)
-        self.assertIn(model_2.db_refs.get_one(database='db_0', id='id_2'), other_objs_not_in_self)
-        self.assertIn(model_2.db_refs.get_one(database='db_2', id='id_0'), other_objs_not_in_self)
-        self.assertIn(model_2.db_refs.get_one(database='db_2', id='id_2'), other_objs_not_in_self)
+        self.assertIn(model_2.identifiers.get_one(namespace='db_0', id='id_2'), other_objs_not_in_self)
+        self.assertIn(model_2.identifiers.get_one(namespace='db_2', id='id_0'), other_objs_not_in_self)
+        self.assertIn(model_2.identifiers.get_one(namespace='db_2', id='id_2'), other_objs_not_in_self)
 
     def test_gen_merge_map_different_taxon_env_ids(self):
         model_1, model_2, _, _ = self.gen_models()
@@ -666,11 +666,11 @@ class MergeTestCase(unittest.TestCase):
         model_1, model_2, _, _ = self.gen_models()
         taxon_2 = model_2.taxon
         env_2 = model_2.env
-        model_2.taxon.db_refs = []
+        model_2.taxon.identifiers = []
         model_2.taxon.evidence = []
         model_2.taxon.references = []
         model_2.taxon = None
-        model_2.env.db_refs = []
+        model_2.env.identifiers = []
         model_2.env.evidence = []
         model_2.env.references = []
         model_2.env = None
@@ -683,11 +683,11 @@ class MergeTestCase(unittest.TestCase):
         model_1, model_2, _, _ = self.gen_models()
         taxon_2 = model_2.taxon
         env_2 = model_2.env
-        model_1.taxon.db_refs = []
+        model_1.taxon.identifiers = []
         model_1.taxon.evidence = []
         model_1.taxon.references = []
         model_1.taxon = None
-        model_1.env.db_refs = []
+        model_1.env.identifiers = []
         model_1.env.evidence = []
         model_1.env.references = []
         model_1.env = None
@@ -730,9 +730,9 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.taxon.name, model_1.taxon.name)
         self.assertEqual(merged_model.taxon.rank, model_1.taxon.rank)
         self.assertEqual(merged_model.taxon.comments, model_1.taxon.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.taxon.db_refs),
-                         set(db_ref.serialize() for db_ref in model_1.taxon.db_refs) |
-                         set(db_ref.serialize() for db_ref in model_2.taxon.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.taxon.identifiers),
+                         set(id.serialize() for id in model_1.taxon.identifiers) |
+                         set(id.serialize() for id in model_2.taxon.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.taxon.references),
                          set(ref.id for ref in model_1.taxon.references) |
                          set(ref.id for ref in model_2.taxon.references))
@@ -741,7 +741,7 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_secondary_taxon(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_2.taxon.db_refs = []
+        model_2.taxon.identifiers = []
         model_2.taxon.references = []
         model_2.taxon = None
 
@@ -753,8 +753,8 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.taxon.name, model_1.taxon.name)
         self.assertEqual(merged_model.taxon.rank, model_1.taxon.rank)
         self.assertEqual(merged_model.taxon.comments, model_1.taxon.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.taxon.db_refs),
-                         set(db_ref.serialize() for db_ref in model_1.taxon.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.taxon.identifiers),
+                         set(id.serialize() for id in model_1.taxon.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.taxon.references),
                          set(ref.id for ref in model_1.taxon.references))
 
@@ -762,7 +762,7 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_primary_taxon(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_1.taxon.db_refs = []
+        model_1.taxon.identifiers = []
         model_1.taxon.references = []
         model_1.taxon = None
 
@@ -774,8 +774,8 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.taxon.name, model_2.taxon.name)
         self.assertEqual(merged_model.taxon.rank, model_2.taxon.rank)
         self.assertEqual(merged_model.taxon.comments, model_2.taxon.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.taxon.db_refs),
-                         set(db_ref.serialize() for db_ref in model_2.taxon.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.taxon.identifiers),
+                         set(id.serialize() for id in model_2.taxon.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.taxon.references),
                          set(ref.id for ref in model_2.taxon.references))
 
@@ -783,10 +783,10 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_taxa(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_1.taxon.db_refs = []
+        model_1.taxon.identifiers = []
         model_1.taxon.references = []
         model_1.taxon = None
-        model_2.taxon.db_refs = []
+        model_2.taxon.identifiers = []
         model_2.taxon.references = []
         model_2.taxon = None
 
@@ -807,9 +807,9 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.env.id, model_1.env.id)
         self.assertEqual(merged_model.env.name, model_1.env.name)
         self.assertEqual(merged_model.env.comments, model_1.env.comments + '\n\n' + model_2.env.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.env.db_refs),
-                         set(db_ref.serialize() for db_ref in model_1.env.db_refs) |
-                         set(db_ref.serialize() for db_ref in model_2.env.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.env.identifiers),
+                         set(id.serialize() for id in model_1.env.identifiers) |
+                         set(id.serialize() for id in model_2.env.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.env.references),
                          set(ref.id for ref in model_1.env.references) |
                          set(ref.id for ref in model_2.env.references))
@@ -818,7 +818,7 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_secondary_env(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_2.env.db_refs = []
+        model_2.env.identifiers = []
         model_2.env.references = []
         model_2.env = None
 
@@ -829,8 +829,8 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.env.id, model_1.env.id)
         self.assertEqual(merged_model.env.name, model_1.env.name)
         self.assertEqual(merged_model.env.comments, model_1.env.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.env.db_refs),
-                         set(db_ref.serialize() for db_ref in model_1.env.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.env.identifiers),
+                         set(id.serialize() for id in model_1.env.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.env.references),
                          set(ref.id for ref in model_1.env.references))
 
@@ -838,7 +838,7 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_primary_env(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_1.env.db_refs = []
+        model_1.env.identifiers = []
         model_1.env.references = []
         model_1.env = None
 
@@ -849,8 +849,8 @@ class MergeTestCase(unittest.TestCase):
         self.assertEqual(merged_model.env.id, model_2.env.id)
         self.assertEqual(merged_model.env.name, model_2.env.name)
         self.assertEqual(merged_model.env.comments, model_2.env.comments)
-        self.assertEqual(set(db_ref.serialize() for db_ref in merged_model.env.db_refs),
-                         set(db_ref.serialize() for db_ref in model_2.env.db_refs))
+        self.assertEqual(set(id.serialize() for id in merged_model.env.identifiers),
+                         set(id.serialize() for id in model_2.env.identifiers))
         self.assertEqual(set(ref.id for ref in merged_model.env.references),
                          set(ref.id for ref in model_2.env.references))
 
@@ -858,10 +858,10 @@ class MergeTestCase(unittest.TestCase):
 
     def test_merge_no_env(self):
         model_1, model_2, _, _ = self.gen_models()
-        model_1.env.db_refs = []
+        model_1.env.identifiers = []
         model_1.env.references = []
         model_1.env = None
-        model_2.env.db_refs = []
+        model_2.env.identifiers = []
         model_2.env.references = []
         model_2.env = None
 
@@ -881,8 +881,8 @@ class MergeTestCase(unittest.TestCase):
 
         s_11 = model_1.submodels.get_one(id='submodel_11')
         s_31 = model_3.submodels.get_one(id='submodel_11')
-        self.assertEqual(set(obj.serialize() for obj in s_11.db_refs),
-                         set(obj.serialize() for obj in s_31.db_refs))
+        self.assertEqual(set(obj.serialize() for obj in s_11.identifiers),
+                         set(obj.serialize() for obj in s_31.identifiers))
         self.assertEqual(set(obj.serialize() for obj in s_11.evidence),
                          set(obj.serialize() for obj in s_31.evidence))
         self.assertEqual(set(obj.serialize() for obj in s_11.references),
@@ -890,15 +890,15 @@ class MergeTestCase(unittest.TestCase):
 
         s_22 = model_2.submodels.get_one(id='submodel_21')
         s_32 = model_3.submodels.get_one(id='submodel_21')
-        self.assertEqual(set(obj.serialize() for obj in s_22.db_refs),
-                         set(obj.serialize() for obj in s_32.db_refs))
+        self.assertEqual(set(obj.serialize() for obj in s_22.identifiers),
+                         set(obj.serialize() for obj in s_32.identifiers))
         self.assertEqual(set(obj.serialize() for obj in s_22.evidence),
                          set(obj.serialize() for obj in s_32.evidence))
         self.assertEqual(set(obj.serialize() for obj in s_22.references),
                          set(obj.serialize() for obj in s_32.references))
 
-        self.assertEqual(s_31.db_refs.get_one(database='db_0', id='id_0'),
-                         s_32.db_refs.get_one(database='db_0', id='id_0'))
+        self.assertEqual(s_31.identifiers.get_one(namespace='db_0', id='id_0'),
+                         s_32.identifiers.get_one(namespace='db_0', id='id_0'))
         self.assertEqual(s_31.evidence.get_one(id='ref_0'),
                          s_32.evidence.get_one(id='ref_0'))
         self.assertEqual(s_31.references.get_one(id='ref_0'),

@@ -18,7 +18,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`DfbaObjReaction`
 * :obj:`Parameter`
 * :obj:`Reference`
-* :obj:`DatabaseReference`
+* :obj:`Identifier`
 
 These are all instances of `obj_model.Model`, an alias for `obj_model.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
@@ -414,8 +414,8 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return validation
 
 
-class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
-    def __init__(self, related_name='', verbose_name='Database references', verbose_related_name='', help=''):
+class IdentifierOneToManyAttribute(OneToManyAttribute):
+    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', help=''):
         """
         Args:
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
@@ -423,23 +423,23 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
             verbose_related_name (:obj:`str`, optional): verbose related name
             help (:obj:`str`, optional): help message
         """
-        super(DatabaseReferenceOneToManyAttribute, self).__init__('DatabaseReference', related_name=related_name,
+        super(IdentifierOneToManyAttribute, self).__init__('Identifier', related_name=related_name,
                                                                   verbose_name=verbose_name,
                                                                   verbose_related_name=verbose_related_name,
                                                                   help=help)
 
-    def serialize(self, db_refs, encoded=None):
+    def serialize(self, identifiers, encoded=None):
         """ Serialize related object
 
         Args:
-            db_refs (:obj:`list` of :obj:`DatabaseReference`): Python representation of database references
+            identifiers (:obj:`list` of :obj:`Identifier`): Python representation of identifiers
             encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: string representation
         """
-        sorted_db_refs = sorted(db_refs, key=lambda db_ref: (db_ref.database, db_ref.id))
-        return ', '.join(db_ref.serialize() for db_ref in sorted_db_refs)
+        sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
+        return ', '.join(id.serialize() for id in sorted_ids)
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -450,7 +450,7 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
             decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
-            :obj:`list` of :obj:`DatabaseReference`: cleaned value
+            :obj:`list` of :obj:`Identifier`: cleaned value
             :obj:`InvalidAttribute`: cleaning error
         """
         value = value or ''
@@ -458,19 +458,19 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         if not value:
             return ([], None)
 
-        db_refs = set()
+        identifiers = set()
         errors = []
         for val in value.split(','):
-            db_ref, invalid = DatabaseReference.deserialize(val, objects)
+            id, invalid = Identifier.deserialize(val, objects)
             if invalid:
                 errors.extend(invalid.messages)
             else:
-                db_refs.add(db_ref)
+                identifiers.add(id)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
         else:
-            return (det_dedupe(db_refs), None)
+            return (det_dedupe(identifiers), None)
 
     def get_excel_validation(self):
         """ Get Excel validation
@@ -481,8 +481,8 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         validation = super(OneToManyAttribute, self).get_excel_validation()
 
         validation.ignore_blank = True
-        input_message = ['Enter a comma-separated list of references to external databases.']
-        error_message = ['Value must be a comma-separated list of references to external databases.']
+        input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
+        error_message = ['Value must be a comma-separated list of identifiers in external namespaces.']
 
         input_message.append(('Examples:\n'
                               '* doi: 10.1016/j.tcb.2015.09.004\n'
@@ -498,8 +498,8 @@ class DatabaseReferenceOneToManyAttribute(OneToManyAttribute):
         return validation
 
 
-class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
-    def __init__(self, related_name='', verbose_name='Database references', verbose_related_name='', help=''):
+class IdentifierManyToManyAttribute(ManyToManyAttribute):
+    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', help=''):
         """
         Args:
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
@@ -507,23 +507,23 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
             verbose_related_name (:obj:`str`, optional): verbose related name
             help (:obj:`str`, optional): help message
         """
-        super(DatabaseReferenceManyToManyAttribute, self).__init__('DatabaseReference', related_name=related_name,
+        super(IdentifierManyToManyAttribute, self).__init__('Identifier', related_name=related_name,
                                                                    verbose_name=verbose_name,
                                                                    verbose_related_name=verbose_related_name,
                                                                    help=help)
 
-    def serialize(self, db_refs, encoded=None):
+    def serialize(self, identifiers, encoded=None):
         """ Serialize related object
 
         Args:
-            db_refs (:obj:`list` of :obj:`DatabaseReference`): Python representation of database references
+            identifiers (:obj:`list` of :obj:`Identifier`): Python representation of identifiers
             encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
 
         Returns:
             :obj:`str`: string representation
         """
-        sorted_db_refs = sorted(db_refs, key=lambda db_ref: (db_ref.database, db_ref.id))
-        return ', '.join(db_ref.serialize() for db_ref in sorted_db_refs)
+        sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
+        return ', '.join(id.serialize() for id in sorted_ids)
 
     def deserialize(self, value, objects, decoded=None):
         """ Deserialize value
@@ -534,7 +534,7 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
             decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
 
         Returns:
-            :obj:`list` of :obj:`DatabaseReference`: cleaned value
+            :obj:`list` of :obj:`Identifier`: cleaned value
             :obj:`InvalidAttribute`: cleaning error
         """
         value = value or ''
@@ -542,19 +542,19 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
         if not value:
             return ([], None)
 
-        db_refs = set()
+        identifiers = set()
         errors = []
         for val in value.split(','):
-            db_ref, invalid = DatabaseReference.deserialize(val, objects)
+            id, invalid = Identifier.deserialize(val, objects)
             if invalid:
                 errors.extend(invalid.messages)
             else:
-                db_refs.add(db_ref)
+                identifiers.add(id)
 
         if errors:
             return (None, InvalidAttribute(self, errors))
         else:
-            return (det_dedupe(db_refs), None)
+            return (det_dedupe(identifiers), None)
 
     def get_excel_validation(self):
         """ Get Excel validation
@@ -565,8 +565,8 @@ class DatabaseReferenceManyToManyAttribute(ManyToManyAttribute):
         validation = super(ManyToManyAttribute, self).get_excel_validation()
 
         validation.ignore_blank = True
-        input_message = ['Enter a comma-separated list of references to external databases.']
-        error_message = ['Value must be a comma-separated list of references to external databases.']
+        input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
+        error_message = ['Value must be a comma-separated list of identifiers in external namespaces.']
 
         input_message.append(('Examples:\n'
                               '* doi: 10.1016/j.tcb.2015.09.004\n'
@@ -665,7 +665,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         revision (:obj:`str`): hash for git commit of the wc_lang version used by a model
         wc_lang_version (:obj:`str`): version of ``wc_lang``
         time_units (:obj:`unit_registry.Unit`): time units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
         created (:obj:`datetime`): date created
         updated (:obj:`datetime`): date updated
@@ -707,7 +707,7 @@ class Model(obj_model.Model, SbmlModelMixin):
     time_units = UnitAttribute(unit_registry,
                                choices=[unit_registry.parse_units('s')],
                                default=unit_registry.parse_units('s'))
-    db_refs = DatabaseReferenceOneToManyAttribute(related_name='model')
+    identifiers = IdentifierOneToManyAttribute(related_name='model')
     comments = CommentAttribute()
     created = DateTimeAttribute()
     updated = DateTimeAttribute()
@@ -717,7 +717,7 @@ class Model(obj_model.Model, SbmlModelMixin):
                            'url', 'branch', 'revision',
                            'wc_lang_version',
                            'time_units',
-                           'db_refs', 'comments',
+                           'identifiers', 'comments',
                            'created', 'updated')
         tabular_orientation = TabularOrientation.column
         children = {
@@ -727,7 +727,7 @@ class Model(obj_model.Model, SbmlModelMixin):
                            'observables', 'functions', 'stop_conditions'),
         }
         sbml_attrs = ('id', 'name', 'version', 'url', 'branch', 'revision',
-                      'wc_lang_version', 'time_units', 'db_refs', 'comments', 'updated', 'created')
+                      'wc_lang_version', 'time_units', 'identifiers', 'comments', 'updated', 'created')
 
     def __init__(self, **kwargs):
         """
@@ -1186,15 +1186,15 @@ class Model(obj_model.Model, SbmlModelMixin):
         annots = []
 
         annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version',
-                       'db_refs',
+                       'identifiers',
                        'updated', 'created'])
 
         if self.taxon:
-            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.db_refs', 'taxon.comments'])
+            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.identifiers', 'taxon.comments'])
 
         if self.env:
             annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units',
-                           'env.db_refs', 'env.comments'])
+                           'env.identifiers', 'env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
                          + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml) \
@@ -1224,15 +1224,15 @@ class Model(obj_model.Model, SbmlModelMixin):
         annots = []
 
         # identifiers
-        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version', 'db_refs', 'updated', 'created'])
+        annots.extend(['version', 'url', 'branch', 'revision', 'wc_lang_version', 'identifiers', 'updated', 'created'])
 
         if 'taxon.id' in parsed_annots:
             self.taxon = Taxon()
-            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.db_refs', 'taxon.comments'])
+            annots.extend(['taxon.id', 'taxon.name', 'taxon.rank', 'taxon.identifiers', 'taxon.comments'])
 
         if 'env.id' in parsed_annots:
             self.env = Environment()
-            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.db_refs', 'env.comments'])
+            annots.extend(['env.id', 'env.name', 'env.temp', 'env.temp_units', 'env.ph', 'env.ph_units', 'env.identifiers', 'env.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
@@ -1248,7 +1248,7 @@ class Taxon(obj_model.Model, SbmlModelMixin):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         rank (:obj:`TaxonRank`): rank
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -1256,20 +1256,20 @@ class Taxon(obj_model.Model, SbmlModelMixin):
     name = StringAttribute()
     model = OneToOneAttribute(Model, related_name='taxon')
     rank = EnumAttribute(TaxonRank, default=TaxonRank.species)
-    db_refs = DatabaseReferenceOneToManyAttribute(related_name='taxon')
+    identifiers = IdentifierOneToManyAttribute(related_name='taxon')
     comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='taxon')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'rank',
-                           'db_refs', 'comments', 'references')
+                           'identifiers', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
         children = {
-            'submodel': ('db_refs', 'references'),
-            'core_model': ('db_refs', 'references'),
+            'submodel': ('identifiers', 'references'),
+            'core_model': ('identifiers', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'rank', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'rank', 'identifiers', 'comments')
 
 
 class Environment(obj_model.Model, SbmlModelMixin):
@@ -1283,7 +1283,7 @@ class Environment(obj_model.Model, SbmlModelMixin):
         temp_units (:obj:`unit_registry.Unit`): temperature units
         ph (:obj:`float`): pH
         ph_units (:obj:`unit_registry.Unit`): pH units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -1300,20 +1300,20 @@ class Environment(obj_model.Model, SbmlModelMixin):
                              choices=(unit_registry.parse_units('dimensionless'),),
                              default=unit_registry.parse_units('dimensionless'),
                              verbose_name='pH units')
-    db_refs = DatabaseReferenceOneToManyAttribute(related_name='env')
+    identifiers = IdentifierOneToManyAttribute(related_name='env')
     comments = CommentAttribute()
     references = OneToManyAttribute('Reference', related_name='env')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'temp', 'temp_units', 'ph', 'ph_units',
-                           'db_refs', 'comments', 'references')
+                           'identifiers', 'comments', 'references')
         tabular_orientation = TabularOrientation.column
         children = {
-            'submodel': ('db_refs', 'references'),
-            'core_model': ('db_refs', 'references'),
+            'submodel': ('identifiers', 'references'),
+            'core_model': ('identifiers', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'ph', 'ph_units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'ph', 'ph_units', 'identifiers', 'comments')
 
 
 class Submodel(obj_model.Model, SbmlModelMixin):
@@ -1324,7 +1324,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         framework (:obj:`pronto.term.Term`): modeling framework (e.g. dynamic flux balance analysis)
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -1346,7 +1346,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                                   terms=onto['WC:modeling_framework'].rchildren(),
                                   default=onto['WC:stochastic_simulation_algorithm'],
                                   none=False)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='submodels')
+    identifiers = IdentifierManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
     interpretations = ManyToManyAttribute('Interpretation', related_name='submodels')
     comments = CommentAttribute()
@@ -1354,14 +1354,14 @@ class Submodel(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'framework',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('model', 'reactions', 'dfba_obj', 'dfba_obj_reactions',
-                         'db_refs', 'evidence', 'interpretations', 'references', 'changes'),
+                         'identifiers', 'evidence', 'interpretations', 'references', 'changes'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'framework', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'framework', 'identifiers', 'comments')
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1503,20 +1503,20 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         """
         annots = []
 
-        annots.extend(['framework', 'db_refs'])
+        annots.extend(['framework', 'identifiers'])
 
         annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
-                       'model.db_refs',
+                       'model.identifiers',
                        'model.comments', 'model.updated', 'model.created'])
 
         if self.model.taxon:
-            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.db_refs', 'model.taxon.comments'])
+            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.identifiers', 'model.taxon.comments'])
 
         if self.model.env:
             annots.extend(['model.env.id', 'model.env.name',
                            'model.env.temp', 'model.env.temp_units',
                            'model.env.ph', 'model.env.ph_units',
-                           'model.env.db_refs', 'model.env.comments'])
+                           'model.env.identifiers', 'model.env.comments'])
 
         xml_annotation = '<annotation><wcLang:annotation>' \
             + LibSbmlInterface.gen_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml) \
@@ -1546,20 +1546,20 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         annots = []
 
         # identifiers
-        annots.extend(['framework', 'db_refs'])
+        annots.extend(['framework', 'identifiers'])
 
         annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
-                       'model.db_refs', 'model.comments', 'model.updated', 'model.created'])
+                       'model.identifiers', 'model.comments', 'model.updated', 'model.created'])
 
         if 'model.taxon.id' in parsed_annots:
             self.model.taxon = Taxon()
-            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.db_refs', 'model.taxon.comments'])
+            annots.extend(['model.taxon.id', 'model.taxon.name', 'model.taxon.rank', 'model.taxon.identifiers', 'model.taxon.comments'])
         if 'model.env.id' in parsed_annots:
             self.model.env = Environment()
             annots.extend(['model.env.id', 'model.env.name',
                            'model.env.temp', 'model.env.temp_units',
                            'model.env.ph', 'model.env.ph_units',
-                           'model.env.db_refs', 'model.env.comments'])
+                           'model.env.identifiers', 'model.env.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
@@ -1693,7 +1693,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units
         reaction_rate_units (:obj:`unit_registry.Unit`): reaction rate units
         coefficient_units (:obj:`unit_registry.Unit`): coefficient units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -1715,7 +1715,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
     coefficient_units = UnitAttribute(unit_registry,
                                       choices=(unit_registry.parse_units('s'),),
                                       default=unit_registry.parse_units('s'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
+    identifiers = IdentifierManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = CommentAttribute()
@@ -1725,16 +1725,16 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         verbose_name = 'dFBA objective'
         attribute_order = ('id', 'name', 'submodel', AttributeGroup('Expression', ('expression', 'units')), 
                            'reaction_rate_units', 'coefficient_units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ('id', 'name', 'model', 'submodel', 'expression', 'units',
-                      'reaction_rate_units', 'coefficient_units', 'db_refs', 'comments')
+                      'reaction_rate_units', 'coefficient_units', 'identifiers', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -1829,7 +1829,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
             call_libsbml(sbml_flux_obj.setCoefficient, coeff)
 
         # units, identifiers
-        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'db_refs']
+        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'identifiers']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -1875,7 +1875,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         assert error is None, str(error)
 
         # units, identifiers
-        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'db_refs']
+        annots = ['units', 'reaction_rate_units', 'coefficient_units', 'identifiers']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
     def get_products(self, __type=None, **kwargs):
@@ -1933,7 +1933,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         init_volume_units (:obj:`unit_registry.Unit`): units of volume
         init_density (:obj:`Parameter`): function that calculates the density during the initialization of
             each simulation
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -1981,7 +1981,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                                       default=unit_registry.parse_units('l'),
                                       verbose_name='Units')
     init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='compartments')
+    identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     interpretations = ManyToManyAttribute('Interpretation', related_name='compartments')
     comments = CommentAttribute()
@@ -1993,19 +1993,19 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                            'mass_units',
                            AttributeGroup('Initial volume', ('distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units')),
                            'init_density',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
             'submodel': (  # 'parent_compartment', 'sub_compartments',
-                'init_density', 'db_refs', 'evidence', 'interpretations', 'references'),
+                'init_density', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': (
                 'parent_compartment', 'sub_compartments', 'init_density',
-                'db_refs', 'evidence', 'interpretations', 'references'),
+                'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
                       'parent_compartment', 'mass_units', 'distribution_init_volume',
                       'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
-                      'db_refs', 'comments')
+                      'identifiers', 'comments')
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2126,7 +2126,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         annots = ['biological_type', 'physical_type',
                   'parent_compartment',
                   'distribution_init_volume', 'std_init_volume',
-                  'init_density', 'db_refs']
+                  'init_density', 'identifiers']
 
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
@@ -2169,7 +2169,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         """
         annots = ['biological_type', 'physical_type',
                   'distribution_init_volume', 'std_init_volume',
-                  'parent_compartment', 'init_density', 'db_refs']
+                  'parent_compartment', 'init_density', 'identifiers']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
@@ -2185,7 +2185,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         molecular_weight (:obj:`float`): molecular weight
         charge (:obj:`int`): charge
         type (:obj:`pronto.term.Term`): type
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -2207,7 +2207,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
                              terms=onto['WC:species_type'].rchildren(),
                              default=onto['WC:metabolite'],
                              none=True)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
+    identifiers = IdentifierManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = ManyToManyAttribute('Evidence', related_name='species_types')
     interpretations = ManyToManyAttribute('Interpretation', related_name='species_types')
     comments = CommentAttribute()
@@ -2217,14 +2217,14 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         verbose_name = 'Species type'
         attribute_order = ('id', 'name', 'structure', 'empirical_formula',
                            'molecular_weight', 'charge', 'type',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         children = {
-            'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('species', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
-                      'db_refs', 'comments')
+                      'identifiers', 'comments')
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -2245,7 +2245,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         species_type (:obj:`SpeciesType`): species type
         compartment (:obj:`Compartment`): compartment
         units (:obj:`unit_registry.Unit`): units of counts
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -2270,7 +2270,7 @@ class Species(obj_model.Model, SbmlModelMixin):
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('molecule'),),
                           default=unit_registry.parse_units('molecule'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='species')
+    identifiers = IdentifierManyToManyAttribute(related_name='species')
     evidence = ManyToManyAttribute('Evidence', related_name='species')
     interpretations = ManyToManyAttribute('Interpretation', related_name='species')
     comments = CommentAttribute()
@@ -2278,7 +2278,7 @@ class Species(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'species_type', 'compartment', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         frozen_columns = 1
         # unique_together = (('species_type', 'compartment', ), )
         indexed_attrs_tuples = (('species_type', 'compartment'), )
@@ -2286,12 +2286,12 @@ class Species(obj_model.Model, SbmlModelMixin):
         expression_term_units = 'units'
         children = {
             'submodel': ('species_type', 'compartment', 'distribution_init_concentration',
-                         'db_refs', 'evidence', 'interpretations', 'references'),
+                         'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
-                           'db_refs', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ('id', 'name', 'model', 'species_type', 'compartment', 'units',
-                      'db_refs', 'comments')
+                      'identifiers', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -2435,7 +2435,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         annots = ['species_type.id', 'species_type.name',
                   'species_type.structure', 'species_type.empirical_formula',
                   'species_type.molecular_weight', 'species_type.charge',
-                  'species_type.type', 'species_type.db_refs',
+                  'species_type.type', 'species_type.identifiers',
                   'species_type.comments',
                   'distribution_init_concentration.id',
                   'distribution_init_concentration.name',
@@ -2443,9 +2443,9 @@ class Species(obj_model.Model, SbmlModelMixin):
                   'distribution_init_concentration.mean',
                   'distribution_init_concentration.std',
                   'distribution_init_concentration.units',
-                  'distribution_init_concentration.db_refs',
+                  'distribution_init_concentration.identifiers',
                   'distribution_init_concentration.comments',
-                  'db_refs']
+                  'identifiers']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -2478,7 +2478,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = []
 
-        annots.extend(['db_refs', 'species_type.db_refs', 'distribution_init_concentration.db_refs'])
+        annots.extend(['identifiers', 'species_type.identifiers', 'distribution_init_concentration.identifiers'])
 
         # species type
         self.species_type = self.model.species_types.get_or_create(
@@ -2517,7 +2517,7 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
         std (:obj:`float`): standard deviation of the concentration in a population of
             single cells at the beginning of each cell cycle
         units (:obj:`unit_registry.Unit`): units; default units is `M`
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -2545,7 +2545,7 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
                               unit_registry.parse_units('aM'),
                           ),
                           default=unit_registry.parse_units('M'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='distribution_init_concentrations')
+    identifiers = IdentifierManyToManyAttribute(related_name='distribution_init_concentrations')
     evidence = ManyToManyAttribute('Evidence', related_name='distribution_init_concentrations')
     interpretations = ManyToManyAttribute('Interpretation', related_name='distribution_init_concentrations')
     comments = CommentAttribute()
@@ -2555,15 +2555,15 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
         # unique_together = (('species', ), )
         attribute_order = ('id', 'name', 'species',
                            'distribution', 'mean', 'std', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         verbose_name = 'Initial species concentration'
         frozen_columns = 1
         children = {
-            'submodel': ('db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('species',
-                           'db_refs', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'identifiers', 'comments')
 
     def gen_id(self):
         """ Generate string representation
@@ -2685,7 +2685,7 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
         model (:obj:`Model`): model
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
         units (:obj:`unit_registry.Unit`): units of expression
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -2706,7 +2706,7 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('molecule'),),
                           default=unit_registry.parse_units('molecule'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='observables')
+    identifiers = IdentifierManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
     interpretations = ManyToManyAttribute('Interpretation', related_name='observables')
     comments = CommentAttribute()
@@ -2714,14 +2714,14 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = ObservableExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments')
 
 
 class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
@@ -2815,7 +2815,7 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
         model (:obj:`Model`): model
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
         units (:obj:`unit_registry.Unit`): units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -2833,7 +2833,7 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
     expression = ExpressionOneToOneAttribute(FunctionExpression, related_name='function',
                                              min_related=1, min_related_rev=1)
     units = UnitAttribute(unit_registry)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='functions')
+    identifiers = IdentifierManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='functions')
     comments = CommentAttribute()
@@ -2841,14 +2841,14 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = FunctionExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments')
 
     def validate(self):
         """ Check that the Function is valid
@@ -2985,7 +2985,7 @@ class StopCondition(obj_model.Model):
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         units (:obj:`unit_registry.Unit`): units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -3003,7 +3003,7 @@ class StopCondition(obj_model.Model):
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('dimensionless'),),
                           default=unit_registry.parse_units('dimensionless'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='stop_conditions')
+    identifiers = IdentifierManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='stop_conditions')
     comments = CommentAttribute()
@@ -3011,12 +3011,12 @@ class StopCondition(obj_model.Model):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = StopConditionExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ()
 
@@ -3074,7 +3074,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         flux_min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
         flux_max (:obj:`float`): maximum flux bound for solving an FBA model
         flux_bound_units (:obj:`unit_registry.Unit`): units for the minimum and maximum fluxes
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -3100,7 +3100,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     flux_bound_units = UnitAttribute(unit_registry,
                                      choices=(unit_registry.parse_units('M s^-1'),),
                                      default=None, none=True, verbose_name='Units')
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='reactions')
+    identifiers = IdentifierManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='reactions')
     comments = CommentAttribute()
@@ -3110,19 +3110,19 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
                            'rate_units', AttributeGroup('Flux', ('flux_min', 'flux_max', 'flux_bound_units')),
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('participants', 'rate_laws',
-                         'db_refs', 'evidence', 'interpretations', 'references'),
+                         'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('participants', 'rate_laws',
-                           'db_refs', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'interpretations', 'references'),
         }
         sbml_attrs = ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
                       'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
-                      'db_refs', 'comments')
+                      'identifiers', 'comments')
 
     def validate(self):
         """ Check if the reaction is valid
@@ -3325,7 +3325,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         annots['rate_units'] = 'rate_units'
 
         # identifiers
-        annots['db_refs'] = 'db_refs'
+        annots['identifiers'] = 'identifiers'
 
         # forward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
@@ -3342,7 +3342,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             annots['rate_laws.backward.type'] = (('rate_laws', {'direction': rl.direction}), 'type')
             annots['rate_laws.backward.expression'] = (('rate_laws', {'direction': rl.direction}), 'expression')
             annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
-            annots['rate_laws.backward.db_refs'] = (('rate_laws', {'direction': rl.direction}), 'db_refs')
+            annots['rate_laws.backward.identifiers'] = (('rate_laws', {'direction': rl.direction}), 'identifiers')
             annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
 
         # annotations
@@ -3412,7 +3412,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         annots['rate_units'] = 'rate_units'
 
         # identifiers
-        annots['db_refs'] = 'db_refs'
+        annots['identifiers'] = 'identifiers'
 
         # forward rate law
         rl = self.rate_laws.get_one(direction=RateLawDirection.forward)
@@ -3429,7 +3429,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             annots['rate_laws.backward.expression'] = (('rate_laws', {'direction': RateLawDirection.backward}), 'expression')
             annots['rate_laws.backward.units'] = (('rate_laws', {'direction': rl.direction}), 'units')
             annots['rate_laws.backward.comments'] = (('rate_laws', {'direction': rl.direction}), 'comments')
-            annots['rate_laws.backward.db_refs'] = (('rate_laws', {'direction': rl.direction}), 'db_refs')
+            annots['rate_laws.backward.identifiers'] = (('rate_laws', {'direction': rl.direction}), 'identifiers')
 
         # get annotations
         LibSbmlInterface.get_annotations(self, annots, sbml_rxn, objs)
@@ -3648,7 +3648,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         type (:obj:`pronto.term.Term`): type
         expression (:obj:`RateLawExpression`): expression
         units (:obj:`unit_registry.Unit`): units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -3667,7 +3667,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('s^-1'),),
                           default=unit_registry.parse_units('s^-1'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='rate_laws')
+    identifiers = IdentifierManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
     interpretations = ManyToManyAttribute('Interpretation', related_name='rate_laws')
     comments = CommentAttribute()
@@ -3676,15 +3676,15 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
                            'expression', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         expression_term_model = RateLawExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments')
 
     def gen_id(self):
         """ Generate identifier
@@ -3797,7 +3797,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.set_math(sbml.setMath, self.expression, units_transform='({}) * 1 mole')
 
         # type, units, identifiers
-        annots = ['type', 'units', 'db_refs']
+        annots = ['type', 'units', 'identifiers']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -3841,7 +3841,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs, units_transform=units_transform)
 
         # identifiers
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml, objs)
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml, objs)
 
 
 class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
@@ -3859,7 +3859,7 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
         species (:obj:`Species`): species
         value (:obj:`float`): the specie's reaction coefficient
         units (:obj:`unit_registry.Unit`): units of the value
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -3877,7 +3877,7 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('M s^-1'), unit_registry.parse_units('mol gDCW^-1 s^-1')),
                           default=unit_registry.parse_units('M s^-1'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_obj_species',
+    identifiers = IdentifierManyToManyAttribute(related_name='dfba_obj_species',
                                                    verbose_related_name='dFBA objective species')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_species',
                                    verbose_related_name='dFBA objective species')
@@ -3891,15 +3891,15 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
         # unique_together = (('dfba_obj_reaction', 'species'), )
         attribute_order = ('id', 'name', 'dfba_obj_reaction',
                            'species', 'value', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         verbose_name = 'dFBA objective species'
         verbose_name_plural = 'dFBA objective species'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('dfba_obj_reaction', 'species', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'identifiers', 'comments')
 
     def gen_id(self):
         """ Generate identifier equal to
@@ -3959,7 +3959,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         submodel (:obj:`Submodel`): submodel that uses this reaction
         units (:obj:`unit_registry.Unit`): rate units
         cell_size_units (:obj:`unit_registry.Unit`): cell size units
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -3980,7 +3980,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
     cell_size_units = UnitAttribute(unit_registry,
                                     choices=(unit_registry.parse_units('l'), unit_registry.parse_units('gDCW')),
                                     default=unit_registry.parse_units('l'))
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='dfba_obj_reactions',
+    identifiers = IdentifierManyToManyAttribute(related_name='dfba_obj_reactions',
                                                    verbose_related_name='dFBA objective reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_reactions',
                                    verbose_related_name='dFBA objective reactions')
@@ -3991,16 +3991,16 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel', 'units', 'cell_size_units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA objective reaction'
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
-            'core_model': ('dfba_obj_species', 'db_refs', 'evidence', 'interpretations', 'references'),
+            'submodel': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'identifiers', 'comments')
 
     def export_to_sbml(self, sbml_model):
         """ Add a dFBA objective reaction to a SBML model.
@@ -4059,11 +4059,11 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
             call_libsbml(sbml_part.setConstant, True)
             call_libsbml(sbml_part.setStoichiometry, coeff)
             LibSbmlInterface.set_annotations(dfba_obj_species, LibSbmlInterface.gen_nested_attr_paths([
-                                             'name', 'units', 'db_refs']), sbml_part)
+                                             'name', 'units', 'identifiers']), sbml_part)
             LibSbmlInterface.set_commments(dfba_obj_species, sbml_part)
 
         # units, identifiers
-        annots = ['units', 'cell_size_units', 'db_refs']
+        annots = ['units', 'cell_size_units', 'identifiers']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml_rxn)
 
     def import_from_sbml(self, sbml_rxn):
@@ -4113,11 +4113,11 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
                 dfba_obj_species.species = species
                 dfba_obj_species.value = value
                 LibSbmlInterface.get_annotations(dfba_obj_species, LibSbmlInterface.gen_nested_attr_paths([
-                                                 'name', 'units', 'db_refs']), sbml_part, objs)
+                                                 'name', 'units', 'identifiers']), sbml_part, objs)
                 LibSbmlInterface.get_commments(dfba_obj_species, sbml_part)
 
         # identifiers
-        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['db_refs']), sbml_rxn, objs)
+        LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml_rxn, objs)
 
 
 class Parameter(obj_model.Model, SbmlModelMixin):
@@ -4131,7 +4131,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         value (:obj:`float`): value
         std (:obj:`float`): standard error of the value
         units (:obj:`unit_registry.Unit`): units of the value and standard error
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -4155,7 +4155,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
     value = FloatAttribute()
     std = FloatAttribute(min=0, verbose_name='Standard error')
     units = UnitAttribute(unit_registry)
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='parameters')
+    identifiers = IdentifierManyToManyAttribute(related_name='parameters')
     evidence = ManyToManyAttribute('Evidence', related_name='parameters')
     interpretations = ManyToManyAttribute('Interpretation', related_name='parameters')
     comments = CommentAttribute()
@@ -4164,10 +4164,10 @@ class Parameter(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta, ExpressionStaticTermMeta):
         attribute_order = ('id', 'name', 'type',
                            'value', 'std', 'units',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_value = 'value'
         expression_term_units = 'units'
-        sbml_attrs = ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'db_refs', 'comments')
+        sbml_attrs = ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'identifiers', 'comments')
 
     def export_to_sbml(self, sbml_model):
         """ Add this parameter to a SBML model.
@@ -4193,7 +4193,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
             sbml_model (:obj:`libsbml.Model`): SBML model
             sbml (:obj:`libsbml.Parameter`): SBML parameter
         """
-        annots = ['type', 'std', 'db_refs']
+        annots = ['type', 'std', 'identifiers']
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -4216,7 +4216,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        annots = ['type', 'std', 'db_refs']
+        annots = ['type', 'std', 'identifiers']
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
@@ -4243,7 +4243,7 @@ class Evidence(obj_model.Model):
         experiment_design (:obj:`str`): experimental design
         measurement_method (:obj:`str`): method used to measure data (e.g. deep sequencing)
         analysis_method (:obj:`str`): method used to analyze data (e.g. Cufflinks)
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
         comments (:obj:`str`): comments
@@ -4300,7 +4300,7 @@ class Evidence(obj_model.Model):
     experiment_design = LongStringAttribute()
     measurement_method = LongStringAttribute()
     analysis_method = LongStringAttribute()
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='evidences')
+    identifiers = IdentifierManyToManyAttribute(related_name='evidences')
     evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='evidences')
@@ -4312,11 +4312,11 @@ class Evidence(obj_model.Model):
                            AttributeGroup('Genotype', ('taxon', 'genetic_variant')),
                            AttributeGroup('Environment', ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')),
                            'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
-                           'db_refs', 'evidence', 'comments', 'references')
+                           'identifiers', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
         children = {
-            'submodel': ('db_refs', 'evidence', 'references'),
-            'core_model': ('db_refs', 'evidence', 'references'),
+            'submodel': ('identifiers', 'evidence', 'references'),
+            'core_model': ('identifiers', 'evidence', 'references'),
         }
         sbml_attrs = ()
 
@@ -4362,7 +4362,7 @@ class Interpretation(obj_model.Model):
         units (:obj:`unit_registry.Unit`): units
         type (:obj:`pronto.term.Term`): type
         method (:obj:`str`): procedure which produced the interpretation
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
         comments (:obj:`str`): comments
@@ -4400,7 +4400,7 @@ class Interpretation(obj_model.Model):
                              terms=onto['WC:interpretation'].rchildren(),
                              default=None, none=True)
     method = LongStringAttribute()
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='interpretations')
+    identifiers = IdentifierManyToManyAttribute(related_name='interpretations')
     evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='interpretations')
@@ -4410,10 +4410,10 @@ class Interpretation(obj_model.Model):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
                            'type', 'method',
-                           'db_refs', 'evidence', 'comments', 'references', 'authors')
+                           'identifiers', 'evidence', 'comments', 'references', 'authors')
         children = {
-            'submodel': ('db_refs', 'evidence', 'references', 'authors'),
-            'core_model': ('db_refs', 'evidence', 'references', 'authors'),
+            'submodel': ('identifiers', 'evidence', 'references', 'authors'),
+            'core_model': ('identifiers', 'evidence', 'references', 'authors'),
         }
         sbml_attrs = ()
 
@@ -4439,7 +4439,7 @@ class Reference(obj_model.Model):
         edition (:obj:`str`): edition
         chapter (:obj:`str`): chapter
         pages (:obj:`str`): page range
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
 
     Related attributes:
@@ -4483,17 +4483,17 @@ class Reference(obj_model.Model):
     edition = StringAttribute()
     chapter = StringAttribute()
     pages = StringAttribute()
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='references')
+    identifiers = IdentifierManyToManyAttribute(related_name='references')
     comments = CommentAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'title', 'author', 'editor', 'year', 'type', 'publication', 'publisher',
                            'series', 'volume', 'number', 'issue', 'edition', 'chapter', 'pages',
-                           'db_refs', 'comments')
+                           'identifiers', 'comments')
         children = {
-            'submodel': ('db_refs',),
-            'core_model': ('db_refs',),
+            'submodel': ('identifiers',),
+            'core_model': ('identifiers',),
         }
         sbml_attrs = ()
 
@@ -4513,7 +4513,7 @@ class Author(obj_model.Model, SbmlModelMixin):
         email (:obj:`str`): email address
         website (:obj:`str`): website
         address (:obj:`str`): physical address
-        db_refs (:obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
 
     Related attributes:
@@ -4532,7 +4532,7 @@ class Author(obj_model.Model, SbmlModelMixin):
     email = EmailAttribute()
     website = UrlAttribute()
     address = LongStringAttribute()
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='authors')
+    identifiers = IdentifierManyToManyAttribute(related_name='authors')
     comments = LongStringAttribute()
 
     class Meta(obj_model.Model.Meta):
@@ -4540,17 +4540,17 @@ class Author(obj_model.Model, SbmlModelMixin):
                            'last_name', 'first_name', 'middle_name',
                            'title', 'organization',
                            'email', 'website', 'address',
-                           'db_refs', 'comments')
+                           'identifiers', 'comments')
         frozen_columns = 2
         children = {
-            'submodel': ('db_refs',),
-            'core_model': ('db_refs',),
+            'submodel': ('identifiers',),
+            'core_model': ('identifiers',),
         }
         sbml_attrs = ('id', 'name', 'model',
                       'last_name', 'first_name', 'middle_name',
                       'title', 'organization',
                       'email', 'website', 'address',
-                      'db_refs', 'comments')
+                      'identifiers', 'comments')
 
     def get_identifier(self, namespace):
         """ Get the author's id in a namespace (e.g., `github.user`, `orcid`)
@@ -4564,7 +4564,7 @@ class Author(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the author has multiple ids in :obj:`namespace`
         """
-        identifiers = self.db_refs.get(database=namespace)
+        identifiers = self.identifiers.get(namespace=namespace)
         if len(identifiers) == 1:
             return identifiers[0].id
         if len(identifiers) > 1:
@@ -4587,7 +4587,7 @@ class Change(obj_model.Model, SbmlModelMixin):
         reason_type (:obj:`pronto.term.Term`): type of reason
         intention (:obj:`str`): intention
         intention_type (:obj:`pronto.term.Term`): type of intention
-        db_refs (::obj:`list` of :obj:`DatabaseReference`): database references
+        identifiers (::obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
         comments (:obj:`str`): comments
@@ -4611,7 +4611,7 @@ class Change(obj_model.Model, SbmlModelMixin):
     intention = LongStringAttribute()
     intention_type = OntologyAttribute(onto, namespace='WC',
                                        terms=onto['WC:intention_provenance'].rchildren())
-    db_refs = DatabaseReferenceManyToManyAttribute(related_name='changes')
+    identifiers = IdentifierManyToManyAttribute(related_name='changes')
     evidence = ManyToManyAttribute('Evidence', related_name='changes')
     interpretations = ManyToManyAttribute('Interpretation', related_name='changes')
     comments = LongStringAttribute()
@@ -4622,21 +4622,21 @@ class Change(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'type', 'target', 'target_submodel', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
-                           'db_refs', 'evidence', 'interpretations', 'comments', 'references',
+                           'identifiers', 'evidence', 'interpretations', 'comments', 'references',
                            'authors', 'date')
         children = {
-            'submodel': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
-            'core_model': ('db_refs', 'evidence', 'interpretations', 'references', 'authors'),
+            'submodel': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
+            'core_model': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
         }
         sbml_attrs = ()
 
 
-class DatabaseReference(obj_model.Model, SbmlModelMixin):
-    """ Reference to a source database entry
+class Identifier(obj_model.Model, SbmlModelMixin):
+    """ Reference to an entry in a namespace
 
     Attributes:
-        database (:obj:`str`): database name
-        id (:obj:`str`): id of database entry
+        namespace (:obj:`str`): namespace name
+        id (:obj:`str`): id of entry in namespace
 
     Related attributes:
 
@@ -4663,16 +4663,16 @@ class DatabaseReference(obj_model.Model, SbmlModelMixin):
         * changes (:obj:`list` of :obj:`Change`): changes
     """
 
-    database = StringAttribute(min_length=1)
+    namespace = StringAttribute(min_length=1)
     id = StringAttribute(min_length=1)
 
     class Meta(obj_model.Model.Meta):
-        unique_together = (('database', 'id', ), )
+        unique_together = (('namespace', 'id', ), )
         tabular_orientation = TabularOrientation.inline
-        attribute_order = ('database', 'id')
+        attribute_order = ('namespace', 'id')
         frozen_columns = 2
-        ordering = ('database', 'id', )
-        sbml_attrs = ('database', 'id')
+        ordering = ('namespace', 'id', )
+        sbml_attrs = ('namespace', 'id')
 
     def serialize(self):
         """ Generate string representation
@@ -4680,7 +4680,7 @@ class DatabaseReference(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`str`: value of primary attribute
         """
-        return '{}: {}'.format(self.database, self.id)
+        return '{}: {}'.format(self.namespace, self.id)
 
     @classmethod
     def deserialize(cls, value, objects):
@@ -4691,25 +4691,25 @@ class DatabaseReference(obj_model.Model, SbmlModelMixin):
             objects (:obj:`dict`): dictionary of objects, grouped by model
 
         Returns:
-            :obj:`DatabaseReference`: cleaned value
+            :obj:`Identifier`: cleaned value
             :obj:`InvalidAttribute`: cleaning error
         """
         if ': ' not in value:
             return (None, InvalidAttribute(cls.Meta.attributes['id'], ['Invalid format']))
 
-        database, _, id = value.strip().partition(': ')
-        db_ref = cls(database=database.strip(), id=id.strip())
+        namespace, _, id = value.strip().partition(': ')
+        identifier = cls(namespace=namespace.strip(), id=id.strip())
 
-        if DatabaseReference not in objects:
-            objects[DatabaseReference] = {}
+        if Identifier not in objects:
+            objects[Identifier] = {}
 
-        serialized_val = db_ref.serialize()
-        if serialized_val in objects[DatabaseReference]:
-            db_ref = objects[DatabaseReference][serialized_val]
+        serialized_val = identifier.serialize()
+        if serialized_val in objects[Identifier]:
+            identifier = objects[Identifier][serialized_val]
         else:
-            objects[DatabaseReference][serialized_val] = db_ref
+            objects[Identifier][serialized_val] = identifier
 
-        return (db_ref, None)
+        return (identifier, None)
 
 
 class Validator(obj_model.Validator):

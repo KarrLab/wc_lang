@@ -9,7 +9,7 @@
 from .core import Transform
 from wc_lang.core import (Model, Submodel, Reaction,
                           DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction,
-                          Evidence, Interpretation, DatabaseReference, Reference,
+                          Evidence, Interpretation, Identifier, Reference,
                           Change)
 from wc_onto import onto
 import copy
@@ -70,7 +70,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             # removed submodel from model
             # merge submodels
             # - model
-            # - database references
+            # - identifiers
             # - evidence
             # - references
             # - reactions
@@ -79,7 +79,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             for submodel in submodels:
                 # assert that all types of related objects will be merged
                 assert set(attr.related_class for attr in Submodel.Meta.local_attributes.values() if attr.related_class) == set(
-                    [Model, Evidence, Interpretation, DatabaseReference, Reference, Reaction,
+                    [Model, Evidence, Interpretation, Identifier, Reference, Reaction,
                      DfbaObjective, DfbaObjReaction, Change])
 
                 model.submodels.remove(submodel)
@@ -88,9 +88,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                     submodel.evidence.remove(evidence)
                     merged_submodel.evidence.append(evidence)
 
-                for db_ref in list(submodel.db_refs):
-                    submodel.db_refs.remove(db_ref)
-                    merged_submodel.db_refs.append(db_ref)
+                for identifier in list(submodel.identifiers):
+                    submodel.identifiers.remove(identifier)
+                    merged_submodel.identifiers.append(identifier)
 
                 for ref in list(submodel.references):
                     submodel.references.remove(ref)
@@ -103,7 +103,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                 if submodel.dfba_obj:
                     # assert that all types of related objects will be merged
                     assert set(attr.related_class for attr in DfbaObjective.Meta.local_attributes.values() if attr.related_class) == set(
-                        [Model, Submodel, Evidence, Interpretation, DatabaseReference, Reference, DfbaObjectiveExpression])
+                        [Model, Submodel, Evidence, Interpretation, Identifier, Reference, DfbaObjectiveExpression])
 
                     model.dfba_objs.remove(submodel.dfba_obj)
 
@@ -111,9 +111,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                         submodel.dfba_obj.evidence.remove(evidence)
                         merged_submodel.dfba_obj.evidence.append(evidence)
 
-                    for db_ref in list(submodel.dfba_obj.db_refs):
-                        submodel.dfba_obj.db_refs.remove(db_ref)
-                        merged_submodel.dfba_obj.db_refs.append(db_ref)
+                    for identifier in list(submodel.dfba_obj.identifiers):
+                        submodel.dfba_obj.identifiers.remove(identifier)
+                        merged_submodel.dfba_obj.identifiers.append(identifier)
 
                     for ref in list(submodel.dfba_obj.references):
                         submodel.dfba_obj.references.remove(ref)

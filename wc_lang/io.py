@@ -104,7 +104,7 @@ class Writer(obj_model.io.Writer):
         """
         for attr in core.Model.Meta.attributes.values():
             if isinstance(attr, obj_model.RelatedAttribute) and \
-                    attr.related_class != core.DatabaseReference:
+                    attr.related_class != core.Identifier:
                 raise Exception('Relationships from `Model` not supported')
 
         for attr in core.Model.Meta.related_attributes.values():

@@ -45,7 +45,7 @@ class SplitReversibleReactionsTransform(Transform):
                             name='{} (forward)'.format(rxn.name),
                             reversible=False,
                             evidence=rxn.evidence,
-                            db_refs=rxn.db_refs,
+                            identifiers=rxn.identifiers,
                             comments=rxn.comments,
                             references=rxn.references,
                         )
@@ -55,13 +55,13 @@ class SplitReversibleReactionsTransform(Transform):
                             name='{} (backward)'.format(rxn.name),
                             reversible=False,
                             evidence=rxn.evidence,
-                            db_refs=rxn.db_refs,
+                            identifiers=rxn.identifiers,
                             comments=rxn.comments,
                             references=rxn.references,
                         )
 
                         rxn.evidence = []
-                        rxn.db_refs = []
+                        rxn.identifiers = []
                         rxn.references = []
 
                         # copy participants and negate for backward reaction

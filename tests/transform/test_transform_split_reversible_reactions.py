@@ -47,7 +47,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         assert error is None, str(error)
 
         r0.references.create(id='ref_0', model=model)
-        r0.db_refs.create(database='x', id='y')
+        r0.identifiers.create(namespace='x', id='y')
 
         r1 = model.reactions.create(id='r1', reversible=False, submodel=submodel)
         r1.participants.create(species=s1, coefficient=-3)
@@ -64,7 +64,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         assert error is None, str(error)
 
         r1.references.create(id='ref_1', model=model)
-        r1.db_refs.create(database='xx', id='yy')
+        r1.identifiers.create(namespace='xx', id='yy')
 
         model2 = model.copy()
         submodel2 = model2.submodels.get_one(id='submodel')
@@ -98,15 +98,15 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r1_2.references]), set(['ref_1']))
 
-        self.assertEqual(set([x.id for x in r0_f.db_refs]), set(['y']))
-        self.assertEqual(set([x.id for x in r0_b.db_refs]), set(['y']))
-        self.assertEqual(set([x.id for x in r1_2.db_refs]), set(['yy']))
+        self.assertEqual(set([x.id for x in r0_f.identifiers]), set(['y']))
+        self.assertEqual(set([x.id for x in r0_b.identifiers]), set(['y']))
+        self.assertEqual(set([x.id for x in r1_2.identifiers]), set(['yy']))
 
         self.assertEqual(r0.submodel, None)
         self.assertEqual(r0.participants, [])
         self.assertEqual(r0.rate_laws, [])
         self.assertEqual(r0.references, [])
-        self.assertEqual(r0.db_refs, [])
+        self.assertEqual(r0.identifiers, [])
 
         for attr_name, attr in chain(Reaction.Meta.attributes.items(), Reaction.Meta.related_attributes.items()):
             if isinstance(attr, RelatedAttribute):
