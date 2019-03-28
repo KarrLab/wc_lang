@@ -1966,19 +1966,19 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                                                  namespace='WC',
                                                  terms=onto['WC:random_distribution'].rchildren(),
                                                  default=onto['WC:normal_distribution'],
-                                                 verbose_name='Volume distribution')
-    mean_init_volume = FloatAttribute(min=0, verbose_name='Volume mean')
-    std_init_volume = FloatAttribute(min=0, verbose_name='Volume standard deviation')
+                                                 verbose_name='Distribution')
+    mean_init_volume = FloatAttribute(min=0, verbose_name='Mean')
+    std_init_volume = FloatAttribute(min=0, verbose_name='Standard deviation')
     init_volume_units = UnitAttribute(unit_registry,
                                       choices=(unit_registry.parse_units('l'),),
                                       default=unit_registry.parse_units('l'),
-                                      verbose_name='Volume units')
+                                      verbose_name='Units')
     init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
-    ph = FloatAttribute(verbose_name='pH')
+    ph = FloatAttribute(verbose_name='Value')
     ph_units = UnitAttribute(unit_registry,
                              choices=(unit_registry.parse_units('dimensionless'),),
                              default=unit_registry.parse_units('dimensionless'),
-                             verbose_name='pH units')
+                             verbose_name='Units')
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     interpretations = ManyToManyAttribute('Interpretation', related_name='compartments')
@@ -4240,8 +4240,10 @@ class Evidence(obj_model.Model):
         condition (:obj:`str`): experimental conditions (e.g. control)
         experiment_type (:obj:`str`): type of experiment (e.g. RNA-seq)
         experiment_design (:obj:`str`): experimental design
-        measurement_method (:obj:`str`): method used to measure data (e.g. deep sequencing)
-        analysis_method (:obj:`str`): method used to analyze data (e.g. Cufflinks)
+        measurement_method_name (:obj:`str`): method used to measure data (e.g. deep sequencing)
+        measurement_method_version (:obj:`str`): version of method used to measure data (e.g. deep sequencing)
+        analysis_method_name (:obj:`str`): method used to analyze data (e.g. Cufflinks)
+        analysis_method_version (:obj:`str`): version of method used to analyze data (e.g. Cufflinks)
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
@@ -4297,8 +4299,10 @@ class Evidence(obj_model.Model):
     condition = LongStringAttribute()
     experiment_type = LongStringAttribute()
     experiment_design = LongStringAttribute()
-    measurement_method = LongStringAttribute()
-    analysis_method = LongStringAttribute()
+    measurement_method_name = LongStringAttribute(verbose_name='Name')
+    measurement_method_version = StringAttribute(verbose_name='Version')
+    analysis_method_name = LongStringAttribute(verbose_name='Name')
+    analysis_method_version = StringAttribute(verbose_name='Version')
     identifiers = IdentifierManyToManyAttribute(related_name='evidences')
     evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
     comments = CommentAttribute()
@@ -4310,7 +4314,9 @@ class Evidence(obj_model.Model):
                            'type',
                            AttributeGroup('Genotype', ('taxon', 'genetic_variant')),
                            AttributeGroup('Environment', ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')),
-                           'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
+                           'experiment_type', 'experiment_design', 
+                           AttributeGroup('Measurement method', ('measurement_method_name', 'measurement_method_version')), 
+                           AttributeGroup('Analysis method', ('analysis_method_name', 'analysis_method_version')),
                            'identifiers', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
         children = {
@@ -4360,7 +4366,8 @@ class Interpretation(obj_model.Model):
         std (:obj:`str`): standard error of the value
         units (:obj:`unit_registry.Unit`): units
         type (:obj:`pronto.term.Term`): type
-        method (:obj:`str`): procedure which produced the interpretation
+        method_name (:obj:`str`): procedure which produced the interpretation
+        method_version (:obj:`str`): version of procedure which produced the interpretation
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
@@ -4398,7 +4405,8 @@ class Interpretation(obj_model.Model):
                              namespace='WC',
                              terms=onto['WC:interpretation'].rchildren(),
                              default=None, none=True)
-    method = LongStringAttribute()
+    method_name = LongStringAttribute(verbose_name='Name')
+    method_version = StringAttribute(verbose_name='Version')
     identifiers = IdentifierManyToManyAttribute(related_name='interpretations')
     evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
     comments = CommentAttribute()
@@ -4408,7 +4416,7 @@ class Interpretation(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
-                           'type', 'method',
+                           'type', AttributeGroup('Method', ('method_name', 'method_version')),
                            'identifiers', 'evidence', 'comments', 'references', 'authors')
         children = {
             'submodel': ('identifiers', 'evidence', 'references', 'authors'),
