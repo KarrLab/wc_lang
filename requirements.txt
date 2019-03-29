@@ -7,7 +7,6 @@ pronto
 python_libsbml >= 5.16.0
 scipy
 setuptools
-six
 stringcase
 wc_onto
 wc_utils

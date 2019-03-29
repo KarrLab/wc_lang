@@ -52,7 +52,6 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
                                   ParsedExpression, ParsedExpressionError)
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
-from six import with_metaclass
 from wc_lang.sbml.util import SbmlModelMixin, SbmlAssignmentRuleMixin, LibSbmlInterface
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
@@ -71,7 +70,6 @@ import pkg_resources
 import pronto.term
 import re
 import scipy.constants
-import six
 import stringcase
 import token
 
@@ -134,7 +132,7 @@ class TaxonRankMeta(CaseInsensitiveEnumMeta):
         return super(TaxonRankMeta, cls).__getitem__(name)
 
 
-class TaxonRank(with_metaclass(TaxonRankMeta, int, Enum)):
+class TaxonRank(int, Enum, metaclass=TaxonRankMeta):
     """ Taxonomic ranks """
     domain = 1
     kingdom = 2

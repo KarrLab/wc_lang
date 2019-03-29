@@ -6,8 +6,7 @@
 :License: MIT
 """
 
-from abc import ABCMeta, abstractmethod
-from six import with_metaclass
+from abc import ABC, abstractmethod
 from wc_lang.core import Model
 import sys
 
@@ -28,7 +27,7 @@ def get_transforms():
     return transforms
 
 
-class Transform(with_metaclass(ABCMeta, object)):
+class Transform(ABC):
 
     @abstractmethod
     def run(self, model):
