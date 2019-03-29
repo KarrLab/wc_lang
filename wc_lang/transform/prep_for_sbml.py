@@ -23,7 +23,7 @@ class PrepForSbmlTransform(CompositeTransform):
         CreateImplicitDistributionZeroInitConcentrationsTransform(),
         CreateImplicitDfbaExchangeReactionsTransform(),
         SplitReversibleReactionsTransform(),
-        NullifyAttrsTransform('sbml_attrs'),
+        NullifyAttrsTransform('sbml'),
     )
 
     class Meta(object):

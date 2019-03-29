@@ -422,9 +422,9 @@ class IdentifierOneToManyAttribute(OneToManyAttribute):
             help (:obj:`str`, optional): help message
         """
         super(IdentifierOneToManyAttribute, self).__init__('Identifier', related_name=related_name,
-                                                                  verbose_name=verbose_name,
-                                                                  verbose_related_name=verbose_related_name,
-                                                                  help=help)
+                                                           verbose_name=verbose_name,
+                                                           verbose_related_name=verbose_related_name,
+                                                           help=help)
 
     def serialize(self, identifiers, encoded=None):
         """ Serialize related object
@@ -506,9 +506,9 @@ class IdentifierManyToManyAttribute(ManyToManyAttribute):
             help (:obj:`str`, optional): help message
         """
         super(IdentifierManyToManyAttribute, self).__init__('Identifier', related_name=related_name,
-                                                                   verbose_name=verbose_name,
-                                                                   verbose_related_name=verbose_related_name,
-                                                                   help=help)
+                                                            verbose_name=verbose_name,
+                                                            verbose_related_name=verbose_related_name,
+                                                            help=help)
 
     def serialize(self, identifiers, encoded=None):
         """ Serialize related object
@@ -724,8 +724,10 @@ class Model(obj_model.Model, SbmlModelMixin):
                            'compartments', 'species_types', 'species', 'distribution_init_concentrations',
                            'observables', 'functions', 'stop_conditions'),
         }
-        sbml_attrs = ('id', 'name', 'version', 'url', 'branch', 'revision',
-                      'wc_lang_version', 'time_units', 'identifiers', 'comments', 'updated', 'created')
+        child_attrs = {
+            'sbml': ('id', 'name', 'version', 'url', 'branch', 'revision',
+                     'wc_lang_version', 'time_units', 'identifiers', 'comments', 'updated', 'created'),
+        }
 
     def __init__(self, **kwargs):
         """
@@ -1267,7 +1269,9 @@ class Taxon(obj_model.Model, SbmlModelMixin):
             'submodel': ('identifiers', 'references'),
             'core_model': ('identifiers', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'rank', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'rank', 'identifiers', 'comments'),
+            }
 
 
 class Environment(obj_model.Model, SbmlModelMixin):
@@ -1304,7 +1308,9 @@ class Environment(obj_model.Model, SbmlModelMixin):
             'submodel': ('identifiers', 'references'),
             'core_model': ('identifiers', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'temp', 'temp_units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'temp', 'temp_units', 'identifiers', 'comments'),
+            }
 
 
 class Submodel(obj_model.Model, SbmlModelMixin):
@@ -1352,7 +1358,9 @@ class Submodel(obj_model.Model, SbmlModelMixin):
             'submodel': ('model', 'reactions', 'dfba_obj', 'dfba_obj_reactions',
                          'identifiers', 'evidence', 'interpretations', 'references', 'changes'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'framework', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'framework', 'identifiers', 'comments'),
+            }
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1589,7 +1597,9 @@ class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
             'submodel': ('reactions', 'dfba_obj_reactions'),
             'core_model': ('reactions', 'dfba_obj_reactions'),
         }
-        sbml_attrs = ('expression', 'reactions', 'dfba_obj_reactions')
+        child_attrs = {
+            'sbml': ('expression', 'reactions', 'dfba_obj_reactions'),
+            }
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
@@ -1712,7 +1722,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', AttributeGroup('Expression', ('expression', 'units')), 
+        attribute_order = ('id', 'name', 'submodel', AttributeGroup('Expression', ('expression', 'units')),
                            'reaction_rate_units', 'coefficient_units',
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
@@ -1722,8 +1732,10 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
             'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'submodel', 'expression', 'units',
-                      'reaction_rate_units', 'coefficient_units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'submodel', 'expression', 'units',
+                      'reaction_rate_units', 'coefficient_units', 'identifiers', 'comments'),
+            }
 
     def gen_id(self):
         """ Generate identifier
@@ -1987,7 +1999,8 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'mass_units',
-                           AttributeGroup('Initial volume', ('distribution_init_volume', 'mean_init_volume', 'std_init_volume', 'init_volume_units')),
+                           AttributeGroup('Initial volume', ('distribution_init_volume',
+                                                             'mean_init_volume', 'std_init_volume', 'init_volume_units')),
                            'init_density',
                            AttributeGroup('pH', ('ph', 'ph_units')),
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
@@ -1999,10 +2012,12 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                 'parent_compartment', 'sub_compartments', 'init_density',
                 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
                       'parent_compartment', 'mass_units', 'distribution_init_volume',
                       'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
-                      'ph', 'ph_units', 'identifiers', 'comments')
+                      'ph', 'ph_units', 'identifiers', 'comments'),
+            }
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2220,8 +2235,10 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
             'submodel': ('identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
-                      'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
+                      'identifiers', 'comments'),
+            }
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -2287,8 +2304,10 @@ class Species(obj_model.Model, SbmlModelMixin):
             'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
                            'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'species_type', 'compartment', 'units',
-                      'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'species_type', 'compartment', 'units',
+                      'identifiers', 'comments'),
+            }
 
     def gen_id(self):
         """ Generate identifier
@@ -2560,7 +2579,9 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
             'core_model': ('species',
                            'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'identifiers', 'comments'),
+            }
 
     def gen_id(self):
         """ Generate string representation
@@ -2624,7 +2645,9 @@ class ObservableExpression(obj_model.Model, Expression, SbmlModelMixin):
             'submodel': ('species', 'observables'),
             'core_model': ('species', 'observables'),
         }
-        sbml_attrs = ('expression', 'species', 'observables')
+        child_attrs = {
+            'sbml': ('expression', 'species', 'observables'),
+            }
 
     def serialize(self):
         """ Generate string representation
@@ -2718,7 +2741,9 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
             'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
+            }
 
 
 class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
@@ -2754,7 +2779,9 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
-        sbml_attrs = ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments')
+        child_attrs = {
+            'sbml': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
+            }
 
     def serialize(self):
         """ Generate string representation
@@ -2845,7 +2872,9 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
             'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
+            }
 
     def validate(self):
         """ Check that the Function is valid
@@ -2921,7 +2950,9 @@ class StopConditionExpression(obj_model.Model, Expression):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
     def serialize(self):
         """ Generate string representation
@@ -3015,7 +3046,9 @@ class StopCondition(obj_model.Model):
             'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -3117,9 +3150,11 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             'core_model': ('participants', 'rate_laws',
                            'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
                       'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
-                      'identifiers', 'comments')
+                      'identifiers', 'comments'),
+            }
 
     def validate(self):
         """ Check if the reaction is valid
@@ -3457,7 +3492,9 @@ class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
             'submodel': ('species',),
             'core_model': ('species',),
         }
-        sbml_attrs = ('species', 'coefficient')
+        child_attrs = {
+            'sbml': ('species', 'coefficient'),
+            }
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
@@ -3583,7 +3620,9 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
             'core_model': ('parameters', 'species', 'observables', 'functions', 'compartments'),
         }
-        sbml_attrs = ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments')
+        child_attrs = {
+            'sbml': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
+            }
 
     def serialize(self):
         """ Generate string representation
@@ -3681,7 +3720,9 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
             'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments'),
+            }
 
     def gen_id(self):
         """ Generate identifier
@@ -3875,7 +3916,7 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
                           choices=(unit_registry.parse_units('M s^-1'), unit_registry.parse_units('mol gDCW^-1 s^-1')),
                           default=unit_registry.parse_units('M s^-1'))
     identifiers = IdentifierManyToManyAttribute(related_name='dfba_obj_species',
-                                                   verbose_related_name='dFBA objective species')
+                                                verbose_related_name='dFBA objective species')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_species',
                                    verbose_related_name='dFBA objective species')
     interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_obj_species',
@@ -3896,7 +3937,9 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
             'submodel': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'identifiers', 'comments'),
+            }
 
     def gen_id(self):
         """ Generate identifier equal to
@@ -3978,7 +4021,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
                                     choices=(unit_registry.parse_units('l'), unit_registry.parse_units('gDCW')),
                                     default=unit_registry.parse_units('l'))
     identifiers = IdentifierManyToManyAttribute(related_name='dfba_obj_reactions',
-                                                   verbose_related_name='dFBA objective reactions')
+                                                verbose_related_name='dFBA objective reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_reactions',
                                    verbose_related_name='dFBA objective reactions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_obj_reactions',
@@ -3997,7 +4040,9 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
             'submodel': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
-        sbml_attrs = ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'identifiers', 'comments'),
+            }
 
     def export_to_sbml(self, sbml_model):
         """ Add a dFBA objective reaction to a SBML model.
@@ -4164,7 +4209,9 @@ class Parameter(obj_model.Model, SbmlModelMixin):
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_value = 'value'
         expression_term_units = 'units'
-        sbml_attrs = ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'identifiers', 'comments')
+        child_attrs = {
+            'sbml': ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'identifiers', 'comments'),
+            }
 
     def export_to_sbml(self, sbml_model):
         """ Add this parameter to a SBML model.
@@ -4312,8 +4359,8 @@ class Evidence(obj_model.Model):
                            'type',
                            AttributeGroup('Genotype', ('taxon', 'genetic_variant')),
                            AttributeGroup('Environment', ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')),
-                           'experiment_type', 'experiment_design', 
-                           AttributeGroup('Measurement method', ('measurement_method_name', 'measurement_method_version')), 
+                           'experiment_type', 'experiment_design',
+                           AttributeGroup('Measurement method', ('measurement_method_name', 'measurement_method_version')),
                            AttributeGroup('Analysis method', ('analysis_method_name', 'analysis_method_version')),
                            'identifiers', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
@@ -4321,7 +4368,9 @@ class Evidence(obj_model.Model):
             'submodel': ('identifiers', 'evidence', 'references'),
             'core_model': ('identifiers', 'evidence', 'references'),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
     def validate(self):
         """ Determine if the evidence is valid
@@ -4420,7 +4469,9 @@ class Interpretation(obj_model.Model):
             'submodel': ('identifiers', 'evidence', 'references', 'authors'),
             'core_model': ('identifiers', 'evidence', 'references', 'authors'),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
 
 class Reference(obj_model.Model):
@@ -4500,7 +4551,9 @@ class Reference(obj_model.Model):
             'submodel': ('identifiers',),
             'core_model': ('identifiers',),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
 
 class Author(obj_model.Model, SbmlModelMixin):
@@ -4551,18 +4604,20 @@ class Author(obj_model.Model, SbmlModelMixin):
             'submodel': ('identifiers',),
             'core_model': ('identifiers',),
         }
-        sbml_attrs = ('id', 'name', 'model',
+        child_attrs = {
+            'sbml': ('id', 'name', 'model',
                       'last_name', 'first_name', 'middle_name',
                       'title', 'organization',
                       'email', 'website', 'address',
-                      'identifiers', 'comments')
+                      'identifiers', 'comments'),
+            }
 
     def get_identifier(self, namespace):
         """ Get the author's id in a namespace (e.g., `github.user`, `orcid`)
 
         Args:
             namespace (:obj:`str`): namespace of the identifier to retrieve
-        
+
         Returns:
             :obj:`str`: user's id in :obj:`namespace`
 
@@ -4633,7 +4688,9 @@ class Change(obj_model.Model, SbmlModelMixin):
             'submodel': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
             'core_model': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
         }
-        sbml_attrs = ()
+        child_attrs = {
+            'sbml': (),
+            }
 
 
 class Identifier(obj_model.Model, SbmlModelMixin):
@@ -4677,7 +4734,9 @@ class Identifier(obj_model.Model, SbmlModelMixin):
         attribute_order = ('namespace', 'id')
         frozen_columns = 2
         ordering = ('namespace', 'id', )
-        sbml_attrs = ('namespace', 'id')
+        child_attrs = {
+            'sbml': ('namespace', 'id'),
+            }
 
     def serialize(self):
         """ Generate string representation
@@ -4734,3 +4793,4 @@ class Validator(obj_model.Validator):
 class WcLangWarning(UserWarning):
     """ WC-Lang warning """
     pass  # pragma: no cover
+

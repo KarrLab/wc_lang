@@ -35,7 +35,7 @@ class NullifyAttrsTransform(Transform):
         """
         for obj in model.get_related():
             Meta = obj.__class__.Meta
-            attrs_to_keep = getattr(Meta, self.attrs_to_keep)
+            attrs_to_keep = Meta.child_attrs[self.attrs_to_keep]
 
             assert not set(attrs_to_keep).difference(set(Meta.attributes.keys()))
 
