@@ -26,11 +26,8 @@ class PrepForWcSimTransform(CompositeTransform):
     * Clip the flux bounds for the reactions in dFBA submodels to the default
       flux range
     * Split reversible reactions into separate forward and reverse reactions
-
-    Attributes:
-        transforms (:obj:`list` of :obj:`Transform`): list of transforms
     """
-    DEFAULT_TRANSFORMS = (
+    COMPONENT_TRANSFORMS = (
         create_implicit_dist_zero_init_concs.CreateImplicitDistributionZeroInitConcentrationsTransform(),
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform(),
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform(),

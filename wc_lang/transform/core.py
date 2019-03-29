@@ -46,17 +46,9 @@ class CompositeTransform(Transform):
     """ Transform which is composed of multiple transforms 
 
     Attributes:
-        transforms (:obj:`list` of :obj:`Transform`): transforms
-        DEFAULT_TRANSFORMS (:obj:`tuple` of :obj:`Transform`): default transforms
+        COMPONENT_TRANSFORMS (:obj:`tuple` of :obj:`Transform`): default transforms
     """
-    DEFAULT_TRANSFORMS = ()
-
-    def __init__(self, transforms=None):
-        """
-        Args:
-            transforms (:obj:`list` of :obj:`Transform`, optional): list of transforms
-        """
-        self.transforms = transforms or list(self.DEFAULT_TRANSFORMS)
+    COMPONENT_TRANSFORMS = ()
 
     def run(self, model):
         """ Transform model
@@ -67,7 +59,7 @@ class CompositeTransform(Transform):
         Returns:
             :obj:`Model`: same model, but transformed
         """
-        for transform in self.transforms:
+        for transform in self.COMPONENT_TRANSFORMS:
             transform.run(model)
 
         return model

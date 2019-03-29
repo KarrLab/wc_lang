@@ -19,7 +19,7 @@ import obj_model
 class PrepForSbmlTransform(CompositeTransform):
     """ Transform model into SBML-compatible representation and discard information that cannot be exported to SBML """
 
-    DEFAULT_TRANSFORMS = (
+    COMPONENT_TRANSFORMS = (
         CreateImplicitDistributionZeroInitConcentrationsTransform(),
         CreateImplicitDfbaExchangeReactionsTransform(),
         SplitReversibleReactionsTransform(),
