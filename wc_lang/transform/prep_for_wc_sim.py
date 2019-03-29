@@ -7,14 +7,14 @@
 :License: MIT
 """
 
-from .core import Transform
+from .core import CompositeTransform
 from . import create_implicit_dist_zero_init_concs
 from . import create_implicit_dfba_ex_rxns
 from . import set_finite_dfba_flux_bounds
 from . import split_reversible_reactions
 
 
-class PrepForWcSimTransform(Transform):
+class PrepForWcSimTransform(CompositeTransform):
     """ Prepare a model for simulation by making implicit information in the model
     explicit.
 
@@ -30,32 +30,12 @@ class PrepForWcSimTransform(Transform):
         transforms (:obj:`list` of :obj:`Transform`): list of transforms
     """
     DEFAULT_TRANSFORMS = (
-        create_implicit_dist_zero_init_concs.CreateImplicitDistributionZeroInitConcentrationsTransform,
-        create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform,
-        set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform,
-        split_reversible_reactions.SplitReversibleReactionsTransform,
+        create_implicit_dist_zero_init_concs.CreateImplicitDistributionZeroInitConcentrationsTransform(),
+        create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform(),
+        set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform(),
+        split_reversible_reactions.SplitReversibleReactionsTransform(),
     )
 
     class Meta(object):
-        id = 'PrepareForSimulation'
-        label = ('Prepare model for simulation by making implicit '
-                 'information in the model explicit')
-
-    def __init__(self, transforms=None):
-        """
-        Args:
-            transforms (:obj:`list` of :obj:`Transform`, optional): list of transforms
-        """
-        self.transforms = transforms or list(self.DEFAULT_TRANSFORMS)
-
-    def run(self, model):
-        """ Transform model
-
-        Args:
-            model (:obj:`Model`): model
-
-        Returns:
-            :obj:`Model`: same model, but transformed
-        """
-        for transform in self.transforms:
-            transform().run(model)
+        id = 'PrepForWCSim'
+        label = 'Prepare model for simulation by making implicit information in the model explicit'
