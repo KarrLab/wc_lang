@@ -696,11 +696,11 @@ class Model(obj_model.Model, SbmlModelMixin):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I)
+    version = RegexAttribute(pattern=r'^[0-9]+(\.[0-9]+(\.[0-9a-z]+)?)?$', flags=re.I)
     url = UrlAttribute(verbose_name='URL')
     branch = StringAttribute()
     revision = StringAttribute()
-    wc_lang_version = RegexAttribute(min_length=1, pattern=r'^[0-9]+\.[0-9+]\.[0-9]+', flags=re.I,
+    wc_lang_version = RegexAttribute(pattern=r'^[0-9]+(\.[0-9]+(\.[0-9a-z]+)?)?$', flags=re.I,
                                      default=wc_lang_version, verbose_name='wc_lang version')
     time_units = UnitAttribute(unit_registry,
                                choices=[unit_registry.parse_units('s')],
@@ -727,6 +727,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         child_attrs = {
             'sbml': ('id', 'name', 'version', 'url', 'branch', 'revision',
                      'wc_lang_version', 'time_units', 'identifiers', 'comments', 'updated', 'created'),
+            'wc_sim': ('id', 'version', 'wc_lang_version', 'time_units'),
         }
 
     def __init__(self, **kwargs):
@@ -1271,7 +1272,8 @@ class Taxon(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'rank', 'identifiers', 'comments'),
-            }
+            'wc_sim': (),
+        }
 
 
 class Environment(obj_model.Model, SbmlModelMixin):
@@ -1310,7 +1312,8 @@ class Environment(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'temp', 'temp_units', 'identifiers', 'comments'),
-            }
+            'wc_sim': (),
+        }
 
 
 class Submodel(obj_model.Model, SbmlModelMixin):
@@ -1360,7 +1363,8 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'framework', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'framework'),
+        }
 
     def validate(self):
         """ Determine if the submodel is valid
@@ -1599,7 +1603,8 @@ class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('expression', 'reactions', 'dfba_obj_reactions'),
-            }
+            'wc_sim': ('expression', 'reactions', 'dfba_obj_reactions'),
+        }
 
     def validate(self):
         """ Determine if the dFBA objective expression is valid
@@ -1734,8 +1739,10 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'expression', 'units',
-                      'reaction_rate_units', 'coefficient_units', 'identifiers', 'comments'),
-            }
+                     'reaction_rate_units', 'coefficient_units', 'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'submodel', 'expression', 'units',
+                       'reaction_rate_units', 'coefficient_units'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -2014,10 +2021,12 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
-                      'parent_compartment', 'mass_units', 'distribution_init_volume',
-                      'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
-                      'ph', 'ph_units', 'identifiers', 'comments'),
-            }
+                     'parent_compartment', 'mass_units', 'distribution_init_volume',
+                     'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
+                     'ph', 'ph_units', 'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'mass_units', 'distribution_init_volume',
+                       'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density'),
+        }
 
     def validate(self):
         """ Check that the compartment is valid
@@ -2237,8 +2246,9 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
-                      'identifiers', 'comments'),
-            }
+                     'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'molecular_weight', 'charge'),
+        }
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -2306,8 +2316,9 @@ class Species(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'species_type', 'compartment', 'units',
-                      'identifiers', 'comments'),
-            }
+                     'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'species_type', 'compartment', 'units'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -2581,7 +2592,8 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'species', 'distribution', 'mean', 'std', 'units'),
+        }
 
     def gen_id(self):
         """ Generate string representation
@@ -2647,7 +2659,8 @@ class ObservableExpression(obj_model.Model, Expression, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('expression', 'species', 'observables'),
-            }
+            'wc_sim': ('expression', 'species', 'observables'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -2743,7 +2756,8 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'expression', 'units'),
+        }
 
 
 class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
@@ -2781,7 +2795,8 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
-            }
+            'wc_sim': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -2874,7 +2889,8 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'expression', 'units'),
+        }
 
     def validate(self):
         """ Check that the Function is valid
@@ -2952,7 +2968,8 @@ class StopConditionExpression(obj_model.Model, Expression):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments')
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -3048,7 +3065,8 @@ class StopCondition(obj_model.Model):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': ('id', 'model', 'expression', 'units')
+        }
 
     def validate(self):
         """ Check that the stop condition is valid
@@ -3152,9 +3170,11 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
-                      'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
-                      'identifiers', 'comments'),
-            }
+                     'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
+                     'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'submodel', 'participants', 'reversible',
+                       'rate_units', 'flux_min', 'flux_max', 'flux_bound_units'),
+        }
 
     def validate(self):
         """ Check if the reaction is valid
@@ -3494,7 +3514,8 @@ class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('species', 'coefficient'),
-            }
+            'wc_sim': ('species', 'coefficient'),
+        }
 
     def serialize(self, show_compartment=True, show_coefficient_sign=True):
         """ Serialize related object
@@ -3622,7 +3643,8 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
-            }
+            'wc_sim': ('expression', 'parameters', 'species', 'observables', 'functions', 'compartments'),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -3722,7 +3744,8 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'reaction', 'direction', 'expression', 'units'),
+        }
 
     def gen_id(self):
         """ Generate identifier
@@ -3939,7 +3962,8 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'dfba_obj_reaction', 'species', 'value', 'units'),
+        }
 
     def gen_id(self):
         """ Generate identifier equal to
@@ -4042,7 +4066,8 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'submodel', 'units', 'cell_size_units'),
+        }
 
     def export_to_sbml(self, sbml_model):
         """ Add a dFBA objective reaction to a SBML model.
@@ -4211,7 +4236,8 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         expression_term_units = 'units'
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'identifiers', 'comments'),
-            }
+            'wc_sim': ('id', 'model', 'value', 'std', 'units'),
+        }
 
     def export_to_sbml(self, sbml_model):
         """ Add this parameter to a SBML model.
@@ -4370,7 +4396,8 @@ class Evidence(obj_model.Model):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': (),
+        }
 
     def validate(self):
         """ Determine if the evidence is valid
@@ -4471,7 +4498,8 @@ class Interpretation(obj_model.Model):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': (),
+        }
 
 
 class Reference(obj_model.Model):
@@ -4553,7 +4581,8 @@ class Reference(obj_model.Model):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': (),
+        }
 
 
 class Author(obj_model.Model, SbmlModelMixin):
@@ -4606,11 +4635,12 @@ class Author(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model',
-                      'last_name', 'first_name', 'middle_name',
-                      'title', 'organization',
-                      'email', 'website', 'address',
-                      'identifiers', 'comments'),
-            }
+                     'last_name', 'first_name', 'middle_name',
+                     'title', 'organization',
+                     'email', 'website', 'address',
+                     'identifiers', 'comments'),
+            'wc_sim': (),
+        }
 
     def get_identifier(self, namespace):
         """ Get the author's id in a namespace (e.g., `github.user`, `orcid`)
@@ -4690,7 +4720,8 @@ class Change(obj_model.Model, SbmlModelMixin):
         }
         child_attrs = {
             'sbml': (),
-            }
+            'wc_sim': (),
+        }
 
 
 class Identifier(obj_model.Model, SbmlModelMixin):
@@ -4736,7 +4767,8 @@ class Identifier(obj_model.Model, SbmlModelMixin):
         ordering = ('namespace', 'id', )
         child_attrs = {
             'sbml': ('namespace', 'id'),
-            }
+            'wc_sim': (),
+        }
 
     def serialize(self):
         """ Generate string representation
@@ -4793,4 +4825,3 @@ class Validator(obj_model.Validator):
 class WcLangWarning(UserWarning):
     """ WC-Lang warning """
     pass  # pragma: no cover
-

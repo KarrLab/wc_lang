@@ -69,3 +69,5 @@ class CompositeTransform(Transform):
         """
         for transform in self.transforms:
             transform.run(model)
+
+        return model

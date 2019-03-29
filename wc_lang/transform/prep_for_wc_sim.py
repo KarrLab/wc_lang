@@ -10,6 +10,7 @@
 from .core import CompositeTransform
 from . import create_implicit_dist_zero_init_concs
 from . import create_implicit_dfba_ex_rxns
+from . import nullify_attrs
 from . import set_finite_dfba_flux_bounds
 from . import split_reversible_reactions
 
@@ -34,6 +35,7 @@ class PrepForWcSimTransform(CompositeTransform):
         create_implicit_dfba_ex_rxns.CreateImplicitDfbaExchangeReactionsTransform(),
         set_finite_dfba_flux_bounds.SetFiniteDfbaFluxBoundsTransform(),
         split_reversible_reactions.SplitReversibleReactionsTransform(),
+        nullify_attrs.NullifyAttrsTransform('wc_sim'),
     )
 
     class Meta(object):
