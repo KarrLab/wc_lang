@@ -4373,7 +4373,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         expression_term_units = 'units'
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'type', 'value', 'std', 'units', 'identifiers', 'comments'),
-            'wc_sim': ('id', 'model', 'value', 'std', 'units'),
+            'wc_sim': ('id', 'model', 'type', 'value', 'std', 'units'),
         }
 
     def export_to_sbml(self, sbml_model):
