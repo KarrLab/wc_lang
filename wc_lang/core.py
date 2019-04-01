@@ -1983,7 +1983,7 @@ class Ph(obj_model.Model, SbmlModelMixin):
                                      namespace='WC',
                                      terms=onto['WC:random_distribution'].rchildren(),
                                      default=onto['WC:normal_distribution'])
-    mean = FloatAttribute(min=0)
+    mean = FloatAttribute()
     std = FloatAttribute(min=0, verbose_name='Standard deviation')
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('dimensionless'),),
@@ -4028,15 +4028,18 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
                 map the ids of WC-Lang objects to WC-Lang objects
         """
         # expression
-        def units_transform(formula):
-            formula = re.sub(r'^(.*?) \* 1 mole$', r'\1', formula)
-            if formula[0] == '(' and formula[-1] == ')':
-                formula = formula[1:-1]
-            return formula
-        self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model, objs, units_transform=units_transform)
+        self.expression = LibSbmlInterface.get_math(sbml.getMath, self.Meta.expression_term_model,
+                                                    objs, units_transform=self._import_relations_from_sbml_units_transform)
 
         # identifiers
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml, objs)
+
+    @staticmethod
+    def _import_relations_from_sbml_units_transform(formula):
+        formula = re.sub(r'^(.*?) \* 1 mole$', r'\1', formula)
+        if formula[0] == '(' and formula[-1] == ')':
+            formula = formula[1:-1]
+        return formula
 
 
 class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):

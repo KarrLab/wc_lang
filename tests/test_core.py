@@ -2818,20 +2818,24 @@ class ValidateModelTestCase(unittest.TestCase):
         error = ev.validate()
         self.assertNotEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', env=EvidenceEnv(temp=1., temp_units=unit_registry.parse_units('celsius')))
-        error = ev.env.validate()
+        env = EvidenceEnv(temp=1., temp_units=unit_registry.parse_units('celsius'))
+        error = env.validate()
         self.assertEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', env=EvidenceEnv(temp=1.))
-        error = ev.env.validate()
+        env = EvidenceEnv(temp=1.)
+        error = env.validate()
         self.assertNotEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', env=EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('dimensionless')))
-        error = ev.env.validate()
+        env = EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('dimensionless'))
+        error = env.validate()
         self.assertEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', env=EvidenceEnv(ph=1.))
-        error = ev.env.validate()
+        env = EvidenceEnv(ph=1.)
+        error = env.validate()
+        self.assertNotEqual(error, None, str(error))
+
+        env = EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('celsius'))
+        error = env.validate()
         self.assertNotEqual(error, None, str(error))
 
 

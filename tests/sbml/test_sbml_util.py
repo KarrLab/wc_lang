@@ -387,6 +387,68 @@ class TestLibsbmlInterface(unittest.TestCase):
 
             self.assertEqual(model_2.comments, comments)
 
+    def test_get_errors_warnings(self):
+        sbml_doc = LibSbmlInterface.create_doc()
+        error = mock.Mock(getSeverityAsString=lambda: 'ERROR',
+                          getShortMessage=lambda: 'Short message',
+                          getMessage=lambda: 'Full message',
+                          getSeverity=lambda: libsbml.LIBSBML_SEV_INFO)
+        with mock.patch.object(sbml_doc, 'getNumErrors', return_value=1):
+            with mock.patch.object(sbml_doc, 'getError', return_value=error):
+                errors, warns, log_errors, log_warns = LibSbmlInterface.get_errors_warnings(sbml_doc)
+        self.assertEqual(errors, [])
+        self.assertNotEqual(warns, [])
+        self.assertEqual(log_errors, [])
+        self.assertEqual(log_warns, [])
+
+        sbml_doc = LibSbmlInterface.create_doc()
+        error = mock.Mock(getSeverityAsString=lambda: 'ERROR',
+                          getShortMessage=lambda: 'Short message',
+                          getMessage=lambda: 'Full message',
+                          getSeverity=lambda: libsbml.LIBSBML_SEV_ERROR)
+        with mock.patch.object(sbml_doc, 'getNumErrors', return_value=1):
+            with mock.patch.object(sbml_doc, 'getError', return_value=error):
+                errors, warns, log_errors, log_warns = LibSbmlInterface.get_errors_warnings(sbml_doc)
+        self.assertNotEqual(errors, [])
+        self.assertEqual(warns, [])
+        self.assertEqual(log_errors, [])
+        self.assertEqual(log_warns, [])
+
+        sbml_doc = LibSbmlInterface.create_doc()
+        error = mock.Mock(getSeverityAsString=lambda: 'ERROR',
+                          getShortMessage=lambda: 'Short message',
+                          getMessage=lambda: 'Full message',
+                          getSeverity=lambda: libsbml.LIBSBML_SEV_INFO)
+        error_log = mock.Mock(getNumErrors=lambda: 1, getError=lambda x: error)
+        with mock.patch.object(sbml_doc, 'getErrorLog', return_value=error_log):
+            errors, warns, log_errors, log_warns = LibSbmlInterface.get_errors_warnings(sbml_doc)
+        self.assertEqual(errors, [])
+        self.assertEqual(warns, [])
+        self.assertEqual(log_errors, [])
+        self.assertNotEqual(log_warns, [])
+
+        sbml_doc = LibSbmlInterface.create_doc()
+        error = mock.Mock(getSeverityAsString=lambda: 'ERROR',
+                          getShortMessage=lambda: 'Short message',
+                          getMessage=lambda: 'Full message',
+                          getSeverity=lambda: libsbml.LIBSBML_SEV_ERROR)
+        error_log = mock.Mock(getNumErrors=lambda: 1, getError=lambda x: error)
+        with mock.patch.object(sbml_doc, 'getErrorLog', return_value=error_log):
+            errors, warns, log_errors, log_warns = LibSbmlInterface.get_errors_warnings(sbml_doc)
+        self.assertEqual(errors, [])
+        self.assertEqual(warns, [])
+        self.assertNotEqual(log_errors, [])
+        self.assertEqual(log_warns, [])
+
+    def test_raise_if_error(self):
+        with self.assertWarnsRegex(WcLangWarning, 'My warning message'):
+            with mock.patch('wc_lang.sbml.util.LibSbmlInterface.get_errors_warnings', return_value=(None, ['\n  msg1'], None, [])):
+                LibSbmlInterface.raise_if_error(None, 'My warning message')
+
+        with self.assertRaisesRegex(LibSbmlError, 'My error message'):
+            with mock.patch('wc_lang.sbml.util.LibSbmlInterface.get_errors_warnings', return_value=(['\n  msg1'], None, [], None)):
+                LibSbmlInterface.raise_if_error(None, 'My error message')
+
 
 class TestDebug(unittest.TestCase):
 

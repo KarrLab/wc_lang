@@ -14,7 +14,7 @@ import shutil
 import tempfile
 import unittest
 from wc_lang.core import (Model, Submodel, Compartment, Reaction, FluxBounds, RateLaw, RateLawDirection,
-                          DfbaObjective, DfbaObjectiveExpression, WcLangWarning)
+                          DfbaObjective, DfbaObjectiveExpression, WcLangWarning, InitVolume)
 from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
 from wc_lang.sbml import util as sbml_util
@@ -45,7 +45,6 @@ class SbmlIoTestCase(unittest.TestCase):
 
             sbml_doc = sbml_io.SbmlExporter.run(submodel)
             submodel_2 = sbml_io.SbmlImporter.run(sbml_doc)
-            print(submodel_2.difference(submodel))
             self.assertTrue(submodel_2.is_equal(submodel))
             all_submodels_2.append(submodel_2)
 
@@ -118,6 +117,27 @@ class SbmlIoInCoreTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unsupported spatial dimensions'):
             c_2.import_from_sbml(sbml_c)
 
+    def test_Compartment_from_sbml(self):
+        model = Model()
+        init_volume = InitVolume(mean=1.2)
+        c_1 = model.compartments.create(id='c_1', name='cytosol', geometry=onto['WC:3D_compartment'], init_volume=init_volume)
+        c_2 = model.compartments.create(id='c_2', name='cytosol', geometry=onto['WC:3D_compartment'], init_volume=init_volume)
+
+        sbml_doc = sbml_util.LibSbmlInterface.create_doc()
+        sbml_model = sbml_util.LibSbmlInterface.create_model(sbml_doc)
+
+        sbml_c_1 = c_1.export_to_sbml(sbml_model)
+        sbml_c_2 = c_2.export_to_sbml(sbml_model)
+
+        model_2 = Model()
+        c_1_b = model_2.compartments.create()
+        c_1_b.import_from_sbml(sbml_c_1)
+        c_2_b = model_2.compartments.create()
+        c_2_b.import_from_sbml(sbml_c_2)
+
+        self.assertTrue(c_1_b.is_equal(c_1))
+        self.assertTrue(c_2_b.is_equal(c_2))
+
     def test_Reaction_to_sbml(self):
         rxn = Reaction(submodel=Submodel(), reversible=True, rate_laws=[RateLaw(direction=RateLawDirection.backward)])
 
@@ -126,6 +146,11 @@ class SbmlIoInCoreTestCase(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'must be split'):
             rxn.export_to_sbml(sbml_model)
+
+    def test_RateLaw_from_sbml(self):
+        self.assertEqual(RateLaw._import_relations_from_sbml_units_transform('k_cat'), 'k_cat')
+        self.assertEqual(RateLaw._import_relations_from_sbml_units_transform('k_cat * 1 mole'), 'k_cat')
+        self.assertEqual(RateLaw._import_relations_from_sbml_units_transform('(k_cat) * 1 mole'), 'k_cat')
 
     def test_DfbaObjective_to_sbml_warning(self):
         obj = DfbaObjective(submodel=Submodel(), expression=DfbaObjectiveExpression())

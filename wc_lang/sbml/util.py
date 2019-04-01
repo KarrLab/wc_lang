@@ -1068,7 +1068,6 @@ class LibSbmlInterface(object):
             else:
                 errors.append(msg)
 
-        sbml_doc = cls.call_libsbml(sbml_doc.getSBMLDocument)
         error_log = cls.call_libsbml(sbml_doc.getErrorLog)
         n_log_errors = cls.call_libsbml(error_log.getNumErrors, returns_int=True)
         log_errors = []
