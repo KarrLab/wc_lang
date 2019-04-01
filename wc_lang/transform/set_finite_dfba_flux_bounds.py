@@ -13,6 +13,7 @@ from wc_onto import onto
 from wc_utils.util.ontology import are_terms_equivalent
 from wc_utils.util.units import unit_registry
 import wc_lang.config.core
+import wc_lang.core
 
 
 class SetFiniteDfbaFluxBoundsTransform(Transform):
@@ -50,9 +51,9 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
             :obj:`Model`: same model, but transformed
         """
         config = wc_lang.config.core.get_config()['wc_lang']
-        flux_min_bound_reversible = config['dfba']['flux_min_bound_reversible']
-        flux_min_bound_irreversible = config['dfba']['flux_min_bound_irreversible']
-        flux_max_bound = config['dfba']['flux_max_bound']
+        flux_min_bound_reversible = config['dfba']['flux_bounds']['min_reversible']
+        flux_min_bound_irreversible = config['dfba']['flux_bounds']['min_irreversible']
+        flux_max_bound = config['dfba']['flux_bounds']['max']
 
         for submodel in model.submodels:
             if are_terms_equivalent(submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
@@ -63,15 +64,18 @@ class SetFiniteDfbaFluxBoundsTransform(Transform):
                         flux_min = flux_min_bound_irreversible
                     flux_max = flux_max_bound
 
-                    if rxn.flux_min is None or isnan(rxn.flux_min):
-                        rxn.flux_min = flux_min
-                    else:
-                        rxn.flux_min = max(rxn.flux_min, flux_min)
+                    if rxn.flux_bounds is None:
+                        rxn.flux_bounds = wc_lang.core.FluxBounds()
 
-                    if rxn.flux_max is None or isnan(rxn.flux_max):
-                        rxn.flux_max = flux_max
+                    if rxn.flux_bounds.min is None or isnan(rxn.flux_bounds.min):
+                        rxn.flux_bounds.min = flux_min
                     else:
-                        rxn.flux_max = min(rxn.flux_max, flux_max)
+                        rxn.flux_bounds.min = max(rxn.flux_bounds.min, flux_min)
 
-                    rxn.flux_bound_units = unit_registry.parse_units('M s^-1')
+                    if rxn.flux_bounds.max is None or isnan(rxn.flux_bounds.max):
+                        rxn.flux_bounds.max = flux_max
+                    else:
+                        rxn.flux_bounds.max = min(rxn.flux_bounds.max, flux_max)
+
+                    rxn.flux_bounds.units = unit_registry.parse_units('M s^-1')
         return model

@@ -49,9 +49,9 @@ def validate_config(config):
         :obj:`ValueError`: if minimum dFBA flux bound is negative or the
             maximum dFBA flux bound is less than the minimum dFBA flux bound
     """
-    flux_min_bound_reversible = config['wc_lang']['dfba']['flux_min_bound_reversible']
-    flux_min_bound_irreversible = config['wc_lang']['dfba']['flux_min_bound_irreversible']
-    flux_max_bound = config['wc_lang']['dfba']['flux_max_bound']
+    flux_min_bound_reversible = config['wc_lang']['dfba']['flux_bounds']['min_reversible']
+    flux_min_bound_irreversible = config['wc_lang']['dfba']['flux_bounds']['min_irreversible']
+    flux_max_bound = config['wc_lang']['dfba']['flux_bounds']['max']
 
     if flux_max_bound < flux_min_bound_reversible:
         raise ValueError(("minimum dFBA reversible flux bound must be greater than or equal to "

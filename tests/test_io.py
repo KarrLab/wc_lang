@@ -281,7 +281,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename, wb)
 
-        with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
             Reader().run(filename)
 
         env = EnvironmentVarGuard()
@@ -322,7 +322,7 @@ class TestSimpleModel(unittest.TestCase):
         wb['Model'].insert(1, row)
         write_workbook(filename_xls1, wb)
 
-        with self.assertRaisesRegex(ValueError, "The columns of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')

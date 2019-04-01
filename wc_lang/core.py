@@ -43,7 +43,6 @@ from obj_model import (BooleanAttribute, EnumAttribute,
                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
                        UrlAttribute, EmailAttribute, DateTimeAttribute,
                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
-                       AttributeGroup,
                        ManyToOneRelatedManager,
                        InvalidObject, InvalidAttribute, TabularOrientation)
 from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
@@ -1591,7 +1590,7 @@ class DfbaObjectiveExpression(obj_model.Model, Expression, SbmlModelMixin):
                                             verbose_name='dFBA objective reactions', verbose_related_name='dFBA objective expression')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         expression_valid_functions = ()
         expression_term_models = ('Reaction', 'DfbaObjReaction')
         verbose_name = 'dFBA objective expression'
@@ -1708,8 +1707,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
     model = ManyToOneAttribute(Model, related_name='dfba_objs', verbose_related_name='dFBA objectives')
     submodel = OneToOneAttribute(Submodel, related_name='dfba_obj', min_related=1, verbose_related_name='dFBA objective')
     expression = ExpressionOneToOneAttribute(DfbaObjectiveExpression, related_name='dfba_obj',
-                                             min_related=1, min_related_rev=1, verbose_related_name='dFBA objective',
-                                             verbose_name='Value')
+                                             min_related=1, min_related_rev=1, verbose_related_name='dFBA objective')
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('dimensionless'),),
                           default=unit_registry.parse_units('dimensionless'))
@@ -1727,7 +1725,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         verbose_name = 'dFBA objective'
-        attribute_order = ('id', 'name', 'submodel', AttributeGroup('Expression', ('expression', 'units')),
+        attribute_order = ('id', 'name', 'submodel', 'expression', 'units',
                            'reaction_rate_units', 'coefficient_units',
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
@@ -1924,6 +1922,94 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         return det_dedupe(products)
 
 
+class InitVolume(obj_model.Model, SbmlModelMixin):
+    """ Initial volume of a compartment
+
+    Attributes:
+        distribution (:obj:`proto.Term`): distribution
+        mean (:obj:`float`): mean initial volume
+        std (:obj:`float`): standard  deviation of the mean initial volume
+        units (:obj:`unit_registry.Unit`): units of volume
+
+    Related attributes:
+
+        * compartments (:obj:`list` of :obj:`Compartment`): compartment
+    """
+    distribution = OntologyAttribute(onto,
+                                     namespace='WC',
+                                     terms=onto['WC:random_distribution'].rchildren(),
+                                     default=onto['WC:normal_distribution'])
+    mean = FloatAttribute(min=0)
+    std = FloatAttribute(min=0, verbose_name='Standard deviation')
+    units = UnitAttribute(unit_registry,
+                          choices=(unit_registry.parse_units('l'),),
+                          default=unit_registry.parse_units('l'))
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('distribution', 'mean', 'std', 'units')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': ('distribution', 'mean', 'std', 'units'),
+            'wc_sim': ('distribution', 'mean', 'std', 'units'),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([str(self.distribution), str(self.mean), str(self.std), str(self.units)])
+
+
+class Ph(obj_model.Model, SbmlModelMixin):
+    """ pH of a compartment
+
+    Attributes:
+        distribution (:obj:`proto.Term`): distribution
+        mean (:obj:`float`): mean initial volume
+        std (:obj:`float`): standard  deviation of the mean initial volume
+        units (:obj:`unit_registry.Unit`): units of volume
+
+    Related attributes:
+
+        * compartments (:obj:`list` of :obj:`Compartment`): compartment
+    """
+    distribution = OntologyAttribute(onto,
+                                     namespace='WC',
+                                     terms=onto['WC:random_distribution'].rchildren(),
+                                     default=onto['WC:normal_distribution'])
+    mean = FloatAttribute(min=0)
+    std = FloatAttribute(min=0, verbose_name='Standard deviation')
+    units = UnitAttribute(unit_registry,
+                          choices=(unit_registry.parse_units('dimensionless'),),
+                          default=unit_registry.parse_units('dimensionless'))
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('distribution', 'mean', 'std', 'units')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': ('distribution', 'mean', 'std', 'units'),
+            'wc_sim': (),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([str(self.distribution), str(self.mean), str(self.std), str(self.units)])
+
+
 class Compartment(obj_model.Model, SbmlModelMixin):
     """ Compartment
 
@@ -1936,13 +2022,10 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         geometry (:obj:`pronto.term.Term`): geometry
         parent_compartment (:obj:`Compartment`): parent compartment
         mass_units (:obj:`unit_registry.Unit`): mass units
-        mean_init_volume (:obj:`float`): mean initial volume
-        std_init_volume (:obj:`float`): standard  deviation of the mean initial volume
-        init_volume_units (:obj:`unit_registry.Unit`): units of volume
+        init_volume (:obj:`InitVolume`): initial volume
         init_density (:obj:`Parameter`): function that calculates the density during the initialization of
             each simulation
-        ph (:obj:`float`): pH
-        ph_units (:obj:`unit_registry.Unit`): pH units
+        ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -1979,23 +2062,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
     mass_units = UnitAttribute(unit_registry,
                                choices=(unit_registry.parse_units('g'),),
                                default=unit_registry.parse_units('g'))
-    distribution_init_volume = OntologyAttribute(onto,
-                                                 namespace='WC',
-                                                 terms=onto['WC:random_distribution'].rchildren(),
-                                                 default=onto['WC:normal_distribution'],
-                                                 verbose_name='Distribution')
-    mean_init_volume = FloatAttribute(min=0, verbose_name='Mean')
-    std_init_volume = FloatAttribute(min=0, verbose_name='Standard deviation')
-    init_volume_units = UnitAttribute(unit_registry,
-                                      choices=(unit_registry.parse_units('l'),),
-                                      default=unit_registry.parse_units('l'),
-                                      verbose_name='Units')
+    init_volume = ManyToOneAttribute(InitVolume, related_name='compartments', verbose_name='Initial volume')
     init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
-    ph = FloatAttribute(verbose_name='Value')
-    ph_units = UnitAttribute(unit_registry,
-                             choices=(unit_registry.parse_units('dimensionless'),),
-                             default=unit_registry.parse_units('dimensionless'),
-                             verbose_name='Units')
+    ph = ManyToOneAttribute(Ph, related_name='compartments', verbose_name='pH')
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
     interpretations = ManyToManyAttribute('Interpretation', related_name='compartments')
@@ -2005,27 +2074,21 @@ class Compartment(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
-                           'mass_units',
-                           AttributeGroup('Initial volume', ('distribution_init_volume',
-                                                             'mean_init_volume', 'std_init_volume', 'init_volume_units')),
-                           'init_density',
-                           AttributeGroup('pH', ('ph', 'ph_units')),
+                           'mass_units', 'init_volume', 'init_density', 'ph',
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
             'submodel': (  # 'parent_compartment', 'sub_compartments',
-                'init_density', 'identifiers', 'evidence', 'interpretations', 'references'),
+                'init_volume', 'init_density', 'ph', 'identifiers', 'evidence', 'interpretations', 'references'),
             'core_model': (
-                'parent_compartment', 'sub_compartments', 'init_density',
+                'parent_compartment', 'sub_compartments', 'init_volume', 'init_density', 'ph',
                 'identifiers', 'evidence', 'interpretations', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
-                     'parent_compartment', 'mass_units', 'distribution_init_volume',
-                     'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density',
-                     'ph', 'ph_units', 'identifiers', 'comments'),
-            'wc_sim': ('id', 'model', 'mass_units', 'distribution_init_volume',
-                       'mean_init_volume', 'std_init_volume', 'init_volume_units', 'init_density'),
+                     'parent_compartment', 'mass_units', 'init_volume', 'init_density', 'ph',
+                     'identifiers', 'comments'),
+            'wc_sim': ('id', 'model', 'mass_units', 'init_volume', 'init_density'),
         }
 
     def validate(self):
@@ -2084,9 +2147,9 @@ class Compartment(obj_model.Model, SbmlModelMixin):
             :obj:`float`: total mean initial volume of compartment and nested
                 sub-compartments
         """
-        tot = self.mean_init_volume
+        tot = self.init_volume.mean
         for comp in self.get_sub_compartments(nested=True):
-            tot += comp.mean_init_volume
+            tot += comp.init_volume.mean
         return tot
 
     def export_to_sbml(self, sbml_model):
@@ -2111,13 +2174,14 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         else:
             raise ValueError('Unsupported geometry {}'.format(str(self.geometry)))
 
-        call_libsbml(sbml.setSize, self.mean_init_volume)
-        LibSbmlInterface.set_unit(sbml.setUnits, self.init_volume_units)
+        if self.init_volume:
+            call_libsbml(sbml.setSize, self.init_volume.mean)
+            LibSbmlInterface.set_unit(sbml.setUnits, self.init_volume.units)
         call_libsbml(sbml.setConstant, False)
 
         if self.init_density:
             param_id = '__mass__' + self.gen_sbml_id()
-            LibSbmlInterface.create_parameter(sbml_model, param_id, self.mean_init_volume *
+            LibSbmlInterface.create_parameter(sbml_model, param_id, self.init_volume.mean *
                                               self.init_density.value, self.mass_units, constant=False)
 
             rule = LibSbmlInterface.call_libsbml(sbml_model.createAssignmentRule)
@@ -2146,9 +2210,10 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         """
         annots = ['biological_type', 'physical_type',
                   'parent_compartment',
-                  'distribution_init_volume', 'std_init_volume',
-                  'init_density', 'ph', 'ph_units', 'identifiers']
-
+                  'init_volume.distribution', 'init_volume.std', 'init_density',
+                  'identifiers']
+        if self.ph:
+            annots.extend(['ph.distribution', 'ph.mean', 'ph.std', 'ph.units'])
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -2169,8 +2234,15 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         else:
             raise ValueError('Unsupported spatial dimensions {}'.format(dims))
 
-        self.mean_init_volume = call_libsbml(sbml.getSize)
-        self.init_volume_units = LibSbmlInterface.get_unit(sbml.getUnits)
+        if call_libsbml(sbml.isSetSize):
+            mean = call_libsbml(sbml.getSize)
+            units = LibSbmlInterface.get_unit(sbml.getUnits)
+            init_volume = InitVolume(mean=mean, units=units)
+            for comp in self.model.compartments:
+                if comp.init_volume and comp.init_volume.mean == init_volume.mean:
+                    init_volume = comp.init_volume
+                    break
+            self.init_volume = init_volume
 
         param_id = '__mass__' + self.gen_sbml_id()
         sbml_model = call_libsbml(sbml.getModel)
@@ -2188,10 +2260,21 @@ class Compartment(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
+        parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = ['biological_type', 'physical_type',
-                  'distribution_init_volume', 'std_init_volume',
-                  'parent_compartment', 'init_density', 'ph', 'ph_units', 'identifiers']
+                  'init_volume.distribution', 'init_volume.std',
+                  'parent_compartment', 'init_density',
+                  'identifiers']
+        if 'ph.distribution' in parsed_annots:
+            self.ph = Ph()
+            annots.extend(['ph.distribution', 'ph.mean', 'ph.std', 'ph.units'])
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+
+        if 'ph.distribution' in parsed_annots:
+            for comp in self.model.compartments:
+                if comp.ph and comp.ph.serialize() == self.ph.serialize():
+                    self.ph = comp.ph
+                    break
 
 
 class SpeciesType(obj_model.Model, SbmlModelMixin):
@@ -2434,7 +2517,7 @@ class Species(obj_model.Model, SbmlModelMixin):
                 prefix = ((1. * self.distribution_init_concentration.units) /
                           (1. * unit_registry.parse_units('M'))).to_base_units().magnitude
                 init_amount = self.distribution_init_concentration.mean \
-                    * self.compartment.mean_init_volume \
+                    * self.compartment.init_volume.mean \
                     * scipy.constants.Avogadro \
                     * prefix
             call_libsbml(sbml.setInitialAmount, init_amount)
@@ -2649,7 +2732,7 @@ class ObservableExpression(obj_model.Model, Expression, SbmlModelMixin):
     observables = ManyToManyAttribute('Observable', related_name='observable_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         expression_term_models = ('Species', 'Observable')
         expression_is_linear = True
         expression_unit_registry = unit_registry
@@ -2786,7 +2869,7 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
     compartments = ManyToManyAttribute(Compartment, related_name='function_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
         children = {
@@ -2958,7 +3041,7 @@ class StopConditionExpression(obj_model.Model, Expression):
     compartments = ManyToManyAttribute(Compartment, related_name='stop_condition_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_type = bool
         expression_unit_registry = unit_registry
@@ -3109,6 +3192,45 @@ class StopCondition(obj_model.Model):
         return None
 
 
+class FluxBounds(obj_model.Model, SbmlModelMixin):
+    """ Flux bounds 
+
+    Attributes:
+        min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
+        max (:obj:`float`): maximum flux bound for solving an FBA model
+        units (:obj:`unit_registry.Unit`): units for the minimum and maximum fluxes    
+
+    Related attributes:
+
+        * reactions (:obj:`list` of :obj:`Reaction`): reactions
+    """
+    min = FloatAttribute(nan=True, verbose_name='Minimum')
+    max = FloatAttribute(min=0, nan=True, verbose_name='Maximum')
+    units = UnitAttribute(unit_registry,
+                          choices=(unit_registry.parse_units('M s^-1'),),
+                          default=None, none=True, verbose_name='Units')
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('min', 'max', 'units')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': ('min', 'max', 'units'),
+            'wc_sim': ('min', 'max', 'units'),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([str(self.min), str(self.max), str(self.units)])
+
+
 class Reaction(obj_model.Model, SbmlModelMixin):
     """ Reaction
 
@@ -3119,9 +3241,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of :obj:`SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
-        flux_min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
-        flux_max (:obj:`float`): maximum flux bound for solving an FBA model
-        flux_bound_units (:obj:`unit_registry.Unit`): units for the minimum and maximum fluxes
+        flux_bounds (:obj:`FluxBounds`): flux bounds
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
         interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
@@ -3143,11 +3263,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     rate_units = UnitAttribute(unit_registry,
                                choices=(unit_registry.parse_units('s^-1'),),
                                default=unit_registry.parse_units('s^-1'))
-    flux_min = FloatAttribute(nan=True, verbose_name='Minimum')
-    flux_max = FloatAttribute(min=0, nan=True, verbose_name='Maximum')
-    flux_bound_units = UnitAttribute(unit_registry,
-                                     choices=(unit_registry.parse_units('M s^-1'),),
-                                     default=None, none=True, verbose_name='Units')
+    flux_bounds = ManyToOneAttribute(FluxBounds, related_name='reactions')
     identifiers = IdentifierManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
     interpretations = ManyToManyAttribute('Interpretation', related_name='reactions')
@@ -3157,23 +3273,23 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
-                           'rate_units', AttributeGroup('Flux', ('flux_min', 'flux_max', 'flux_bound_units')),
+                           'rate_units', 'flux_bounds',
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('participants', 'rate_laws',
+            'submodel': ('participants', 'rate_laws', 'flux_bounds',
                          'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('participants', 'rate_laws',
+            'core_model': ('participants', 'rate_laws', 'flux_bounds',
                            'identifiers', 'evidence', 'interpretations', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
-                     'rate_units', 'flux_min', 'flux_max', 'flux_bound_units',
+                     'rate_units', 'flux_bounds',
                      'identifiers', 'comments'),
             'wc_sim': ('id', 'model', 'submodel', 'participants', 'reversible',
-                       'rate_units', 'flux_min', 'flux_max', 'flux_bound_units'),
+                       'rate_units', 'flux_bounds'),
         }
 
     def validate(self):
@@ -3182,8 +3298,8 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         * If the submodel is ODE or SSA, check that the reaction has a forward rate law
         * If the submodel is ODE or SSA and the reaction is reversible, check that the reaction has a
           backward rate law
-        * Check flux units are not None if flux_min or flux_max is defined
-        * Check that `flux_min` <= `flux_max`
+        * Check flux units are not None if flux_bounds.min or flux_bounds.max is defined
+        * Check that `flux_bounds.min` <= `flux_bounds.max`
         * Check that reaction is element and charge balanced
 
         Returns:
@@ -3218,27 +3334,29 @@ class Reaction(obj_model.Model, SbmlModelMixin):
             errors.append(InvalidAttribute(self.Meta.related_attributes['rate_laws'], rl_errors))
 
         # check min, max fluxes
-        if (not isnan(self.flux_min) or not isnan(self.flux_max)) and self.flux_bound_units is None:
-            errors.append(InvalidAttribute(self.Meta.attributes['flux_bound_units'],
+        if self.flux_bounds \
+                and (not isnan(self.flux_bounds.min) or not isnan(self.flux_bounds.max)) \
+                and self.flux_bounds.units is None:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_bounds'],
                                            ['Units must be defined for the flux bounds']))
 
         if self.submodel and not are_terms_equivalent(self.submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
-            if not isnan(self.flux_min):
-                errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
-                                               ['Minimum flux should be NaN for reactions in non-dFBA submodels']))
-            if not isnan(self.flux_max):
-                errors.append(InvalidAttribute(self.Meta.attributes['flux_max'],
-                                               ['Maximum flux should be NaN for reactions in non-dFBA submodels']))
+            if self.flux_bounds is not None:
+                errors.append(InvalidAttribute(self.Meta.attributes['flux_bounds'],
+                                               ['Flux bounds should be None reactions in non-dFBA submodels']))
 
-        if not isnan(self.flux_min) and not isnan(self.flux_min) and self.flux_min > self.flux_max:
-            errors.append(InvalidAttribute(self.Meta.attributes['flux_max'],
+        if self.flux_bounds \
+                and not isnan(self.flux_bounds.min) \
+                and not isnan(self.flux_bounds.min) \
+                and self.flux_bounds.min > self.flux_bounds.max:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_bounds'],
                                            ['Maximum flux must be least the minimum flux']))
 
-        if self.reversible and not isnan(self.flux_min) and self.flux_min >= 0:
-            errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
+        if self.reversible and self.flux_bounds and not isnan(self.flux_bounds.min) and self.flux_bounds.min >= 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_bounds'],
                                            ['Minimum flux for reversible reaction should be negative or NaN']))
-        if not self.reversible and not isnan(self.flux_min) and self.flux_min < 0:
-            errors.append(InvalidAttribute(self.Meta.attributes['flux_min'],
+        if not self.reversible and self.flux_bounds and not isnan(self.flux_bounds.min) and self.flux_bounds.min < 0:
+            errors.append(InvalidAttribute(self.Meta.attributes['flux_bounds'],
                                            ['Minimum flux for irreversible reaction should be non-negative']))
 
         # return errors
@@ -3332,14 +3450,20 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         # dFBA flux bounds
         if are_terms_equivalent(self.submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
             sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
-            default_flux_bound_units = self.Meta.attributes['flux_bound_units'].choices[0]
-            for bound, value, sense in [('Lower', self.flux_min, -1.), ('Upper', self.flux_max, 1.)]:
+            flux_bounds_units = FluxBounds.Meta.attributes['units'].choices[0]
+
+            if self.flux_bounds:
+                bounds = [('Lower', self.flux_bounds.min, -1.), ('Upper', self.flux_bounds.max, 1.)]
+            else:
+                bounds = [('Lower', float('nan'), -1.), ('Upper', float('nan'), 1.)]
+
+            for bound, value, sense in bounds:
                 if isnan(value) or value is None:
                     value = sense * float('inf')
 
                 param_id = "__Reaction__Flux{}Bound__{}".format(bound, self.gen_sbml_id())
                 param = LibSbmlInterface.create_parameter(sbml_model, param_id, value,
-                                                          self.flux_bound_units or default_flux_bound_units)
+                                                          flux_bounds_units)
                 call_libsbml(getattr(sbml_plugin, 'set' + bound + 'FluxBound'), param_id)
 
         # identifiers, comments
@@ -3418,14 +3542,24 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         if LibSbmlInterface.call_libsbml(sbml_doc.isSetPackageRequired, 'fbc'):
             sbml_model = call_libsbml(sbml_rxn.getModel)
             sbml_plugin = call_libsbml(sbml_rxn.getPlugin, 'fbc')
-            for bound, attr_name, sense in [('Lower', 'flux_min', -1.), ('Upper', 'flux_max', 1.)]:
+            flux_bounds = FluxBounds()
+            has_flux_bounds = False
+            for bound, attr_name, sense in [('Lower', 'min', -1.), ('Upper', 'max', 1.)]:
                 param_id = call_libsbml(getattr(sbml_plugin, 'get' + bound + 'FluxBound'))
-                _, _, val, self.flux_bound_units = LibSbmlInterface.parse_parameter(
-                    call_libsbml(sbml_model.getParameter, param_id))
-                if isinf(val):
-                    val = float('nan')
-                    self.flux_bound_units = None
-                setattr(self, attr_name, val)
+                param = call_libsbml(sbml_model.getParameter, param_id)
+                if param:
+                    _, _, val, flux_bounds.units = LibSbmlInterface.parse_parameter(param)
+                    if isinf(val):
+                        val = float('nan')
+                    else:
+                        has_flux_bounds = True
+                    setattr(flux_bounds, attr_name, val)
+            if has_flux_bounds:
+                for rxn in self.model.reactions:
+                    if rxn.flux_bounds and rxn.flux_bounds.serialize() == flux_bounds.serialize():
+                        flux_bounds = rxn.flux_bounds
+                        break
+                self.flux_bounds = flux_bounds
 
         # comments
         LibSbmlInterface.get_commments(self, sbml_rxn)
@@ -3506,7 +3640,7 @@ class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
         unique_together = (('species', 'coefficient'),)
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         ordering = ('species', 'coefficient')
         children = {
             'submodel': ('species',),
@@ -3633,7 +3767,7 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         attribute_order = ('expression', 'species', 'parameters')
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         ordering = ('expression',)
         expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
@@ -4290,6 +4424,158 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
 
 
+class EvidenceGenotype(obj_model.Model, SbmlModelMixin):
+    """ Genotype of evidence
+
+    Attributes:
+        taxon (:obj:`str`): taxon in which the evidence was observed
+        genetic_variant (:obj:`str`): genetic variant in which the evidence was observed
+
+    Related attributes:
+
+        * genotype_evidence (:obj:`list` of :obj:`Evidence`): evidence
+    """
+    taxon = StringAttribute()
+    variant = StringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('taxon', 'variant')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': (),
+            'wc_sim': (),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([self.taxon, self.variant])
+
+
+class EvidenceEnv(obj_model.Model, SbmlModelMixin):
+    """ Environment of evidence
+
+    Attributes:
+        temp (:obj:`float`): temperature at which the evidence was observed
+        temp_units (:obj:`unit_registry.Unit`): temperature units
+        ph (:obj:`float`): pH at which the evidence was observed
+        ph_units (:obj:`unit_registry.Unit`): pH units
+        growth_media (:obj:`str`): growth media at which the evidence was observed
+        condition (:obj:`str`): experimental conditions (e.g. control)
+
+    Related attributes:
+
+        * env_evidence (:obj:`list` of :obj:`Evidence`): evidence
+    """
+    temp = FloatAttribute(nan=True, verbose_name='Temperature')
+    temp_units = UnitAttribute(unit_registry,
+                               choices=(unit_registry.parse_units('celsius'),),
+                               none=True,
+                               verbose_name='Temperature units')
+    ph = FloatAttribute(nan=True, verbose_name='pH')
+    ph_units = UnitAttribute(unit_registry,
+                             choices=(unit_registry.parse_units('dimensionless'),),
+                             none=True,
+                             verbose_name='pH units')
+    growth_media = LongStringAttribute()
+    condition = LongStringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': (),
+            'wc_sim': (),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([str(self.temp), str(self.temp_units),
+                          str(self.ph), str(self.ph_units),
+                          self.growth_media, self.condition])
+
+    def validate(self):
+        """ Determine if the environment is valid
+
+        * temperature units are defined if the temperature is not None
+        * pH units are defined if the pH is not None
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(EvidenceEnv, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.temp is not None and not isnan(self.temp) \
+                and not isinstance(self.temp_units, unit_registry.Unit):
+            errors.append(InvalidAttribute(self.Meta.attributes['temp_units'],
+                                           ['Temperature units must be defined']))
+        if self.ph is not None and not isnan(self.ph) \
+                and not isinstance(self.ph_units, unit_registry.Unit):
+            errors.append(InvalidAttribute(self.Meta.attributes['ph_units'],
+                                           ['pH units must be defined']))
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
+
+
+class Method(obj_model.Model, SbmlModelMixin):
+    """ A method of an evidence or interpretation 
+
+    Attributes:
+        name (:obj:`str`): procedure which produced the interpretation
+        version (:obj:`str`): version of procedure which produced the interpretation
+
+    Related attributes:
+
+        * evidence_analysis (:obj:`list` of :obj:`Evidence`): evidence
+        * evidence_measurement (:obj:`list` of :obj:`Evidence`): evidence
+        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+    """
+    name = LongStringAttribute()
+    version = StringAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        attribute_order = ('name', 'version')
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': (),
+            'wc_sim': (),
+        }
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([self.name, self.version])
+
+
 class Evidence(obj_model.Model):
     """ Evidence
 
@@ -4300,15 +4586,9 @@ class Evidence(obj_model.Model):
         value (:obj:`str`): value
         std (:obj:`str`): standard error of the value
         units (:obj:`unit_registry.Unit`): units
-        type (:obj:`pronto.term.Term`): type
-        taxon (:obj:`str`): taxon in which the evidence was observed
-        genetic_variant (:obj:`str`): genetic variant in which the evidence was observed
-        temp (:obj:`float`): temperature at which the evidence was observed
-        temp_units (:obj:`unit_registry.Unit`): temperature units
-        ph (:obj:`float`): pH at which the evidence was observed
-        ph_units (:obj:`unit_registry.Unit`): pH units
-        growth_media (:obj:`str`): growth media at which the evidence was observed
-        condition (:obj:`str`): experimental conditions (e.g. control)
+        type (:obj:`pronto.term.Term`): type        
+        genotype (:obj:`EvidenceGenotype`): genotype
+        env (:obj:`EvidenceEnv`): environment        
         experiment_type (:obj:`str`): type of experiment (e.g. RNA-seq)
         experiment_design (:obj:`str`): experimental design
         measurement_method_name (:obj:`str`): method used to measure data (e.g. deep sequencing)
@@ -4354,26 +4634,12 @@ class Evidence(obj_model.Model):
                              namespace='WC',
                              terms=onto['WC:evidence'].rchildren(),
                              default=None, none=True)
-    taxon = StringAttribute()
-    genetic_variant = StringAttribute(verbose_name='Variant')
-    temp = FloatAttribute(nan=True, verbose_name='Temperature')
-    temp_units = UnitAttribute(unit_registry,
-                               choices=(unit_registry.parse_units('celsius'),),
-                               none=True,
-                               verbose_name='Temperature units')
-    ph = FloatAttribute(nan=True, verbose_name='pH')
-    ph_units = UnitAttribute(unit_registry,
-                             choices=(unit_registry.parse_units('dimensionless'),),
-                             none=True,
-                             verbose_name='pH units')
-    growth_media = LongStringAttribute()
-    condition = LongStringAttribute()
+    genotype = ManyToOneAttribute(EvidenceGenotype, related_name='genotype_evidence')
+    env = ManyToOneAttribute(EvidenceEnv, related_name='env_evidence', verbose_name='Environment')
     experiment_type = LongStringAttribute()
     experiment_design = LongStringAttribute()
-    measurement_method_name = LongStringAttribute(verbose_name='Name')
-    measurement_method_version = StringAttribute(verbose_name='Version')
-    analysis_method_name = LongStringAttribute(verbose_name='Name')
-    analysis_method_version = StringAttribute(verbose_name='Version')
+    measurement_method = ManyToOneAttribute(Method, related_name='evidence_measurement')
+    analysis_method = ManyToOneAttribute(Method, related_name='evidence_analysis')
     identifiers = IdentifierManyToManyAttribute(related_name='evidences')
     evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
     comments = CommentAttribute()
@@ -4382,51 +4648,18 @@ class Evidence(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
-                           'type',
-                           AttributeGroup('Genotype', ('taxon', 'genetic_variant')),
-                           AttributeGroup('Environment', ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')),
-                           'experiment_type', 'experiment_design',
-                           AttributeGroup('Measurement method', ('measurement_method_name', 'measurement_method_version')),
-                           AttributeGroup('Analysis method', ('analysis_method_name', 'analysis_method_version')),
+                           'type', 'genotype', 'env',
+                           'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
                            'identifiers', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
         children = {
-            'submodel': ('identifiers', 'evidence', 'references'),
-            'core_model': ('identifiers', 'evidence', 'references'),
+            'submodel': ('genotype', 'env', 'measurement_method', 'analysis_method', 'identifiers', 'evidence', 'references'),
+            'core_model': ('genotype', 'env', 'measurement_method', 'analysis_method', 'identifiers', 'evidence', 'references'),
         }
         child_attrs = {
             'sbml': (),
             'wc_sim': (),
         }
-
-    def validate(self):
-        """ Determine if the evidence is valid
-
-        * temperature units are defined if the temperature is not None
-        * pH units are defined if the pH is not None
-
-        Returns:
-            :obj:`InvalidObject` or None: `None` if the object is valid,
-                otherwise return a list of errors as an instance of `InvalidObject`
-        """
-        invalid_obj = super(Evidence, self).validate()
-        if invalid_obj:
-            errors = invalid_obj.attributes
-        else:
-            errors = []
-
-        if self.temp is not None and not isnan(self.temp) \
-                and not isinstance(self.temp_units, unit_registry.Unit):
-            errors.append(InvalidAttribute(self.Meta.attributes['temp_units'],
-                                           ['Temperature units must be defined']))
-        if self.ph is not None and not isnan(self.ph) \
-                and not isinstance(self.ph_units, unit_registry.Unit):
-            errors.append(InvalidAttribute(self.Meta.attributes['ph_units'],
-                                           ['pH units must be defined']))
-
-        if errors:
-            return InvalidObject(self, errors)
-        return None
 
 
 class Interpretation(obj_model.Model):
@@ -4440,8 +4673,7 @@ class Interpretation(obj_model.Model):
         std (:obj:`str`): standard error of the value
         units (:obj:`unit_registry.Unit`): units
         type (:obj:`pronto.term.Term`): type
-        method_name (:obj:`str`): procedure which produced the interpretation
-        method_version (:obj:`str`): version of procedure which produced the interpretation
+        method (:obj:`InterpretationMethod`): procedure which produced the interpretation
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
@@ -4479,8 +4711,7 @@ class Interpretation(obj_model.Model):
                              namespace='WC',
                              terms=onto['WC:interpretation'].rchildren(),
                              default=None, none=True)
-    method_name = LongStringAttribute(verbose_name='Name')
-    method_version = StringAttribute(verbose_name='Version')
+    method = ManyToOneAttribute(Method, related_name='interpretations')
     identifiers = IdentifierManyToManyAttribute(related_name='interpretations')
     evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
     comments = CommentAttribute()
@@ -4490,11 +4721,11 @@ class Interpretation(obj_model.Model):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
-                           'type', AttributeGroup('Method', ('method_name', 'method_version')),
+                           'type', 'method',
                            'identifiers', 'evidence', 'comments', 'references', 'authors')
         children = {
-            'submodel': ('identifiers', 'evidence', 'references', 'authors'),
-            'core_model': ('identifiers', 'evidence', 'references', 'authors'),
+            'submodel': ('method', 'identifiers', 'evidence', 'references', 'authors'),
+            'core_model': ('method', 'identifiers', 'evidence', 'references', 'authors'),
         }
         child_attrs = {
             'sbml': (),
@@ -4761,7 +4992,7 @@ class Identifier(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         unique_together = (('namespace', 'id', ), )
-        tabular_orientation = TabularOrientation.inline
+        tabular_orientation = TabularOrientation.cell
         attribute_order = ('namespace', 'id')
         frozen_columns = 2
         ordering = ('namespace', 'id', )

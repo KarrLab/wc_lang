@@ -19,7 +19,7 @@ from obj_model.expression import ExpressionManyToOneAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
-                          Reaction, Compartment,
+                          Reaction, Compartment, InitVolume,
                           SpeciesType, Species,
                           SpeciesCoefficient, Parameter, Reference,
                           Identifier,
@@ -28,7 +28,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Observable, ObservableExpression,
                           StopCondition, StopConditionExpression,
                           DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
-                          Evidence, Interpretation, Author, Change,
+                          FluxBounds,
+                          Evidence, EvidenceEnv, Interpretation, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator)
 from wc_lang.io import Reader
@@ -693,22 +694,22 @@ class TestCore(unittest.TestCase):
     def test_get_tot_mean_init_volume(self):
         model = Model()
         extracellular = model.compartments.create(id='extracellular', biological_type=onto['WC:extracellular_compartment'],
-                                                  mean_init_volume=1.)
+                                                  init_volume=InitVolume(mean=1.))
         cytosol = model.compartments.create(
             id='cytosol', biological_type=onto['WC:cellular_compartment'], parent_compartment=extracellular,
-            mean_init_volume=2.)
+            init_volume=InitVolume(mean=2.))
         nucleus = model.compartments.create(id='nucleus', biological_type=onto['WC:cellular_compartment'],
                                             parent_compartment=cytosol,
-                                            mean_init_volume=3.)
+                                            init_volume=InitVolume(mean=3.))
         nucleus_dna = model.compartments.create(
             id='nucleus_dna', biological_type=onto['WC:cellular_compartment'], parent_compartment=nucleus,
-            mean_init_volume=4.)
+            init_volume=InitVolume(mean=4.))
         mitochondria = model.compartments.create(
             id='mitochondria', biological_type=onto['WC:cellular_compartment'], parent_compartment=cytosol,
-            mean_init_volume=5.)
+            init_volume=InitVolume(mean=5.))
         mitochondria_dna = model.compartments.create(
             id='mitochondria_dna', biological_type=onto['WC:cellular_compartment'], parent_compartment=mitochondria,
-            mean_init_volume=6.)
+            init_volume=InitVolume(mean=6.))
         self.assertEqual(extracellular.get_tot_mean_init_volume(), 21.)
         self.assertEqual(cytosol.get_tot_mean_init_volume(), 20.)
         self.assertEqual(nucleus.get_tot_mean_init_volume(), 7.)
@@ -955,8 +956,8 @@ class TestCore(unittest.TestCase):
         st = SpeciesType(empirical_formula=EmpiricalFormula('CHO'), charge=1)
         spec_c = Species(species_type=st, compartment=c)
         spec_d = Species(species_type=st, compartment=d)
-        rxn = Reaction(id='rxn', reversible=True, flux_min=-1., flux_max=1.,
-                       flux_bound_units=unit_registry.parse_units('M s^-1'),
+        rxn = Reaction(id='rxn', reversible=True, 
+                       flux_bounds=FluxBounds(min=-1., max=1., units=unit_registry.parse_units('M s^-1')),
                        participants=[
                            SpeciesCoefficient(species=spec_c, coefficient=-1.),
                            SpeciesCoefficient(species=spec_d, coefficient=1.),
@@ -968,7 +969,7 @@ class TestCore(unittest.TestCase):
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
-        rxn.flux_bound_units = None
+        rxn.flux_bounds.units = None
         rv = rxn.validate()
         self.assertNotEqual(rv, None, str(rv))
 
@@ -2561,24 +2562,21 @@ class ValidateModelTestCase(unittest.TestCase):
         ]
 
         rxn = Reaction(id='rxn', reversible=True,
-                       flux_min=-1., flux_max=1.,
-                       flux_bound_units=unit_registry.parse_units('M s^-1'),
+                       flux_bounds=FluxBounds(min=-1., max=1., units=unit_registry.parse_units('M s^-1')),
                        submodel=Submodel(framework=onto['WC:dynamic_flux_balance_analysis']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
         rxn = Reaction(id='rxn', reversible=False,
-                       flux_min=0., flux_max=1.,
-                       flux_bound_units=unit_registry.parse_units('M s^-1'),
+                       flux_bounds=FluxBounds(min=0., max=1., units=unit_registry.parse_units('M s^-1')),
                        submodel=Submodel(framework=onto['WC:dynamic_flux_balance_analysis']),
                        participants=participants)
         rv = rxn.validate()
         self.assertEqual(rv, None, str(rv))
 
         rxn = Reaction(id='rxn', reversible=True,
-                       flux_min=1., flux_max=-1.,
-                       flux_bound_units=unit_registry.parse_units('M s^-1'),
+                       flux_bounds=FluxBounds(min=1., max=-1., units=unit_registry.parse_units('M s^-1')),
                        submodel=Submodel(framework=onto['WC:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
@@ -2586,28 +2584,23 @@ class ValidateModelTestCase(unittest.TestCase):
                            RateLaw(direction=RateLawDirection.backward),
                        ])
         rv = rxn.validate()
-        self.assertEqual(len(rv.attributes), 5)
-        self.assertRegex(str(rv), 'Minimum flux should be NaN')
-        self.assertRegex(str(rv), 'Maximum flux should be NaN')
+        self.assertEqual(len(rv.attributes), 3)
+        self.assertRegex(str(rv), 'Flux bounds should be None')
         self.assertRegex(str(rv), 'Maximum flux must be least the minimum flux')
         self.assertRegex(str(rv), 'Minimum flux for reversible reaction should be negative')
-        self.assertRegex(str(rv), 'Value must be at least 0.000000')
 
         rxn = Reaction(id='rxn', reversible=False,
-                       flux_min=-1., flux_max=-1.5,
-                       flux_bound_units=unit_registry.parse_units('M s^-1'),
+                       flux_bounds=FluxBounds(min=-1., max=-1.5, units=unit_registry.parse_units('M s^-1')),
                        submodel=Submodel(framework=onto['WC:stochastic_simulation_algorithm']),
                        participants=participants,
                        rate_laws=[
                            RateLaw(direction=RateLawDirection.forward),
                        ])
         rv = rxn.validate()
-        self.assertEqual(len(rv.attributes), 5)
-        self.assertRegex(str(rv), 'Minimum flux should be NaN')
-        self.assertRegex(str(rv), 'Maximum flux should be NaN')
+        self.assertEqual(len(rv.attributes), 3)
+        self.assertRegex(str(rv), 'Flux bounds should be None')
         self.assertRegex(str(rv), 'Maximum flux must be least the minimum flux')
         self.assertRegex(str(rv), 'Minimum flux for irreversible reaction should be non-negative')
-        self.assertRegex(str(rv), 'Value must be at least 0.000000')
 
     def test_dfba_submodel_contains_obj_reactions(self):
         submodel = Submodel(id='submodel', framework=onto['WC:dynamic_flux_balance_analysis'])
@@ -2825,20 +2818,20 @@ class ValidateModelTestCase(unittest.TestCase):
         error = ev.validate()
         self.assertNotEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', temp=1., temp_units=unit_registry.parse_units('celsius'))
-        error = ev.validate()
+        ev = Evidence(id='ev', env=EvidenceEnv(temp=1., temp_units=unit_registry.parse_units('celsius')))
+        error = ev.env.validate()
         self.assertEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', temp=1.)
-        error = ev.validate()
+        ev = Evidence(id='ev', env=EvidenceEnv(temp=1.))
+        error = ev.env.validate()
         self.assertNotEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', ph=1., ph_units=unit_registry.parse_units('dimensionless'))
-        error = ev.validate()
+        ev = Evidence(id='ev', env=EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('dimensionless')))
+        error = ev.env.validate()
         self.assertEqual(error, None, str(error))
 
-        ev = Evidence(id='ev', ph=1.)
-        error = ev.validate()
+        ev = Evidence(id='ev', env=EvidenceEnv(ph=1.))
+        error = ev.env.validate()
         self.assertNotEqual(error, None, str(error))
 
 

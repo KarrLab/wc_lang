@@ -42,8 +42,18 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         ext_comp = model.compartments.get_one(id=config['EXTRACELLULAR_COMPARTMENT_ID'])
         rxn_id_template = config['dfba']['exchange_reaction_id_template']
         rxn_name_template = config['dfba']['exchange_reaction_name_template']
-        ex_flux_bound_carbon = config['dfba']['ex_flux_bound_carbon']
-        ex_flux_bound_no_carbon = config['dfba']['ex_flux_bound_no_carbon']
+        ex_carbon = config['dfba']['flux_bounds']['ex_carbon']
+        ex_no_carbon = config['dfba']['flux_bounds']['ex_no_carbon']
+
+        carbon_flux_bounds = wc_lang.core.FluxBounds()
+        carbon_flux_bounds.min = -ex_carbon
+        carbon_flux_bounds.max = ex_carbon
+        carbon_flux_bounds.units = unit_registry.parse_units('M s^-1')
+
+        no_carbon_flux_bounds = wc_lang.core.FluxBounds()
+        no_carbon_flux_bounds.min = -ex_no_carbon
+        no_carbon_flux_bounds.max = ex_no_carbon
+        no_carbon_flux_bounds.units = unit_registry.parse_units('M s^-1')
 
         for submodel in model.submodels:
             if are_terms_equivalent(submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
@@ -58,12 +68,9 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                         participants = [species.species_coefficients.get_or_create(coefficient=1.)]
                         reversible = True
                         if species.species_type.has_carbon():
-                            flux_min = -ex_flux_bound_carbon
-                            flux_max = ex_flux_bound_carbon
+                            flux_bounds = carbon_flux_bounds
                         else:
-                            flux_min = -ex_flux_bound_no_carbon
-                            flux_max = ex_flux_bound_no_carbon
-                        flux_bound_units = unit_registry.parse_units('M s^-1')
+                            flux_bounds = no_carbon_flux_bounds
 
                         rxn = model.reactions.get_one(id=id)
                         if rxn:
@@ -71,17 +78,18 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                             assert rxn.name == name
                             assert rxn.participants == participants
                             assert rxn.reversible == reversible
-                            assert rxn.Meta.attributes['flux_min'].value_equal(rxn.flux_min, flux_min)
-                            assert rxn.Meta.attributes['flux_max'].value_equal(rxn.flux_max, flux_max)
-                            assert rxn.Meta.attributes['flux_bound_units'].value_equal(rxn.flux_bound_units, flux_bound_units)
+                            assert wc_lang.core.FluxBounds.Meta.attributes['min'].value_equal(
+                                rxn.flux_bounds.min, flux_bounds.min)
+                            assert wc_lang.core.FluxBounds.Meta.attributes['max'].value_equal(
+                                rxn.flux_bounds.max, flux_bounds.max)
+                            assert wc_lang.core.FluxBounds.Meta.attributes['units'].value_equal(
+                                rxn.flux_bounds.units, flux_bounds.units)
                         else:
                             rxn = model.reactions.create(id=id)
                             rxn.submodel = submodel
                             rxn.name = name
                             rxn.participants = participants
                             rxn.reversible = reversible
-                            rxn.flux_min = flux_min
-                            rxn.flux_max = flux_max
-                            rxn.flux_bound_units = flux_bound_units
+                        rxn.flux_bounds = flux_bounds
 
         return model

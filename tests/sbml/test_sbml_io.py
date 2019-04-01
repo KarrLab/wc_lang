@@ -13,7 +13,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from wc_lang.core import (Model, Submodel, Compartment, Reaction, RateLaw, RateLawDirection,
+from wc_lang.core import (Model, Submodel, Compartment, Reaction, FluxBounds, RateLaw, RateLawDirection,
                           DfbaObjective, DfbaObjectiveExpression, WcLangWarning)
 from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
@@ -63,8 +63,8 @@ class SbmlIoTestCase(unittest.TestCase):
 
         model = Model(id='model')
         submodel = model.submodels.create(id='Metabolism', framework=onto['WC:dynamic_flux_balance_analysis'])
-        model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
-        model.reactions.create(id='rxn_1', submodel=submodel, flux_bound_units=unit_registry.parse_units('M s^-1'))
+        model.reactions.create(id='rxn_1', submodel=submodel, flux_bounds=FluxBounds(units=unit_registry.parse_units('M s^-1')))
+        model.reactions.create(id='rxn_1', submodel=submodel, flux_bounds=FluxBounds(units=unit_registry.parse_units('M s^-1')))
         with self.assertRaisesRegex(sbml_util.LibSbmlError, 'Document is invalid'):
             with self.assertWarnsRegex(WcLangWarning, 'Model is invalid'):
                 sbml_io.SbmlExporter.run(model)

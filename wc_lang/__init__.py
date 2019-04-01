@@ -6,12 +6,12 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 
 # API
 from .core import (RateLawDirection, TaxonRank,
-                   Model, Taxon, Submodel, Compartment,
+                   Model, Taxon, Submodel, Compartment, InitVolume, Ph,
                    SpeciesType, Species, DistributionInitConcentration, DfbaObjective, DfbaObjectiveExpression,
                    Observable, ObservableExpression,
                    Function, FunctionExpression,
-                   Reaction, SpeciesCoefficient, RateLaw, RateLawExpression,
+                   Reaction, FluxBounds, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
-                   Evidence, Interpretation, Identifier, Reference, Author, Change,
+                   Evidence, EvidenceGenotype, EvidenceEnv, Interpretation, Method, Identifier, Reference, Author, Change,
                    Validator, WcLangWarning)

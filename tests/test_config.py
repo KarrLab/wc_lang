@@ -17,9 +17,11 @@ class ConfigTestCase(unittest.TestCase):
     def test_validate_config(self):
         config.get_config(extra={'wc_lang': {
             'dfba': {
-                'flux_min_bound_reversible': -1e3,
-                'flux_min_bound_irreversible': -1e3,
-                'flux_max_bound': 1e3,
+                'flux_bounds': {
+                    'min_reversible': -1e3,
+                    'min_irreversible': -1e3,
+                    'max': 1e3,
+                },
             },
         },
         })
@@ -27,18 +29,22 @@ class ConfigTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dFBA reversible flux bound must be greater'):
             config.get_config(extra={'wc_lang': {
                 'dfba': {
-                    'flux_min_bound_reversible': 1e4,
-                    'flux_min_bound_irreversible': -1e3,
-                    'flux_max_bound': 1e3,
+                    'flux_bounds': {
+                        'min_reversible': 1e4,
+                        'min_irreversible': -1e3,
+                        'max': 1e3,
+                    },
                 },
             },
             })
         with self.assertRaisesRegex(ValueError, 'dFBA irreversible flux bound must be greater'):
             config.get_config(extra={'wc_lang': {
                 'dfba': {
-                    'flux_min_bound_reversible': -1e3,
-                    'flux_min_bound_irreversible': 1e4,
-                    'flux_max_bound': 1e3,
+                    'flux_bounds': {
+                        'min_reversible': -1e3,
+                        'min_irreversible': 1e4,
+                        'max': 1e3,
+                    },
                 },
             },
             })

@@ -7,7 +7,7 @@
 """
 
 from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
-                     Reaction, RateLawDirection, RateLaw, RateLawExpression, Species)
+                     Reaction, FluxBounds, RateLawDirection, RateLaw, RateLawExpression, Species, InitVolume)
 from wc_lang.transform import ChangeValueTransform
 from wc_utils.util.units import unit_registry
 import unittest
@@ -17,12 +17,12 @@ class ChangeValueTransformTestCase(unittest.TestCase):
 
     def test_compartment_density(self):
         model = Model()
-        c = model.compartments.create(id='c', mean_init_volume=1.)
-        e = model.compartments.create(id='e', mean_init_volume=1.)
-        ChangeValueTransform((('compartments', {'id': 'c'}), 'mean_init_volume'), 2.).run(model)
+        c = model.compartments.create(id='c', init_volume=InitVolume(mean=1.))
+        e = model.compartments.create(id='e', init_volume=InitVolume(mean=1.))
+        ChangeValueTransform((('compartments', {'id': 'c'}), ('init_volume',), ('mean',)), 2.).run(model)
 
-        self.assertEqual(c.mean_init_volume, 2.)
-        self.assertEqual(e.mean_init_volume, 1.)
+        self.assertEqual(c.init_volume.mean, 2.)
+        self.assertEqual(e.init_volume.mean, 1.)
 
     def test_function_expression(self):
         model = Model()
@@ -66,35 +66,35 @@ class ChangeValueTransformTestCase(unittest.TestCase):
         self.assertEqual(r_2_1.reversible, False)
         self.assertEqual(r_2_2.reversible, True)
 
-    def test_reaction_flux_min(self):
+    def test_reaction_flux_bounds_min(self):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_min=1, flux_bound_units=unit_registry.parse_units('M s^-1'))
-        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_min=2, flux_bound_units=unit_registry.parse_units('M s^-1'))
-        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_min=3, flux_bound_units=unit_registry.parse_units('M s^-1'))
-        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_min=4, flux_bound_units=unit_registry.parse_units('M s^-1'))
-        ChangeValueTransform((('reactions', {'id': 'r_1_2'}), 'flux_min'), 0).run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_bounds=FluxBounds(min=1, units=unit_registry.parse_units('M s^-1')))
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_bounds=FluxBounds(min=2, units=unit_registry.parse_units('M s^-1')))
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_bounds=FluxBounds(min=3, units=unit_registry.parse_units('M s^-1')))
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_bounds=FluxBounds(min=4, units=unit_registry.parse_units('M s^-1')))
+        ChangeValueTransform((('reactions', {'id': 'r_1_2'}), ('flux_bounds',), ('min',)), 0).run(model)
 
-        self.assertEqual(r_1_1.flux_min, 1)
-        self.assertEqual(r_1_2.flux_min, 0)
-        self.assertEqual(r_2_1.flux_min, 3)
-        self.assertEqual(r_2_2.flux_min, 4)
+        self.assertEqual(r_1_1.flux_bounds.min, 1)
+        self.assertEqual(r_1_2.flux_bounds.min, 0)
+        self.assertEqual(r_2_1.flux_bounds.min, 3)
+        self.assertEqual(r_2_2.flux_bounds.min, 4)
 
-    def test_reaction_flux_max(self):
+    def test_reaction_flux_bounds_max(self):
         model = Model()
         s_1 = model.submodels.create(id='s_1')
         s_2 = model.submodels.create(id='s_2')
-        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_max=1)
-        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_max=2)
-        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_max=3)
-        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_max=4)
-        ChangeValueTransform((('reactions', {'id': 'r_2_2'}), 'flux_max'), 0).run(model)
+        r_1_1 = model.reactions.create(submodel=s_1, id='r_1_1', flux_bounds=FluxBounds(max=1))
+        r_1_2 = model.reactions.create(submodel=s_1, id='r_1_2', flux_bounds=FluxBounds(max=2))
+        r_2_1 = model.reactions.create(submodel=s_2, id='r_2_1', flux_bounds=FluxBounds(max=3))
+        r_2_2 = model.reactions.create(submodel=s_2, id='r_2_2', flux_bounds=FluxBounds(max=4))
+        ChangeValueTransform((('reactions', {'id': 'r_2_2'}), ('flux_bounds',), ('max',)), 0).run(model)
 
-        self.assertEqual(r_1_1.flux_max, 1)
-        self.assertEqual(r_1_2.flux_max, 2)
-        self.assertEqual(r_2_1.flux_max, 3)
-        self.assertEqual(r_2_2.flux_max, 0)
+        self.assertEqual(r_1_1.flux_bounds.max, 1)
+        self.assertEqual(r_1_2.flux_bounds.max, 2)
+        self.assertEqual(r_2_1.flux_bounds.max, 3)
+        self.assertEqual(r_2_2.flux_bounds.max, 0)
 
     def test_reaction_expression(self):
         model = Model()

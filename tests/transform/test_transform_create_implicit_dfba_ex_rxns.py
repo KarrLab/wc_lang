@@ -68,9 +68,9 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(rxn.participants[0].species, specs[0][2])
         self.assertEqual(rxn.participants[0].coefficient, 1.)
         self.assertEqual(rxn.reversible, True)
-        self.assertEqual(rxn.flux_min, -config['ex_flux_bound_carbon'])
-        self.assertEqual(rxn.flux_max, config['ex_flux_bound_carbon'])
+        self.assertEqual(rxn.flux_bounds.min, -config['flux_bounds']['ex_carbon'])
+        self.assertEqual(rxn.flux_bounds.max, config['flux_bounds']['ex_carbon'])
 
         rxn = model.reactions.get_one(id='__dfba_ex_submdl_st_2_e')
-        self.assertEqual(rxn.flux_min, -config['ex_flux_bound_no_carbon'])
-        self.assertEqual(rxn.flux_max, config['ex_flux_bound_no_carbon'])
+        self.assertEqual(rxn.flux_bounds.min, -config['flux_bounds']['ex_no_carbon'])
+        self.assertEqual(rxn.flux_bounds.max, config['flux_bounds']['ex_no_carbon'])

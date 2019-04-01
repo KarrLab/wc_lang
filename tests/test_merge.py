@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Evidence, Identifier, Reference)
+                          Evidence, Identifier, Reference, InitVolume)
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
@@ -42,19 +42,19 @@ class MergeTestCase(unittest.TestCase):
         models[3].env = Environment(id='env', comments='comments 2\n\ncomments 1')
 
         # compartments
-        models[0].compartments.create(id='c_0', mean_init_volume=1.)
-        models[0].compartments.create(id='c_1', mean_init_volume=2., parent_compartment=models[0].compartments[0])
+        models[0].compartments.create(id='c_0', init_volume=InitVolume(mean=1.))
+        models[0].compartments.create(id='c_1', init_volume=InitVolume(mean=2.), parent_compartment=models[0].compartments[0])
 
-        models[1].compartments.create(id='c_0', mean_init_volume=1.)
-        models[1].compartments.create(id='c_2', mean_init_volume=3.)
+        models[1].compartments.create(id='c_0', init_volume=InitVolume(mean=1.))
+        models[1].compartments.create(id='c_2', init_volume=InitVolume(mean=3.))
 
-        models[2].compartments.create(id='c_0', mean_init_volume=1.)
-        models[2].compartments.create(id='c_1', mean_init_volume=2., parent_compartment=models[2].compartments[0])
-        models[2].compartments.create(id='c_2', mean_init_volume=3.)
+        models[2].compartments.create(id='c_0', init_volume=InitVolume(mean=1.))
+        models[2].compartments.create(id='c_1', init_volume=InitVolume(mean=2.), parent_compartment=models[2].compartments[0])
+        models[2].compartments.create(id='c_2', init_volume=InitVolume(mean=3.))
 
-        models[3].compartments.create(id='c_0', mean_init_volume=1.)
-        models[3].compartments.create(id='c_1', mean_init_volume=2., parent_compartment=models[3].compartments[0])
-        models[3].compartments.create(id='c_2', mean_init_volume=3.)
+        models[3].compartments.create(id='c_0', init_volume=InitVolume(mean=1.))
+        models[3].compartments.create(id='c_1', init_volume=InitVolume(mean=2.), parent_compartment=models[3].compartments[0])
+        models[3].compartments.create(id='c_2', init_volume=InitVolume(mean=3.))
 
         for model in models:
             for comp in model.compartments:

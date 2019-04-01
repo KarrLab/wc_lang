@@ -336,8 +336,8 @@ class LibSbmlInterface(object):
         cls.set_unit(sbml_model.setExtentUnits, units)
         cls.set_unit(sbml_model.setSubstanceUnits, units)
 
-        assert len(wc_lang.core.Compartment.init_volume_units.choices) == 1
-        units = wc_lang.core.Compartment.init_volume_units.choices[0]
+        assert len(wc_lang.core.InitVolume.units.choices) == 1
+        units = wc_lang.core.InitVolume.units.choices[0]
         cls.set_unit(sbml_model.setVolumeUnits, units)
 
         # return dictionary to SBML units
