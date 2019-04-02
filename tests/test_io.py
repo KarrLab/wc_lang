@@ -16,7 +16,7 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
                      DistributionInitConcentration,
-                     DfbaObjective, DfbaObjectiveExpression)
+                     DfbaObjective, DfbaObjectiveExpression, ChemicalStructure)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.util.chem import EmpiricalFormula
@@ -69,10 +69,10 @@ class TestSimpleModel(unittest.TestCase):
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
                 type=onto['WC:metabolite'],
-                structure='C' * (i + 1),
-                empirical_formula=EmpiricalFormula('C' + str(i + 1)),
-                molecular_weight=12 * (i + 1),
-                charge=i + 1)
+                structure=ChemicalStructure(
+                    empirical_formula=EmpiricalFormula('C' + str(i + 1)),
+                    molecular_weight=12 * (i + 1),
+                    charge=i + 1))
             species_types.append(spec_type)
 
             if i != 3:
@@ -456,7 +456,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
     def test_write_parameter(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         submodel = model.submodels.create(id='submodel')
-        species_type = model.species_types.create(id='st', molecular_weight=1., charge=0)
+        species_type = model.species_types.create(id='st', structure=ChemicalStructure(molecular_weight=1., charge=0))
         compartment = model.compartments.create(id='c')
         species = model.species.create(species_type=species_type, compartment=compartment)
         species.id = species.gen_id()

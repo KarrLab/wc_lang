@@ -67,7 +67,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
                                                         species.compartment.name or species.compartment.id)
                         participants = [species.species_coefficients.get_or_create(coefficient=1.)]
                         reversible = True
-                        if species.species_type.has_carbon():
+                        if species.species_type.structure and species.species_type.structure.has_carbon():
                             flux_bounds = carbon_flux_bounds
                         else:
                             flux_bounds = no_carbon_flux_bounds

@@ -8,7 +8,7 @@
 
 import datetime
 import unittest
-from wc_lang.core import Model, Species, Parameter, RateLawExpression, Reference, StopConditionExpression
+from wc_lang.core import Model, Species, Parameter, RateLawExpression, Reference, StopConditionExpression, ChemicalStructure
 from wc_utils.util.units import unit_registry
 
 
@@ -25,8 +25,9 @@ def gen_model(submodels=True, extra_species=True):
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    model.species_types.create(id='s_0', charge=0)
-    model.species_types.create(id='s_1', charge=0)
+    structure = ChemicalStructure(charge=0)
+    model.species_types.create(id='s_0', structure=structure)
+    model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[1])
     model.species.create(compartment=model.compartments[1], species_type=model.species_types[0])
@@ -105,8 +106,9 @@ def gen_core_model(extra_species=True):
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    model.species_types.create(id='s_0', charge=0)
-    model.species_types.create(id='s_1', charge=0)
+    structure = ChemicalStructure(charge=0)
+    model.species_types.create(id='s_0', structure=structure)
+    model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[1])
     model.species.create(compartment=model.compartments[1], species_type=model.species_types[0])
@@ -150,8 +152,9 @@ def gen_submodel_0():
     submodel_0 = model.submodels.create(id='submodel_0')
 
     model.compartments.create(id='c_0')
-    model.species_types.create(id='s_0', charge=0)
-    model.species_types.create(id='s_1', charge=0)
+    structure = ChemicalStructure(charge=0)
+    model.species_types.create(id='s_0', structure=structure)
+    model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[1])
     for species in model.species:
@@ -205,7 +208,8 @@ def gen_submodel_1():
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    model.species_types.create(id='s_0', charge=0)
+    structure = ChemicalStructure(charge=0)
+    model.species_types.create(id='s_0', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
     model.species.create(compartment=model.compartments[1], species_type=model.species_types[0])
     for species in model.species:
@@ -311,9 +315,10 @@ class GetChildrenTestCase(unittest.TestCase):
                              + model.references[0:2]
                              + model.compartments[0:1]
                              + model.species_types[0:2]
+                             + [st.structure for st in model.species_types[0:2]]
                              + model.species[0:2]
                              + model.species[0].species_coefficients[0:1]
-                             + model.species[1].species_coefficients[0:1]
+                             + model.species[1].species_coefficients[0:1]                             
                              + model.rate_laws[0:2]
                              + [model.rate_laws[0].expression, model.rate_laws[1].expression]
                              + [model.parameters[3], model.parameters[5], model.parameters[6]]
@@ -324,6 +329,7 @@ class GetChildrenTestCase(unittest.TestCase):
                              + [model.references[0], model.references[2]]
                              + model.compartments[0:2]
                              + model.species_types[0:1]
+                             + [st.structure for st in model.species_types[0:1]]
                              + [model.species[0], model.species[2]]
                              + model.species[0].species_coefficients[0:1]
                              + model.species[2].species_coefficients[0:1]
@@ -341,6 +347,7 @@ class GetChildrenTestCase(unittest.TestCase):
                              + model.parameters[0:2]
                              + model.compartments[0:1]
                              + model.species_types[0:2]
+                             + [st.structure for st in model.species_types[0:2]]
                              + model.species[0:2]
                              + model.species[0].species_coefficients[0:1]
                              + model.species[1].species_coefficients[0:1]
@@ -357,6 +364,7 @@ class GetChildrenTestCase(unittest.TestCase):
                              + [model.parameters[0], model.parameters[2]]
                              + model.compartments[0:2]
                              + model.species_types[0:1]
+                             + [st.structure for st in model.species_types[0:1]]
                              + [model.species[0], model.species[2]]
                              + model.species[0].species_coefficients[0:1]
                              + model.species[2].species_coefficients[0:1]

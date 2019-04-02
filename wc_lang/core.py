@@ -52,19 +52,21 @@ from obj_model.expression import (ExpressionOneToOneAttribute, ExpressionManyToO
 from obj_model.ontology import OntologyAttribute
 from obj_model.units import UnitAttribute
 from wc_lang.sbml.util import SbmlModelMixin, SbmlAssignmentRuleMixin, LibSbmlInterface
-from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.chem import EmpiricalFormula, OpenBabelUtils
 from wc_utils.util.enumerate import CaseInsensitiveEnum, CaseInsensitiveEnumMeta
 from wc_utils.util.list import det_dedupe
 from wc_onto import onto
 from wc_utils.util.ontology import are_terms_equivalent
 from wc_utils.util.units import unit_registry, are_units_equivalent
 from wc_utils.workbook.core import get_column_letter
+import bpforms
 import collections
 import datetime
 import libsbml
 import networkx
 import obj_model
 import obj_model.chem
+import openbabel
 import pkg_resources
 import pronto.term
 import re
@@ -358,13 +360,13 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             errors = []
 
             for part in value:
-                if part.species.species_type.empirical_formula:
-                    delta_formula += part.species.species_type.empirical_formula * part.coefficient
+                if part.species.species_type.structure and part.species.species_type.structure.empirical_formula:
+                    delta_formula += part.species.species_type.structure.empirical_formula * part.coefficient
 
-                if part.species.species_type.charge is None:
+                if part.species.species_type.structure is None or part.species.species_type.structure.charge is None:
                     errors.append('Charge must be defined for {}'.format(part.species.species_type.id))
                 else:
-                    delta_charge += part.species.species_type.charge * part.coefficient
+                    delta_charge += part.species.species_type.structure.charge * part.coefficient
 
             if not errors:
                 if delta_formula:
@@ -1947,6 +1949,7 @@ class InitVolume(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('distribution', 'mean', 'std', 'units'), )
         attribute_order = ('distribution', 'mean', 'std', 'units')
         children = {
             'submodel': (),
@@ -1991,6 +1994,7 @@ class Ph(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('distribution', 'mean', 'std', 'units'), )
         attribute_order = ('distribution', 'mean', 'std', 'units')
         children = {
             'submodel': (),
@@ -2190,7 +2194,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
             LibSbmlInterface.call_libsbml(rule.setVariable, param_id)
             formula_parts = []
             for species in self.species:
-                formula_part = '{} * {} gram'.format(species.gen_sbml_id(), species.species_type.molecular_weight)
+                formula_part = '{} * {} gram'.format(species.gen_sbml_id(), species.species_type.structure.molecular_weight)
                 formula_parts.append(formula_part)
             str_formula = '({}) / {} {}'.format(' + '.join(formula_parts), scipy.constants.Avogadro,
                                                 LibSbmlInterface.gen_unit_id(Species.Meta.attributes['units'].choices[0]))
@@ -2277,6 +2281,149 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                     break
 
 
+class ChemicalStructureFormat(int, CaseInsensitiveEnum):
+    """ Format of a chemical structure """
+    SMILES = 0
+    BpForms = 1
+
+
+class ChemicalStructureAlphabet(int, CaseInsensitiveEnum):
+    """ Alphabet of a chemical structure """
+    dna = 0
+    rna = 1
+    protein = 2
+
+
+class ChemicalStructure(obj_model.Model, SbmlModelMixin):
+    """ Structure of a chemical compound
+
+    Attributes:
+        value (:obj:`str`)
+        format (:obj:`ChemicalStructureFormat`): format of the structure
+        alphabet (:obj:`str`): alphabet of BpForms-encoded structure
+
+        empirical_formula (:obj:`EmpiricalFormula`): empirical formula
+        molecular_weight (:obj:`float`): molecular weight
+        charge (:obj:`int`): charge
+    """
+    value = LongStringAttribute()
+    format = EnumAttribute(ChemicalStructureFormat, none=True)
+    alphabet = EnumAttribute(ChemicalStructureAlphabet, none=True)
+
+    empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
+    molecular_weight = FloatAttribute(min=0)
+    charge = IntegerAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('value', 'format', 'alphabet',
+                            'empirical_formula', 'molecular_weight', 'charge',), )
+        attribute_order = ('value', 'format', 'alphabet',
+                           'empirical_formula', 'molecular_weight', 'charge',)
+        children = {
+            'submodel': (),
+            'core_model': (),
+        }
+        child_attrs = {
+            'sbml': ('value', 'format', 'alphabet', 'empirical_formula', 'molecular_weight', 'charge',),
+            'wc_sim': ('molecular_weight', 'charge'),
+        }
+
+    def validate(self):
+        """ Check that the structure is valid
+
+        * Format provided when structure is not None
+        * Value provided when format is not None
+        * Alphabet provided for BpForms-encoded structures
+        * Empirical formula, molecular weight, charge match structure (when)
+
+        Returns:
+            :obj:`InvalidObject` or None: `None` if the object is valid,
+                otherwise return a list of errors as an instance of `InvalidObject`
+        """
+        invalid_obj = super(ChemicalStructure, self).validate()
+        if invalid_obj:
+            errors = invalid_obj.attributes
+        else:
+            errors = []
+
+        if self.value and self.format is None:
+            errors.append(InvalidAttribute(self.Meta.attributes['format'],
+                                           ['A format must be defined for the structure']))
+
+        if not self.value and self.format is not None:
+            errors.append(InvalidAttribute(self.Meta.attributes['value'],
+                                           ['The format should be None for None structures']))
+
+        if self.format == ChemicalStructureFormat.BpForms and self.alphabet is None:
+            errors.append(InvalidAttribute(self.Meta.attributes['alphabet'], [
+                          'An alphabet must be defined for BpForms-encoded structures']))
+
+        if self.format != ChemicalStructureFormat.BpForms and self.alphabet is not None:
+            errors.append(InvalidAttribute(self.Meta.attributes['alphabet'], [
+                          'An alphabet can only be defined for BpForms-encoded structures']))
+
+        if self.value:
+            exp_formula = None
+            exp_charge = None
+            if self.format == ChemicalStructureFormat.SMILES:
+                mol = openbabel.OBMol()
+                conv = openbabel.OBConversion()
+                assert conv.SetInFormat('smi')
+                conv.ReadString(mol, self.value)
+                exp_formula = OpenBabelUtils.get_formula(mol)
+                exp_charge = mol.GetTotalCharge()
+            elif self.format == ChemicalStructureFormat.BpForms and self.alphabet:
+                form = bpforms.util.get_form(self.alphabet.name)().from_str(self.value)
+                exp_formula = form.get_formula()
+                exp_charge = form.get_charge()
+
+            if self.empirical_formula is not None and self.empirical_formula != exp_formula:
+                errors.append(InvalidAttribute(self.Meta.attributes['empirical_formula'],
+                                               ['Empirical formula does not match structure {} != {}'.format(
+                                                str(self.empirical_formula), str(exp_formula))]))
+            if self.charge is not None and self.charge != exp_charge:
+                errors.append(InvalidAttribute(self.Meta.attributes['charge'],
+                                               ['Charge does not match structure {} != {}'.format(
+                                                self.charge, exp_charge)]))
+
+            if not errors:
+                self.empirical_formula = exp_formula
+                self.charge = exp_charge
+
+        if self.empirical_formula:
+            exp_mol_wt = self.empirical_formula.get_molecular_weight()
+            if self.molecular_weight is not None \
+                    and not isnan(self.molecular_weight) \
+                    and abs(self.molecular_weight - exp_mol_wt) / exp_mol_wt > 1e-3:
+                errors.append(InvalidAttribute(self.Meta.attributes['molecular_weight'],
+                                               ['Molecular weight does not match structure {} != {}'.format(
+                                                self.molecular_weight, exp_mol_wt)]))
+            else:
+                self.molecular_weight = exp_mol_wt
+
+        if errors:
+            return InvalidObject(self, errors)
+        return None
+
+    def serialize(self):
+        """ Generate string representation
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        return '__'.join([str(self.value), str(self.format), str(self.alphabet),
+                          str(self.empirical_formula), str(self.molecular_weight), str(self.charge)])
+
+    def has_carbon(self):
+        """ Returns `True` is species contains at least one carbon atom.
+
+        Returns:
+            :obj:`bool`: `True` is species contains at least one carbon atom.
+        """
+        return self.empirical_formula and self.empirical_formula['C'] > 0
+
+
 class SpeciesType(obj_model.Model, SbmlModelMixin):
     """ Species type
 
@@ -2284,10 +2431,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        structure (:obj:`str`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)
-        empirical_formula (:obj:`EmpiricalFormula`): empirical formula
-        molecular_weight (:obj:`float`): molecular weight
-        charge (:obj:`int`): charge
+        structure (:obj:`ChemicalStructure`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)        
         type (:obj:`pronto.term.Term`): type
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
@@ -2302,10 +2446,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species_types')
-    structure = LongStringAttribute()
-    empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
-    molecular_weight = FloatAttribute(min=0)
-    charge = IntegerAttribute()
+    structure = ManyToOneAttribute(ChemicalStructure, related_name='species_types')
     type = OntologyAttribute(onto,
                              namespace='WC',
                              terms=onto['WC:species_type'].rchildren(),
@@ -2319,27 +2460,18 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
-        attribute_order = ('id', 'name', 'structure', 'empirical_formula',
-                           'molecular_weight', 'charge', 'type',
+        attribute_order = ('id', 'name', 'structure', 'type',
                            'identifiers', 'evidence', 'interpretations', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         children = {
-            'submodel': ('identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('structure', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'core_model': ('structure', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
         }
         child_attrs = {
-            'sbml': ('id', 'name', 'model', 'structure', 'empirical_formula', 'molecular_weight', 'charge', 'type',
+            'sbml': ('id', 'name', 'model', 'structure', 'type',
                      'identifiers', 'comments'),
-            'wc_sim': ('id', 'model', 'molecular_weight', 'charge'),
+            'wc_sim': ('id', 'model', 'structure'),
         }
-
-    def has_carbon(self):
-        """ Returns `True` is species contains at least one carbon atom.
-
-        Returns:
-            :obj:`bool`: `True` is species contains at least one carbon atom.
-        """
-        return self.empirical_formula and self.empirical_formula['C'] > 0
 
 
 class Species(obj_model.Model, SbmlModelMixin):
@@ -2543,8 +2675,9 @@ class Species(obj_model.Model, SbmlModelMixin):
 
         # species type, initial concentration, identifiers
         annots = ['species_type.id', 'species_type.name',
-                  'species_type.structure', 'species_type.empirical_formula',
-                  'species_type.molecular_weight', 'species_type.charge',
+                  'species_type.structure.value', 'species_type.structure.format', 'species_type.structure.alphabet',
+                  'species_type.structure.empirical_formula', 'species_type.structure.molecular_weight', 
+                  'species_type.structure.charge',
                   'species_type.type', 'species_type.identifiers',
                   'species_type.comments',
                   'distribution_init_concentration.id',
@@ -2594,9 +2727,16 @@ class Species(obj_model.Model, SbmlModelMixin):
         self.species_type = self.model.species_types.get_or_create(
             id=parsed_annots['species_type.id'])
         annots.extend(['species_type.name',
-                       'species_type.structure', 'species_type.empirical_formula',
-                       'species_type.molecular_weight', 'species_type.charge',
                        'species_type.type', 'species_type.comments'])
+
+        structure_annots = ['species_type.structure.value', 'species_type.structure.format', 'species_type.structure.alphabet',
+                           'species_type.structure.empirical_formula', 'species_type.structure.molecular_weight',
+                           'species_type.structure.charge']
+        if set(parsed_annots).intersection(set(structure_annots)):
+            structure = self.species_type.structure = ChemicalStructure()
+            annots.extend(structure_annots)
+        else:
+            structure = None
 
         # initial concentration
         if call_libsbml(sbml.isSetInitialAmount):
@@ -2610,6 +2750,12 @@ class Species(obj_model.Model, SbmlModelMixin):
                            'distribution_init_concentration.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
+ 
+        if structure:
+            for st in self.model.species_types:
+                if st != self.species_type and st.structure and st.structure.serialize() == structure.serialize():
+                    self.species_type.structure = st.structure
+                    break
 
 
 class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
@@ -3212,6 +3358,7 @@ class FluxBounds(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('min', 'max', 'units'), )
         attribute_order = ('min', 'max', 'units')
         children = {
             'submodel': (),
@@ -4443,6 +4590,7 @@ class EvidenceGenotype(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('taxon', 'variant', ), )
         attribute_order = ('taxon', 'variant')
         children = {
             'submodel': (),
@@ -4492,6 +4640,7 @@ class EvidenceEnv(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition'), )
         attribute_order = ('temp', 'temp_units', 'ph', 'ph_units', 'growth_media', 'condition')
         children = {
             'submodel': (),
@@ -4560,6 +4709,7 @@ class Method(obj_model.Model, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
+        unique_together = (('name', 'version'), )
         attribute_order = ('name', 'version')
         children = {
             'submodel': (),

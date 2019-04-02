@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Evidence, Identifier, Reference, InitVolume)
+                          Evidence, Identifier, Reference, InitVolume, ChemicalStructure)
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
@@ -78,10 +78,11 @@ class MergeTestCase(unittest.TestCase):
         models[3].species_types.create(id='st_1')
         models[3].species_types.create(id='st_2')
         models[3].species_types.create(id='st_3')
-
+        
         for model in models:
+            structure = ChemicalStructure(charge=0)
             for species_type in model.species_types:
-                species_type.charge = 0
+                species_type.structure = structure
 
         # species
         models[0].species.create(species_type=models[0].species_types[0], compartment=models[0].compartments[0])

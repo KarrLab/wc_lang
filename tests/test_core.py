@@ -31,7 +31,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           FluxBounds,
                           Evidence, EvidenceEnv, Interpretation, Author, Change,
                           ReactionParticipantAttribute, Expression,
-                          InvalidObject, Validator)
+                          InvalidObject, Validator, ChemicalStructure)
 from wc_lang.io import Reader
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
@@ -57,10 +57,11 @@ class TestCore(unittest.TestCase):
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
                 type=onto['WC:metabolite'],
-                structure='C' * i + 'H' * (i + 1),
-                empirical_formula=EmpiricalFormula('C{}H{}'.format(i, i + 1)),
-                molecular_weight=12 * (i + 1),
-                charge=i + 1)
+                structure=ChemicalStructure(
+                    value='C' * i + 'H' * (i + 1),
+                    empirical_formula=EmpiricalFormula('C{}H{}'.format(i, i + 1)),
+                    molecular_weight=12 * (i + 1),
+                    charge=i + 1))
             species_types.append(spec_type)
 
             if i != 3:
@@ -718,9 +719,9 @@ class TestCore(unittest.TestCase):
         self.assertEqual(mitochondria_dna.get_tot_mean_init_volume(), 6.)
 
     def test_species_type_has_carbon(self):
-        'C' in self.species_types[0].empirical_formula
-        self.assertFalse(self.species_types[0].has_carbon())
-        self.assertTrue(self.species_types[1].has_carbon())
+        'C' in self.species_types[0].structure.empirical_formula
+        self.assertFalse(self.species_types[0].structure.has_carbon())
+        self.assertTrue(self.species_types[1].structure.has_carbon())
 
     def test_species_gen_id(self):
         self.assertEqual(self.species[3].gen_id(), 'spec_type_3[comp_1]')
@@ -886,11 +887,11 @@ class TestCore(unittest.TestCase):
 
     def test_validate_reaction_balance(self):
         c = Compartment()
-        st_1 = SpeciesType(empirical_formula=EmpiricalFormula('CH1N2OP2'), charge=1)
-        st_2 = SpeciesType(empirical_formula=EmpiricalFormula('C2H2N4O2P4'), charge=2)
-        st_3 = SpeciesType(empirical_formula=EmpiricalFormula('C3H3N6O3P6'), charge=3)
-        st_4 = SpeciesType(empirical_formula=EmpiricalFormula('CH1N2'), charge=2)
-        st_5 = SpeciesType(empirical_formula=EmpiricalFormula('OP2'), charge=-1)
+        st_1 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CH1N2OP2'), charge=1))
+        st_2 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C2H2N4O2P4'), charge=2))
+        st_3 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C3H3N6O3P6'), charge=3))
+        st_4 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CH1N2'), charge=2))
+        st_5 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('OP2'), charge=-1))
         s_1 = Species(species_type=st_1, compartment=c)
         s_2 = Species(species_type=st_2, compartment=c)
         s_3 = Species(species_type=st_3, compartment=c)
@@ -933,8 +934,8 @@ class TestCore(unittest.TestCase):
             self.assertRegex(str(rv), 'element imbalanced')
             self.assertRegex(str(rv), 'charge imbalanced')
 
-            st_1.empirical_formula = EmpiricalFormula('CH1N2OP2')
-            st_1.charge = None
+            st_1.structure.empirical_formula = EmpiricalFormula('CH1N2OP2')
+            st_1.structure.charge = None
             rxn = Reaction(id='rxn')
             rxn.participants.create(species=s_1, coefficient=-2.)
             rxn.participants.create(species=s_2, coefficient=1.)
@@ -942,7 +943,7 @@ class TestCore(unittest.TestCase):
             self.assertRegex(str(rv), 'Charge must be defined ')
 
             with self.assertRaisesRegex(ValueError, 'not a valid formula'):
-                st_1.empirical_formula = EmpiricalFormula('1')
+                st_1.structure.empirical_formula = EmpiricalFormula('1')
 
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__validation__DOT__validate_element_charge_balance', '0')
@@ -953,7 +954,7 @@ class TestCore(unittest.TestCase):
     def test_reaction_validate(self):
         c = Compartment()
         d = Compartment()
-        st = SpeciesType(empirical_formula=EmpiricalFormula('CHO'), charge=1)
+        st = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=1))
         spec_c = Species(species_type=st, compartment=c)
         spec_d = Species(species_type=st, compartment=d)
         rxn = Reaction(id='rxn', reversible=True, 
@@ -1573,8 +1574,8 @@ class TestCore(unittest.TestCase):
 
     def test_ReactionParticipantAttribute_validate(self):
         species_types = [
-            SpeciesType(id='A', empirical_formula=EmpiricalFormula('CHO'), charge=2),
-            SpeciesType(id='B', empirical_formula=EmpiricalFormula('C1H1O1'), charge=2),
+            SpeciesType(id='A', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=2)),
+            SpeciesType(id='B', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C1H1O1'), charge=2)),
         ]
         compartments = [
             Compartment(id='c'),
@@ -2551,7 +2552,7 @@ class ValidateModelTestCase(unittest.TestCase):
     def test_min_flux_maxes(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
-        st = SpeciesType(id='s', empirical_formula=EmpiricalFormula('CHN2P1'), charge=-1)
+        st = SpeciesType(id='s', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHN2P1'), charge=-1))
         species_1 = Species(species_type=st, compartment=c_1)
         species_2 = Species(species_type=st, compartment=c_2)
         species_1.id = species_1.gen_id()
@@ -2671,7 +2672,7 @@ class ValidateModelTestCase(unittest.TestCase):
     def test_rate_laws(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
-        st = SpeciesType(id='s', empirical_formula=EmpiricalFormula('CHO'), charge=1)
+        st = SpeciesType(id='s', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=1))
         species_1 = Species(species_type=st, compartment=c_1)
         species_2 = Species(species_type=st, compartment=c_2)
         species_1.id = species_1.gen_id()
@@ -2725,14 +2726,14 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'cannot have a backward rate law')
 
     def test_species_types(self):
-        st = SpeciesType(id='species_4', molecular_weight=1.)
-        self.assertEqual(st.validate(), None)
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=1.))
+        self.assertEqual(st.structure.validate(), None)
 
-        st = SpeciesType(id='species_4', molecular_weight=0.)
-        self.assertEqual(st.validate(), None)
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=0.))
+        self.assertEqual(st.structure.validate(), None)
 
-        st = SpeciesType(id='species_4', molecular_weight=-1.)
-        self.assertNotEqual(st.validate(), None)
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=-1.))
+        self.assertNotEqual(st.structure.validate(), None)
 
     def test_acyclic_dependencies(self):
         model = Model(id='model', version='0.0.1')

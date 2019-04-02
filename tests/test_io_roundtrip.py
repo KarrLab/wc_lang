@@ -17,7 +17,7 @@ import unittest
 
 from wc_lang.core import (Model, SpeciesCoefficient, Expression, Species, Observable, Function,
                           DistributionInitConcentration, RateLaw, RateLawDirection, RateLawExpression,
-                          Parameter)
+                          Parameter, ChemicalStructure)
 from wc_lang.io import Reader, Writer
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.units import unit_registry
@@ -36,12 +36,14 @@ class RoundTripTestCase(unittest.TestCase):
         comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units=unit_registry.parse_units('g l^-1'))
         species_type_1 = model.species_types.create(
             id='species_type_1',
-            empirical_formula=EmpiricalFormula('CHO'),
-            charge=1)
+            structure=ChemicalStructure(
+                empirical_formula=EmpiricalFormula('CHO'),
+                charge=1))
         species_type_2 = model.species_types.create(
             id='species_type_2',
-            empirical_formula=EmpiricalFormula('C2H2O2'),
-            charge=2)
+            structure=ChemicalStructure(
+                empirical_formula=EmpiricalFormula('C2H2O2'),
+                charge=2))
         species_1 = comp.species.create(species_type=species_type_1,
                                         id='', model=model)
         species_2 = comp.species.create(species_type=species_type_2,
@@ -91,12 +93,14 @@ class RoundTripTestCase(unittest.TestCase):
         comp.init_density = model.parameters.create(id='density_compartment_1', value=1100, units=unit_registry.parse_units('g l^-1'))
         species_type_1 = model.species_types.create(
             id='species_type_1',
-            empirical_formula=EmpiricalFormula('CHO'),
-            charge=1)
+            structure=ChemicalStructure(
+                empirical_formula=EmpiricalFormula('CHO'),
+                charge=1))
         species_type_2 = model.species_types.create(
             id='species_type_2',
-            empirical_formula=EmpiricalFormula('C3H3O3'),
-            charge=3)
+            structure=ChemicalStructure(
+                empirical_formula=EmpiricalFormula('C3H3O3'),
+                charge=3))
         species_1 = comp.species.create(species_type=species_type_1,
                                         model=model)
         species_2 = comp.species.create(species_type=species_type_2,

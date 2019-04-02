@@ -144,6 +144,11 @@ class SbmlReader(object):
             # convert SBML-encoded model to wc_lang
             model = SbmlImporter.run(sbml_doc)
 
+            import obj_model.core
+            error = obj_model.core.Validator().run(model, get_related=True)
+            assert error is None, str(error)
+
+
             # merge models
             if merged_model is None:
                 merged_model = model
