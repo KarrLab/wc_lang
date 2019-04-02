@@ -1,3 +1,5 @@
+import wc_lang.config.core
+import warnings
 """ Data model to represent composite, multi-algorithmic biochemical models.
 
 This module defines classes that represent the schema of a biochemical model:
@@ -81,11 +83,9 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # These models include :obj:`RateLaw`, :obj:`SpeciesCoefficient`, :obj:`RateLawExpression`, and :obj:`Species`.
 # However, these are not needed by the workbook and delimiter-separated representations of
 # models on disk. Therefore, suppress the warnings.
-import warnings
 warnings.filterwarnings('ignore', '', obj_model.SchemaWarning, 'obj_model')
 
 # configuration
-import wc_lang.config.core
 
 call_libsbml = LibSbmlInterface.call_libsbml
 
@@ -2300,7 +2300,7 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
     Attributes:
         value (:obj:`str`)
         format (:obj:`ChemicalStructureFormat`): format of the structure
-        alphabet (:obj:`str`): alphabet of BpForms-encoded structure
+        alphabet (:obj:`ChemicalStructureAlphabet`): alphabet of BpForms-encoded structure
 
         empirical_formula (:obj:`EmpiricalFormula`): empirical formula
         molecular_weight (:obj:`float`): molecular weight
@@ -2328,6 +2328,30 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
             'sbml': ('value', 'format', 'alphabet', 'empirical_formula', 'molecular_weight', 'charge',),
             'wc_sim': ('molecular_weight', 'charge'),
         }
+
+    def get_structure(self):
+        """ Get structure
+
+        Returns:
+            :obj:`openbabel.OBMol` of :obj:`bpforms.BpForm`: structure
+
+        Raises:
+            :obj:`ValueError`: if the structure cannot be parsed
+        """
+        if self.format is None:
+            return None
+            
+        if self.format == ChemicalStructureFormat.SMILES:
+            mol = openbabel.OBMol()
+            conv = openbabel.OBConversion()
+            assert conv.SetInFormat('smi')
+            conv.ReadString(mol, self.value)
+            return mol
+
+        if self.format == ChemicalStructureFormat.BpForms and self.alphabet is not None:
+            return bpforms.util.get_form(self.alphabet.name)().from_str(self.value)
+
+        raise ValueError('Unsupported format {}'.format(str(self.format)))
 
     def validate(self):
         """ Check that the structure is valid
@@ -2367,14 +2391,11 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
             exp_formula = None
             exp_charge = None
             if self.format == ChemicalStructureFormat.SMILES:
-                mol = openbabel.OBMol()
-                conv = openbabel.OBConversion()
-                assert conv.SetInFormat('smi')
-                conv.ReadString(mol, self.value)
+                mol = self.get_structure()
                 exp_formula = OpenBabelUtils.get_formula(mol)
                 exp_charge = mol.GetTotalCharge()
-            elif self.format == ChemicalStructureFormat.BpForms and self.alphabet:
-                form = bpforms.util.get_form(self.alphabet.name)().from_str(self.value)
+            elif self.format == ChemicalStructureFormat.BpForms and self.alphabet is not None:
+                form = self.get_structure()
                 exp_formula = form.get_formula()
                 exp_charge = form.get_charge()
 
@@ -2675,20 +2696,25 @@ class Species(obj_model.Model, SbmlModelMixin):
 
         # species type, initial concentration, identifiers
         annots = ['species_type.id', 'species_type.name',
-                  'species_type.structure.value', 'species_type.structure.format', 'species_type.structure.alphabet',
-                  'species_type.structure.empirical_formula', 'species_type.structure.molecular_weight', 
-                  'species_type.structure.charge',
                   'species_type.type', 'species_type.identifiers',
                   'species_type.comments',
-                  'distribution_init_concentration.id',
-                  'distribution_init_concentration.name',
-                  'distribution_init_concentration.distribution',
-                  'distribution_init_concentration.mean',
-                  'distribution_init_concentration.std',
-                  'distribution_init_concentration.units',
-                  'distribution_init_concentration.identifiers',
-                  'distribution_init_concentration.comments',
                   'identifiers']
+
+        if self.species_type.structure:
+            annots.extend(['species_type.structure.value', 'species_type.structure.format',
+                           'species_type.structure.alphabet', 'species_type.structure.empirical_formula',
+                           'species_type.structure.molecular_weight', 'species_type.structure.charge'])
+
+        if self.distribution_init_concentration:
+            annots.extend(['distribution_init_concentration.id',
+                           'distribution_init_concentration.name',
+                           'distribution_init_concentration.distribution',
+                           'distribution_init_concentration.mean',
+                           'distribution_init_concentration.std',
+                           'distribution_init_concentration.units',
+                           'distribution_init_concentration.identifiers',
+                           'distribution_init_concentration.comments'])
+                  
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
@@ -2721,7 +2747,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         parsed_annots = LibSbmlInterface.parse_annotations(sbml)
         annots = []
 
-        annots.extend(['identifiers', 'species_type.identifiers', 'distribution_init_concentration.identifiers'])
+        annots.extend(['identifiers', 'species_type.identifiers'])
 
         # species type
         self.species_type = self.model.species_types.get_or_create(
@@ -2729,9 +2755,9 @@ class Species(obj_model.Model, SbmlModelMixin):
         annots.extend(['species_type.name',
                        'species_type.type', 'species_type.comments'])
 
-        structure_annots = ['species_type.structure.value', 'species_type.structure.format', 'species_type.structure.alphabet',
-                           'species_type.structure.empirical_formula', 'species_type.structure.molecular_weight',
-                           'species_type.structure.charge']
+        structure_annots = ['species_type.structure.value', 'species_type.structure.format',
+                            'species_type.structure.alphabet', 'species_type.structure.empirical_formula',
+                            'species_type.structure.molecular_weight', 'species_type.structure.charge']
         if set(parsed_annots).intersection(set(structure_annots)):
             structure = self.species_type.structure = ChemicalStructure()
             annots.extend(structure_annots)
@@ -2747,10 +2773,11 @@ class Species(obj_model.Model, SbmlModelMixin):
                            'distribution_init_concentration.mean',
                            'distribution_init_concentration.std',
                            'distribution_init_concentration.units',
+                           'distribution_init_concentration.identifiers',
                            'distribution_init_concentration.comments'])
 
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml, objs)
- 
+
         if structure:
             for st in self.model.species_types:
                 if st != self.species_type and st.structure and st.structure.serialize() == structure.serialize():

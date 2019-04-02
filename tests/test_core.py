@@ -31,7 +31,8 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           FluxBounds,
                           Evidence, EvidenceEnv, Interpretation, Author, Change,
                           ReactionParticipantAttribute, Expression,
-                          InvalidObject, Validator, ChemicalStructure)
+                          InvalidObject, Validator,
+                          ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
 from wc_lang.io import Reader
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
@@ -957,7 +958,7 @@ class TestCore(unittest.TestCase):
         st = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=1))
         spec_c = Species(species_type=st, compartment=c)
         spec_d = Species(species_type=st, compartment=d)
-        rxn = Reaction(id='rxn', reversible=True, 
+        rxn = Reaction(id='rxn', reversible=True,
                        flux_bounds=FluxBounds(min=-1., max=1., units=unit_registry.parse_units('M s^-1')),
                        participants=[
                            SpeciesCoefficient(species=spec_c, coefficient=-1.),
@@ -2503,6 +2504,105 @@ class TestCore(unittest.TestCase):
         self.assertEqual(author.get_identifier('linkedin.user'), None)
         with self.assertRaisesRegex(ValueError, 'has multiple'):
             author.get_identifier('github.organization')
+
+    def test_ChemicalStructure_get_structure(self):
+        s = ChemicalStructure()
+        self.assertEqual(s.get_structure(), None)
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES)
+        self.assertEqual(s.get_structure().GetTotalCharge(), 0)
+
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms, alphabet=ChemicalStructureAlphabet.dna)
+        self.assertEqual(s.get_structure().get_charge(), -4)
+
+        s = ChemicalStructure(value='AAA', format='BpForms')
+        with self.assertRaisesRegex(ValueError, 'Unsupported format'):
+            s.get_structure()
+
+    def test_ChemicalStructure_validate(self):
+        s = ChemicalStructure()
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(molecular_weight=1., charge=1)
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(molecular_weight=1.)
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(charge=1)
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(empirical_formula=EmpiricalFormula('OH'), charge=-1)
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(empirical_formula=EmpiricalFormula('OH'), charge=-1)
+        s.molecular_weight = s.empirical_formula.get_molecular_weight()
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('OH2'), charge=0)
+        s.molecular_weight = s.empirical_formula.get_molecular_weight()
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms,
+                              alphabet=ChemicalStructureAlphabet.dna)
+        form = s.get_structure()
+        s.empirical_formula = form.get_formula()
+        s.molecular_weight = form.get_mol_wt()
+        s.charge = form.get_charge()
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='AAA', alphabet=ChemicalStructureAlphabet.dna)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(format=ChemicalStructureFormat.BpForms,
+                              alphabet=ChemicalStructureAlphabet.dna)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              alphabet=ChemicalStructureAlphabet.dna)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0)
+        mol_wt = s.molecular_weight = s.empirical_formula.get_molecular_weight()
+        err = s.validate()
+        self.assertEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H3O'), charge=0, molecular_weight=mol_wt)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=-1, molecular_weight=mol_wt)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0, molecular_weight=mol_wt + 1)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
+
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0, molecular_weight=-1.)
+        err = s.validate()
+        self.assertNotEqual(err, None, str(err))
 
 
 class TestCoreFromFile(unittest.TestCase):

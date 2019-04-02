@@ -14,7 +14,8 @@ import shutil
 import tempfile
 import unittest
 from wc_lang.core import (Model, Submodel, Compartment, Reaction, FluxBounds, RateLaw, RateLawDirection,
-                          DfbaObjective, DfbaObjectiveExpression, WcLangWarning, InitVolume)
+                          DfbaObjective, DfbaObjectiveExpression, WcLangWarning, InitVolume,
+                          ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
 from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
 from wc_lang.sbml import util as sbml_util
@@ -137,6 +138,45 @@ class SbmlIoInCoreTestCase(unittest.TestCase):
 
         self.assertTrue(c_1_b.is_equal(c_1))
         self.assertTrue(c_2_b.is_equal(c_2))
+
+    def test_Species_from_sbml(self):
+        model = Model(id='mdl', created=None, updated=None)
+
+        c = model.compartments.create(id='c')
+
+        st_1 = model.species_types.create(id='st_1', structure=ChemicalStructure(
+            value='AAA', format=ChemicalStructureFormat.BpForms, alphabet=ChemicalStructureAlphabet.dna))
+        st_1.structure.empirical_formula = st_1.structure.get_structure().get_formula()
+        st_1.structure.molecular_weight = st_1.structure.get_structure().get_mol_wt()
+        st_1.structure.charge = st_1.structure.get_structure().get_charge()
+        st_2 = model.species_types.create(id='st_2')
+
+        s_1 = model.species.create(species_type=st_1, compartment=c)
+        s_2 = model.species.create(species_type=st_2, compartment=c)
+        s_1.id = s_1.gen_id()
+        s_2.id = s_2.gen_id()
+
+        sbml_doc = sbml_util.LibSbmlInterface.create_doc()
+        sbml_model = sbml_util.LibSbmlInterface.create_model(sbml_doc)
+
+        s_1_sbml = s_1.export_to_sbml(sbml_model)
+        s_2_sbml = s_2.export_to_sbml(sbml_model)
+        s_1.export_relations_to_sbml(sbml_model, s_1_sbml)
+        s_2.export_relations_to_sbml(sbml_model, s_2_sbml)
+
+        model_2 = Model(id='mdl', created=None, updated=None)
+        c_b = model_2.compartments.create(id='c')
+        s_1_b = model_2.species.create()
+        s_2_b = model_2.species.create()
+        s_1_b.import_from_sbml(s_1_sbml)
+        s_2_b.import_from_sbml(s_2_sbml)
+        objs = {Compartment: {c_b.id: c_b}}
+        s_1_b.import_relations_from_sbml(s_1_sbml, objs=objs)
+        s_2_b.import_relations_from_sbml(s_2_sbml, objs=objs)
+
+        self.assertTrue(s_1_b.is_equal(s_1))
+        self.assertTrue(s_2_b.is_equal(s_2))
+        self.assertTrue(model_2.is_equal(model))
 
     def test_Reaction_to_sbml(self):
         rxn = Reaction(submodel=Submodel(), reversible=True, rate_laws=[RateLaw(direction=RateLawDirection.backward)])

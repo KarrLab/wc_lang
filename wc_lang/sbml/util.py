@@ -713,6 +713,7 @@ class LibSbmlInterface(object):
             val = model_obj.get_nested_attr_val(nested_attr_path)
 
             serialized_val = attr.serialize(val)
+
             if serialized_val is None:
                 serialized_val = ''
             key_vals.append(('<wcLang:property>'
