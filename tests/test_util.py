@@ -15,9 +15,9 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Observable, ObservableExpression,
                           Function, FunctionExpression,
                           StopCondition, StopConditionExpression,
-                          Evidence, Interpretation,
+                          Evidence, Conclusion,
                           Reference, Author, Change, Identifier,
-                          InitVolume, Ph, ChemicalStructure, FluxBounds, EvidenceGenotype, EvidenceEnv, Method,
+                          InitVolume, Ph, ChemicalStructure, FluxBounds, EvidenceGenotype, EvidenceEnv, Process,
                           )
 from wc_lang import io
 from wc_lang import util
@@ -136,12 +136,12 @@ class TestUtil(unittest.TestCase):
             Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
             DfbaObjective,
             Reaction, RateLaw, DfbaObjSpecies, DfbaObjReaction, Parameter, Function,
-            StopCondition, Evidence, Interpretation, Reference, Author, Change,
+            StopCondition, Evidence, Conclusion, Reference, Author, Change,
         ])
         inline_models = set([
             SpeciesCoefficient, RateLawExpression,
             DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
-            Identifier, InitVolume, Ph, ChemicalStructure, FluxBounds, EvidenceGenotype, EvidenceEnv, Method,
+            Identifier, InitVolume, Ph, ChemicalStructure, FluxBounds, EvidenceGenotype, EvidenceEnv, Process,
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)
         self.assertEqual(set(util.get_models(inline=False)), non_inline_models)

@@ -1,5 +1,3 @@
-import wc_lang.config.core
-import warnings
 """ Data model to represent composite, multi-algorithmic biochemical models.
 
 This module defines classes that represent the schema of a biochemical model:
@@ -75,6 +73,8 @@ import re
 import scipy.constants
 import stringcase
 import token
+import wc_lang.config.core
+import warnings
 
 with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
     wc_lang_version = file.read().strip()
@@ -666,8 +666,8 @@ class Model(obj_model.Model, SbmlModelMixin):
         time_units (:obj:`unit_registry.Unit`): time units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         comments (:obj:`str`): comments
-        created (:obj:`datetime`): date created
-        updated (:obj:`datetime`): date updated
+        created (:obj:`datetime.datetime`): date created
+        updated (:obj:`datetime.datetime`): date updated
 
     Related attributes:
 
@@ -690,7 +690,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         * parameters (:obj:`list` of :obj:`Parameter`): parameters
         * evidences (:obj:`list` of :obj:`Evidence`): evidence
-        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         * references (:obj:`list` of :obj:`Reference`): references
         * authors (:obj:`list` of :obj:`Author`): authors
         * changes (:obj:`list` of :obj:`Change`): changes
@@ -1055,16 +1055,16 @@ class Model(obj_model.Model, SbmlModelMixin):
 
         return self.evidences.get(__type=__type, **kwargs)
 
-    def get_interpretations(self, __type=None, **kwargs):
-        """ Get all interpretations for model
+    def get_conclusions(self, __type=None, **kwargs):
+        """ Get all conclusions for model
 
         Returns:
-            :obj:`list` of :obj:`Interpretation`: interpretations for model
+            :obj:`list` of :obj:`Conclusion`: conclusions for model
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
 
-        return self.interpretations.get(__type=__type, **kwargs)
+        return self.conclusions.get(__type=__type, **kwargs)
 
     def get_references(self, __type=None, **kwargs):
         """ Get all references from model and children
@@ -1131,7 +1131,7 @@ class Model(obj_model.Model, SbmlModelMixin):
                 'submodels', 'compartments', 'species_types', 'species',
                 'distribution_init_concentrations', 'observables', 'functions',
                 'dfba_objs', 'reactions', 'rate_laws', 'dfba_obj_reactions', 'dfba_obj_species',
-                'stop_conditions', 'parameters', 'evidence', 'interpretations',
+                'stop_conditions', 'parameters', 'evidence', 'conclusions',
                 'references', 'authors', 'changes',
             ]
 
@@ -1327,7 +1327,7 @@ class Submodel(obj_model.Model, SbmlModelMixin):
         framework (:obj:`pronto.term.Term`): modeling framework (e.g. dynamic flux balance analysis)
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -1349,18 +1349,18 @@ class Submodel(obj_model.Model, SbmlModelMixin):
                                   none=False)
     identifiers = IdentifierManyToManyAttribute(related_name='submodels')
     evidence = ManyToManyAttribute('Evidence', related_name='submodels')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='submodels')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='submodels')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='submodels')
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name', 'framework',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('model', 'reactions', 'dfba_obj', 'dfba_obj_reactions',
-                         'identifiers', 'evidence', 'interpretations', 'references', 'changes'),
+                         'identifiers', 'evidence', 'conclusions', 'references', 'changes'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'framework', 'identifiers', 'comments'),
@@ -1700,7 +1700,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         coefficient_units (:obj:`unit_registry.Unit`): coefficient units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -1721,7 +1721,7 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
                                       default=unit_registry.parse_units('s'))
     identifiers = IdentifierManyToManyAttribute(related_name='dfba_objs', verbose_related_name='dFBA objectives')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_objs', verbose_related_name='dFBA objectives')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_objs', verbose_related_name='dFBA objectives')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='dfba_objs', verbose_related_name='dFBA objectives')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_objs', verbose_related_name='dFBA objectives')
 
@@ -1729,13 +1729,13 @@ class DfbaObjective(obj_model.Model, SbmlModelMixin):
         verbose_name = 'dFBA objective'
         attribute_order = ('id', 'name', 'submodel', 'expression', 'units',
                            'reaction_rate_units', 'coefficient_units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_model = DfbaObjectiveExpression
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'expression', 'units',
@@ -2032,7 +2032,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2071,7 +2071,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
     ph = ManyToOneAttribute(Ph, related_name='compartments', verbose_name='pH')
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = ManyToManyAttribute('Evidence', related_name='compartments')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='compartments')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='compartments')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
@@ -2079,14 +2079,14 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'mass_units', 'init_volume', 'init_density', 'ph',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
             'submodel': (  # 'parent_compartment', 'sub_compartments',
-                'init_volume', 'init_density', 'ph', 'identifiers', 'evidence', 'interpretations', 'references'),
+                'init_volume', 'init_density', 'ph', 'identifiers', 'evidence', 'conclusions', 'references'),
             'core_model': (
                 'parent_compartment', 'sub_compartments', 'init_volume', 'init_density', 'ph',
-                'identifiers', 'evidence', 'interpretations', 'references'),
+                'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
@@ -2453,7 +2453,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         type (:obj:`pronto.term.Term`): type
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2472,18 +2472,18 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
                              none=True)
     identifiers = IdentifierManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = ManyToManyAttribute('Evidence', related_name='species_types')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='species_types')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='species_types')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
         attribute_order = ('id', 'name', 'structure', 'type',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         children = {
-            'submodel': ('structure', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('structure', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('structure', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('structure', 'species', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'structure', 'type',
@@ -2504,7 +2504,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units of counts
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2529,13 +2529,13 @@ class Species(obj_model.Model, SbmlModelMixin):
                           default=unit_registry.parse_units('molecule'))
     identifiers = IdentifierManyToManyAttribute(related_name='species')
     evidence = ManyToManyAttribute('Evidence', related_name='species')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='species')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='species')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'species_type', 'compartment', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         frozen_columns = 1
         # unique_together = (('species_type', 'compartment', ), )
         indexed_attrs_tuples = (('species_type', 'compartment'), )
@@ -2543,9 +2543,9 @@ class Species(obj_model.Model, SbmlModelMixin):
         expression_term_units = 'units'
         children = {
             'submodel': ('species_type', 'compartment', 'distribution_init_concentration',
-                         'identifiers', 'evidence', 'interpretations', 'references'),
+                         'identifiers', 'evidence', 'conclusions', 'references'),
             'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
-                           'identifiers', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'species_type', 'compartment', 'units',
@@ -2799,7 +2799,7 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units; default units is `M`
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -2827,7 +2827,7 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
                           default=unit_registry.parse_units('M'))
     identifiers = IdentifierManyToManyAttribute(related_name='distribution_init_concentrations')
     evidence = ManyToManyAttribute('Evidence', related_name='distribution_init_concentrations')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='distribution_init_concentrations')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='distribution_init_concentrations')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='distribution_init_concentrations')
 
@@ -2835,13 +2835,13 @@ class DistributionInitConcentration(obj_model.Model, SbmlModelMixin):
         # unique_together = (('species', ), )
         attribute_order = ('id', 'name', 'species',
                            'distribution', 'mean', 'std', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         verbose_name = 'Initial species concentration'
         frozen_columns = 1
         children = {
-            'submodel': ('identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('identifiers', 'evidence', 'conclusions', 'references'),
             'core_model': ('species',
-                           'identifiers', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'species', 'distribution', 'mean', 'std', 'units', 'identifiers', 'comments'),
@@ -2973,7 +2973,7 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
         units (:obj:`unit_registry.Unit`): units of expression
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2994,18 +2994,18 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
                           default=unit_registry.parse_units('molecule'))
     identifiers = IdentifierManyToManyAttribute(related_name='observables')
     evidence = ManyToManyAttribute('Evidence', related_name='observables')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='observables')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='observables')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='observables')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_model = ObservableExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
@@ -3109,7 +3109,7 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -3127,18 +3127,18 @@ class Function(obj_model.Model, SbmlAssignmentRuleMixin):
     units = UnitAttribute(unit_registry)
     identifiers = IdentifierManyToManyAttribute(related_name='functions')
     evidence = ManyToManyAttribute('Evidence', related_name='functions')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='functions')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='functions')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='functions')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_model = FunctionExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'expression', 'units', 'identifiers', 'comments'),
@@ -3285,7 +3285,7 @@ class StopCondition(obj_model.Model):
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -3303,18 +3303,18 @@ class StopCondition(obj_model.Model):
                           default=unit_registry.parse_units('dimensionless'))
     identifiers = IdentifierManyToManyAttribute(related_name='stop_conditions')
     evidence = ManyToManyAttribute('Evidence', related_name='stop_conditions')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='stop_conditions')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='stop_conditions')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='stop_conditions')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'expression', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_model = StopConditionExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': (),
@@ -3415,7 +3415,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         flux_bounds (:obj:`FluxBounds`): flux bounds
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -3437,7 +3437,7 @@ class Reaction(obj_model.Model, SbmlModelMixin):
     flux_bounds = ManyToOneAttribute(FluxBounds, related_name='reactions')
     identifiers = IdentifierManyToManyAttribute(related_name='reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='reactions')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='reactions')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='reactions')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='reactions')
 
@@ -3445,15 +3445,15 @@ class Reaction(obj_model.Model, SbmlModelMixin):
         attribute_order = ('id', 'name', 'submodel',
                            'participants', 'reversible',
                            'rate_units', 'flux_bounds',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         expression_term_units = 'rate_units'
         merge = obj_model.ModelMerge.append
         children = {
             'submodel': ('participants', 'rate_laws', 'flux_bounds',
-                         'identifiers', 'evidence', 'interpretations', 'references'),
+                         'identifiers', 'evidence', 'conclusions', 'references'),
             'core_model': ('participants', 'rate_laws', 'flux_bounds',
-                           'identifiers', 'evidence', 'interpretations', 'references'),
+                           'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'participants', 'reversible',
@@ -4013,7 +4013,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -4032,20 +4032,20 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
                           default=unit_registry.parse_units('s^-1'))
     identifiers = IdentifierManyToManyAttribute(related_name='rate_laws')
     evidence = ManyToManyAttribute('Evidence', related_name='rate_laws')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='rate_laws')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='rate_laws')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
                            'expression', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         expression_term_model = RateLawExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments'),
@@ -4230,7 +4230,7 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units of the value
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -4250,8 +4250,8 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
                                                 verbose_related_name='dFBA objective species')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_species',
                                    verbose_related_name='dFBA objective species')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_obj_species',
-                                          verbose_related_name='dFBA objective species')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='dfba_obj_species',
+                                      verbose_related_name='dFBA objective species')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_obj_species',
                                      verbose_related_name='dFBA objective species')
@@ -4260,13 +4260,13 @@ class DfbaObjSpecies(obj_model.Model, SbmlModelMixin):
         # unique_together = (('dfba_obj_reaction', 'species'), )
         attribute_order = ('id', 'name', 'dfba_obj_reaction',
                            'species', 'value', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         verbose_name = 'dFBA objective species'
         verbose_name_plural = 'dFBA objective species'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('dfba_obj_reaction', 'species', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'dfba_obj_reaction', 'species', 'value', 'units', 'identifiers', 'comments'),
@@ -4333,7 +4333,7 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         cell_size_units (:obj:`unit_registry.Unit`): cell size units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -4356,21 +4356,21 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
                                                 verbose_related_name='dFBA objective reactions')
     evidence = ManyToManyAttribute('Evidence', related_name='dfba_obj_reactions',
                                    verbose_related_name='dFBA objective reactions')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='dfba_obj_reactions',
-                                          verbose_related_name='dFBA objective reactions')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='dfba_obj_reactions',
+                                      verbose_related_name='dFBA objective reactions')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='dfba_obj_reactions', verbose_related_name='dFBA objective reactions')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name', 'submodel', 'units', 'cell_size_units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         verbose_name = 'dFBA objective reaction'
         expression_term_units = 'units'
         merge = obj_model.ModelMerge.append
         children = {
-            'submodel': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
-            'core_model': ('dfba_obj_species', 'identifiers', 'evidence', 'interpretations', 'references'),
+            'submodel': ('dfba_obj_species', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'core_model': ('dfba_obj_species', 'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'submodel', 'units', 'cell_size_units', 'identifiers', 'comments'),
@@ -4508,7 +4508,7 @@ class Parameter(obj_model.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): units of the value and standard error
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -4532,14 +4532,14 @@ class Parameter(obj_model.Model, SbmlModelMixin):
     units = UnitAttribute(unit_registry)
     identifiers = IdentifierManyToManyAttribute(related_name='parameters')
     evidence = ManyToManyAttribute('Evidence', related_name='parameters')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='parameters')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='parameters')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='parameters')
 
     class Meta(obj_model.Model.Meta, ExpressionStaticTermMeta):
         attribute_order = ('id', 'name', 'type',
                            'value', 'std', 'units',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_value = 'value'
         expression_term_units = 'units'
         child_attrs = {
@@ -4715,18 +4715,18 @@ class EvidenceEnv(obj_model.Model, SbmlModelMixin):
         return None
 
 
-class Method(obj_model.Model, SbmlModelMixin):
-    """ A method of an evidence or interpretation 
+class Process(obj_model.Model, SbmlModelMixin):
+    """ A process of an evidence or conclusion 
 
     Attributes:
-        name (:obj:`str`): procedure which produced the interpretation
-        version (:obj:`str`): version of procedure which produced the interpretation
+        name (:obj:`str`): procedure which produced the conclusion
+        version (:obj:`str`): version of procedure which produced the conclusion
 
     Related attributes:
 
         * evidence_analysis (:obj:`list` of :obj:`Evidence`): evidence
         * evidence_measurement (:obj:`list` of :obj:`Evidence`): evidence
-        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
     """
     name = LongStringAttribute()
     version = StringAttribute()
@@ -4768,10 +4768,8 @@ class Evidence(obj_model.Model):
         env (:obj:`EvidenceEnv`): environment        
         experiment_type (:obj:`str`): type of experiment (e.g. RNA-seq)
         experiment_design (:obj:`str`): experimental design
-        measurement_method_name (:obj:`str`): method used to measure data (e.g. deep sequencing)
-        measurement_method_version (:obj:`str`): version of method used to measure data (e.g. deep sequencing)
-        analysis_method_name (:obj:`str`): method used to analyze data (e.g. Cufflinks)
-        analysis_method_version (:obj:`str`): version of method used to analyze data (e.g. Cufflinks)
+        data_generation_process (:obj:`Process`): process used to measure data (e.g. deep sequencing)
+        data_analysis_process (:obj:`Process`): process used to analyze data (e.g. Cufflinks)
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
@@ -4796,7 +4794,7 @@ class Evidence(obj_model.Model):
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         * parameters (:obj:`list` of :obj:`Parameter`): parameters
-        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         * changes (:obj:`list` of :obj:`Change`): change
         * reduced_evidences (:obj:`list` of :obj:`Evidence`): reduced evidence that the evidence
           supports (e.g. averages supported by this and other evidence)
@@ -4815,8 +4813,8 @@ class Evidence(obj_model.Model):
     env = ManyToOneAttribute(EvidenceEnv, related_name='env_evidence', verbose_name='Environment')
     experiment_type = LongStringAttribute()
     experiment_design = LongStringAttribute()
-    measurement_method = ManyToOneAttribute(Method, related_name='evidence_measurement')
-    analysis_method = ManyToOneAttribute(Method, related_name='evidence_analysis')
+    data_generation_process = ManyToOneAttribute(Process, related_name='evidence_data_generation')
+    data_analysis_process = ManyToOneAttribute(Process, related_name='evidence_data_analysis')
     identifiers = IdentifierManyToManyAttribute(related_name='evidences')
     evidence = ManyToManyAttribute('Evidence', related_name='reduced_evidences')
     comments = CommentAttribute()
@@ -4826,12 +4824,12 @@ class Evidence(obj_model.Model):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
                            'type', 'genotype', 'env',
-                           'experiment_type', 'experiment_design', 'measurement_method', 'analysis_method',
+                           'experiment_type', 'experiment_design', 'data_generation_process', 'data_analysis_process',
                            'identifiers', 'evidence', 'comments', 'references')
         verbose_name_plural = 'Evidence'
         children = {
-            'submodel': ('genotype', 'env', 'measurement_method', 'analysis_method', 'identifiers', 'evidence', 'references'),
-            'core_model': ('genotype', 'env', 'measurement_method', 'analysis_method', 'identifiers', 'evidence', 'references'),
+            'submodel': ('genotype', 'env', 'data_generation_process', 'data_analysis_process', 'identifiers', 'evidence', 'references'),
+            'core_model': ('genotype', 'env', 'data_generation_process', 'data_analysis_process', 'identifiers', 'evidence', 'references'),
         }
         child_attrs = {
             'sbml': (),
@@ -4839,8 +4837,39 @@ class Evidence(obj_model.Model):
         }
 
 
+"""
 class Interpretation(obj_model.Model):
-    """ Interpretation of evidence
+"""
+"""
+    Interpretation of evidence
+
+    Attributes:
+        type (:obj:`pronto.Term`): type (e.g. support or refute)
+        strength (:obj:`float): strength
+        quality (:obj:`float`): quality
+    """
+"""
+    evidence = ManyToOneAttribute(Evidence, related_name='interpretation')
+    type = OntologyAttribute()
+    strength = FloatAttribute()
+    quality = FloatAttribute()
+
+    class Meta(obj_model.Model.Meta):
+        tabular_orientation = TabularOrientation.inline
+        attribute_order = ('evidence', 'type', 'strength', 'quality')
+        children = {
+            'submodel': ('evidence'),
+            'core_model': ('evidence'),
+        }
+        child_attrs = {
+            'sbml': (),
+            'wc_sim': (),
+        }
+    """
+
+
+class Conclusion(obj_model.Model):
+    """ Conclusion of evidence
 
     Attributes:
         id (:obj:`str`): unique identifier
@@ -4850,13 +4879,14 @@ class Interpretation(obj_model.Model):
         std (:obj:`str`): standard error of the value
         units (:obj:`unit_registry.Unit`): units
         type (:obj:`pronto.term.Term`): type
-        method (:obj:`InterpretationMethod`): procedure which produced the interpretation
+        process (:obj:`Process`): procedure which produced the conclusion
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence underlying reduced evidence
             (e.g. individual observations underlying an average)
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
         authors (:obj:`list` of :obj:`Author`): authors
+        date (:obj:`datetime.datetime`): date and time when the conclusion was made
 
     Related attributes:
 
@@ -4880,29 +4910,30 @@ class Interpretation(obj_model.Model):
     """
     id = SlugAttribute()
     name = StringAttribute()
-    model = ManyToOneAttribute(Model, related_name='interpretations')
+    model = ManyToOneAttribute(Model, related_name='conclusions')
     value = StringAttribute()
     std = StringAttribute(verbose_name='Standard error')
     units = UnitAttribute(unit_registry, none=True)
     type = OntologyAttribute(onto,
                              namespace='WC',
-                             terms=onto['WC:interpretation'].rchildren(),
+                             terms=onto['WC:conclusion'].rchildren(),
                              default=None, none=True)
-    method = ManyToOneAttribute(Method, related_name='interpretations')
-    identifiers = IdentifierManyToManyAttribute(related_name='interpretations')
-    evidence = ManyToManyAttribute('Evidence', related_name='interpretations')
+    process = ManyToOneAttribute(Process, related_name='conclusions')
+    identifiers = IdentifierManyToManyAttribute(related_name='conclusions')
+    evidence = ManyToManyAttribute('Evidence', related_name='conclusions')
     comments = CommentAttribute()
-    references = ManyToManyAttribute('Reference', related_name='interpretations')
-    authors = ManyToManyAttribute('Author', related_name='interpretations')
+    references = ManyToManyAttribute('Reference', related_name='conclusions')
+    authors = ManyToManyAttribute('Author', related_name='conclusions')
+    date = DateTimeAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
-                           'type', 'method',
-                           'identifiers', 'evidence', 'comments', 'references', 'authors')
+                           'type', 'process',
+                           'identifiers', 'evidence', 'comments', 'references', 'authors', 'date')
         children = {
-            'submodel': ('method', 'identifiers', 'evidence', 'references', 'authors'),
-            'core_model': ('method', 'identifiers', 'evidence', 'references', 'authors'),
+            'submodel': ('process', 'identifiers', 'evidence', 'references', 'authors'),
+            'core_model': ('process', 'identifiers', 'evidence', 'references', 'authors'),
         }
         child_attrs = {
             'sbml': (),
@@ -5013,7 +5044,7 @@ class Author(obj_model.Model, SbmlModelMixin):
 
     Related attributes:
 
-        * interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
@@ -5087,11 +5118,11 @@ class Change(obj_model.Model, SbmlModelMixin):
         intention_type (:obj:`pronto.term.Term`): type of intention
         identifiers (::obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): evidence
-        interpretations (:obj:`list` of :obj:`Interpretation`): interpretations
+        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
         authors (:obj:`list` of :obj:`Author`): authors
-        date (:obj:`datetime`): date
+        date (:obj:`datetime.datetime`): date
     """
     id = SlugAttribute()
     name = StringAttribute(min_length=1)
@@ -5111,7 +5142,7 @@ class Change(obj_model.Model, SbmlModelMixin):
                                        terms=onto['WC:intention_provenance'].rchildren())
     identifiers = IdentifierManyToManyAttribute(related_name='changes')
     evidence = ManyToManyAttribute('Evidence', related_name='changes')
-    interpretations = ManyToManyAttribute('Interpretation', related_name='changes')
+    conclusions = ManyToManyAttribute('Conclusion', related_name='changes')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='changes')
     authors = ManyToManyAttribute('Author', related_name='changes')
@@ -5120,11 +5151,11 @@ class Change(obj_model.Model, SbmlModelMixin):
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'type', 'target', 'target_submodel', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
-                           'identifiers', 'evidence', 'interpretations', 'comments', 'references',
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references',
                            'authors', 'date')
         children = {
-            'submodel': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
-            'core_model': ('identifiers', 'evidence', 'interpretations', 'references', 'authors'),
+            'submodel': ('identifiers', 'evidence', 'conclusions', 'references', 'authors'),
+            'core_model': ('identifiers', 'evidence', 'conclusions', 'references', 'authors'),
         }
         child_attrs = {
             'sbml': (),

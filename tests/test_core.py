@@ -29,7 +29,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           StopCondition, StopConditionExpression,
                           DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
                           FluxBounds,
-                          Evidence, EvidenceEnv, Interpretation, Author, Change,
+                          Evidence, EvidenceEnv, Conclusion, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator,
                           ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
@@ -208,8 +208,8 @@ class TestCore(unittest.TestCase):
         mdl.evidences.create(id='ev_0', submodels=[submdl_0])
         mdl.evidences.create(id='ev_2', submodels=[submdl_2])
 
-        mdl.interpretations.create(id='int_0', submodels=[submdl_0])
-        mdl.interpretations.create(id='int_2', submodels=[submdl_2])
+        mdl.conclusions.create(id='int_0', submodels=[submdl_0])
+        mdl.conclusions.create(id='int_2', submodels=[submdl_2])
 
         self.references = references = []
         self.identifiers = identifiers = []
@@ -425,12 +425,12 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidences))
         self.assertEqual(model.get_evidence(__type=Model), [])
 
-    def test_model_get_interpretations(self):
+    def test_model_get_conclusions(self):
         model = self.model
-        self.assertEqual(set(model.get_interpretations()), set(model.interpretations))
-        self.assertNotEqual(set(model.get_interpretations()), set())
-        self.assertEqual(set(model.get_interpretations(__type=Interpretation)), set(model.interpretations))
-        self.assertEqual(model.get_interpretations(__type=Model), [])
+        self.assertEqual(set(model.get_conclusions()), set(model.conclusions))
+        self.assertNotEqual(set(model.get_conclusions()), set())
+        self.assertEqual(set(model.get_conclusions(__type=Conclusion)), set(model.conclusions))
+        self.assertEqual(model.get_conclusions(__type=Model), [])
 
     def test_model_get_authors(self):
         model = self.model
@@ -493,14 +493,14 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Evidence)),
                          set(self.model.evidences[1:2]))
 
-    def test_submodel_get_interpretations(self):
+    def test_submodel_get_conclusions(self):
         species = self.species
-        interpretation = species[2].interpretations.create()
-        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Interpretation)),
-                         set([interpretation]) | set(self.model.interpretations[0:1]))
-        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Interpretation), [])
-        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Interpretation)),
-                         set(self.model.interpretations[1:2]))
+        conclusion = species[2].conclusions.create()
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Conclusion)),
+                         set([conclusion]) | set(self.model.conclusions[0:1]))
+        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Conclusion), [])
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Conclusion)),
+                         set(self.model.conclusions[1:2]))
 
     def test_submodel_get_references(self):
         species = self.species

@@ -9,7 +9,7 @@
 from .core import Transform
 from wc_lang.core import (Model, Submodel, Reaction,
                           DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction,
-                          Evidence, Interpretation, Identifier, Reference,
+                          Evidence, Conclusion, Identifier, Reference,
                           Change)
 from wc_onto import onto
 import copy
@@ -79,7 +79,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             for submodel in submodels:
                 # assert that all types of related objects will be merged
                 assert set(attr.related_class for attr in Submodel.Meta.local_attributes.values() if attr.related_class) == set(
-                    [Model, Evidence, Interpretation, Identifier, Reference, Reaction,
+                    [Model, Evidence, Conclusion, Identifier, Reference, Reaction,
                      DfbaObjective, DfbaObjReaction, Change])
 
                 model.submodels.remove(submodel)
@@ -103,7 +103,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                 if submodel.dfba_obj:
                     # assert that all types of related objects will be merged
                     assert set(attr.related_class for attr in DfbaObjective.Meta.local_attributes.values() if attr.related_class) == set(
-                        [Model, Submodel, Evidence, Interpretation, Identifier, Reference, DfbaObjectiveExpression])
+                        [Model, Submodel, Evidence, Conclusion, Identifier, Reference, DfbaObjectiveExpression])
 
                     model.dfba_objs.remove(submodel.dfba_obj)
 
