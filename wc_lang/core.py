@@ -2287,11 +2287,8 @@ class ChemicalStructureFormat(int, CaseInsensitiveEnum):
     BpForms = 1
 
 
-class ChemicalStructureAlphabet(int, CaseInsensitiveEnum):
-    """ Alphabet of a chemical structure """
-    dna = 0
-    rna = 1
-    protein = 2
+ChemicalStructureAlphabet = CaseInsensitiveEnum('ChemicalStructureAlphabet', list(bpforms.util.get_alphabets().keys()), type=int)
+# :obj:`CaseInsensitiveEnum`: Alphabet of a BpForms-encoded chemical structure
 
 
 class ChemicalStructure(obj_model.Model, SbmlModelMixin):
