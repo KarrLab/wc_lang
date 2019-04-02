@@ -2340,7 +2340,7 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
         """
         if self.format is None:
             return None
-            
+
         if self.format == ChemicalStructureFormat.SMILES:
             mol = openbabel.OBMol()
             conv = openbabel.OBConversion()
@@ -2714,7 +2714,7 @@ class Species(obj_model.Model, SbmlModelMixin):
                            'distribution_init_concentration.units',
                            'distribution_init_concentration.identifiers',
                            'distribution_init_concentration.comments'])
-                  
+
         LibSbmlInterface.set_annotations(self, LibSbmlInterface.gen_nested_attr_paths(annots), sbml)
 
     def import_from_sbml(self, sbml):
