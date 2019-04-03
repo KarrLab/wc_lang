@@ -29,7 +29,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           StopCondition, StopConditionExpression,
                           DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
                           FluxBounds,
-                          Observation, ObservationEnv, Evidence, Conclusion, Author, Change,
+                          Observation, ObservationEnv, Evidence, EvidenceManyToManyAttribute, Conclusion, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator,
                           ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
@@ -2618,6 +2618,80 @@ class TestCore(unittest.TestCase):
                               empirical_formula=EmpiricalFormula('H2O'), charge=0, molecular_weight=-1.)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
+
+    def test_evidence_serialize_deserialize(self):
+        obs_1 = Observation(id='obs_1')
+        ev = Evidence(observation=obs_1, type=onto['WC:supporting_evidence'], strength=10., quality=20.)
+        self.assertEqual(ev.serialize(), 'obs_1(+, s=10.0, q=20.0)')
+        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_1.id: obs_1}})
+        self.assertTrue(ev_b.is_equal(ev))
+        self.assertEqual(error, None)
+
+        obs_1b = Observation(id='obs_1b')
+        ev = Evidence(observation=obs_1b, type=onto['WC:supporting_evidence'], strength=10., quality=20.)
+        self.assertEqual(ev.serialize(), 'obs_1b(+, s=10.0, q=20.0)')
+        ev_b, error = Evidence.deserialize('obs_1b(+, q=20.0, s=10.0)', {Observation: {obs_1b.id: obs_1b}})
+        self.assertTrue(ev_b.is_equal(ev))
+        self.assertEqual(error, None)
+
+        obs_2 = Observation(id='obs_2')
+        ev = Evidence(observation=obs_2, type=onto['WC:disputing_evidence'], strength=10.)
+        self.assertEqual(ev.serialize(), 'obs_2(-, s=10.0)')
+        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_2.id: obs_2}})
+        self.assertTrue(ev_b.is_equal(ev))
+        self.assertEqual(error, None)
+
+        obs_3 = Observation(id='obs_3')
+        ev = Evidence(observation=obs_3, type=onto['WC:inconclusive_evidence'], quality=20.)
+        self.assertEqual(ev.serialize(), 'obs_3(~, q=20.0)')
+        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_3.id: obs_3}})
+        self.assertTrue(ev_b.is_equal(ev))
+        self.assertEqual(error, None)
+
+        obs_4 = Observation(id='obs_4')
+        ev = Evidence(observation=obs_4, type=onto['WC:supporting_evidence'])
+        self.assertEqual(ev.serialize(), 'obs_4(+)')
+        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_4.id: obs_4}})
+        self.assertTrue(ev_b.is_equal(ev))
+        self.assertEqual(error, None)
+
+        obs_5 = Observation(id='obs_5')
+        objs = {Observation: {obs_5.id: obs_5}}
+        ev_a, error_a = Evidence.deserialize('obs_5(+)', objs)
+        ev_b, error_b = Evidence.deserialize('obs_5(+)', objs)
+        self.assertTrue(ev_a is ev_b)
+        self.assertEqual(error_a, None)
+        self.assertEqual(error_b, None)
+
+        obs_6 = Observation(id='obs_6')
+        self.assertNotEqual(Evidence.deserialize('obs_6', {Observation: {obs_6.id: obs_6}})[1], None)
+        self.assertNotEqual(Evidence.deserialize('obs_6(+)', {Observation: {}})[1], None)
+        self.assertNotEqual(Evidence.deserialize('obs_6(+, s=a)', {Observation: {obs_6.id: obs_6}})[1], None)
+        self.assertNotEqual(Evidence.deserialize('obs_6(+, q=b)', {Observation: {obs_6.id: obs_6}})[1], None)
+        self.assertNotEqual(Evidence.deserialize('obs_6(+, s=10., s=10.)', {Observation: {obs_6.id: obs_6}})[1], None)
+
+        attr = Submodel.Meta.attributes['evidence']
+        obs_7 = Observation(id='obs_7')
+        ev = [
+            Evidence(observation=obs_7, type=onto['WC:supporting_evidence'], strength=10.),
+            Evidence(observation=obs_7, type=onto['WC:supporting_evidence'], strength=20.),
+        ]
+        self.assertEqual(attr.serialize(ev), 'obs_7(+, s=10.0); obs_7(+, s=20.0)')
+
+        objs = {Observation: {obs_7.id: obs_7}}
+        ev_2, error = attr.deserialize('obs_7(+, s=10.0); obs_7(+, s=20.0)', objs)
+        self.assertTrue(ev_2[0].is_equal(ev[0]))
+        self.assertTrue(ev_2[1].is_equal(ev[1]))
+        self.assertEqual(error, None)
+
+        objs = {Observation: {obs_7.id: obs_7}}
+        ev_2, error = attr.deserialize('obs_7; obs_7(+, s=20.0)', objs)
+        self.assertNotEqual(error, None)
+
+        objs = {Observation: {obs_7.id: obs_7}, Evidence: {ev[0].serialize(): ev[0], ev[1].serialize(): ev[1]}}
+        ev_2, error = attr.deserialize('obs_7(+, s=10.0); obs_7(+, s=20.0)', objs)
+        self.assertEqual(ev_2, ev)
+        self.assertEqual(error, None)
 
 
 class TestCoreFromFile(unittest.TestCase):

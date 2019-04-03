@@ -5029,7 +5029,9 @@ class Evidence(obj_model.Model):
             :obj:`DfbaObjectiveExpression`: cleaned value
             :obj:`InvalidAttribute`: cleaning error
         """
-        match = re.match(r'^(.*?)\(([\+\-~])(,s=(.*?))?(,q=(.*?))?\)$', value.replace(' ', ''))
+        match = re.match(r'^(.*?)\(([\+\-~])(,([qs])=(.*?))?(,([qs])=(.*?))?\)$', value.replace(' ', ''))
+        strength = ''
+        quality = ''
         if match:
             observation = match.group(1)
             type = match.group(2)
@@ -5040,8 +5042,18 @@ class Evidence(obj_model.Model):
             else:
                 type = 'inconclusive_evidence'
 
-            strength = match.group(4)
-            quality = match.group(6)
+            if match.group(4) and match.group(7) and match.group(4) == match.group(7):
+                return (None, InvalidAttribute(cls.Meta.attributes['observation'], ['Invalid syntax']))
+
+            if match.group(4) == 's':
+                strength = match.group(5)
+            elif match.group(4) == 'q':
+                quality = match.group(5)
+
+            if match.group(7) == 's':
+                strength = match.group(8)
+            elif match.group(7) == 'q':
+                quality = match.group(8)
         else:
             return (None, InvalidAttribute(cls.Meta.attributes['observation'],
                                            ['Invalid syntax']))
@@ -5054,7 +5066,7 @@ class Evidence(obj_model.Model):
 
         type, error = cls.Meta.attributes['type'].deserialize(type)
         if error:
-            errors.extend(error.messages)
+            errors.extend(error.messages)  # pragma: no cover # unreachable because of parsing above
 
         strength, error = cls.Meta.attributes['strength'].deserialize(strength)
         if error:
@@ -5065,7 +5077,6 @@ class Evidence(obj_model.Model):
             errors.extend(error.messages)
 
         if errors:
-            print(errors)
             return (None, InvalidAttribute(cls.Meta.attributes['observation'], errors))
 
         obj = cls(observation=observation, type=type, strength=strength, quality=quality)
@@ -5074,7 +5085,7 @@ class Evidence(obj_model.Model):
         serialized_val = obj.serialize()
         existing_obj = objects[cls].get(serialized_val, None)
         if existing_obj:
-            return existing_obj
+            return (existing_obj, None)
         objects[cls][serialized_val] = obj
         return (obj, None)
 

@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Observation, Identifier, Reference, InitVolume, ChemicalStructure)
+                          Observation, Evidence, Identifier, Reference, InitVolume, ChemicalStructure)
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 
@@ -78,7 +78,7 @@ class MergeTestCase(unittest.TestCase):
         models[3].species_types.create(id='st_1')
         models[3].species_types.create(id='st_2')
         models[3].species_types.create(id='st_3')
-        
+
         for model in models:
             structure = ChemicalStructure(charge=0)
             for species_type in model.species_types:
@@ -538,31 +538,96 @@ class MergeTestCase(unittest.TestCase):
         models[3].identifiers.create(namespace='db_2', id='id_0', submodels=models[3].submodels[2:4])
         models[3].identifiers.create(namespace='db_2', id='id_2', submodels=models[3].submodels[2:4])
 
+        # observations and evidence
+        models[0].observations.create(id='obs_0')
+        models[0].observations.create(id='obs_1')
+        models[0].observations.create(id='obs_2')
+        models[0].observations.create(id='obs_3')
+
+        models[1].observations.create(id='obs_0')
+        models[1].observations.create(id='obs_2')
+        models[1].observations.create(id='obs_4')
+        models[1].observations.create(id='obs_5')
+
+        models[2].observations.create(id='obs_0')
+        models[2].observations.create(id='obs_1')
+        models[2].observations.create(id='obs_2')
+        models[2].observations.create(id='obs_3')
+        models[2].observations.create(id='obs_4')
+        models[2].observations.create(id='obs_5')
+
+        models[3].observations.create(id='obs_0')
+        models[3].observations.create(id='obs_1')
+        models[3].observations.create(id='obs_2')
+        models[3].observations.create(id='obs_3')
+        models[3].observations.create(id='obs_4')
+        models[3].observations.create(id='obs_5')
+
         # conclusions
-        models[0].conclusions.create(id='conc_0', submodels=models[0].submodels[0:1])
-        models[0].conclusions.create(id='conc_1', submodels=models[0].submodels[0:1], compartments=models[0].compartments)
-        models[0].conclusions.create(id='conc_2', compartments=models[0].compartments[0:1])
+        models[0].conclusions.create(id='conc_0', submodels=models[0].submodels[0:1],
+                                     evidence=[
+            Evidence(observation=models[0].observations[0], type=onto['WC:supporting_evidence'], strength=10.),
+            Evidence(observation=models[0].observations[1], type=onto['WC:disputing_evidence'], strength=20.),
+        ])
+        models[0].conclusions.create(id='conc_1', submodels=models[0].submodels[0:1], compartments=models[0].compartments,
+                                     evidence=[Evidence(observation=models[0].observations[2],
+                                                        type=onto['WC:supporting_evidence'], quality=30.)])
+        models[0].conclusions.create(id='conc_2', compartments=models[0].compartments[0:1],
+                                     evidence=[Evidence(observation=models[0].observations[3],
+                                                        type=onto['WC:supporting_evidence'], quality=40.)])
         models[0].conclusions.create(id='conc_3', compartments=models[0].compartments[1:2])
 
-        models[1].conclusions.create(id='conc_0', submodels=models[1].submodels[0:1])
-        models[1].conclusions.create(id='conc_1', submodels=models[1].submodels[1:2], compartments=models[1].compartments)
-        models[1].conclusions.create(id='conc_4', compartments=models[1].compartments[0:1])
+        models[1].conclusions.create(id='conc_0', submodels=models[1].submodels[0:1],
+                                     evidence=[
+            Evidence(observation=models[1].observations[0], type=onto['WC:supporting_evidence'], strength=10.),
+            Evidence(observation=models[1].observations[2], type=onto['WC:disputing_evidence'], strength=50.),
+        ])
+        models[1].conclusions.create(id='conc_1', submodels=models[1].submodels[1:2], compartments=models[1].compartments,
+                                     evidence=[Evidence(observation=models[1].observations[1],
+                                                        type=onto['WC:supporting_evidence'], quality=30.)])
+        models[1].conclusions.create(id='conc_4', compartments=models[1].compartments[0:1],
+                                     evidence=[Evidence(observation=models[1].observations[3],
+                                                        type=onto['WC:supporting_evidence'], quality=60.)])
         models[1].conclusions.create(id='conc_5', compartments=models[1].compartments[1:2])
 
-        models[2].conclusions.create(id='conc_0', submodels=models[2].submodels[0:1] + models[2].submodels[2:3])
+        models[2].conclusions.create(id='conc_0', submodels=models[2].submodels[0:1] + models[2].submodels[2:3],
+                                     evidence=[
+            Evidence(observation=models[2].observations[0], type=onto['WC:supporting_evidence'], strength=10.),
+            Evidence(observation=models[2].observations[1], type=onto['WC:disputing_evidence'], strength=20.),
+            Evidence(observation=models[2].observations[4], type=onto['WC:disputing_evidence'], strength=50.),
+        ])
         models[2].conclusions.create(id='conc_1', submodels=models[2].submodels[0:1] + models[2].submodels[3:4],
-                                   compartments=models[2].compartments)
-        models[2].conclusions.create(id='conc_2', compartments=models[2].compartments[0:1])
+                                     compartments=models[2].compartments,
+                                     evidence=[
+            Evidence(observation=models[2].observations[2], type=onto['WC:supporting_evidence'], quality=30.),
+        ])
+        models[2].conclusions.create(id='conc_2', compartments=models[2].compartments[0:1],
+                                     evidence=[Evidence(observation=models[2].observations[3],
+                                                        type=onto['WC:supporting_evidence'], quality=40.)])
         models[2].conclusions.create(id='conc_3', compartments=models[2].compartments[1:2])
-        models[2].conclusions.create(id='conc_4', compartments=models[2].compartments[0:1])
+        models[2].conclusions.create(id='conc_4', compartments=models[2].compartments[0:1],
+                                     evidence=[Evidence(observation=models[2].observations[5],
+                                                        type=onto['WC:supporting_evidence'], quality=60.)])
         models[2].conclusions.create(id='conc_5', compartments=models[2].compartments[2:3])
 
-        models[3].conclusions.create(id='conc_0', submodels=models[3].submodels[0:1] + models[3].submodels[2:3])
+        models[3].conclusions.create(id='conc_0', submodels=models[3].submodels[0:1] + models[3].submodels[2:3],
+                                     evidence=[
+            Evidence(observation=models[3].observations[0], type=onto['WC:supporting_evidence'], strength=10.),
+            Evidence(observation=models[3].observations[1], type=onto['WC:disputing_evidence'], strength=20.),
+            Evidence(observation=models[3].observations[4], type=onto['WC:disputing_evidence'], strength=50.),
+        ])
         models[3].conclusions.create(id='conc_1', submodels=models[3].submodels[0:1] + models[3].submodels[3:4],
-                                   compartments=models[3].compartments)
-        models[3].conclusions.create(id='conc_2', compartments=models[3].compartments[0:1])
+                                     compartments=models[3].compartments,
+                                     evidence=[
+            Evidence(observation=models[3].observations[2], type=onto['WC:supporting_evidence'], quality=30.),
+        ])
+        models[3].conclusions.create(id='conc_2', compartments=models[3].compartments[0:1],
+                                     evidence=[Evidence(observation=models[3].observations[3],
+                                                        type=onto['WC:supporting_evidence'], quality=40.)])
         models[3].conclusions.create(id='conc_3', compartments=models[3].compartments[1:2])
-        models[3].conclusions.create(id='conc_4', compartments=models[3].compartments[0:1])
+        models[3].conclusions.create(id='conc_4', compartments=models[3].compartments[0:1],
+                                     evidence=[Evidence(observation=models[3].observations[5],
+                                                        type=onto['WC:supporting_evidence'], quality=60.)])
         models[3].conclusions.create(id='conc_5', compartments=models[3].compartments[2:3])
 
         # references

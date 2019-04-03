@@ -8,7 +8,8 @@
 
 from wc_lang import (Model,
                      Species, SpeciesCoefficient, Reaction,
-                     DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction)
+                     DfbaObjective, DfbaObjectiveExpression, DfbaObjReaction,
+                     Evidence)
 from wc_lang.transform import MergeAlgorithmicallyLikeSubmodelsTransform
 from wc_onto import onto
 import unittest
@@ -101,10 +102,34 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         mdl.parameters.create(id='param_1')
         mdl.parameters.create(id='param_2')
 
-        mdl.conclusions.create(id='conclusion_0', submodels=[submdl_0, submdl_1])
-        mdl.conclusions.create(id='conclusion_1', submodels=[submdl_0, submdl_2])
-        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2])
-        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3])
+        mdl.observations.create(id='obs_0')
+        mdl.observations.create(id='obs_1')
+        mdl.observations.create(id='obs_2')
+        mdl.observations.create(id='obs_3')
+        mdl.observations.create(id='obs_4')
+        mdl.observations.create(id='obs_5')
+        mdl.observations.create(id='obs_6')
+        mdl.observations.create(id='obs_7')
+
+        ev_0 = Evidence(observation=mdl.observations[0], type=onto['WC:supporting_evidence'])
+        ev_1 = Evidence(observation=mdl.observations[1], type=onto['WC:supporting_evidence'])
+        ev_2 = Evidence(observation=mdl.observations[2], type=onto['WC:supporting_evidence'])
+        ev_3 = Evidence(observation=mdl.observations[3], type=onto['WC:supporting_evidence'])
+        submdl_0.evidence.extend([ev_0, ev_1])
+        submdl_1.evidence.extend([ev_0, ev_2, ev_3])
+        submdl_2.evidence.extend([ev_1, ev_2])
+        submdl_3.evidence.extend([ev_3])
+        dfba_obj_2.evidence.append(ev_2)
+        dfba_obj_3.evidence.append(ev_3)
+
+        mdl.conclusions.create(id='conclusion_0', submodels=[submdl_0, submdl_1],
+          evidence=[Evidence(observation=mdl.observations[4], type=onto['WC:supporting_evidence'])])
+        mdl.conclusions.create(id='conclusion_1', submodels=[submdl_0, submdl_2],
+          evidence=[Evidence(observation=mdl.observations[5], type=onto['WC:supporting_evidence'])])
+        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2],
+          evidence=[Evidence(observation=mdl.observations[6], type=onto['WC:supporting_evidence'])])
+        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3],
+          evidence=[Evidence(observation=mdl.observations[7], type=onto['WC:supporting_evidence'])])
 
         mdl.references.create(id='ref_0', submodels=[submdl_0])
         mdl.references.create(id='ref_1', submodels=[submdl_1])
@@ -130,6 +155,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(len(merged_mdl.reactions), len(mdl.reactions))
         self.assertEqual(len(merged_mdl.dfba_objs), 1)
         self.assertEqual(len(merged_mdl.dfba_obj_reactions), len(mdl.dfba_obj_reactions))
+        self.assertEqual(len(merged_mdl.observations), len(mdl.observations))
         self.assertEqual(len(merged_mdl.conclusions), len(mdl.conclusions))
         self.assertEqual(len(merged_mdl.references), len(mdl.references))
 
@@ -165,6 +191,9 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
 
         self.assertEqual(merged_submdl_ssa.dfba_obj_reactions, [])
         self.assertEqual(len(merged_submdl_fba.dfba_obj_reactions), len(submdl_2.dfba_obj_reactions) + len(submdl_3.dfba_obj_reactions))
+
+        self.assertEqual(len(set(submdl_0.evidence) | set(submdl_1.evidence)), len(merged_submdl_ssa.evidence))
+        self.assertEqual(len(merged_submdl_fba.evidence), len(set(submdl_2.evidence) | set(submdl_3.evidence)))
 
         self.assertEqual(len(set(submdl_0.conclusions) | set(submdl_1.conclusions)), len(merged_submdl_ssa.conclusions))
         self.assertEqual(len(merged_submdl_fba.conclusions), len(set(submdl_2.conclusions) | set(submdl_3.conclusions)))
