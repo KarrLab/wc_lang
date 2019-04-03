@@ -31,7 +31,7 @@ class Writer(obj_model.io.Writer):
         core.Reaction, core.RateLaw,
         core.DfbaObjective, core.DfbaObjReaction, core.DfbaObjSpecies,
         core.Parameter, core.StopCondition,
-        core.Evidence, core.Conclusion, core.Reference, core.Author, core.Change,
+        core.Observation, core.ObservationSet, core.Conclusion, core.Reference, core.Author, core.Change,
     )
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,

@@ -37,7 +37,7 @@ DfbaObjReaction                Reaction
 DfbaObjSpecies                 SpeciesReference
 StopCondition                  --
 StopConditionExpression        --
-Evidence                       --
+Observation                       --
 Conclusion                 --
 Reference                      --
 Author                         Model.annotation

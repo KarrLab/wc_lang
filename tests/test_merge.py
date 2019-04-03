@@ -13,7 +13,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Environment,
                           ObservableExpression, FunctionExpression,
                           RateLawExpression, DfbaObjectiveExpression,
                           StopConditionExpression,
-                          Evidence, Identifier, Reference, InitVolume, ChemicalStructure)
+                          Observation, Identifier, Reference, InitVolume, ChemicalStructure)
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 

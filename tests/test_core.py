@@ -29,7 +29,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           StopCondition, StopConditionExpression,
                           DistributionInitConcentration, DfbaObjSpecies, DfbaObjReaction,
                           FluxBounds,
-                          Evidence, EvidenceEnv, Conclusion, Author, Change,
+                          Observation, ObservationEnv, Evidence, Conclusion, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator,
                           ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
@@ -205,8 +205,11 @@ class TestCore(unittest.TestCase):
         stop_cond_1 = mdl.stop_conditions.create(id='stop_cond_1')
         stop_cond_1.expression, _ = StopConditionExpression.deserialize('2 > 1', {})
 
-        mdl.evidence.create(id='ev_0')
-        mdl.evidence.create(id='ev_2')
+        mdl.observations.create(id='obs_0')
+        mdl.observations.create(id='obs_2')
+
+        mdl.observations[0].evidence.create(quality=10.)
+        mdl.observations[1].evidence.create(quality=20.)
 
         mdl.conclusions.create(id='int_0', submodels=[submdl_0])
         mdl.conclusions.create(id='int_2', submodels=[submdl_2])
@@ -418,11 +421,23 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(model.get_stop_conditions(__type=StopCondition)), set(model.stop_conditions))
         self.assertEqual(model.get_stop_conditions(__type=Model), [])
 
+    def test_model_get_observations(self):
+        model = self.model
+        self.assertEqual(set(model.get_observations()), set(model.observations))
+        self.assertNotEqual(set(model.get_observations()), set())
+        self.assertEqual(set(model.get_observations(__type=Observation)), set(model.observations))
+        self.assertEqual(model.get_observations(__type=Model), [])
+
     def test_model_get_evidence(self):
         model = self.model
-        self.assertEqual(set(model.get_evidence()), set(model.evidence))
+
+        evidence = []
+        for obs in model.observations:
+            evidence.extend(obs.evidence)
+
+        self.assertEqual(set(model.get_evidence()), set(evidence))
         self.assertNotEqual(set(model.get_evidence()), set())
-        self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidence))
+        self.assertEqual(set(model.get_evidence(__type=Evidence)), set(evidence))
         self.assertEqual(model.get_evidence(__type=Model), [])
 
     def test_model_get_conclusions(self):
@@ -484,7 +499,7 @@ class TestCore(unittest.TestCase):
             species[0], species[1], species[3], species[4], species[6], species[7],
         ]))
 
-    def test_submodel_get_evidence(self):
+    def test_submodel_get_observation(self):
         species = self.species
         conc = species[2].conclusions.create()
         self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Conclusion)),
@@ -512,7 +527,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(self.submdl_1.get_children(kind='submodel', __type=Reference)),
                          set([self.references[0], self.references[2]]))
         self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Reference)),
-                         set([self.references[0], self.references[2]]))
+                         set(self.references[0:3]))
 
     def test_submodel_get_components(self):
         self.assertIn(self.submdl_0.reactions[0], self.submdl_0.get_children(kind='submodel'))
@@ -2910,32 +2925,32 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertEqual(len(rv.attributes), 1)
         self.assertRegex(str(rv), 'cannot have cyclic depencencies')
 
-    def test_evidence_validate(self):
-        ev = Evidence(id='ev')
+    def test_observation_validate(self):
+        ev = Observation(id='ev')
         error = ev.validate()
         self.assertEqual(error, None, str(error))
 
-        ev = Evidence(id='')
+        ev = Observation(id='')
         error = ev.validate()
         self.assertNotEqual(error, None, str(error))
 
-        env = EvidenceEnv(temp=1., temp_units=unit_registry.parse_units('celsius'))
+        env = ObservationEnv(temp=1., temp_units=unit_registry.parse_units('celsius'))
         error = env.validate()
         self.assertEqual(error, None, str(error))
 
-        env = EvidenceEnv(temp=1.)
+        env = ObservationEnv(temp=1.)
         error = env.validate()
         self.assertNotEqual(error, None, str(error))
 
-        env = EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('dimensionless'))
+        env = ObservationEnv(ph=1., ph_units=unit_registry.parse_units('dimensionless'))
         error = env.validate()
         self.assertEqual(error, None, str(error))
 
-        env = EvidenceEnv(ph=1.)
+        env = ObservationEnv(ph=1.)
         error = env.validate()
         self.assertNotEqual(error, None, str(error))
 
-        env = EvidenceEnv(ph=1., ph_units=unit_registry.parse_units('celsius'))
+        env = ObservationEnv(ph=1., ph_units=unit_registry.parse_units('celsius'))
         error = env.validate()
         self.assertNotEqual(error, None, str(error))
 
