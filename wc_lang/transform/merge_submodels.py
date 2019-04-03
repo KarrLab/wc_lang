@@ -71,7 +71,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             # merge submodels
             # - model
             # - identifiers
-            # - evidence
+            # - conclusions
             # - references
             # - reactions
             # - dfba_obj
@@ -79,14 +79,14 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
             for submodel in submodels:
                 # assert that all types of related objects will be merged
                 assert set(attr.related_class for attr in Submodel.Meta.local_attributes.values() if attr.related_class) == set(
-                    [Model, Evidence, Conclusion, Identifier, Reference, Reaction,
+                    [Model, Conclusion, Identifier, Reference, Reaction,
                      DfbaObjective, DfbaObjReaction, Change])
 
                 model.submodels.remove(submodel)
 
-                for evidence in list(submodel.evidence):
-                    submodel.evidence.remove(evidence)
-                    merged_submodel.evidence.append(evidence)
+                for conclusion in list(submodel.conclusions):
+                    submodel.conclusions.remove(conclusion)
+                    merged_submodel.conclusions.append(conclusion)
 
                 for identifier in list(submodel.identifiers):
                     submodel.identifiers.remove(identifier)
@@ -103,13 +103,13 @@ class MergeAlgorithmicallyLikeSubmodelsTransform(Transform):
                 if submodel.dfba_obj:
                     # assert that all types of related objects will be merged
                     assert set(attr.related_class for attr in DfbaObjective.Meta.local_attributes.values() if attr.related_class) == set(
-                        [Model, Submodel, Evidence, Conclusion, Identifier, Reference, DfbaObjectiveExpression])
+                        [Model, Submodel, Conclusion, Identifier, Reference, DfbaObjectiveExpression])
 
                     model.dfba_objs.remove(submodel.dfba_obj)
 
-                    for evidence in list(submodel.dfba_obj.evidence):
-                        submodel.dfba_obj.evidence.remove(evidence)
-                        merged_submodel.dfba_obj.evidence.append(evidence)
+                    for conclusion in list(submodel.dfba_obj.conclusions):
+                        submodel.dfba_obj.conclusions.remove(conclusion)
+                        merged_submodel.dfba_obj.conclusions.append(conclusion)
 
                     for identifier in list(submodel.dfba_obj.identifiers):
                         submodel.dfba_obj.identifiers.remove(identifier)

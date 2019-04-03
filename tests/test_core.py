@@ -205,8 +205,8 @@ class TestCore(unittest.TestCase):
         stop_cond_1 = mdl.stop_conditions.create(id='stop_cond_1')
         stop_cond_1.expression, _ = StopConditionExpression.deserialize('2 > 1', {})
 
-        mdl.evidences.create(id='ev_0', submodels=[submdl_0])
-        mdl.evidences.create(id='ev_2', submodels=[submdl_2])
+        mdl.evidence.create(id='ev_0')
+        mdl.evidence.create(id='ev_2')
 
         mdl.conclusions.create(id='int_0', submodels=[submdl_0])
         mdl.conclusions.create(id='int_2', submodels=[submdl_2])
@@ -420,9 +420,9 @@ class TestCore(unittest.TestCase):
 
     def test_model_get_evidence(self):
         model = self.model
-        self.assertEqual(set(model.get_evidence()), set(model.evidences))
+        self.assertEqual(set(model.get_evidence()), set(model.evidence))
         self.assertNotEqual(set(model.get_evidence()), set())
-        self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidences))
+        self.assertEqual(set(model.get_evidence(__type=Evidence)), set(model.evidence))
         self.assertEqual(model.get_evidence(__type=Model), [])
 
     def test_model_get_conclusions(self):
@@ -486,12 +486,12 @@ class TestCore(unittest.TestCase):
 
     def test_submodel_get_evidence(self):
         species = self.species
-        ev = species[2].evidence.create()
-        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Evidence)),
-                         set([ev]) | set(self.model.evidences[0:1]))
-        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Evidence), [])
-        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Evidence)),
-                         set(self.model.evidences[1:2]))
+        conc = species[2].conclusions.create()
+        self.assertEqual(set(self.submdl_0.get_children(kind='submodel', __type=Conclusion)),
+                         set([conc]) | set(self.model.conclusions[0:1]))
+        self.assertEqual(self.submdl_1.get_children(kind='submodel', __type=Conclusion), [])
+        self.assertEqual(set(self.submdl_2.get_children(kind='submodel', __type=Conclusion)),
+                         set(self.model.conclusions[1:2]))
 
     def test_submodel_get_conclusions(self):
         species = self.species

@@ -101,10 +101,10 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         mdl.parameters.create(id='param_1')
         mdl.parameters.create(id='param_2')
 
-        mdl.evidences.create(id='evidence_0', submodels=[submdl_0, submdl_1])
-        mdl.evidences.create(id='evidence_1', submodels=[submdl_0, submdl_2])
-        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2])
-        mdl.evidences.create(id='evidence_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3])
+        mdl.conclusions.create(id='conclusion_0', submodels=[submdl_0, submdl_1])
+        mdl.conclusions.create(id='conclusion_1', submodels=[submdl_0, submdl_2])
+        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_2], dfba_objs=[dfba_obj_2])
+        mdl.conclusions.create(id='conclusion_2', submodels=[submdl_1, submdl_3], dfba_objs=[dfba_obj_3])
 
         mdl.references.create(id='ref_0', submodels=[submdl_0])
         mdl.references.create(id='ref_1', submodels=[submdl_1])
@@ -130,7 +130,7 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(len(merged_mdl.reactions), len(mdl.reactions))
         self.assertEqual(len(merged_mdl.dfba_objs), 1)
         self.assertEqual(len(merged_mdl.dfba_obj_reactions), len(mdl.dfba_obj_reactions))
-        self.assertEqual(len(merged_mdl.evidences), len(mdl.evidences))
+        self.assertEqual(len(merged_mdl.conclusions), len(mdl.conclusions))
         self.assertEqual(len(merged_mdl.references), len(mdl.references))
 
         self.assertIn(merged_submdl_ssa.id, [
@@ -166,8 +166,8 @@ class MergeAlgorithmicallyLikeSubmodelsTransformTestCase(unittest.TestCase):
         self.assertEqual(merged_submdl_ssa.dfba_obj_reactions, [])
         self.assertEqual(len(merged_submdl_fba.dfba_obj_reactions), len(submdl_2.dfba_obj_reactions) + len(submdl_3.dfba_obj_reactions))
 
-        self.assertEqual(len(set(submdl_0.evidence) | set(submdl_1.evidence)), len(merged_submdl_ssa.evidence))
-        self.assertEqual(len(merged_submdl_fba.evidence), len(set(submdl_2.evidence) | set(submdl_3.evidence)))
+        self.assertEqual(len(set(submdl_0.conclusions) | set(submdl_1.conclusions)), len(merged_submdl_ssa.conclusions))
+        self.assertEqual(len(merged_submdl_fba.conclusions), len(set(submdl_2.conclusions) | set(submdl_3.conclusions)))
 
         self.assertEqual(len(set(submdl_0.references) | set(submdl_1.references)), len(merged_submdl_ssa.references))
         self.assertEqual(len(merged_submdl_fba.references), len(set(submdl_2.references) | set(submdl_3.references)))

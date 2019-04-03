@@ -538,32 +538,32 @@ class MergeTestCase(unittest.TestCase):
         models[3].identifiers.create(namespace='db_2', id='id_0', submodels=models[3].submodels[2:4])
         models[3].identifiers.create(namespace='db_2', id='id_2', submodels=models[3].submodels[2:4])
 
-        # evidence
-        models[0].evidences.create(id='ev_0', submodels=models[0].submodels[0:1])
-        models[0].evidences.create(id='ev_1', submodels=models[0].submodels[0:1], compartments=models[0].compartments)
-        models[0].evidences.create(id='ev_2', compartments=models[0].compartments[0:1])
-        models[0].evidences.create(id='ev_3', compartments=models[0].compartments[1:2])
+        # conclusions
+        models[0].conclusions.create(id='conc_0', submodels=models[0].submodels[0:1])
+        models[0].conclusions.create(id='conc_1', submodels=models[0].submodels[0:1], compartments=models[0].compartments)
+        models[0].conclusions.create(id='conc_2', compartments=models[0].compartments[0:1])
+        models[0].conclusions.create(id='conc_3', compartments=models[0].compartments[1:2])
 
-        models[1].evidences.create(id='ev_0', submodels=models[1].submodels[0:1])
-        models[1].evidences.create(id='ev_1', submodels=models[1].submodels[1:2], compartments=models[1].compartments)
-        models[1].evidences.create(id='ev_4', compartments=models[1].compartments[0:1])
-        models[1].evidences.create(id='ev_5', compartments=models[1].compartments[1:2])
+        models[1].conclusions.create(id='conc_0', submodels=models[1].submodels[0:1])
+        models[1].conclusions.create(id='conc_1', submodels=models[1].submodels[1:2], compartments=models[1].compartments)
+        models[1].conclusions.create(id='conc_4', compartments=models[1].compartments[0:1])
+        models[1].conclusions.create(id='conc_5', compartments=models[1].compartments[1:2])
 
-        models[2].evidences.create(id='ev_0', submodels=models[2].submodels[0:1] + models[2].submodels[2:3])
-        models[2].evidences.create(id='ev_1', submodels=models[2].submodels[0:1] + models[2].submodels[3:4],
+        models[2].conclusions.create(id='conc_0', submodels=models[2].submodels[0:1] + models[2].submodels[2:3])
+        models[2].conclusions.create(id='conc_1', submodels=models[2].submodels[0:1] + models[2].submodels[3:4],
                                    compartments=models[2].compartments)
-        models[2].evidences.create(id='ev_2', compartments=models[2].compartments[0:1])
-        models[2].evidences.create(id='ev_3', compartments=models[2].compartments[1:2])
-        models[2].evidences.create(id='ev_4', compartments=models[2].compartments[0:1])
-        models[2].evidences.create(id='ev_5', compartments=models[2].compartments[2:3])
+        models[2].conclusions.create(id='conc_2', compartments=models[2].compartments[0:1])
+        models[2].conclusions.create(id='conc_3', compartments=models[2].compartments[1:2])
+        models[2].conclusions.create(id='conc_4', compartments=models[2].compartments[0:1])
+        models[2].conclusions.create(id='conc_5', compartments=models[2].compartments[2:3])
 
-        models[3].evidences.create(id='ev_0', submodels=models[3].submodels[0:1] + models[3].submodels[2:3])
-        models[3].evidences.create(id='ev_1', submodels=models[3].submodels[0:1] + models[3].submodels[3:4],
+        models[3].conclusions.create(id='conc_0', submodels=models[3].submodels[0:1] + models[3].submodels[2:3])
+        models[3].conclusions.create(id='conc_1', submodels=models[3].submodels[0:1] + models[3].submodels[3:4],
                                    compartments=models[3].compartments)
-        models[3].evidences.create(id='ev_2', compartments=models[3].compartments[0:1])
-        models[3].evidences.create(id='ev_3', compartments=models[3].compartments[1:2])
-        models[3].evidences.create(id='ev_4', compartments=models[3].compartments[0:1])
-        models[3].evidences.create(id='ev_5', compartments=models[3].compartments[2:3])
+        models[3].conclusions.create(id='conc_2', compartments=models[3].compartments[0:1])
+        models[3].conclusions.create(id='conc_3', compartments=models[3].compartments[1:2])
+        models[3].conclusions.create(id='conc_4', compartments=models[3].compartments[0:1])
+        models[3].conclusions.create(id='conc_5', compartments=models[3].compartments[2:3])
 
         # references
         models[0].references.create(id='ref_0', taxon=models[0].taxon, submodels=models[0].submodels)
@@ -668,11 +668,11 @@ class MergeTestCase(unittest.TestCase):
         taxon_2 = model_2.taxon
         env_2 = model_2.env
         model_2.taxon.identifiers = []
-        model_2.taxon.evidence = []
+        model_2.taxon.conclusions = []
         model_2.taxon.references = []
         model_2.taxon = None
         model_2.env.identifiers = []
-        model_2.env.evidence = []
+        model_2.env.conclusions = []
         model_2.env.references = []
         model_2.env = None
         other_objs_in_self, other_objs_not_in_self = model_1.gen_merge_map(model_2)
@@ -685,11 +685,11 @@ class MergeTestCase(unittest.TestCase):
         taxon_2 = model_2.taxon
         env_2 = model_2.env
         model_1.taxon.identifiers = []
-        model_1.taxon.evidence = []
+        model_1.taxon.conclusions = []
         model_1.taxon.references = []
         model_1.taxon = None
         model_1.env.identifiers = []
-        model_1.env.evidence = []
+        model_1.env.conclusions = []
         model_1.env.references = []
         model_1.env = None
         other_objs_in_self, other_objs_not_in_self = model_1.gen_merge_map(model_2)
@@ -884,8 +884,8 @@ class MergeTestCase(unittest.TestCase):
         s_31 = model_3.submodels.get_one(id='submodel_11')
         self.assertEqual(set(obj.serialize() for obj in s_11.identifiers),
                          set(obj.serialize() for obj in s_31.identifiers))
-        self.assertEqual(set(obj.serialize() for obj in s_11.evidence),
-                         set(obj.serialize() for obj in s_31.evidence))
+        self.assertEqual(set(obj.serialize() for obj in s_11.conclusions),
+                         set(obj.serialize() for obj in s_31.conclusions))
         self.assertEqual(set(obj.serialize() for obj in s_11.references),
                          set(obj.serialize() for obj in s_31.references))
 
@@ -893,15 +893,15 @@ class MergeTestCase(unittest.TestCase):
         s_32 = model_3.submodels.get_one(id='submodel_21')
         self.assertEqual(set(obj.serialize() for obj in s_22.identifiers),
                          set(obj.serialize() for obj in s_32.identifiers))
-        self.assertEqual(set(obj.serialize() for obj in s_22.evidence),
-                         set(obj.serialize() for obj in s_32.evidence))
+        self.assertEqual(set(obj.serialize() for obj in s_22.conclusions),
+                         set(obj.serialize() for obj in s_32.conclusions))
         self.assertEqual(set(obj.serialize() for obj in s_22.references),
                          set(obj.serialize() for obj in s_32.references))
 
         self.assertEqual(s_31.identifiers.get_one(namespace='db_0', id='id_0'),
                          s_32.identifiers.get_one(namespace='db_0', id='id_0'))
-        self.assertEqual(s_31.evidence.get_one(id='ref_0'),
-                         s_32.evidence.get_one(id='ref_0'))
+        self.assertEqual(s_31.conclusions.get_one(id='ref_0'),
+                         s_32.conclusions.get_one(id='ref_0'))
         self.assertEqual(s_31.references.get_one(id='ref_0'),
                          s_32.references.get_one(id='ref_0'))
 

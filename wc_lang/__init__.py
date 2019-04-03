@@ -14,5 +14,5 @@ from .core import (RateLawDirection, TaxonRank,
                    Reaction, FluxBounds, SpeciesCoefficient, RateLaw, RateLawExpression,
                    DfbaObjSpecies, DfbaObjReaction, Parameter,
                    StopCondition, StopConditionExpression,
-                   Evidence, EvidenceGenotype, EvidenceEnv, Conclusion, Process, Identifier, Reference, Author, Change,
+                   Evidence, EvidenceGenotype, EvidenceEnv, Interpretation, Conclusion, Process, Identifier, Reference, Author, Change,
                    Validator, WcLangWarning)

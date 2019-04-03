@@ -44,7 +44,7 @@ class SplitReversibleReactionsTransform(Transform):
                             id='{}_forward'.format(rxn.id),
                             name='{} (forward)'.format(rxn.name),
                             reversible=False,
-                            evidence=rxn.evidence,
+                            conclusions=rxn.conclusions,
                             identifiers=rxn.identifiers,
                             comments=rxn.comments,
                             references=rxn.references,
@@ -54,13 +54,13 @@ class SplitReversibleReactionsTransform(Transform):
                             id='{}_backward'.format(rxn.id),
                             name='{} (backward)'.format(rxn.name),
                             reversible=False,
-                            evidence=rxn.evidence,
+                            conclusions=rxn.conclusions,
                             identifiers=rxn.identifiers,
                             comments=rxn.comments,
                             references=rxn.references,
                         )
 
-                        rxn.evidence = []
+                        rxn.conclusions = []
                         rxn.identifiers = []
                         rxn.references = []
 
