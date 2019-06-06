@@ -2694,11 +2694,11 @@ class Species(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the id does not have the format `{species.id}[{compartment.id}]`
         """
-        st = cls.species_type.related_class.id.pattern[1:-1]
-        comp = cls.compartment.related_class.id.pattern[1:-1]
-        match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id)
+        st = SpeciesType.id.pattern[1:-1]
+        comp = Compartment.id.pattern[1:-1]
+        match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id, flags=re.IGNORECASE)
         if not match:
-            raise ValueError('{} is not a valid id')
+            raise ValueError('{} is not a valid id'.format(id))
 
         return (match.group(1), match.group(11))
 

@@ -749,6 +749,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(Species.parse_id('spec_type_3[comp_1]'), ('spec_type_3', 'comp_1'))
         self.assertEqual(Species.parse_id('1st[comp_1]'), ('1st', 'comp_1'))
         self.assertEqual(Species.parse_id('1st[1comp]'), ('1st', '1comp'))
+        self.assertEqual(Species.parse_id('1ST[1Comp]'), ('1ST', '1Comp'))
         with self.assertRaisesRegex(ValueError, ''):
             Species.parse_id('123[comp_1]')
         with self.assertRaisesRegex(ValueError, ''):
