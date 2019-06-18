@@ -19,6 +19,7 @@ import obj_model
 import os
 import wc_lang
 import wc_lang.config.core
+from wc_utils.util import git
 
 
 class Writer(obj_model.io.Writer):
@@ -71,11 +72,12 @@ class Writer(obj_model.io.Writer):
         if validate is None:
             validate = config['validate']
 
-        # default meta data for exported model
+        # default metadata for exported model
         if set_repo_metadata_from_path:
-            obj_model.utils.set_git_repo_metadata_from_path(model, path)
+            obj_model.utils.set_git_repo_metadata_from_path(model,
+                git.RepoMetadataCollectionType.DATA_REPO, path)
 
-        # default meta data for exported file
+        # default metadata for exported file
         if title is None:
             title = model.id
         if description is None:
