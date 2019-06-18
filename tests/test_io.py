@@ -19,8 +19,9 @@ from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      DfbaObjective, DfbaObjectiveExpression, ChemicalStructure)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
-from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
+from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.git import GitHubRepoForTests
 from wc_utils.util.units import unit_registry
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
 import obj_model.io
@@ -242,13 +243,13 @@ class TestSimpleModel(unittest.TestCase):
             cond.expression, error = StopConditionExpression.deserialize(expr, objects)
             self.stop_conditions.append(cond)
 
-        self.dirname = tempfile.mkdtemp()
+        self.tempdir = tempfile.mkdtemp()
 
     def tearDown(self):
-        shutil.rmtree(self.dirname)
+        shutil.rmtree(self.tempdir)
 
     def test_write_read(self):
-        filename = os.path.join(self.dirname, 'model.xlsx')
+        filename = os.path.join(self.tempdir, 'model.xlsx')
 
         Writer().run(filename, self.model, set_repo_metadata_from_path=False)
         model = Reader().run(filename)[Model][0]
@@ -258,21 +259,25 @@ class TestSimpleModel(unittest.TestCase):
         self.assertEqual(self.model.difference(model), '')
 
     def test_write_with_repo_md(self):
-        _, filename = tempfile.mkstemp(suffix='.xlsx', dir='.')
+        # create temp git repo & write file into it
+        test_repo_name = 'test_wc_lang_test_io'
+        test_github_repo = GitHubRepoForTests(test_repo_name)
+        repo = test_github_repo.make_test_repo(self.tempdir)
 
+        data_file = os.path.join(self.tempdir, 'test.xlsx')
         self.assertEqual(self.model.url, '')
 
-        Writer().run(filename, self.model, set_repo_metadata_from_path=True)
+        Writer().run(data_file, self.model, set_repo_metadata_from_path=True)
         self.assertIn(self.model.url, [
-            'https://github.com/KarrLab/wc_lang.git',
-            'ssh://git@github.com/KarrLab/wc_lang.git',
-            'git@github.com:KarrLab/wc_lang.git',
+            'https://github.com/KarrLab/test_wc_lang_test_io.git',
+            'ssh://git@github.com/KarrLab/test_wc_lang_test_io.git',
+            'git@github.com:KarrLab/test_wc_lang_test_io.git',
         ])
 
-        os.remove(filename)
+        test_github_repo.delete_test_repo()
 
     def test_write_read_sloppy(self):
-        filename = os.path.join(self.dirname, 'model.xlsx')
+        filename = os.path.join(self.tempdir, 'model.xlsx')
 
         Writer().run(filename, self.model, set_repo_metadata_from_path=False)
 
@@ -294,15 +299,15 @@ class TestSimpleModel(unittest.TestCase):
         self.assertEqual(self.model.difference(model), '')
 
     def test_convert(self):
-        filename_xls1 = os.path.join(self.dirname, 'model1.xlsx')
-        filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
-        filename_csv = os.path.join(self.dirname, 'model-*.csv')
+        filename_xls1 = os.path.join(self.tempdir, 'model1.xlsx')
+        filename_xls2 = os.path.join(self.tempdir, 'model2.xlsx')
+        filename_csv = os.path.join(self.tempdir, 'model-*.csv')
 
         Writer().run(filename_xls1, self.model, set_repo_metadata_from_path=False)
 
         convert(filename_xls1, filename_csv)
-        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
-        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.tempdir, 'model-Model.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.tempdir, 'model-Taxon.csv')))
         model = Reader().run(filename_csv)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
@@ -311,9 +316,9 @@ class TestSimpleModel(unittest.TestCase):
         self.assertTrue(model.is_equal(self.model))
 
     def test_convert_sloppy(self):
-        filename_xls1 = os.path.join(self.dirname, 'model1.xlsx')
-        filename_xls2 = os.path.join(self.dirname, 'model2.xlsx')
-        filename_csv = os.path.join(self.dirname, 'model-*.csv')
+        filename_xls1 = os.path.join(self.tempdir, 'model1.xlsx')
+        filename_xls2 = os.path.join(self.tempdir, 'model2.xlsx')
+        filename_csv = os.path.join(self.tempdir, 'model-*.csv')
 
         Writer().run(filename_xls1, self.model, set_repo_metadata_from_path=False)
 
@@ -329,8 +334,8 @@ class TestSimpleModel(unittest.TestCase):
         with env:
             convert(filename_xls1, filename_csv)
 
-        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Model.csv')))
-        self.assertTrue(os.path.isfile(os.path.join(self.dirname, 'model-Taxon.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.tempdir, 'model-Model.csv')))
+        self.assertTrue(os.path.isfile(os.path.join(self.tempdir, 'model-Taxon.csv')))
         model = Reader().run(filename_csv)[Model][0]
         self.assertTrue(model.is_equal(self.model))
 
@@ -340,7 +345,7 @@ class TestSimpleModel(unittest.TestCase):
 
     def test_read_without_validation(self):
         # write model to file
-        filename = os.path.join(self.dirname, 'model.xlsx')
+        filename = os.path.join(self.tempdir, 'model.xlsx')
         Writer().run(filename, self.model, set_repo_metadata_from_path=False)
 
         # read model and verify that it validates
