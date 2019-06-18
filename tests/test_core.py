@@ -747,6 +747,9 @@ class TestCore(unittest.TestCase):
 
     def test_species_parse_id(self):
         self.assertEqual(Species.parse_id('spec_type_3[comp_1]'), ('spec_type_3', 'comp_1'))
+        self.assertEqual(Species.parse_id('1st[comp_1]'), ('1st', 'comp_1'))
+        self.assertEqual(Species.parse_id('1st[1comp]'), ('1st', '1comp'))
+        self.assertEqual(Species.parse_id('1ST[1Comp]'), ('1ST', '1Comp'))
         with self.assertRaisesRegex(ValueError, ''):
             Species.parse_id('123[comp_1]')
         with self.assertRaisesRegex(ValueError, ''):
@@ -900,6 +903,27 @@ class TestCore(unittest.TestCase):
         part, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
         self.assertEqual(error, None)
         self.assertEqual(part, objs[SpeciesCoefficient]['(2) spec_0[c_0]'])
+
+        # species type and compartment who ids start with numbers
+        objs = {
+            SpeciesType: {'1st': SpeciesType(id='1st')},
+            Compartment: {'1comp': Compartment(id='1comp')},
+            Species: {},
+            SpeciesCoefficient: {},
+        }
+        objs[Species]['1st[1comp]'] = Species(id='1st[1comp]', species_type=objs[SpeciesType]
+                                              ['1st'], compartment=objs[Compartment]['1comp'])
+        objs[SpeciesCoefficient]['(2) 1st[1comp]'] = SpeciesCoefficient(
+            species=objs[Species]['1st[1comp]'],
+            coefficient=2)
+
+        part, error = SpeciesCoefficient.deserialize('(2) 1st', objs, compartment=objs[Compartment]['1comp'])
+        self.assertEqual(error, None)
+        self.assertEqual(part, objs[SpeciesCoefficient]['(2) 1st[1comp]'])
+
+        part, error = SpeciesCoefficient.deserialize('(2) 1st[1comp]', objs, compartment=None)
+        self.assertEqual(error, None)
+        self.assertEqual(part, objs[SpeciesCoefficient]['(2) 1st[1comp]'])
 
     def test_validate_reaction_balance(self):
         c = Compartment()
@@ -1587,6 +1611,38 @@ class TestCore(unittest.TestCase):
         parts, error = attr.deserialize('spec_2[c_1] ==> spec_2[c_1] + spec_2[c_1]', objs)
         self.assertNotEqual(error, None)
         self.assertEqual(parts, None)
+
+        # species type whose id starts with number
+        objs = {
+            SpeciesType: {'1st': SpeciesType(id='1st'), '2st': SpeciesType(id='2st')},
+            Compartment: {'1comp': Compartment(id='1comp'), '2comp': Compartment(id='2comp')},
+            Species: {},
+        }
+        objs[Species]['1st[1comp]'] = Species(
+            id='1st[1comp]',
+            species_type=objs[SpeciesType]['1st'],
+            compartment=objs[Compartment]['1comp'])
+        objs[Species]['1st[2comp]'] = Species(
+            id='1st[2comp]',
+            species_type=objs[SpeciesType]['1st'],
+            compartment=objs[Compartment]['2comp'])
+        objs[Species]['2st[1comp]'] = Species(
+            id='2st[1comp]',
+            species_type=objs[SpeciesType]['2st'],
+            compartment=objs[Compartment]['1comp'])
+        objs[SpeciesCoefficient] = {
+            '(-1) 1st[1comp]': SpeciesCoefficient(species=objs[Species]['1st[1comp]'], coefficient=-1),
+            '1st[2comp]': SpeciesCoefficient(species=objs[Species]['1st[2comp]'], coefficient=1),
+            '2st[1comp]': SpeciesCoefficient(species=objs[Species]['2st[1comp]'], coefficient=1),
+        }
+
+        parts, error = attr.deserialize('[1comp]: 1st ==> 2st', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set(parts), set([objs[SpeciesCoefficient]['(-1) 1st[1comp]'], objs[SpeciesCoefficient]['2st[1comp]']]))
+
+        parts, error = attr.deserialize('1st[1comp] ==> 1st[2comp]', objs)
+        self.assertEqual(error, None)
+        self.assertEqual(set(parts), set([objs[SpeciesCoefficient]['(-1) 1st[1comp]'], objs[SpeciesCoefficient]['1st[2comp]']]))
 
     def test_ReactionParticipantAttribute_validate(self):
         species_types = [

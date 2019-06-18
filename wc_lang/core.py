@@ -222,14 +222,15 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         """
         errors = []
 
-        id = r'[a-z][a-z0-9_]*'
+        species_type_id = SpeciesType.id.pattern[1:-1]
+        comp_id = Compartment.id.pattern[1:-1]
         stoch = r'\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
-        gbl_part = r'({} *)*({})'.format(stoch, id)
-        lcl_part = r'({} *)*({}\[{}\])'.format(stoch, id, id)
+        gbl_part = r'({} *)*({})'.format(stoch, species_type_id)
+        lcl_part = r'({} *)*({}\[{}\])'.format(stoch, species_type_id, comp_id)
         gbl_side = r'{}( *\+ *{})*'.format(gbl_part, gbl_part)
         lcl_side = r'{}( *\+ *{})*'.format(lcl_part, lcl_part)
-        gbl_pattern = r'^\[({})\]: *({}|) *==> *({}|)$'.format(id, gbl_side, gbl_side)
-        lcl_pattern = r'^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)
+        gbl_pattern = r'^\[({})\]: *({}|) *==> *({}|)$'.format(comp_id, gbl_side, gbl_side)
+        lcl_pattern = r'^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)        
 
         value = value.strip(' ')
         global_match = re.match(gbl_pattern, value, flags=re.I)
@@ -241,13 +242,13 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             else:
                 global_comp = None
                 errors.append('Undefined compartment "{}"'.format(global_match.group(1)))
-            lhs = global_match.group(2)
-            rhs = global_match.group(14)
+            lhs = global_match.group(11)
+            rhs = global_match.group(41)
 
         elif local_match:
             global_comp = None
             lhs = local_match.group(1)
-            rhs = local_match.group(13)
+            rhs = local_match.group(49)        
 
         else:
             return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
@@ -276,12 +277,20 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
             :obj:`list` of :obj:`Exception`: list of errors
         """
-        parts_str = re.findall(r'(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)(\[([a-z][a-z0-9_]*)\])*', value, flags=re.I)
+        species_type_id = SpeciesType.id.pattern[1:-1]
+        comp_id = Compartment.id.pattern[1:-1]
+        pattern = (r'(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*'
+                   r'(' + species_type_id + r')'
+                   r'(\[(' + comp_id + r')\])*')
+        i_st = 4
+        i_comp = 15
+
+        parts_str = re.findall(pattern, value, flags=re.I)
 
         if global_comp:
-            temp = [part[4] for part in parts_str]
+            temp = [part[i_st] for part in parts_str]
         else:
-            temp = [part[4] + '[' + part[6] + ']' for part in parts_str]
+            temp = [part[i_st] + '[' + part[i_comp] + ']' for part in parts_str]
         repeated_parts = [item for item, count in collections.Counter(temp).items() if count > 1]
         if repeated_parts:
             return ([], ['Participants are repeated\n  {}'.format('\n  '.join(repeated_parts))])
@@ -291,17 +300,17 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         for part in parts_str:
             part_errors = []
 
-            if part[4] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[4]]
+            if part[i_st] in objects[SpeciesType]:
+                species_type = objects[SpeciesType][part[i_st]]
             else:
-                part_errors.append('Undefined species type "{}"'.format(part[4]))
+                part_errors.append('Undefined species type "{}"'.format(part[i_st]))
 
             if global_comp:
                 compartment = global_comp
-            elif part[6] in objects[Compartment]:
-                compartment = objects[Compartment][part[6]]
+            elif part[i_comp] in objects[Compartment]:
+                compartment = objects[Compartment][part[i_comp]]
             else:
-                part_errors.append('Undefined compartment "{}"'.format(part[6]))
+                part_errors.append('Undefined compartment "{}"'.format(part[i_comp]))
 
             coefficient = direction * float(part[1] or 1.)
 
@@ -2685,13 +2694,13 @@ class Species(obj_model.Model, SbmlModelMixin):
         Raises:
             :obj:`ValueError`: if the id does not have the format `{species.id}[{compartment.id}]`
         """
-        st = cls.species_type.related_class.id.pattern[1:-1]
-        comp = cls.compartment.related_class.id.pattern[1:-1]
-        match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id)
+        st = SpeciesType.id.pattern[1:-1]
+        comp = Compartment.id.pattern[1:-1]
+        match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id, flags=re.IGNORECASE)
         if not match:
-            raise ValueError('{} is not a valid id')
+            raise ValueError('{} is not a valid id'.format(id))
 
-        return (match.group(1), match.group(2))
+        return (match.group(1), match.group(11))
 
     def validate(self):
         """ Check that the species is valid
@@ -3979,21 +3988,27 @@ class SpeciesCoefficient(obj_model.Model, SbmlModelMixin):
         """
         errors = []
 
+        st_id = SpeciesType.id.pattern[1:-1]
+        comp_id = Compartment.id.pattern[1:-1]
         if compartment:
-            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*)$'
+            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*(' + st_id + r')$'
+            i_coeff = 2
+            i_st = 5
         else:
-            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*([a-z][a-z0-9_]*\[[a-z][a-z0-9_]*\])$'
+            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*(' + st_id + r'\[' + comp_id + r'\])$'
+            i_coeff = 2
+            i_st = 5
 
         match = re.match(pattern, value, flags=re.I)
         if match:
             errors = []
 
-            coefficient = float(match.group(2) or 1.)
+            coefficient = float(match.group(i_coeff) or 1.)
 
             if compartment:
-                species_id = Species._gen_id(match.group(5), compartment.get_primary_attribute())
+                species_id = Species._gen_id(match.group(i_st), compartment.get_primary_attribute())
             else:
-                species_id = match.group(5)
+                species_id = match.group(i_st)
 
             species, error = Species.deserialize(species_id, objects)
             if error:
