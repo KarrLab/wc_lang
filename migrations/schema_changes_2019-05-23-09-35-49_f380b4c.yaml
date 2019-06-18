@@ -3,5 +3,8 @@
 
 commit_hash: f380b4c6c220e0a7fd28b4eaecbc977ff60d8e81
 renamed_attributes: []
-renamed_models: []
+renamed_models: [[EvidenceGenotype, ObservationGenotype],
+                [EvidenceEnv, ObservationEnv],
+                [Evidence, Observation],
+                [Interpretation, ObservationSet]]
 transformations_file: ''
