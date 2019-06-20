@@ -1,7 +1,7 @@
 # schema changes file
-# stored in 'schema_changes_2019-05-23-09-35-49_f380b4c.yaml'
+# stored in 'schema_changes_2019-06-19-21-12-59_a82bf4e.yaml'
 
-commit_hash: f380b4c6c220e0a7fd28b4eaecbc977ff60d8e81
+commit_hash: a82bf4edebf14c3ea46a938e94663a3e607cd6da
 renamed_attributes: []
 renamed_models: [[EvidenceGenotype, ObservationGenotype],
                 [EvidenceEnv, ObservationEnv],
