@@ -1,0 +1,10 @@
+# schema changes file
+# stored in 'schema_changes_2019-06-21-10-06-34_9676597.yaml'
+
+commit_hash: 9676597af60e46cd2cc8a3a830992dc8ae5a975f
+renamed_attributes: [[[RateLaw, conclusions], [RateLaw, results]],
+                    [[ChemicalStructure, charge], [MolecularStructure, electric_charge]]
+                    ]
+renamed_models: [[ChemicalStructure, MolecularStructure],
+                [Parameter, DataValue]]
+transformations_file: ''
