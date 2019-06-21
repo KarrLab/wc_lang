@@ -16,7 +16,7 @@ This module defines classes that represent the schema of a biochemical model:
 * :obj:`RateLawExpression`
 * :obj:`DfbaObjSpecies`
 * :obj:`DfbaObjReaction`
-* :obj:`Parameter`
+* :obj:`DataValue`
 * :obj:`Reference`
 * :obj:`Identifier`
 
@@ -372,10 +372,10 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                 if part.species.species_type.structure and part.species.species_type.structure.empirical_formula:
                     delta_formula += part.species.species_type.structure.empirical_formula * part.coefficient
 
-                if part.species.species_type.structure is None or part.species.species_type.structure.charge is None:
+                if part.species.species_type.structure is None or part.species.species_type.structure.electric_charge is None:
                     errors.append('Charge must be defined for {}'.format(part.species.species_type.id))
                 else:
-                    delta_charge += part.species.species_type.structure.charge * part.coefficient
+                    delta_charge += part.species.species_type.structure.electric_charge * part.coefficient
 
             if not errors:
                 if delta_formula:
@@ -775,7 +775,7 @@ class Model(obj_model.Model, SbmlModelMixin):
         * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * parameters (:obj:`list` of :obj:`DataValue`): parameters
         * observations (:obj:`list` of :obj:`Observation`): observations
         * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         * references (:obj:`list` of :obj:`Reference`): references
@@ -1109,7 +1109,7 @@ class Model(obj_model.Model, SbmlModelMixin):
             kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
-            :obj:`list` of :obj:`Parameter`: parameters
+            :obj:`list` of :obj:`DataValue`: parameters
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -2137,7 +2137,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         parent_compartment (:obj:`Compartment`): parent compartment
         mass_units (:obj:`unit_registry.Unit`): mass units
         init_volume (:obj:`InitVolume`): initial volume
-        init_density (:obj:`Parameter`): function that calculates the density during the initialization of
+        init_density (:obj:`DataValue`): function that calculates the density during the initialization of
             each simulation
         ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
@@ -2176,7 +2176,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
                                choices=(unit_registry.parse_units('g'),),
                                default=unit_registry.parse_units('g'))
     init_volume = ManyToOneAttribute(InitVolume, related_name='compartments', verbose_name='Initial volume')
-    init_density = OneToOneAttribute('Parameter', related_name='density_compartment', verbose_name='Initial density')
+    init_density = OneToOneAttribute('DataValue', related_name='density_compartment', verbose_name='Initial density')
     ph = ManyToOneAttribute(Ph, related_name='compartments', verbose_name='pH')
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='compartments')
@@ -2400,7 +2400,7 @@ ChemicalStructureAlphabet = CaseInsensitiveEnum('ChemicalStructureAlphabet', lis
 # :obj:`CaseInsensitiveEnum`: Alphabet of a BpForms-encoded chemical structure
 
 
-class ChemicalStructure(obj_model.Model, SbmlModelMixin):
+class MolecularStructure(obj_model.Model, SbmlModelMixin):
     """ Structure of a chemical compound
 
     Attributes:
@@ -2410,7 +2410,7 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
 
         empirical_formula (:obj:`EmpiricalFormula`): empirical formula
         molecular_weight (:obj:`float`): molecular weight
-        charge (:obj:`int`): charge
+        electric_charge (:obj:`int`): electric_charge
     """
     value = LongStringAttribute()
     format = EnumAttribute(ChemicalStructureFormat, none=True)
@@ -2418,21 +2418,21 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
 
     empirical_formula = obj_model.chem.EmpiricalFormulaAttribute()
     molecular_weight = FloatAttribute(min=0)
-    charge = IntegerAttribute()
+    electric_charge = IntegerAttribute()
 
     class Meta(obj_model.Model.Meta):
         tabular_orientation = TabularOrientation.multiple_cells
         unique_together = (('value', 'format', 'alphabet',
-                            'empirical_formula', 'molecular_weight', 'charge',), )
+                            'empirical_formula', 'molecular_weight', 'electric_charge',), )
         attribute_order = ('value', 'format', 'alphabet',
-                           'empirical_formula', 'molecular_weight', 'charge',)
+                           'empirical_formula', 'molecular_weight', 'electric_charge',)
         children = {
             'submodel': (),
             'core_model': (),
         }
         child_attrs = {
-            'sbml': ('value', 'format', 'alphabet', 'empirical_formula', 'molecular_weight', 'charge',),
-            'wc_sim': ('molecular_weight', 'charge'),
+            'sbml': ('value', 'format', 'alphabet', 'empirical_formula', 'molecular_weight', 'electric_charge',),
+            'wc_sim': ('molecular_weight', 'electric_charge'),
         }
 
     def get_structure(self):
@@ -2465,13 +2465,13 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
         * Format provided when structure is not None
         * Value provided when format is not None
         * Alphabet provided for BpForms-encoded structures
-        * Empirical formula, molecular weight, charge match structure (when)
+        * Empirical formula, molecular weight, electric_charge match structure (when)
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        invalid_obj = super(ChemicalStructure, self).validate()
+        invalid_obj = super(MolecularStructure, self).validate()
         if invalid_obj:
             errors = invalid_obj.attributes
         else:
@@ -2509,14 +2509,14 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
                 errors.append(InvalidAttribute(self.Meta.attributes['empirical_formula'],
                                                ['Empirical formula does not match structure {} != {}'.format(
                                                 str(self.empirical_formula), str(exp_formula))]))
-            if self.charge is not None and self.charge != exp_charge:
-                errors.append(InvalidAttribute(self.Meta.attributes['charge'],
+            if self.electric_charge is not None and self.electric_charge != exp_charge:
+                errors.append(InvalidAttribute(self.Meta.attributes['electric_charge'],
                                                ['Charge does not match structure {} != {}'.format(
-                                                self.charge, exp_charge)]))
+                                                self.electric_charge, exp_charge)]))
 
             if not errors:
                 self.empirical_formula = exp_formula
-                self.charge = exp_charge
+                self.electric_charge = exp_charge
 
         if self.empirical_formula:
             exp_mol_wt = self.empirical_formula.get_molecular_weight()
@@ -2540,7 +2540,7 @@ class ChemicalStructure(obj_model.Model, SbmlModelMixin):
             :obj:`str`: string representation
         """
         return '__'.join([str(self.value), str(self.format), str(self.alphabet),
-                          str(self.empirical_formula), str(self.molecular_weight), str(self.charge)])
+                          str(self.empirical_formula), str(self.molecular_weight), str(self.electric_charge)])
 
     def has_carbon(self):
         """ Returns `True` is species contains at least one carbon atom.
@@ -2558,10 +2558,9 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        structure (:obj:`ChemicalStructure`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)        
+        structure (:obj:`MolecularStructure`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)
         type (:obj:`pronto.term.Term`): type
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
-        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
@@ -2572,7 +2571,7 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
     id = SlugAttribute()
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species_types')
-    structure = ManyToOneAttribute(ChemicalStructure, related_name='species_types')
+    structure = ManyToOneAttribute(MolecularStructure, related_name='species_types')
     type = OntologyAttribute(onto,
                              namespace='WC',
                              terms=onto['WC:species_type'].rchildren(),
@@ -2580,18 +2579,17 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
                              none=True)
     identifiers = IdentifierManyToManyAttribute(related_name='species_types', verbose_related_name='species types')
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='species_types')
-    conclusions = ManyToManyAttribute('Conclusion', related_name='species_types')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='species_types')
 
     class Meta(obj_model.Model.Meta):
         verbose_name = 'Species type'
         attribute_order = ('id', 'name', 'structure', 'type',
-                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
+                           'identifiers', 'evidence', 'comments', 'references')
         indexed_attrs_tuples = (('id',), )
         children = {
-            'submodel': ('structure', 'identifiers', 'evidence', 'conclusions', 'references'),
-            'core_model': ('structure', 'species', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'submodel': ('structure', 'identifiers', 'evidence', 'references'),
+            'core_model': ('structure', 'species', 'identifiers', 'evidence', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'structure', 'type',
@@ -2807,7 +2805,7 @@ class Species(obj_model.Model, SbmlModelMixin):
         if self.species_type.structure:
             annots.extend(['species_type.structure.value', 'species_type.structure.format',
                            'species_type.structure.alphabet', 'species_type.structure.empirical_formula',
-                           'species_type.structure.molecular_weight', 'species_type.structure.charge'])
+                           'species_type.structure.molecular_weight', 'species_type.structure.electric_charge'])
 
         if self.distribution_init_concentration:
             annots.extend(['distribution_init_concentration.id',
@@ -2861,9 +2859,9 @@ class Species(obj_model.Model, SbmlModelMixin):
 
         structure_annots = ['species_type.structure.value', 'species_type.structure.format',
                             'species_type.structure.alphabet', 'species_type.structure.empirical_formula',
-                            'species_type.structure.molecular_weight', 'species_type.structure.charge']
+                            'species_type.structure.molecular_weight', 'species_type.structure.electric_charge']
         if set(parsed_annots).intersection(set(structure_annots)):
-            structure = self.species_type.structure = ChemicalStructure()
+            structure = self.species_type.structure = MolecularStructure()
             annots.extend(structure_annots)
         else:
             structure = None
@@ -3134,7 +3132,7 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this function expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
-        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
+        parameters (:obj:`list` of :obj:`DataValue`): Parameters used by this function expression
         functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
@@ -3143,7 +3141,7 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
         * function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
+    parameters = ManyToManyAttribute('DataValue', related_name='function_expressions')
     species = ManyToManyAttribute(Species, related_name='function_expressions')
     observables = ManyToManyAttribute(Observable, related_name='function_expressions')
     functions = ManyToManyAttribute('Function', related_name='function_expressions')
@@ -3151,7 +3149,7 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.cell
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_term_models = ('DataValue', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
@@ -3304,7 +3302,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this stop condition expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
-        parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
+        parameters (:obj:`list` of :obj:`DataValue`): Parameters used by this stop condition expression
         functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
@@ -3314,7 +3312,7 @@ class StopConditionExpression(obj_model.Model, Expression):
     """
 
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    parameters = ManyToManyAttribute('Parameter', related_name='stop_condition_expressions')
+    parameters = ManyToManyAttribute('DataValue', related_name='stop_condition_expressions')
     species = ManyToManyAttribute(Species, related_name='stop_condition_expressions')
     observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')
     functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')
@@ -3322,7 +3320,7 @@ class StopConditionExpression(obj_model.Model, Expression):
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.cell
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_term_models = ('DataValue', 'Species', 'Observable', 'Function', 'Compartment')
         expression_type = bool
         expression_unit_registry = unit_registry
         children = {
@@ -4036,7 +4034,7 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         expression (:obj:`str`): mathematical expression of the rate law
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
-        parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
+        parameters (:obj:`list` of :obj:`DataValue`): parameters whose values are used in the rate law
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
@@ -4044,7 +4042,7 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         * rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
+    data_values = ManyToManyAttribute('DataValue', related_name='rate_law_expressions')
     species = ManyToManyAttribute(Species, related_name='rate_law_expressions')
     observables = ManyToManyAttribute(Observable, related_name='rate_law_expressions')
     functions = ManyToManyAttribute(Function, related_name='rate_law_expressions')
@@ -4054,7 +4052,7 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.cell
         ordering = ('expression',)
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
+        expression_term_models = ('DataValue', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
@@ -4126,7 +4124,7 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
         expression (:obj:`RateLawExpression`): expression
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
-        conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
+        results (:obj:`list` of :obj:`Conclusion`): results
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
     """
@@ -4145,20 +4143,20 @@ class RateLaw(obj_model.Model, SbmlModelMixin):
                           default=unit_registry.parse_units('s^-1'))
     identifiers = IdentifierManyToManyAttribute(related_name='rate_laws')
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='rate_laws')
-    conclusions = ManyToManyAttribute('Conclusion', related_name='rate_laws')
+    results = ManyToManyAttribute('Conclusion', related_name='rate_laws')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='rate_laws')
 
     class Meta(obj_model.Model.Meta, ExpressionExpressionTermMeta):
         attribute_order = ('id', 'name', 'reaction', 'direction', 'type',
                            'expression', 'units',
-                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
+                           'identifiers', 'evidence', 'results', 'comments', 'references')
         # unique_together = (('reaction', 'direction'), )
         expression_term_model = RateLawExpression
         expression_term_units = 'units'
         children = {
-            'submodel': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
-            'core_model': ('expression', 'identifiers', 'evidence', 'conclusions', 'references'),
+            'submodel': ('expression', 'identifiers', 'evidence', 'results', 'references'),
+            'core_model': ('expression', 'identifiers', 'evidence', 'results', 'references'),
         }
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'reaction', 'direction', 'type', 'expression', 'units', 'identifiers', 'comments'),
@@ -4604,8 +4602,8 @@ class DfbaObjReaction(obj_model.Model, SbmlModelMixin):
         LibSbmlInterface.get_annotations(self, LibSbmlInterface.gen_nested_attr_paths(['identifiers']), sbml_rxn, objs)
 
 
-class Parameter(obj_model.Model, SbmlModelMixin):
-    """ Parameter
+class DataValue(obj_model.Model, SbmlModelMixin):
+    """ DataValue
 
     Attributes:
         id (:obj:`str`): unique identifier per model/submodel
@@ -4985,7 +4983,7 @@ class Evidence(obj_model.Model):
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
-        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * parameters (:obj:`list` of :obj:`DataValue`): parameters
         * conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         * changes (:obj:`list` of :obj:`Change`): changes
     """
@@ -5142,7 +5140,7 @@ class Conclusion(obj_model.Model):
         * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * parameters (:obj:`list` of :obj:`DataValue`): parameters
         * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
@@ -5220,7 +5218,7 @@ class Reference(obj_model.Model):
         * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * parameters (:obj:`list` of :obj:`DataValue`): parameters
         * changes (:obj:`list` of :obj:`Change`): changes
     """
     id = SlugAttribute()
@@ -5425,7 +5423,7 @@ class Identifier(obj_model.Model, SbmlModelMixin):
         * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): dFBA objective species
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
-        * parameters (:obj:`list` of :obj:`Parameter`): parameters
+        * parameters (:obj:`list` of :obj:`DataValue`): parameters
         * references (:obj:`list` of :obj:`Reference`): references
         * authors (:obj:`list` of :obj:`Author`): authors
         * changes (:obj:`list` of :obj:`Change`): changes
