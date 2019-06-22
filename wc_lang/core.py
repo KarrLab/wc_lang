@@ -4042,7 +4042,7 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
         * rate_law (:obj:`RateLaw`): the `RateLaw` which uses this `RateLawExpression`
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
-    data_values = ManyToManyAttribute('DataValue', related_name='rate_law_expressions')
+    parameters = ManyToManyAttribute('DataValue', related_name='rate_law_expressions')
     species = ManyToManyAttribute(Species, related_name='rate_law_expressions')
     observables = ManyToManyAttribute(Observable, related_name='rate_law_expressions')
     functions = ManyToManyAttribute(Function, related_name='rate_law_expressions')

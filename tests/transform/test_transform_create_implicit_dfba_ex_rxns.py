@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-from wc_lang import Model, ChemicalStructure
+from wc_lang import Model, MolecularStructure
 from wc_lang.transform import CreateImplicitDfbaExchangeReactionsTransform
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
@@ -28,9 +28,9 @@ class CreateImplicitDfbaExchangeReactionsTransformTestCase(unittest.TestCase):
             model.compartments.create(id='e', name='extracellular space'),
         ]
         sts = [
-            model.species_types.create(id='st_1', name='species type 1', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C'))),
-            model.species_types.create(id='st_2', name='species type 2', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('H'))),
-            model.species_types.create(id='st_3', name='species type 3', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('O'))),
+            model.species_types.create(id='st_1', name='species type 1', structure=MolecularStructure(empirical_formula=EmpiricalFormula('C'))),
+            model.species_types.create(id='st_2', name='species type 2', structure=MolecularStructure(empirical_formula=EmpiricalFormula('H'))),
+            model.species_types.create(id='st_3', name='species type 3', structure=MolecularStructure(empirical_formula=EmpiricalFormula('O'))),
         ]
         specs = []
         for st in sts:

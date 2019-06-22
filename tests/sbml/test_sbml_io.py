@@ -15,7 +15,7 @@ import tempfile
 import unittest
 from wc_lang.core import (Model, Submodel, Compartment, Reaction, FluxBounds, RateLaw, RateLawDirection,
                           DfbaObjective, DfbaObjectiveExpression, WcLangWarning, InitVolume,
-                          ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
+                          MolecularStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
 from wc_lang.io import Reader
 from wc_lang.sbml import io as sbml_io
 from wc_lang.sbml import util as sbml_util
@@ -144,7 +144,7 @@ class SbmlIoInCoreTestCase(unittest.TestCase):
 
         c = model.compartments.create(id='c')
 
-        st_1 = model.species_types.create(id='st_1', structure=ChemicalStructure(
+        st_1 = model.species_types.create(id='st_1', structure=MolecularStructure(
             value='AAA', format=ChemicalStructureFormat.BpForms, alphabet=ChemicalStructureAlphabet.dna))
         st_1.structure.empirical_formula = st_1.structure.get_structure().get_formula()
         st_1.structure.molecular_weight = st_1.structure.get_structure().get_mol_wt()

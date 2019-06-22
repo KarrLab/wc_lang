@@ -30,7 +30,7 @@ Reaction                       Reaction
 SpeciesCoefficient             SpeciesReference
 RateLaw                        KineticLaw
 RateLawExpression              KineticLaw.math
-Parameter                      Parameter
+DataValue                      DataValue
 DfbaObjective                  Objective
 DfbaObjectiveExpression        FluxObjective
 DfbaObjReaction                Reaction
@@ -247,7 +247,7 @@ class SbmlImporter(object):
         types = [
             ((wc_lang.core.Compartment, 'compartments'), (sbml_model, 'getNumCompartments', 'getCompartment')),
             ((wc_lang.core.Species, 'species'), (sbml_model, 'getNumSpecies', 'getSpecies')),
-            ((wc_lang.core.Parameter, 'parameters'), (sbml_model, 'getNumParameters', 'getParameter')),
+            ((wc_lang.core.DataValue, 'parameters'), (sbml_model, 'getNumParameters', 'getParameter')),
             ((wc_lang.core.Observable, 'observables'), (sbml_model, 'getNumRules', 'getRule')),
             ((wc_lang.core.Function, 'functions'), (sbml_model, 'getNumRules', 'getRule')),
             ((wc_lang.core.Reaction, 'reactions'), (sbml_model, 'getNumReactions', 'getReaction')),
