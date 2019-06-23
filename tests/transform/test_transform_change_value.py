@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, DataValue,
+from wc_lang import (Model, Compartment, DistributionInitConcentration, Function, FunctionExpression, Parameter,
                      Reaction, FluxBounds, RateLawDirection, RateLaw, RateLawExpression, Species, InitVolume)
 from wc_lang.transform import ChangeValueTransform
 from wc_utils.util.units import unit_registry

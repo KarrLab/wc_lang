@@ -11,12 +11,12 @@ from test.support import EnvironmentVarGuard
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      Species, Compartment, SpeciesCoefficient,
                      DfbaObjSpecies, DfbaObjReaction,
-                     DataValue, Reference, Identifier, Function, FunctionExpression,
+                     Parameter, Reference, Identifier, Function, FunctionExpression,
                      StopConditionExpression,
                      Observable, ObservableExpression,
                      RateLaw, RateLawExpression, RateLawDirection,
                      DistributionInitConcentration,
-                     DfbaObjective, DfbaObjectiveExpression, MolecularStructure)
+                     DfbaObjective, DfbaObjectiveExpression, ChemicalStructure)
 from wc_lang import io
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_onto import onto
@@ -70,10 +70,10 @@ class TestSimpleModel(unittest.TestCase):
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
                 type=onto['WC:metabolite'],
-                structure=MolecularStructure(
+                structure=ChemicalStructure(
                     empirical_formula=EmpiricalFormula('C' + str(i + 1)),
                     molecular_weight=12 * (i + 1),
-                    electric_charge=i + 1))
+                    charge=i + 1))
             species_types.append(spec_type)
 
             if i != 3:
@@ -147,7 +147,7 @@ class TestSimpleModel(unittest.TestCase):
             Species: {
                 species[5].id: species[5],
             },
-            DataValue: {
+            Parameter: {
                 'k_cat_0': k_cat_0,
                 'k_m_0': k_m_0,
             },
@@ -170,7 +170,7 @@ class TestSimpleModel(unittest.TestCase):
             Species: {
                 species[6].id: species[6],
             },
-            DataValue: {
+            Parameter: {
                 'k_cat_1': k_cat_1,
                 'k_m_1': k_m_1,
             },
@@ -193,7 +193,7 @@ class TestSimpleModel(unittest.TestCase):
             Species: {
                 species[7].id: species[7],
             },
-            DataValue: {
+            Parameter: {
                 'k_cat_2': k_cat_2,
                 'k_m_2': k_m_2,
             },
@@ -235,7 +235,7 @@ class TestSimpleModel(unittest.TestCase):
             id='param_stop_cond', name='parameter - stop condition',
             value=1., units=unit_registry.parse_units('molecule'))
         parameters.append(param)
-        objects[DataValue] = {param.id: param}
+        objects[Parameter] = {param.id: param}
         self.stop_conditions = stop_conditions = []
         for i in range(3):
             cond = mdl.stop_conditions.create(id='stop_cond_{}'.format(i))
@@ -461,7 +461,7 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
     def test_write_parameter(self):
         model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
         submodel = model.submodels.create(id='submodel')
-        species_type = model.species_types.create(id='st', structure=MolecularStructure(molecular_weight=1., electric_charge=0))
+        species_type = model.species_types.create(id='st', structure=ChemicalStructure(molecular_weight=1., charge=0))
         compartment = model.compartments.create(id='c')
         species = model.species.create(species_type=species_type, compartment=compartment)
         species.id = species.gen_id()

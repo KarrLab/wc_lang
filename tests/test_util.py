@@ -9,7 +9,7 @@
 from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           Compartment,
                           SpeciesType, Species, SpeciesCoefficient, DistributionInitConcentration,
-                          Reaction, RateLaw, RateLawExpression, DataValue,
+                          Reaction, RateLaw, RateLawExpression, Parameter,
                           DfbaObjSpecies, DfbaObjReaction,
                           DfbaObjective, DfbaObjectiveExpression,
                           Observable, ObservableExpression,
@@ -17,7 +17,7 @@ from wc_lang.core import (Model, Taxon, Environment, Submodel,
                           StopCondition, StopConditionExpression,
                           Observation, ObservationSet, Evidence, Conclusion,
                           Reference, Author, Change, Identifier,
-                          InitVolume, Ph, MolecularStructure, FluxBounds, ObservationGenotype, ObservationEnv, Process,
+                          InitVolume, Ph, ChemicalStructure, FluxBounds, ObservationGenotype, ObservationEnv, Process,
                           )
 from wc_lang import io
 from wc_lang import util
@@ -135,13 +135,13 @@ class TestUtil(unittest.TestCase):
             Model, Taxon, Environment,
             Submodel, Compartment, SpeciesType, Species, Observable, DistributionInitConcentration,
             DfbaObjective,
-            Reaction, RateLaw, DfbaObjSpecies, DfbaObjReaction, DataValue, Function,
+            Reaction, RateLaw, DfbaObjSpecies, DfbaObjReaction, Parameter, Function,
             StopCondition, Observation, ObservationSet, Conclusion, Reference, Author, Change,
         ])
         inline_models = set([
             SpeciesCoefficient, RateLawExpression,
             DfbaObjectiveExpression, FunctionExpression, StopConditionExpression, ObservableExpression,
-            Identifier, InitVolume, Ph, MolecularStructure, FluxBounds, ObservationGenotype, ObservationEnv, Process,
+            Identifier, InitVolume, Ph, ChemicalStructure, FluxBounds, ObservationGenotype, ObservationEnv, Process,
             Evidence,
         ])
         self.assertEqual(set(util.get_models()), non_inline_models | inline_models)

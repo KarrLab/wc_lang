@@ -8,7 +8,7 @@
 
 from itertools import chain
 from obj_model import RelatedAttribute
-from wc_lang import (Model, Submodel, Reaction, DataValue, SpeciesType,
+from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType,
                      Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform
 from wc_onto import onto
@@ -38,12 +38,12 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
         r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, model=model)
         a = model.parameters.create(id='a', value=1., units=unit_registry.parse_units('s^-1'))
-        r0_f.expression, error = RateLawExpression.deserialize('a', {DataValue: {'a': a}})
+        r0_f.expression, error = RateLawExpression.deserialize('a', {Parameter: {'a': a}})
         assert error is None, str(error)
 
         r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='b'), model=model)
         b = model.parameters.create(id='b', value=1., units=unit_registry.parse_units('s^-1'))
-        r0_b.expression, error = RateLawExpression.deserialize('b', {DataValue: {'b': b}})
+        r0_b.expression, error = RateLawExpression.deserialize('b', {Parameter: {'b': b}})
         assert error is None, str(error)
 
         r0.references.create(id='ref_0', model=model)
@@ -55,12 +55,12 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
         r1_f = r1.rate_laws.create(direction=RateLawDirection.forward, model=model)
         c = model.parameters.create(id='c', value=1., units=unit_registry.parse_units('s^-1'))
-        r1_f.expression, error = RateLawExpression.deserialize('c', {DataValue: {'c': c}})
+        r1_f.expression, error = RateLawExpression.deserialize('c', {Parameter: {'c': c}})
         assert error is None, str(error)
 
         r1_b = r1.rate_laws.create(direction=RateLawDirection.backward, model=model)
         d = model.parameters.create(id='d', value=1., units=unit_registry.parse_units('s^-1'))
-        r1_b.expression, error = RateLawExpression.deserialize('d', {DataValue: {'d': d}})
+        r1_b.expression, error = RateLawExpression.deserialize('d', {Parameter: {'d': d}})
         assert error is None, str(error)
 
         r1.references.create(id='ref_1', model=model)

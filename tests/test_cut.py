@@ -8,7 +8,7 @@
 
 import datetime
 import unittest
-from wc_lang.core import Model, Species, DataValue, RateLawExpression, Reference, StopConditionExpression, MolecularStructure
+from wc_lang.core import Model, Species, Parameter, RateLawExpression, Reference, StopConditionExpression, ChemicalStructure
 from wc_utils.util.units import unit_registry
 
 
@@ -25,7 +25,7 @@ def gen_model(submodels=True, extra_species=True):
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    structure = MolecularStructure(electric_charge=0)
+    structure = ChemicalStructure(charge=0)
     model.species_types.create(id='s_0', structure=structure)
     model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
@@ -62,22 +62,22 @@ def gen_model(submodels=True, extra_species=True):
     if submodels:
         rl = model.rate_laws.create(reaction=model.reactions[0])
         rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[5].id}',
-                                                             {DataValue: {model.parameters[5].id: model.parameters[5]}})
+                                                             {Parameter: {model.parameters[5].id: model.parameters[5]}})
         rl = model.rate_laws.create(reaction=model.reactions[1])
         rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[6].id}',
-                                                             {DataValue: {model.parameters[6].id: model.parameters[6]}})
+                                                             {Parameter: {model.parameters[6].id: model.parameters[6]}})
         rl = model.rate_laws.create(reaction=model.reactions[2])
         rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[7].id}',
-                                                             {DataValue: {model.parameters[7].id: model.parameters[7]}})
+                                                             {Parameter: {model.parameters[7].id: model.parameters[7]}})
         rl = model.rate_laws.create(reaction=model.reactions[3])
         rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[8].id}',
-                                                             {DataValue: {model.parameters[8].id: model.parameters[8]}})
+                                                             {Parameter: {model.parameters[8].id: model.parameters[8]}})
         for rl in model.rate_laws:
             rl.id = rl.gen_id()
 
     objs = {
         Species: {s.id: s for s in model.species},
-        DataValue: {p.id: p for p in model.parameters},
+        Parameter: {p.id: p for p in model.parameters},
     }
     model.stop_conditions.create(id='sc_0')
     model.stop_conditions.create(id='sc_1')
@@ -106,7 +106,7 @@ def gen_core_model(extra_species=True):
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    structure = MolecularStructure(electric_charge=0)
+    structure = ChemicalStructure(charge=0)
     model.species_types.create(id='s_0', structure=structure)
     model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
@@ -127,7 +127,7 @@ def gen_core_model(extra_species=True):
 
     objs = {
         Species: {s.id: s for s in model.species},
-        DataValue: {p.id: p for p in model.parameters},
+        Parameter: {p.id: p for p in model.parameters},
     }
     model.stop_conditions.create(id='sc_0')
     model.stop_conditions.create(id='sc_1')
@@ -152,7 +152,7 @@ def gen_submodel_0():
     submodel_0 = model.submodels.create(id='submodel_0')
 
     model.compartments.create(id='c_0')
-    structure = MolecularStructure(electric_charge=0)
+    structure = ChemicalStructure(charge=0)
     model.species_types.create(id='s_0', structure=structure)
     model.species_types.create(id='s_1', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
@@ -174,16 +174,16 @@ def gen_submodel_0():
     model.parameters.create(id='p_6', value=1., units=unit_registry.parse_units('s^-1'))
     rl = model.rate_laws.create(reaction=model.reactions[0])
     rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[3].id}',
-                                                         {DataValue: {model.parameters[3].id: model.parameters[3]}})
+                                                         {Parameter: {model.parameters[3].id: model.parameters[3]}})
     rl = model.rate_laws.create(reaction=model.reactions[1])
     rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[4].id}',
-                                                         {DataValue: {model.parameters[4].id: model.parameters[4]}})
+                                                         {Parameter: {model.parameters[4].id: model.parameters[4]}})
     for rl in model.rate_laws:
         rl.id = rl.gen_id()
 
     objs = {
         Species: {s.id: s for s in model.species},
-        DataValue: {p.id: p for p in model.parameters},
+        Parameter: {p.id: p for p in model.parameters},
     }
     model.stop_conditions.create(id='sc_0')
     model.stop_conditions.create(id='sc_1')
@@ -208,7 +208,7 @@ def gen_submodel_1():
 
     model.compartments.create(id='c_0')
     model.compartments.create(id='c_1')
-    structure = MolecularStructure(electric_charge=0)
+    structure = ChemicalStructure(charge=0)
     model.species_types.create(id='s_0', structure=structure)
     model.species.create(compartment=model.compartments[0], species_type=model.species_types[0])
     model.species.create(compartment=model.compartments[1], species_type=model.species_types[0])
@@ -231,16 +231,16 @@ def gen_submodel_1():
     model.parameters.create(id='p_8', value=1., units=unit_registry.parse_units('s^-1'))
     rl = model.rate_laws.create(reaction=model.reactions[0])
     rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[4].id}',
-                                                         {DataValue: {model.parameters[4].id: model.parameters[4]}})
+                                                         {Parameter: {model.parameters[4].id: model.parameters[4]}})
     rl = model.rate_laws.create(reaction=model.reactions[1])
     rl.expression, error = RateLawExpression.deserialize(f'{model.parameters[5].id}',
-                                                         {DataValue: {model.parameters[5].id: model.parameters[5]}})
+                                                         {Parameter: {model.parameters[5].id: model.parameters[5]}})
     for rl in model.rate_laws:
         rl.id = rl.gen_id()
 
     objs = {
         Species: {s.id: s for s in model.species},
-        DataValue: {p.id: p for p in model.parameters},
+        Parameter: {p.id: p for p in model.parameters},
     }
     model.stop_conditions.create(id='sc_0')
     model.stop_conditions.create(id='sc_2')
@@ -378,9 +378,9 @@ class GetChildrenTestCase(unittest.TestCase):
         self.assertEqual(set(submodel_1.get_children(kind='submodel', __type=Reference)),
                          set([model.references[0], model.references[2]]))
 
-        self.assertEqual(set(submodel_0.get_children(kind='submodel', __type=DataValue)),
+        self.assertEqual(set(submodel_0.get_children(kind='submodel', __type=Parameter)),
                          set(model.parameters[0:2] + [model.parameters[3], model.parameters[5], model.parameters[6]]))
-        self.assertEqual(set(submodel_1.get_children(kind='submodel', __type=DataValue)),
+        self.assertEqual(set(submodel_1.get_children(kind='submodel', __type=Parameter)),
                          set([model.parameters[0], model.parameters[2]] + model.parameters[3:5] + model.parameters[7:9]))
 
         self.assertEqual(submodel_0.get_children(kind='submodel', id='rxn_01'),

@@ -31,7 +31,7 @@ class Writer(obj_model.io.Writer):
         core.DistributionInitConcentration, core.Observable, core.Function,
         core.Reaction, core.RateLaw,
         core.DfbaObjective, core.DfbaObjReaction, core.DfbaObjSpecies,
-        core.DataValue, core.StopCondition,
+        core.Parameter, core.StopCondition,
         core.Observation, core.ObservationSet, core.Conclusion, core.Reference, core.Author, core.Change,
     )
 

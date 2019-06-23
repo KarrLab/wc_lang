@@ -21,7 +21,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
                           Reaction, Compartment, InitVolume,
                           SpeciesType, Species,
-                          SpeciesCoefficient, DataValue, Reference,
+                          SpeciesCoefficient, Parameter, Reference,
                           Identifier,
                           RateLaw, RateLawExpression, RateLawDirection,
                           Function, FunctionExpression,
@@ -32,7 +32,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           Observation, ObservationEnv, Evidence, EvidenceManyToManyAttribute, Conclusion, Author, Change,
                           ReactionParticipantAttribute, Expression,
                           InvalidObject, Validator,
-                          MolecularStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
+                          ChemicalStructure, ChemicalStructureFormat, ChemicalStructureAlphabet)
 from wc_lang.io import Reader
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
@@ -58,11 +58,11 @@ class TestCore(unittest.TestCase):
                 id='spec_type_{}'.format(i),
                 name='species type {}'.format(i),
                 type=onto['WC:metabolite'],
-                structure=MolecularStructure(
+                structure=ChemicalStructure(
                     value='C' * i + 'H' * (i + 1),
                     empirical_formula=EmpiricalFormula('C{}H{}'.format(i, i + 1)),
                     molecular_weight=12 * (i + 1),
-                    electric_charge=i + 1))
+                    charge=i + 1))
             species_types.append(spec_type)
 
             if i != 3:
@@ -536,17 +536,17 @@ class TestCore(unittest.TestCase):
 
     def test_compartment_validate(self):
         comp = Compartment(id='c', geometry=onto['WC:3D_compartment'],
-                           init_density=DataValue(units=unit_registry.parse_units('g l^-1')))
+                           init_density=Parameter(units=unit_registry.parse_units('g l^-1')))
         self.assertEqual(comp.validate(), None)
 
         comp = Compartment(id='', geometry=onto['WC:3D_compartment'],
-                           init_density=DataValue(units=unit_registry.parse_units('g l^-1')))
+                           init_density=Parameter(units=unit_registry.parse_units('g l^-1')))
         self.assertNotEqual(comp.validate(), None)
 
         comp = Compartment(id='c', geometry=onto['WC:3D_compartment'])
         self.assertNotEqual(comp.validate(), None)
 
-        comp = Compartment(id='c', geometry=onto['WC:3D_compartment'], init_density=DataValue(units=None))
+        comp = Compartment(id='c', geometry=onto['WC:3D_compartment'], init_density=Parameter(units=None))
         self.assertNotEqual(comp.validate(), None)
 
     def test_reaction_get_species(self):
@@ -599,7 +599,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(set(mdl.get_rate_laws(__type=Submodel)), set())
 
         self.assertEqual(set(mdl.get_parameters()), set(self.parameters))
-        self.assertEqual(set(mdl.get_parameters(__type=DataValue)), set(self.parameters))
+        self.assertEqual(set(mdl.get_parameters(__type=Parameter)), set(self.parameters))
         self.assertEqual(set(mdl.get_parameters(__type=Submodel)), set())
 
         self.assertEqual(set(mdl.get_references()), set(self.references))
@@ -629,7 +629,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(model.get_components(__type=SpeciesType, id='spec_type_1'), [self.species_types[1]])
         self.assertEqual(model.get_components(__type=Submodel, id='submodel_1'), [self.submdl_1])
         self.assertEqual(model.get_components(__type=Reaction, id='rxn_1'), [self.rxn_1])
-        self.assertEqual(model.get_components(__type=DataValue, id='param_2'), [self.parameters[2]])
+        self.assertEqual(model.get_components(__type=Parameter, id='param_2'), [self.parameters[2]])
         self.assertEqual(model.get_components(__type=Reference, id='ref_1'), [self.references[1]])
         self.assertEqual(model.get_components(__type=Reaction, id='rxn_3'), [])
 
@@ -927,11 +927,11 @@ class TestCore(unittest.TestCase):
 
     def test_validate_reaction_balance(self):
         c = Compartment()
-        st_1 = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('CH1N2OP2'), electric_charge=1))
-        st_2 = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('C2H2N4O2P4'), electric_charge=2))
-        st_3 = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('C3H3N6O3P6'), electric_charge=3))
-        st_4 = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('CH1N2'), electric_charge=2))
-        st_5 = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('OP2'), electric_charge=-1))
+        st_1 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CH1N2OP2'), charge=1))
+        st_2 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C2H2N4O2P4'), charge=2))
+        st_3 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C3H3N6O3P6'), charge=3))
+        st_4 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CH1N2'), charge=2))
+        st_5 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('OP2'), charge=-1))
         s_1 = Species(species_type=st_1, compartment=c)
         s_2 = Species(species_type=st_2, compartment=c)
         s_3 = Species(species_type=st_3, compartment=c)
@@ -994,7 +994,7 @@ class TestCore(unittest.TestCase):
     def test_reaction_validate(self):
         c = Compartment()
         d = Compartment()
-        st = SpeciesType(structure=MolecularStructure(empirical_formula=EmpiricalFormula('CHO'), electric_charge=1))
+        st = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=1))
         spec_c = Species(species_type=st, compartment=c)
         spec_d = Species(species_type=st, compartment=d)
         rxn = Reaction(id='rxn', reversible=True,
@@ -1042,15 +1042,15 @@ class TestCore(unittest.TestCase):
                 'c_1': Compartment(id='c_1'),
                 'c_2': Compartment(id='c_2')
             },
-            DataValue: {
-                'p_1': DataValue(id='p_1'),
-                'p_2': DataValue(id='p_2'),
+            Parameter: {
+                'p_1': Parameter(id='p_1'),
+                'p_2': Parameter(id='p_2'),
             },
             Species: {
             },
-            DataValue: {
-                'k_cat': DataValue(id='k_cat', value=1),
-                'k_m': DataValue(id='k_m', value=2),
+            Parameter: {
+                'k_cat': Parameter(id='k_cat', value=1),
+                'k_m': Parameter(id='k_m', value=2),
             }
         }
         objs[Species]['spec_0[c_0]'] = Species(id='spec_0[c_0]',
@@ -1105,7 +1105,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(expression4.expression, expression)
         self.assertEqual(set(expression4.species), set([objs[Species]['spec_0[c_1]'], objs[Species]['spec_2[c_1]']]))
-        self.assertEqual(set(expression4.parameters), set(objs[DataValue].values()))
+        self.assertEqual(set(expression4.parameters), set(objs[Parameter].values()))
         self.assertEqual(set(objs[RateLawExpression].values()), set([expression1, expression2, expression3, expression4]))
 
         expression = 'p_1 * spec_0[c_1] / (p_2 + spec_2[c_1])'
@@ -1124,7 +1124,7 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_1'),
         ]
         parameters = [
-            DataValue(id='p_0', value=1.),
+            Parameter(id='p_0', value=1.),
         ]
 
         # unknown specie error
@@ -1187,8 +1187,8 @@ class TestCore(unittest.TestCase):
             Species: {
                 'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0]),
             },
-            DataValue: {
-                'k_cat': DataValue(id='k_cat', value=1, units=unit_registry.parse_units('molecule^-1 s^-1')),
+            Parameter: {
+                'k_cat': Parameter(id='k_cat', value=1, units=unit_registry.parse_units('molecule^-1 s^-1')),
             },
         })
         rate_law = RateLaw(
@@ -1206,7 +1206,7 @@ class TestCore(unittest.TestCase):
         expression = 'p_0 * spec_0[c_0]'
         expression, _ = RateLawExpression.deserialize(expression, {
             Species: {'spec_0[c_0]': Species(id='spec_0[c_0]', species_type=species_types[0], compartment=compartments[0])},
-            DataValue: {'p_0': DataValue(id='p_0', value=1, units=unit_registry.parse_units('molecule^-1 s^-1'))},
+            Parameter: {'p_0': Parameter(id='p_0', value=1, units=unit_registry.parse_units('molecule^-1 s^-1'))},
         })
         rate_law = RateLaw(
             id='rxn-forward',
@@ -1221,7 +1221,7 @@ class TestCore(unittest.TestCase):
 
         # positive example
         expression, _ = RateLawExpression.deserialize('p', {
-            DataValue: {'p': DataValue(id='p', value=1., units=unit_registry.parse_units('s^-1'))},
+            Parameter: {'p': Parameter(id='p', value=1., units=unit_registry.parse_units('s^-1'))},
         })
         rate_law = RateLaw(
             id='rxn-forward',
@@ -1258,7 +1258,7 @@ class TestCore(unittest.TestCase):
 
         # no parsed expression
         expression, _ = RateLawExpression.deserialize('p', {
-            DataValue: {'p': DataValue(id='p', value=1., units=unit_registry.parse_units('s^-1'))},
+            Parameter: {'p': Parameter(id='p', value=1., units=unit_registry.parse_units('s^-1'))},
         })
         expression._parsed_expression = None
         rate_law = RateLaw(
@@ -1282,9 +1282,9 @@ class TestCore(unittest.TestCase):
             Compartment(id='c_2'),
         ]
         parameters = [
-            DataValue(id='p_0', value=1., units=unit_registry.parse_units('molecule^-1 s^-1')),
-            DataValue(id='p_1', value=1.),
-            DataValue(id='k_m', value=1.),
+            Parameter(id='p_0', value=1., units=unit_registry.parse_units('molecule^-1 s^-1')),
+            Parameter(id='p_1', value=1.),
+            Parameter(id='k_m', value=1.),
         ]
 
         expression = 'spec_0[c_0]'
@@ -1382,55 +1382,55 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.rxn_2.rate_laws[0].expression.parameters, self.parameters[0:2])
 
     def test_parameter_validate_unique(self):
-        self.assertEqual(DataValue.validate_unique(self.parameters), None)
+        self.assertEqual(Parameter.validate_unique(self.parameters), None)
 
         model = Model()
         params = [
-            DataValue(id='a', model=model),
-            DataValue(id='b', model=model),
+            Parameter(id='a', model=model),
+            Parameter(id='b', model=model),
         ]
-        self.assertEqual(DataValue.validate_unique(params), None)
+        self.assertEqual(Parameter.validate_unique(params), None)
 
         model = Model()
         params = [
-            DataValue(id='a', model=model),
-            DataValue(id='a', model=model),
+            Parameter(id='a', model=model),
+            Parameter(id='a', model=model),
         ]
-        self.assertNotEqual(DataValue.validate_unique(params), None)
+        self.assertNotEqual(Parameter.validate_unique(params), None)
 
         submodel = Submodel()
         params = [
-            DataValue(id='a'),
-            DataValue(id='b'),
+            Parameter(id='a'),
+            Parameter(id='b'),
         ]
-        self.assertEqual(DataValue.validate_unique(params), None)
+        self.assertEqual(Parameter.validate_unique(params), None)
 
         submodel = Submodel()
         params = [
-            DataValue(id='a'),
-            DataValue(id='a'),
+            Parameter(id='a'),
+            Parameter(id='a'),
         ]
-        self.assertNotEqual(DataValue.validate_unique(params), None)
+        self.assertNotEqual(Parameter.validate_unique(params), None)
 
         model = Model()
         submodel = Submodel()
         params = [
-            DataValue(id='a', model=model),
-            DataValue(id='a', model=model),
+            Parameter(id='a', model=model),
+            Parameter(id='a', model=model),
         ]
-        self.assertNotEqual(DataValue.validate_unique(params), None)
+        self.assertNotEqual(Parameter.validate_unique(params), None)
 
         params = [
-            DataValue(id='a'),
-            DataValue(id='b'),
+            Parameter(id='a'),
+            Parameter(id='b'),
         ]
-        self.assertEqual(DataValue.validate_unique(params), None)
+        self.assertEqual(Parameter.validate_unique(params), None)
 
         params = [
-            DataValue(id='a', model=model),
-            DataValue(id='b', model=model),
+            Parameter(id='a', model=model),
+            Parameter(id='b', model=model),
         ]
-        self.assertEqual(DataValue.validate_unique(params), None)
+        self.assertEqual(Parameter.validate_unique(params), None)
 
     def test_identifier_serialize(self):
         self.assertEqual(self.identifiers[0].serialize(), '{}: {}'.format('x', 'y'))
@@ -1646,8 +1646,8 @@ class TestCore(unittest.TestCase):
 
     def test_ReactionParticipantAttribute_validate(self):
         species_types = [
-            SpeciesType(id='A', structure=MolecularStructure(empirical_formula=EmpiricalFormula('CHO'), electric_charge=2)),
-            SpeciesType(id='B', structure=MolecularStructure(empirical_formula=EmpiricalFormula('C1H1O1'), electric_charge=2)),
+            SpeciesType(id='A', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=2)),
+            SpeciesType(id='B', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('C1H1O1'), charge=2)),
         ]
         compartments = [
             Compartment(id='c'),
@@ -1710,8 +1710,8 @@ class TestCore(unittest.TestCase):
             },
             Species: {
             },
-            DataValue: {
-                'k_cat': DataValue(id='k_cat'),
+            Parameter: {
+                'k_cat': Parameter(id='k_cat'),
             }
         }
         objs[Species]['spec_0[c_0]'] = Species(
@@ -1725,7 +1725,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(error, None)
         self.assertEqual(expression1.expression, expression)
         self.assertEqual(expression1.species, [objs[Species]['spec_0[c_0]']])
-        self.assertEqual(expression1.parameters, [objs[DataValue]['k_cat']])
+        self.assertEqual(expression1.parameters, [objs[Parameter]['k_cat']])
         self.assertEqual(list(objs[RateLawExpression].values()), [expression1])
 
     def test_dfba_obj_deserialize(self):
@@ -2113,13 +2113,13 @@ class TestCore(unittest.TestCase):
         model = Model()
         objects = {
             Observable: {},
-            DataValue: {},
+            Parameter: {},
             Function: {},
             Species: {},
         }
         for id in ['a', 'b', 'duped_id']:
             param = model.parameters.create(id=id, value=1.)
-            objects[DataValue][id] = param
+            objects[Parameter][id] = param
 
         # use existing species
         for s in self.species:
@@ -2227,10 +2227,10 @@ class TestCore(unittest.TestCase):
                 None),
             ('log(a)', math.log(1), {}, None),
             ('max(a, b)', 1,
-                {'parameters': [id_map['DataValue.a'], id_map['DataValue.b']]},
+                {'parameters': [id_map['Parameter.a'], id_map['Parameter.b']]},
                 None),
-            ('Observable.ddd + Observable.duped_id - DataValue.duped_id', 1,
-                {'parameters': [id_map['DataValue.duped_id']],
+            ('Observable.ddd + Observable.duped_id - Parameter.duped_id', 1,
+                {'parameters': [id_map['Parameter.duped_id']],
                  'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']]},
                 None),
             ('ddd * Function.duped_id', 1,
@@ -2335,8 +2335,8 @@ class TestCore(unittest.TestCase):
                 'c': Compartment(id='c'),
             },
             Species: {},
-            DataValue: {
-                'pow': DataValue(id='pow'),
+            Parameter: {
+                'pow': Parameter(id='pow'),
             }
         }
         objs[Species]['st_1[c]'] = Species(id='st_1[c]',
@@ -2348,7 +2348,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(of_expr, None, str())
         self.assertIn("ObjModelToken `pow` is ambiguous",
                       invalid_attribute.messages[0])
-        self.assertIn("ObjModelToken matches a DataValue and a function",
+        self.assertIn("ObjModelToken matches a Parameter and a function",
                       invalid_attribute.messages[0])
 
     def test_valid_stop_conditions(self):
@@ -2356,7 +2356,7 @@ class TestCore(unittest.TestCase):
 
         some_used_objs = {'observables': [id_map['Observable.ccc'], id_map['Observable.ddd']],
                           'functions': [id_map['Function.f'], id_map['Function.g']],
-                          'parameters': [id_map['DataValue.a']]}
+                          'parameters': [id_map['Parameter.a']]}
         for expr, expected_test_val, expected_attrs in [
             ('ccc > 10', False, {'observables': [id_map['Observable.ccc']]}),
             ('ccc > 0', True, {'observables': [id_map['Observable.ccc']]}),
@@ -2577,52 +2577,52 @@ class TestCore(unittest.TestCase):
             author.get_identifier('github.organization')
 
     def test_ChemicalStructure_get_structure(self):
-        s = MolecularStructure()
+        s = ChemicalStructure()
         self.assertEqual(s.get_structure(), None)
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES)
         self.assertEqual(s.get_structure().GetTotalCharge(), 0)
 
-        s = MolecularStructure(value='AAA', format=ChemicalStructureFormat.BpForms, alphabet=ChemicalStructureAlphabet.dna)
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms, alphabet=ChemicalStructureAlphabet.dna)
         self.assertEqual(s.get_structure().get_charge(), -4)
 
-        s = MolecularStructure(value='AAA', format='BpForms')
+        s = ChemicalStructure(value='AAA', format='BpForms')
         with self.assertRaisesRegex(ValueError, 'Unsupported format'):
             s.get_structure()
 
     def test_ChemicalStructure_validate(self):
-        s = MolecularStructure()
+        s = ChemicalStructure()
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(molecular_weight=1., electric_charge=1)
+        s = ChemicalStructure(molecular_weight=1., charge=1)
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(molecular_weight=1.)
+        s = ChemicalStructure(molecular_weight=1.)
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(electric_charge=1)
+        s = ChemicalStructure(charge=1)
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(empirical_formula=EmpiricalFormula('OH'), electric_charge=-1)
+        s = ChemicalStructure(empirical_formula=EmpiricalFormula('OH'), charge=-1)
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(empirical_formula=EmpiricalFormula('OH'), electric_charge=-1)
+        s = ChemicalStructure(empirical_formula=EmpiricalFormula('OH'), charge=-1)
         s.molecular_weight = s.empirical_formula.get_molecular_weight()
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('OH2'), electric_charge=0)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('OH2'), charge=0)
         s.molecular_weight = s.empirical_formula.get_molecular_weight()
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(value='AAA', format=ChemicalStructureFormat.BpForms,
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms,
                               alphabet=ChemicalStructureAlphabet.dna)
         form = s.get_structure()
         s.empirical_formula = form.get_formula()
@@ -2631,47 +2631,47 @@ class TestCore(unittest.TestCase):
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(value='AAA', alphabet=ChemicalStructureAlphabet.dna)
+        s = ChemicalStructure(value='AAA', alphabet=ChemicalStructureAlphabet.dna)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(format=ChemicalStructureFormat.BpForms,
+        s = ChemicalStructure(format=ChemicalStructureFormat.BpForms,
                               alphabet=ChemicalStructureAlphabet.dna)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='AAA', format=ChemicalStructureFormat.BpForms)
+        s = ChemicalStructure(value='AAA', format=ChemicalStructureFormat.BpForms)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
                               alphabet=ChemicalStructureAlphabet.dna)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('H2O'), electric_charge=0)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0)
         mol_wt = s.molecular_weight = s.empirical_formula.get_molecular_weight()
         err = s.validate()
         self.assertEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('H3O'), electric_charge=0, molecular_weight=mol_wt)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H3O'), charge=0, molecular_weight=mol_wt)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('H2O'), electric_charge=-1, molecular_weight=mol_wt)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=-1, molecular_weight=mol_wt)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('H2O'), electric_charge=0, molecular_weight=mol_wt + 1)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0, molecular_weight=mol_wt + 1)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
-        s = MolecularStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
-                              empirical_formula=EmpiricalFormula('H2O'), electric_charge=0, molecular_weight=-1.)
+        s = ChemicalStructure(value='[OH2]', format=ChemicalStructureFormat.SMILES,
+                              empirical_formula=EmpiricalFormula('H2O'), charge=0, molecular_weight=-1.)
         err = s.validate()
         self.assertNotEqual(err, None, str(err))
 
@@ -2797,7 +2797,7 @@ class ValidateModelTestCase(unittest.TestCase):
     def test_min_flux_maxes(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
-        st = SpeciesType(id='s', structure=MolecularStructure(empirical_formula=EmpiricalFormula('CHN2P1'), electric_charge=-1))
+        st = SpeciesType(id='s', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHN2P1'), charge=-1))
         species_1 = Species(species_type=st, compartment=c_1)
         species_2 = Species(species_type=st, compartment=c_2)
         species_1.id = species_1.gen_id()
@@ -2917,7 +2917,7 @@ class ValidateModelTestCase(unittest.TestCase):
     def test_rate_laws(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
-        st = SpeciesType(id='s', structure=MolecularStructure(empirical_formula=EmpiricalFormula('CHO'), electric_charge=1))
+        st = SpeciesType(id='s', structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CHO'), charge=1))
         species_1 = Species(species_type=st, compartment=c_1)
         species_2 = Species(species_type=st, compartment=c_2)
         species_1.id = species_1.gen_id()
@@ -2971,13 +2971,13 @@ class ValidateModelTestCase(unittest.TestCase):
         self.assertRegex(str(rv), 'cannot have a backward rate law')
 
     def test_species_types(self):
-        st = SpeciesType(id='species_4', structure=MolecularStructure(molecular_weight=1.))
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=1.))
         self.assertEqual(st.structure.validate(), None)
 
-        st = SpeciesType(id='species_4', structure=MolecularStructure(molecular_weight=0.))
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=0.))
         self.assertEqual(st.structure.validate(), None)
 
-        st = SpeciesType(id='species_4', structure=MolecularStructure(molecular_weight=-1.))
+        st = SpeciesType(id='species_4', structure=ChemicalStructure(molecular_weight=-1.))
         self.assertNotEqual(st.structure.validate(), None)
 
     def test_acyclic_dependencies(self):
@@ -3107,9 +3107,9 @@ class UnitsTestCase(unittest.TestCase):
             },
             Function: {
             },
-            DataValue: {
-                'p_1': DataValue(id='p_1', value=1.5, units=unit_registry.parse_units('g')),
-                'p_2': DataValue(id='p_2', value=2.5, units=unit_registry.parse_units('kg')),
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units=unit_registry.parse_units('g')),
+                'p_2': Parameter(id='p_2', value=2.5, units=unit_registry.parse_units('kg')),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
@@ -3182,7 +3182,7 @@ class UnitsTestCase(unittest.TestCase):
             units=unit_registry.parse_units('molecule g^-1'))
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., DataValue: {'p_1': 1.5}}), 8./3.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_1': 1.5}}), 8./3.)
 
         function = Function(
             id='func',
@@ -3190,7 +3190,7 @@ class UnitsTestCase(unittest.TestCase):
             units=unit_registry.parse_units('molecule kg^-1'))
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., DataValue: {'p_2': 2.5}}), 8./5.)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_2': 2.5}}), 8./5.)
 
         function = Function(
             id='func',
@@ -3198,7 +3198,7 @@ class UnitsTestCase(unittest.TestCase):
             units=unit_registry.parse_units('molecule kg^-1'))
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
-        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., DataValue: {'p_2': 2.5}}), 2.4)
+        self.assertEqual(function.expression._parsed_expression.test_eval({Species: 2., Parameter: {'p_2': 2.5}}), 2.4)
 
         # inconsistent units
         function = Function(
@@ -3216,7 +3216,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = function.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(function.expression._parsed_expression.test_eval(
-            {Species: 2., DataValue: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True),
+            {Species: 2., Parameter: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True),
             (4. + 2. / (1.5/2.5e3)) * unit_registry.parse_units('molecule'))
 
         function = Function(
@@ -3246,7 +3246,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = func2.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(func2.expression._parsed_expression.test_eval(
-            {Species: 2., DataValue: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
+            {Species: 2., Parameter: {'p_1': 1.5, 'p_2': 2.5}}, with_units=True).magnitude, 14. + 1.5/2.5e3 * 2)
 
         func2 = Function(
             id='func_2',
@@ -3280,10 +3280,10 @@ class UnitsTestCase(unittest.TestCase):
             },
             Function: {
             },
-            DataValue: {
-                'p_1': DataValue(id='p_1', value=1.5, units=unit_registry.parse_units('molecule^-1 s^-1')),
-                'p_2': DataValue(id='p_2', value=1.5, units=unit_registry.parse_units('molecule^-1 g s^-1')),
-                'p_3': DataValue(id='p_3', value=1.5, units=unit_registry.parse_units('molecule g^-1 s^-1')),
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units=unit_registry.parse_units('molecule^-1 s^-1')),
+                'p_2': Parameter(id='p_2', value=1.5, units=unit_registry.parse_units('molecule^-1 g s^-1')),
+                'p_3': Parameter(id='p_3', value=1.5, units=unit_registry.parse_units('molecule g^-1 s^-1')),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
@@ -3303,7 +3303,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertEqual(rl.expression._parsed_expression.test_eval(
-            {Species: 2., DataValue: {'p_1': 1.5}}, with_units=True).magnitude,
+            {Species: 2., Parameter: {'p_1': 1.5}}, with_units=True).magnitude,
             4. * 1.5 * (3. * (2. * 2.)))
 
         rl = RateLaw(id='rxn_1-forward',
@@ -3321,7 +3321,7 @@ class UnitsTestCase(unittest.TestCase):
         rl.expression, _ = RateLawExpression.deserialize('4 * p_2 * st_1[c_1] / c_1', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])
-        self.assertEqual(rl.expression.parameters, [objs[DataValue]['p_2']])
+        self.assertEqual(rl.expression.parameters, [objs[Parameter]['p_2']])
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
 
@@ -3332,7 +3332,7 @@ class UnitsTestCase(unittest.TestCase):
         rl.expression, _ = RateLawExpression.deserialize('4 * p_3 * c_1 / st_1[c_1]', objs)
         self.assertEqual(rl.expression.compartments, [objs[Compartment]['c_1']])
         self.assertEqual(rl.expression.species, [objs[Species]['st_1[c_1]']])
-        self.assertEqual(rl.expression.parameters, [objs[DataValue]['p_3']])
+        self.assertEqual(rl.expression.parameters, [objs[Parameter]['p_3']])
         rv = rl.validate()
         self.assertEqual(rv, None, str(rv))
 
@@ -3405,12 +3405,12 @@ class UnitsTestCase(unittest.TestCase):
             },
             Function: {
             },
-            DataValue: {
-                'p_1': DataValue(id='p_1', value=1.5, units=unit_registry.parse_units('molecule^-1 s^-1')),
-                'p_2': DataValue(id='p_2', value=1.5, units=unit_registry.parse_units('molecule')),
-                'p_3': DataValue(id='p_3', value=1.5, units=unit_registry.parse_units('dimensionless')),
-                'p_4': DataValue(id='p_4', value=2.5, units=unit_registry.parse_units('dimensionless')),
-                'p_5': DataValue(id='p_5', value=1.0, units=unit_registry.parse_units('molecule g^-1')),
+            Parameter: {
+                'p_1': Parameter(id='p_1', value=1.5, units=unit_registry.parse_units('molecule^-1 s^-1')),
+                'p_2': Parameter(id='p_2', value=1.5, units=unit_registry.parse_units('molecule')),
+                'p_3': Parameter(id='p_3', value=1.5, units=unit_registry.parse_units('dimensionless')),
+                'p_4': Parameter(id='p_4', value=2.5, units=unit_registry.parse_units('dimensionless')),
+                'p_5': Parameter(id='p_5', value=1.0, units=unit_registry.parse_units('molecule g^-1')),
             },
         }
         objs[Species]['st_1[c_1]'] = Species(species_type=objs[SpeciesType]['st_1'],
@@ -3445,7 +3445,7 @@ class UnitsTestCase(unittest.TestCase):
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertFalse(cond.expression._parsed_expression.test_eval(
-            values={DataValue: {'p_3': 1.5, 'p_4': 2.5}}, with_units=True))
+            values={Parameter: {'p_3': 1.5, 'p_4': 2.5}}, with_units=True))
 
         cond = StopCondition(id='cond_4')
         cond.expression, error = StopConditionExpression.deserialize('st_1[c_1] / c_1 > p_5', objs)
@@ -3453,12 +3453,12 @@ class UnitsTestCase(unittest.TestCase):
         rv = cond.validate()
         self.assertEqual(rv, None, str(rv))
         self.assertTrue(cond.expression._parsed_expression.test_eval(
-            values={Species: 2., Compartment: 1., DataValue: {'p_5': 1.}}, with_units=True))
+            values={Species: 2., Compartment: 1., Parameter: {'p_5': 1.}}, with_units=True))
         self.assertFalse(cond.expression._parsed_expression.test_eval(
-            values={Species: 0.5, Compartment: 1., DataValue: {'p_5': 1.}}, with_units=True))
+            values={Species: 0.5, Compartment: 1., Parameter: {'p_5': 1.}}, with_units=True))
 
     def test_parameter_value(self):
-        self.assertTrue(hasattr(DataValue, 'units'))
+        self.assertTrue(hasattr(Parameter, 'units'))
 
 
 class ValidatorTestCase(unittest.TestCase):
