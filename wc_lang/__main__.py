@@ -6,6 +6,7 @@
 :License: MIT
 """
 
+from obj_model.migrate import CementControllers
 from wc_lang import transform
 from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -38,6 +39,7 @@ class CutSubmodelsController(cement.Controller):
     class Meta:
         label = 'cut-submodels'
         description = 'Cut submodels into separate models'
+        help = 'Cut submodels into separate models'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -71,6 +73,7 @@ class MergeModelsController(cement.Controller):
     class Meta:
         label = 'merge-models'
         description = 'Merge multiple models'
+        help = 'Merge multiple models'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -98,6 +101,7 @@ class ValidateController(cement.Controller):
     class Meta:
         label = 'validate'
         description = 'Validate model and display errors'
+        help = 'Validate model and display errors'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -120,6 +124,7 @@ class DifferenceController(cement.Controller):
     class Meta:
         label = 'difference'
         description = 'Get difference between two model definitions'
+        help = 'Get difference between two model definitions'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -160,6 +165,7 @@ class TransformController(cement.Controller):
     class Meta:
         label = 'transform'
         description = 'Apply one, or more, transforms to a model and save the result'
+        help = 'Apply one, or more, transforms to a model and save the result'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -196,6 +202,7 @@ class NormalizeController(cement.Controller):
     class Meta:
         label = 'normalize'
         description = 'Normalize model'
+        help = 'Normalize model'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -220,6 +227,7 @@ class ConvertController(cement.Controller):
     class Meta:
         label = 'convert'
         description = 'Convert model among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
+        help = 'Convert model among .csv, .json, .tsv, .xlsx, .yaml, and .yml formats'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -239,6 +247,7 @@ class CreateTemplateController(cement.Controller):
     class Meta:
         label = 'create-template'
         description = 'Create file with model template: blank file(s) with row and column labels'
+        help = 'Create file with model template: blank file(s) with row and column labels'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -260,6 +269,7 @@ class UpdateVersionMetadataController(cement.Controller):
     class Meta:
         label = 'update-version-metadata'
         description = 'Update the version metadata (repository URL, branch, revision; wc_lang version) of a model'
+        help = 'Update the version metadata (repository URL, branch, revision; wc_lang version) of a model'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -277,37 +287,13 @@ class UpdateVersionMetadataController(cement.Controller):
         Writer().run(args.path, model, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
 
 
-class MigrateController(cement.Controller):
-    """ Migrate a model to another version of wc_lang """
-
-    class Meta:
-        label = 'migrate'
-        description = 'Migrate a model to another version of WC-Lang'
-        stacked_on = 'base'
-        stacked_type = 'nested'
-        arguments = [
-            (['in_path'], dict(type=str, help='Path to model to migrate')),
-            (['version'], dict(type=str, help=('WC-Lang version'))),
-            (['--out-path'], dict(type=str, help=('Path to save migrated model. '
-                                                  'Default: overwrite the original file'))),
-            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
-                                              help=('If set, do not set the Git repository metadata for the knowledge base from '
-                                                    'the parent directory of `path-core`'))),
-        ]
-
-    @cement.ex(hide=True)
-    def _default(self):
-        args = self.app.pargs
-        migrate(args.in_path, args.version,
-                out_path=args.out_path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
-
-
 class ExportController(cement.Controller):
     """ Export a model to SBML """
 
     class Meta:
         label = 'export'
         description = 'Export a model to SBML'
+        help = 'Export a model to SBML'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -328,6 +314,7 @@ class ImportController(cement.Controller):
     class Meta:
         label = 'import'
         description = 'Import a model from SBML'
+        help = 'Import a model from SBML'
         stacked_on = 'base'
         stacked_type = 'nested'
         arguments = [
@@ -358,9 +345,9 @@ class App(cement.App):
             ConvertController,
             CreateTemplateController,
             UpdateVersionMetadataController,
-            MigrateController,
             ExportController,
             ImportController,
+            CementControllers.SchemaChangesTemplateController
         ]
 
 
