@@ -32,7 +32,6 @@ This package defines `wc_lang`, a language for describing WC models as reaction 
 
 * Install latest revision from GitHub
   ```
-  pip install git+https://github.com/KarrLab/log.git#egg=log
   pip install git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils
   pip install git+https://github.com/KarrLab/obj_model.git#egg=obj_model
   pip install git+https://github.com/KarrLab/wc_lang.git#egg=wc_lang
