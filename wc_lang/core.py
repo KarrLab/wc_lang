@@ -1,29 +1,50 @@
 """ Data model to represent composite, multi-algorithmic biochemical models.
 
-This module defines classes that represent the schema of a biochemical model:
+This module defines classes that represent the schema and provenance of a biochemical model:
 
-* :obj:`Taxon`
 * :obj:`Model`
+* :obj:`Taxon`
+* :obj:`Environment`
 * :obj:`Submodel`
+* :obj:`DfbaObjectiveExpression`
 * :obj:`DfbaObjective`
+* :obj:`InitVolume`
+* :obj:`Ph`
 * :obj:`Compartment`
+* :obj:`ChemicalStructure`
 * :obj:`SpeciesType`
 * :obj:`Species`
 * :obj:`DistributionInitConcentration`
+* :obj:`ObservableExpression`
+* :obj:`Observable`
+* :obj:`FunctionExpression`
+* :obj:`Function`
+* :obj:`StopConditionExpression`
+* :obj:`StopCondition`
+* :obj:`FluxBounds`
 * :obj:`Reaction`
 * :obj:`SpeciesCoefficient`
-* :obj:`RateLaw`
 * :obj:`RateLawExpression`
+* :obj:`RateLaw`
 * :obj:`DfbaObjSpecies`
 * :obj:`DfbaObjReaction`
 * :obj:`Parameter`
+* :obj:`ObservationGenotype`
+* :obj:`ObservationEnv`
+* :obj:`Process`
+* :obj:`Observation`
+* :obj:`ObservationSet`
+* :obj:`Evidence`
+* :obj:`Conclusion`
 * :obj:`Reference`
+* :obj:`Author`
+* :obj:`Change`
 * :obj:`Identifier`
 
-These are all instances of `obj_model.Model`, an alias for `obj_model.Model`.
+These are all instances of `obj_model.Model`.
 A biochemical model may contain a list of instances of each of these classes, interlinked
-by object references. For example, a :obj:`Reaction` will reference its constituent
-:obj:`SpeciesCoefficient` instances, and the :obj:`RateLaw` that describes the reaction's rate.
+by object references. For example, a :obj:`Species` references the compartment which contains it as a
+:obj:`Compartment` instance and the species category to which it belongs as a :obj:`SpeciesType` instance.
 
 This module also defines numerous classes that serve as attributes of these classes.
 
