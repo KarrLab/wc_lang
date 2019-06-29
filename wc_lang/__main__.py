@@ -26,6 +26,7 @@ class BaseController(cement.Controller):
     class Meta:
         label = 'base'
         description = "Command line utilities for managing whole-cell model definitions"
+        help = "Command line utilities for managing whole-cell model definitions"
         arguments = [
             (['-v', '--version'], dict(action='version', version=wc_lang.__version__)),
         ]
