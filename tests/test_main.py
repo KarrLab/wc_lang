@@ -54,7 +54,7 @@ class TestCli(unittest.TestCase):
         model.references.create(id='ref_3', submodels=model.submodels[0:2])
 
         in_path = path.join(self.tempdir, 'in.xlsx')
-        Writer().run(in_path, model, set_repo_metadata_from_path=False)
+        Writer().run(in_path, model, data_repo_metadata=False)
 
         out_path = path.join(self.tempdir, 'out')
         with __main__.App(argv=['cut-submodels', in_path, out_path]) as app:
@@ -95,8 +95,8 @@ class TestCli(unittest.TestCase):
         model_0.species_types.create(id='a')
         model_1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         model_1.species_types.create(id='b')
-        Writer().run(in_paths[0], model_0, set_repo_metadata_from_path=False)
-        Writer().run(in_paths[1], model_1, set_repo_metadata_from_path=False)
+        Writer().run(in_paths[0], model_0, data_repo_metadata=False)
+        Writer().run(in_paths[1], model_1, data_repo_metadata=False)
 
         # merge models
         with __main__.App(argv=['merge-models', '-p', in_paths[0], '-s', in_paths[1], '-o', out_path]) as app:
@@ -114,7 +114,7 @@ class TestCli(unittest.TestCase):
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         self.assertEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
-        Writer().run(filename, model, set_repo_metadata_from_path=False)
+        Writer().run(filename, model, data_repo_metadata=False)
 
         with CaptureOutput() as capturer:
             with __main__.App(argv=['validate', filename]) as app:
@@ -128,7 +128,7 @@ class TestCli(unittest.TestCase):
 
         self.assertNotEqual(Validator().run(model, get_related=True), None)
         filename = path.join(self.tempdir, 'model.xlsx')
-        Writer().run(filename, model, set_repo_metadata_from_path=False)
+        Writer().run(filename, model, data_repo_metadata=False)
 
         with self.assertRaisesRegex(SystemExit, '^Model is invalid: '):
             with __main__.App(argv=['validate', filename]) as app:
@@ -139,15 +139,15 @@ class TestCli(unittest.TestCase):
 
         model1 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename1 = path.join(self.tempdir, 'model1.xlsx')
-        Writer().run(filename1, model1, set_repo_metadata_from_path=False)
+        Writer().run(filename1, model1, data_repo_metadata=False)
 
         model2 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0', created=now, updated=now)
         filename2 = path.join(self.tempdir, 'model2.xlsx')
-        Writer().run(filename2, model2, set_repo_metadata_from_path=False)
+        Writer().run(filename2, model2, data_repo_metadata=False)
 
         model3 = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.1', created=now, updated=now)
         filename3 = path.join(self.tempdir, 'model3.xlsx')
-        Writer().run(filename3, model3, set_repo_metadata_from_path=False)
+        Writer().run(filename3, model3, data_repo_metadata=False)
 
         with CaptureOutput() as capturer:
             with __main__.App(argv=['difference', filename1, filename2]) as app:
@@ -175,7 +175,7 @@ class TestCli(unittest.TestCase):
     def test_transform(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(source, model, set_repo_metadata_from_path=False)
+        Writer().run(source, model, data_repo_metadata=False)
 
         dest = path.join(self.tempdir, 'dest.xlsx')
         with __main__.App(argv=['transform', source, dest, '--transform', 'MergeAlgorithmicallyLikeSubmodels']) as app:
@@ -186,7 +186,7 @@ class TestCli(unittest.TestCase):
     def test_transform_exception(self):
         source = path.join(self.tempdir, 'source.xlsx')
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(source, model, set_repo_metadata_from_path=False)
+        Writer().run(source, model, data_repo_metadata=False)
 
         dest = path.join(self.tempdir, 'dest.xlsx')
         with self.assertRaisesRegex(SystemExit, 'Please select at least one transform'):
@@ -198,7 +198,7 @@ class TestCli(unittest.TestCase):
         filename_xls_2 = path.join(self.tempdir, 'model-2.xlsx')
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(filename_xls_1, model, set_repo_metadata_from_path=False)
+        Writer().run(filename_xls_1, model, data_repo_metadata=False)
 
         # with same destination
         with __main__.App(argv=['normalize', filename_xls_1]) as app:
@@ -219,7 +219,7 @@ class TestCli(unittest.TestCase):
         filename_csv = path.join(self.tempdir, 'model-*.csv')
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
-        Writer().run(filename_xls, model, set_repo_metadata_from_path=False)
+        Writer().run(filename_xls, model, data_repo_metadata=False)
 
         with __main__.App(argv=['convert', filename_xls, filename_csv]) as app:
             app.run()
@@ -239,7 +239,7 @@ class TestCli(unittest.TestCase):
 
         model = Model(id='model', name='test model', version='0.0.1a', wc_lang_version='0.0.0')
         self.assertNotEqual(model.wc_lang_version, wc_lang.__version__)
-        Writer().run(filename, model, set_repo_metadata_from_path=False)
+        Writer().run(filename, model, data_repo_metadata=False)
 
         with __main__.App(argv=['update-version-metadata', filename, '--ignore-repo-metadata']) as app:
             app.run()

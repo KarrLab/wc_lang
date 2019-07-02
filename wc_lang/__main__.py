@@ -11,7 +11,6 @@ from obj_model.migrate import CementControllers
 from wc_lang import transform
 from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
-from wc_lang.util import migrate
 from wc_utils.workbook.io import read as read_workbook
 import cement
 import os
@@ -64,10 +63,10 @@ class CutSubmodelsController(cement.Controller):
             os.makedirs(args.out_dir)
 
         # save separated submodels to file
-        Writer().run(os.path.join(args.out_dir, 'core.xlsx'), core, set_repo_metadata_from_path=False)
+        Writer().run(os.path.join(args.out_dir, 'core.xlsx'), core, data_repo_metadata=False)
         for submodel in submodels:
             Writer().run(os.path.join(args.out_dir, '{}.xlsx'.format(
-                submodel.submodels[0].id)), submodel, set_repo_metadata_from_path=False)
+                submodel.submodels[0].id)), submodel, data_repo_metadata=False)
 
 
 class MergeModelsController(cement.Controller):
@@ -94,7 +93,7 @@ class MergeModelsController(cement.Controller):
             secondary_model = Reader().run(secondary_path)[Model][0]
             primary_model.merge(secondary_model)
 
-        Writer().run(args.out_path, primary_model, set_repo_metadata_from_path=False)
+        Writer().run(args.out_path, primary_model, data_repo_metadata=False)
 
 
 class ValidateController(cement.Controller):
@@ -195,7 +194,7 @@ class TransformController(cement.Controller):
             instance.run(model)
 
         # write model
-        Writer().run(args.dest, model, set_repo_metadata_from_path=False)
+        Writer().run(args.dest, model, data_repo_metadata=False)
 
 
 class NormalizeController(cement.Controller):
@@ -217,9 +216,9 @@ class NormalizeController(cement.Controller):
         args = self.app.pargs
         model = Reader().run(args.source)[Model][0]
         if args.dest:
-            Writer().run(args.dest, model, set_repo_metadata_from_path=False)
+            Writer().run(args.dest, model, data_repo_metadata=False)
         else:
-            Writer().run(args.source, model, set_repo_metadata_from_path=False)
+            Writer().run(args.source, model, data_repo_metadata=False)
 
 
 class ConvertController(cement.Controller):
@@ -254,7 +253,7 @@ class CreateTemplateController(cement.Controller):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to save model template')),
-            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
+            (['--ignore-repo-metadata'], dict(dest='data_repo_metadata', default=True, action='store_false',
                                               help=('If set, do not set the Git repository metadata for the knowledge base from '
                                                     'the parent directory of `path`'))),
         ]
@@ -262,7 +261,7 @@ class CreateTemplateController(cement.Controller):
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        create_template(args.path, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
+        create_template(args.path, data_repo_metadata=args.data_repo_metadata)
 
 
 class UpdateVersionMetadataController(cement.Controller):
@@ -276,7 +275,7 @@ class UpdateVersionMetadataController(cement.Controller):
         stacked_type = 'nested'
         arguments = [
             (['path'], dict(type=str, help='Path to model')),
-            (['--ignore-repo-metadata'], dict(dest='set_repo_metadata_from_path', default=True, action='store_false',
+            (['--ignore-repo-metadata'], dict(dest='data_repo_metadata', default=True, action='store_false',
                                               help=('If set, do not set the Git repository metadata for the knowledge base from '
                                                     'the parent directory of `path-core`'))),
         ]
@@ -286,7 +285,7 @@ class UpdateVersionMetadataController(cement.Controller):
         args = self.app.pargs
         model = Reader().run(args.path)[Model][0]
         model.wc_lang_version = wc_lang.__version__
-        Writer().run(args.path, model, set_repo_metadata_from_path=args.set_repo_metadata_from_path)
+        Writer().run(args.path, model, data_repo_metadata=args.data_repo_metadata)
 
 
 class ExportController(cement.Controller):
@@ -328,7 +327,7 @@ class ImportController(cement.Controller):
     def _default(self):
         args = self.app.pargs
         model = wc_lang.sbml.io.SbmlReader().run(args.in_dir)
-        Writer().run(args.out_path, model, set_repo_metadata_from_path=False)
+        Writer().run(args.out_path, model, data_repo_metadata=False)
 
 
 class App(cement.App):
