@@ -265,10 +265,8 @@ class TestSimpleModel(unittest.TestCase):
         test_github_repo = GitHubRepoForTests(test_repo_name)
         repo = test_github_repo.make_test_repo(self.tempdir)
 
-        data_file = os.path.join(self.tempdir, 'test.xlsx')
-        self.assertEqual(self.model.url, '')
-
         # write data repo metadata in data_file
+        data_file = os.path.join(self.tempdir, 'test.xlsx')
         Writer().run(data_file, self.model, data_repo_metadata=True)
         # deliberately read metadata
         objs_read = Reader().run(data_file, [utils.DataRepoMetadata] + list(Writer.MODELS))
