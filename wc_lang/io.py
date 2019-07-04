@@ -69,7 +69,7 @@ class Writer(obj_model.io.Writer):
             self.validate_implicit_relationships_are_set(model)
 
         if models is None:
-            models = list(self.MODELS)
+            models = self.MODELS
 
         config = wc_lang.config.core.get_config()['wc_lang']['io']
         if validate is None:
@@ -254,7 +254,7 @@ def create_template(path, extra_entries=10, data_repo_metadata=True):
         path (:obj:`str`): path to file(s)
         extra_entries (:obj:`int`, optional): additional entries to display
         data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
-            about the file's Git repo; the repo must be current with origin, except for the file
+            about the file's Git repo
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
     Writer().run(path, model, extra_entries=extra_entries, data_repo_metadata=data_repo_metadata)
