@@ -1,6 +1,7 @@
 """ Tests of command line program
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2016-12-07
 :Copyright: 2016, Karr Lab
 :License: MIT
@@ -30,13 +31,13 @@ class TestCli(unittest.TestCase):
         rmtree(self.tempdir)
 
     def test_get_version(self):
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['-v']) as app:
                 with self.assertRaises(SystemExit):
                     app.run()
                 self.assertEqual(capturer.get_text(), wc_lang.__version__)
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['--version']) as app:
                 with self.assertRaises(SystemExit):
                     app.run()
@@ -116,7 +117,7 @@ class TestCli(unittest.TestCase):
         filename = path.join(self.tempdir, 'model.xlsx')
         Writer().run(filename, model, data_repo_metadata=False)
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['validate', filename]) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Model is valid')
@@ -149,24 +150,24 @@ class TestCli(unittest.TestCase):
         filename3 = path.join(self.tempdir, 'model3.xlsx')
         Writer().run(filename3, model3, data_repo_metadata=False)
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['difference', filename1, filename2]) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['difference', filename1, filename2, '--compare-files']) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['difference', filename1, filename3]) as app:
                 app.run()
             diff = ('Objects (Model: "model", Model: "model") have different attribute values:\n  '
                     '`wc_lang_version` are not equal:\n    0.0.0 != 0.0.1')
             self.assertEqual(capturer.get_text(), diff)
 
-        with CaptureOutput() as capturer:
+        with CaptureOutput(relay=False) as capturer:
             with __main__.App(argv=['difference', filename1, filename3, '--compare-files']) as app:
                 app.run()
             diff = 'Sheet Model:\n  Row 7:\n    Cell B: 0.0.0 != 0.0.1'
@@ -265,11 +266,12 @@ class TestCli(unittest.TestCase):
 
     def test_raw_cli(self):
         with mock.patch('sys.argv', ['wc-lang', '--help']):
-            with self.assertRaises(SystemExit) as context:
-                __main__.main()
-                self.assertRegex(context.Exception, 'usage: wc-lang')
+            with CaptureOutput(relay=False):
+                with self.assertRaises(SystemExit) as context:
+                    __main__.main()
+                    self.assertRegex(context.Exception, 'usage: wc-lang')
 
         with mock.patch('sys.argv', ['wc-lang']):
-            with CaptureOutput() as capturer:
+            with CaptureOutput(relay=False) as capturer:
                 __main__.main()
                 self.assertRegex(capturer.get_text(), 'usage: wc-lang')

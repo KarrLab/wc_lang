@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-from obj_model.migrate import CementControllers
+from obj_model.migrate import schema_repo_migration_controllers
 from wc_lang import transform
 from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
@@ -348,8 +348,7 @@ class App(cement.App):
             UpdateVersionMetadataController,
             ExportController,
             ImportController,
-            CementControllers.SchemaChangesTemplateController
-        ]
+        ] + schema_repo_migration_controllers
 
 
 def main():
