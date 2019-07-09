@@ -18,6 +18,8 @@ from wc_lang.io import Writer, Reader
 from wc_utils.util.units import unit_registry
 import datetime
 import mock
+import os
+import re
 import unittest
 import wc_lang
 
@@ -275,3 +277,16 @@ class TestCli(unittest.TestCase):
             with CaptureOutput(relay=False) as capturer:
                 __main__.main()
                 self.assertRegex(capturer.get_text(), 'usage: wc-lang')
+
+    def test_migration_handlers(self):
+        argv=['make-changes-template']
+        with CaptureOutput(relay=True) as capturer:
+            with __main__.App(argv=argv) as app:
+                # run app
+                app.run()
+                m = re.search(r"Created and added template schema changes file: '(.+)'",
+                    capturer.get_text())
+                filename = m.group(1)
+                self.assertTrue(os.path.isfile(filename))
+                os.remove(filename)
+                # todo: now: also remove schema changes file from the git repo
