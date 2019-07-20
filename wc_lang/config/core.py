@@ -1,7 +1,7 @@
 """ Configuration
 
-:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2019-01-06
 :Copyright: 2017-2019, Karr Lab
 :License: MIT
@@ -9,9 +9,47 @@
 
 import configobj
 import os
-import pkg_resources
+from pathlib import Path
 import wc_utils.config
 import wc_utils.debug_logs.config
+
+
+def get_package_root(file_in_package):
+    """ Get root directory of a package
+
+    Args:
+        file_in_package (:obj:`str`): pathname of a file in a package
+
+    Returns:
+        :obj:`str`: pathname of root of package
+    """
+    path = Path(file_in_package)
+    # go up directory hierarchy from path and get first directory that does not contain '__init__.py'
+    dir = path.parent
+    found_package = False
+    while True:
+        if not dir.joinpath('__init__.py').is_file():
+            break
+        # exit at / root
+        if dir == dir.parent:
+            break
+        found_package = True
+        dir = dir.parent
+    if found_package:
+        return str(dir)
+
+
+def get_resource_filename(*args):
+    """ Get pathname of resource file; replaces `pkg_resources.resource_filename`
+
+    Args:
+        args (:obj:`list`): pathname components of resource file
+
+    Returns:
+        :obj:`str`: pathname of resource file
+    """
+    package_root = get_package_root(__file__)
+    return os.path.join(package_root, *args)
 
 
 def get_config(extra=None):
@@ -24,8 +62,8 @@ def get_config(extra=None):
         :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the configuration source(s).
     """
     paths = wc_utils.config.ConfigPaths(
-        default=pkg_resources.resource_filename('wc_lang', 'config/core.default.cfg'),
-        schema=pkg_resources.resource_filename('wc_lang', 'config/core.schema.cfg'),
+        default=get_resource_filename('wc_lang', 'config/core.default.cfg'),
+        schema=get_resource_filename('wc_lang', 'config/core.schema.cfg'),
         user=(
             'wc_lang.cfg',
             os.path.expanduser('~/.wc/wc_lang.cfg'),
@@ -80,7 +118,7 @@ def get_debug_logs_config(extra=None):
         :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the configuration source(s).
     """
     paths = wc_utils.debug_logs.config.paths.deepcopy()
-    paths.default = pkg_resources.resource_filename('wc_lang', 'config/debug.default.cfg')
+    paths.default = get_resource_filename('wc_lang', 'config/debug.default.cfg')
     paths.user = (
         'wc_lang.debug.cfg',
         os.path.expanduser('~/.wc/wc_lang.debug.cfg'),
