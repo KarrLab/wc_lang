@@ -20,6 +20,6 @@ class ReverseParameterTransformation(MigrationWrapper):
         for migrated_model in migrated_models:
             if isinstance(migrated_model, migrator.migrated_defs['Parameter']) and\
                 migrated_model.id == 'carbonExchangeRate':
-                migrated_model.value += 1
+                migrated_model.value -= 1
 
 transformations = ReverseParameterTransformation()
