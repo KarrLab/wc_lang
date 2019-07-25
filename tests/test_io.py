@@ -1,7 +1,7 @@
 """ Tests of input/output.
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Author: Arthur Goldberg, Arthur.Goldberg@mssm.edu
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2016-11-10
 :Copyright: 2016-2018, Karr Lab
 :License: MIT
@@ -369,6 +369,43 @@ class TestSimpleModel(unittest.TestCase):
 
         self.assertNotEqual(model.validate(), None)
 
+    def test_write_with_optional_args(self):
+        # write model to file, passing models
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        Writer().run(filename, self.model, models=Writer.MODELS)
+
+        # read model and verify that it validates
+        model = Reader().run(filename)[Model][0]
+        self.assertEqual(model.validate(), None)
+
+        # write model to file, passing validate
+        filename = os.path.join(self.tempdir, 'model.xlsx')
+        Writer().run(filename, self.model, validate=True)
+
+        # read model and verify that it validates
+        model = Reader().run(filename)[Model][0]
+        self.assertEqual(model.validate(), None)
+
+
+class TestJsonIO(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test(self):
+        test_model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
+        submodel = test_model.submodels.create(id='submodel')
+
+        filename_yaml = os.path.join(self.tempdir, 'model.yaml')
+        Writer().run(filename_yaml, test_model)
+        model = Reader().run(filename_yaml)[Model][0]
+        self.assertEqual(model.validate(), None)
+
+        self.assertTrue(model.is_equal(test_model))
+        self.assertEqual(test_model.difference(model), '')
+
 
 class TestExampleModel(unittest.TestCase):
 
@@ -513,10 +550,10 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
 
         Model.Meta.attributes['test'] = obj_model.OneToOneAttribute(TestModel, related_name='a')
         with self.assertRaisesRegex(Exception, 'Relationships from `Model` not supported'):
-            io.Writer.validate_implicit_relationships()
+            io.Writer.validate_implicit_relationships(Model)
         Model.Meta.attributes.pop('test')
 
         Model.Meta.related_attributes['test'] = obj_model.OneToManyAttribute(TestModel, related_name='b')
         with self.assertRaisesRegex(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
-            io.Writer.validate_implicit_relationships()
+            io.Writer.validate_implicit_relationships(Model)
         Model.Meta.related_attributes.pop('test')
