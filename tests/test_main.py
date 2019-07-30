@@ -290,3 +290,9 @@ class TestCli(unittest.TestCase):
                 # remove schema changes file from the git repo
                 repo = git.Repo('.')
                 repo.index.remove([filename])
+                os.remove(filename)
+                dir = os.path.dirname(filename)
+                try:
+                    os.rmdir(dir)
+                except OSError as ex:
+                    pass
