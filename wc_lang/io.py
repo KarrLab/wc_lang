@@ -161,8 +161,8 @@ class Reader(obj_model.io.Reader):
 
     def run(self, path, models=None,
             ignore_missing_sheets=None, ignore_extra_sheets=None, ignore_sheet_order=None,
-            include_all_attributes=False, ignore_missing_attributes=None, ignore_extra_attributes=None, ignore_attribute_order=None,
-            group_objects_by_model=True, validate=None):
+            include_all_attributes=False, ignore_missing_attributes=None, ignore_extra_attributes=None,
+            ignore_attribute_order=None, validate=None):
         """ Read a list of model objects from file(s) and, optionally, validate them
 
         Args:
@@ -183,8 +183,6 @@ class Reader(obj_model.io.Reader):
                 attributes in the data are not in the model
             ignore_attribute_order (:obj:`bool`): if :obj:`True`, do not require the attributes to be provided
                 in the canonical order
-            group_objects_by_model (:obj:`bool`, optional): if :obj:`True`, group decoded objects by their
-                types
             validate (:obj:`bool`, optional): if :obj:`True`, validate the data
 
         Returns:
@@ -223,7 +221,7 @@ class Reader(obj_model.io.Reader):
                                           ignore_missing_attributes=ignore_missing_attributes,
                                           ignore_extra_attributes=ignore_extra_attributes,
                                           ignore_attribute_order=ignore_attribute_order,
-                                          group_objects_by_model=group_objects_by_model,
+                                          group_objects_by_model=True,
                                           validate=False)
 
         # check that file only has 1 wc_lang Model instance
