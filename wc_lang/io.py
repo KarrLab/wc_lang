@@ -48,11 +48,11 @@ class Writer(obj_model.io.Writer):
     MODELS = (
         core.Model, core.Taxon, core.Environment,
         core.Submodel, core.Compartment, core.SpeciesType, core.Species,
-        core.DistributionInitConcentration, core.Observable, core.Function,
+        core.DistributionInitConcentration, core.Observable, core.Macro,
         core.Reaction, core.RateLaw,
         core.DfbaObjective, core.DfbaObjReaction, core.DfbaObjSpecies,
         core.Parameter, core.StopCondition,
-        core.Observation, core.ObservationSet, core.Conclusion, core.Reference, core.Author, core.Change,
+        core.Observation, core.ObservationSet, core.Conclusion, core.Reference, core.Change,
     )
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
