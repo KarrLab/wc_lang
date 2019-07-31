@@ -18,7 +18,7 @@ This module defines classes that represent the schema and provenance of a bioche
 * :obj:`ObservableExpression`
 * :obj:`Observable`
 * :obj:`FunctionExpression`
-* :obj:`Macro`
+* :obj:`Function`
 * :obj:`StopConditionExpression`
 * :obj:`StopCondition`
 * :obj:`FluxBounds`
@@ -37,6 +37,7 @@ This module defines classes that represent the schema and provenance of a bioche
 * :obj:`Evidence`
 * :obj:`Conclusion`
 * :obj:`Reference`
+* :obj:`Author`
 * :obj:`Change`
 * :obj:`Identifier`
 
@@ -203,7 +204,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         if not participants:
             return ''
 
-        comps = set([part.species.container for part in participants])
+        comps = set([part.species.compartment for part in participants])
         if len(comps) == 1:
             global_comp = comps.pop()
         else:
@@ -213,7 +214,7 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
             participants = natsorted(participants, lambda part: part.species.species_type.id, alg=ns.IGNORECASE)
         else:
             participants = natsorted(participants, lambda part: (
-                part.species.species_type.id, part.species.container.id), alg=ns.IGNORECASE)
+                part.species.species_type.id, part.species.compartment.id), alg=ns.IGNORECASE)
 
         lhs = []
         rhs = []
@@ -808,7 +809,7 @@ class Model(obj_model.Model, SbmlModelMixin):
           distributions of initial concentrations of species at the beginning of
           each cell cycle
         * observables (:obj:`list` of :obj:`Observable`): observables
-        * functions (:obj:`list` of :obj:`Macro`): functions
+        * functions (:obj:`list` of :obj:`Function`): functions
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -914,7 +915,7 @@ class Model(obj_model.Model, SbmlModelMixin):
                 keyed by type
         """
         cyclic_deps = {}
-        for model_type in (Observable, Macro):
+        for model_type in (Observable, Function):
             # get name of attribute that contains instances of model_type
             for attr_name, attr in self.__class__.Meta.related_attributes.items():
                 if attr.primary_class == model_type:
@@ -1063,7 +1064,7 @@ class Model(obj_model.Model, SbmlModelMixin):
             kwargs (:obj:`dict` of :obj:`str` --> :obj:`object`): dictionary of attribute name/value pairs to find matching objects
 
         Returns:
-            :obj:`list` of :obj:`Macro`: functions
+            :obj:`list` of :obj:`Function`: functions
         """
         if '__type' in kwargs:
             __type = kwargs.pop('__type')
@@ -2182,7 +2183,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
-        notes (:obj:`str`): notes
+        comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
 
     Related attributes:
@@ -2221,14 +2222,14 @@ class Compartment(obj_model.Model, SbmlModelMixin):
     identifiers = IdentifierManyToManyAttribute(related_name='compartments')
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='compartments')
     conclusions = ManyToManyAttribute('Conclusion', related_name='compartments')
-    notes = CommentAttribute()
+    comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='compartments')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
         attribute_order = ('id', 'name',
                            'biological_type', 'physical_type', 'geometry', 'parent_compartment',
                            'mass_units', 'init_volume', 'init_density', 'ph',
-                           'identifiers', 'evidence', 'conclusions', 'notes', 'references')
+                           'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         expression_term_units = 'mass_units'
         children = {
             'submodel': (  # 'parent_compartment', 'sub_compartments',
@@ -2240,7 +2241,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         child_attrs = {
             'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
                      'parent_compartment', 'mass_units', 'init_volume', 'init_density', 'ph',
-                     'identifiers', 'notes'),
+                     'identifiers', 'comments'),
             'wc_sim': ('id', 'model', 'mass_units', 'init_volume', 'init_density'),
         }
 
@@ -2641,14 +2642,14 @@ class SpeciesType(obj_model.Model, SbmlModelMixin):
 
 
 class Species(obj_model.Model, SbmlModelMixin):
-    """ Species (tuple of species type, container)
+    """ Species (tuple of species type, compartment)
 
     Attributes:
-        id (:obj:`str`): identifier equal to `{species_type.id}[{container.id}]`
+        id (:obj:`str`): identifier equal to `{species_type.id}[{compartment.id}]`
         name (:obj:`str`): name
         model (:obj:`Model`): model
         species_type (:obj:`SpeciesType`): species type
-        container (:obj:`Compartment`): container
+        compartment (:obj:`Compartment`): compartment
         units (:obj:`unit_registry.Unit`): units of counts
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
@@ -2670,7 +2671,7 @@ class Species(obj_model.Model, SbmlModelMixin):
     name = StringAttribute()
     model = ManyToOneAttribute(Model, related_name='species')
     species_type = ManyToOneAttribute(SpeciesType, related_name='species', min_related=1)
-    container = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
+    compartment = ManyToOneAttribute(Compartment, related_name='species', min_related=1)
     units = UnitAttribute(unit_registry,
                           choices=(unit_registry.parse_units('molecule'),),
                           default=unit_registry.parse_units('molecule'))
@@ -2681,23 +2682,23 @@ class Species(obj_model.Model, SbmlModelMixin):
     references = ManyToManyAttribute('Reference', related_name='species')
 
     class Meta(obj_model.Model.Meta, ExpressionDynamicTermMeta):
-        attribute_order = ('id', 'name', 'species_type', 'container', 'units',
+        attribute_order = ('id', 'name', 'species_type', 'compartment', 'units',
                            'identifiers', 'evidence', 'conclusions', 'comments', 'references')
         frozen_columns = 1
-        # unique_together = (('species_type', 'container', ), )
-        indexed_attrs_tuples = (('species_type', 'container'), )
+        # unique_together = (('species_type', 'compartment', ), )
+        indexed_attrs_tuples = (('species_type', 'compartment'), )
         expression_term_token_pattern = (token.NAME, token.LSQB, token.NAME, token.RSQB)
         expression_term_units = 'units'
         children = {
-            'submodel': ('species_type', 'container', 'distribution_init_concentration',
+            'submodel': ('species_type', 'compartment', 'distribution_init_concentration',
                          'identifiers', 'evidence', 'conclusions', 'references'),
-            'core_model': ('species_type', 'container', 'distribution_init_concentration',
+            'core_model': ('species_type', 'compartment', 'distribution_init_concentration',
                            'identifiers', 'evidence', 'conclusions', 'references'),
         }
         child_attrs = {
-            'sbml': ('id', 'name', 'model', 'species_type', 'container', 'units',
+            'sbml': ('id', 'name', 'model', 'species_type', 'compartment', 'units',
                      'identifiers', 'comments'),
-            'wc_sim': ('id', 'model', 'species_type', 'container', 'units'),
+            'wc_sim': ('id', 'model', 'species_type', 'compartment', 'units'),
         }
 
     def gen_id(self):
@@ -2706,20 +2707,20 @@ class Species(obj_model.Model, SbmlModelMixin):
         Returns:
             :obj:`str`: identifier
         """
-        return self._gen_id(self.species_type.id, self.container.id)
+        return self._gen_id(self.species_type.id, self.compartment.id)
 
     @staticmethod
-    def _gen_id(species_type_id, container_id):
+    def _gen_id(species_type_id, compartment_id):
         """ Generate identifier
 
         Args:
             species_type_id (:obj:`str`): species type id
-            container_id (:obj:`str`): container id
+            compartment_id (:obj:`str`): compartment id
 
         Returns:
             :obj:`str`: identifier
         """
-        return '{}[{}]'.format(species_type_id, container_id)
+        return '{}[{}]'.format(species_type_id, compartment_id)
 
     @classmethod
     def parse_id(cls, id):
@@ -2729,10 +2730,10 @@ class Species(obj_model.Model, SbmlModelMixin):
 
         Returns:
             :obj:`str`: species type id
-            :obj:`str`: container id
+            :obj:`str`: compartment id
 
         Raises:
-            :obj:`ValueError`: if the id does not have the format `{species.id}[{container.id}]`
+            :obj:`ValueError`: if the id does not have the format `{species.id}[{compartment.id}]`
         """
         st = SpeciesType.id.pattern[1:-1]
         comp = Compartment.id.pattern[1:-1]
@@ -2745,7 +2746,7 @@ class Species(obj_model.Model, SbmlModelMixin):
     def validate(self):
         """ Check that the species is valid
 
-        * Check if the identifier is equal to `{species_type.id}[{container.id}]`
+        * Check if the identifier is equal to `{species_type.id}[{compartment.id}]`
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2814,7 +2815,7 @@ class Species(obj_model.Model, SbmlModelMixin):
                 prefix = ((1. * self.distribution_init_concentration.units) /
                           (1. * unit_registry.parse_units('M'))).to_base_units().magnitude
                 init_amount = self.distribution_init_concentration.mean \
-                    * self.container.init_volume.mean \
+                    * self.compartment.init_volume.mean \
                     * scipy.constants.Avogadro \
                     * prefix
             call_libsbml(sbml.setInitialAmount, init_amount)
@@ -2835,8 +2836,8 @@ class Species(obj_model.Model, SbmlModelMixin):
             sbml_model (:obj:`libsbml.Model`): SBML model
             sbml (:obj:`libsbml.Species`): SBML species
         """
-        # container
-        call_libsbml(sbml.setCompartment, self.container.gen_sbml_id())
+        # compartment
+        call_libsbml(sbml.setCompartment, self.compartment.gen_sbml_id())
 
         # species type, initial concentration, identifiers
         annots = ['species_type.id', 'species_type.name',
@@ -2885,7 +2886,7 @@ class Species(obj_model.Model, SbmlModelMixin):
             objs (:obj:`dict`): dictionary that maps WC-Lang types to dictionaries that
                 map the ids of WC-Lang objects to WC-Lang objects
         """
-        self.container = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
+        self.compartment = objs[Compartment][Compartment.parse_sbml_id(call_libsbml(sbml.getCompartment, ))]
 
         # identifiers
         parsed_annots = LibSbmlInterface.parse_annotations(sbml)
@@ -3167,31 +3168,31 @@ class Observable(obj_model.Model, SbmlAssignmentRuleMixin):
 class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
     """ A mathematical expression of Functions, Observbles, Parameters and Python functions
 
-    The expression used by a :obj:`Macro`.
+    The expression used by a :obj:`Function`.
 
     Attributes:
-        expression (:obj:`str`): mathematical expression for a Macro
+        expression (:obj:`str`): mathematical expression for a Function
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_model.Model`
         species (:obj:`list` of :obj:`Species`): Species used by this function expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
-        functions (:obj:`list` of :obj:`Macro`): other Functions used by this function expression
+        functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
 
-        * function (:obj:`Macro`): function
+        * function (:obj:`Function`): function
     """
     expression = LongStringAttribute(primary=True, unique=True, default='')
     parameters = ManyToManyAttribute('Parameter', related_name='function_expressions')
     species = ManyToManyAttribute(Species, related_name='function_expressions')
     observables = ManyToManyAttribute(Observable, related_name='function_expressions')
-    functions = ManyToManyAttribute('Macro', related_name='function_expressions')
+    functions = ManyToManyAttribute('Function', related_name='function_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='function_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.cell
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Macro', 'Compartment')
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
@@ -3249,14 +3250,14 @@ class FunctionExpression(obj_model.Model, Expression, SbmlModelMixin):
         Expression.merge_attrs(self, other, other_objs_in_self, self_objs_in_other)
 
 
-class Macro(obj_model.Model, SbmlAssignmentRuleMixin):
-    """ Macro: a mathematical expression of Functions, Observbles, Parameters and Python functions
+class Function(obj_model.Model, SbmlAssignmentRuleMixin):
+    """ Function: a mathematical expression of Functions, Observbles, Parameters and Python functions
 
     Attributes:
         id (:obj:`str`): unique id
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        expression (:obj:`FunctionExpression`): mathematical expression for a Macro
+        expression (:obj:`FunctionExpression`): mathematical expression for a Function
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
@@ -3296,7 +3297,7 @@ class Macro(obj_model.Model, SbmlAssignmentRuleMixin):
         }
 
     def validate(self):
-        """ Check that the Macro is valid
+        """ Check that the Function is valid
 
         * Check that `expression` has units `units`
 
@@ -3304,7 +3305,7 @@ class Macro(obj_model.Model, SbmlAssignmentRuleMixin):
             :obj:`InvalidObject` or None: `None` if the object is valid,
                 otherwise return a list of errors as an instance of `InvalidObject`
         """
-        invalid_obj = super(Macro, self).validate()
+        invalid_obj = super(Function, self).validate()
         if invalid_obj:
             errors = invalid_obj.attributes
         else:
@@ -3345,7 +3346,7 @@ class StopConditionExpression(obj_model.Model, Expression):
         species (:obj:`list` of :obj:`Species`): Species used by this stop condition expression
         observables (:obj:`list` of :obj:`Observable`): Observables used by this stop condition expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this stop condition expression
-        functions (:obj:`list` of :obj:`Macro`): Functions used by this stop condition expression
+        functions (:obj:`list` of :obj:`Function`): Functions used by this stop condition expression
         compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
 
     Related attributes:
@@ -3357,12 +3358,12 @@ class StopConditionExpression(obj_model.Model, Expression):
     parameters = ManyToManyAttribute('Parameter', related_name='stop_condition_expressions')
     species = ManyToManyAttribute(Species, related_name='stop_condition_expressions')
     observables = ManyToManyAttribute(Observable, related_name='stop_condition_expressions')
-    functions = ManyToManyAttribute(Macro, related_name='stop_condition_expressions')
+    functions = ManyToManyAttribute(Function, related_name='stop_condition_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='stop_condition_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         tabular_orientation = TabularOrientation.cell
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Macro', 'Compartment')
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_type = bool
         expression_unit_registry = unit_registry
         children = {
@@ -4087,14 +4088,14 @@ class RateLawExpression(obj_model.Model, Expression, SbmlModelMixin):
     parameters = ManyToManyAttribute('Parameter', related_name='rate_law_expressions')
     species = ManyToManyAttribute(Species, related_name='rate_law_expressions')
     observables = ManyToManyAttribute(Observable, related_name='rate_law_expressions')
-    functions = ManyToManyAttribute(Macro, related_name='rate_law_expressions')
+    functions = ManyToManyAttribute(Function, related_name='rate_law_expressions')
     compartments = ManyToManyAttribute(Compartment, related_name='rate_law_expressions')
 
     class Meta(obj_model.Model.Meta, Expression.Meta):
         attribute_order = ('expression', 'species', 'parameters')
         tabular_orientation = TabularOrientation.cell
         ordering = ('expression',)
-        expression_term_models = ('Parameter', 'Species', 'Observable', 'Macro', 'Compartment')
+        expression_term_models = ('Parameter', 'Species', 'Observable', 'Function', 'Compartment')
         expression_unit_registry = unit_registry
         children = {
             'submodel': ('parameters', 'species', 'observables', 'functions', 'compartments'),
@@ -5019,7 +5020,7 @@ class Evidence(obj_model.Model):
         * species (:obj:`list` of :obj:`Species`): species
         * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): initial concentrations
         * observables (:obj:`list` of :obj:`Observable`): observables
-        * functions (:obj:`list` of :obj:`Macro`): functions
+        * functions (:obj:`list` of :obj:`Function`): functions
         * stop_conditions (:obj:`list` of :obj:`StopCondition`): stop conditions
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
@@ -5162,6 +5163,7 @@ class Conclusion(obj_model.Model):
             (e.g. individual observations underlying an average)
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
+        authors (:obj:`list` of :obj:`Author`): authors
         date (:obj:`datetime.datetime`): date and time when the conclusion was made
 
     Related attributes:
@@ -5174,7 +5176,7 @@ class Conclusion(obj_model.Model):
           distributions of initial concentrations of species at the beginning of each
           cell cycle
         * observables (:obj:`list` of :obj:`Observable`): observables
-        * functions (:obj:`list` of :obj:`Macro`): functions
+        * functions (:obj:`list` of :obj:`Function`): functions
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -5199,16 +5201,17 @@ class Conclusion(obj_model.Model):
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='conclusions')
     comments = CommentAttribute()
     references = ManyToManyAttribute('Reference', related_name='conclusions')
+    authors = ManyToManyAttribute('Author', related_name='conclusions')
     date = DateTimeAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'value', 'std', 'units',
                            'type', 'process',
-                           'identifiers', 'evidence', 'comments', 'references', 'date')
+                           'identifiers', 'evidence', 'comments', 'references', 'authors', 'date')
         children = {
-            'submodel': ('process', 'identifiers', 'evidence', 'references'),
-            'core_model': ('process', 'identifiers', 'evidence', 'references'),
+            'submodel': ('process', 'identifiers', 'evidence', 'references', 'authors'),
+            'core_model': ('process', 'identifiers', 'evidence', 'references', 'authors'),
         }
         child_attrs = {
             'sbml': (),
@@ -5252,7 +5255,7 @@ class Reference(obj_model.Model):
           distributions of initial concentrations of species at the beginning of
           each cell cycle
         * observables (:obj:`list` of :obj:`Observable`): observables
-        * functions (:obj:`list` of :obj:`Macro`): functions
+        * functions (:obj:`list` of :obj:`Function`): functions
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -5299,7 +5302,6 @@ class Reference(obj_model.Model):
         }
 
 
-'''
 class Author(obj_model.Model, SbmlModelMixin):
     """ An author of a model
 
@@ -5375,7 +5377,6 @@ class Author(obj_model.Model, SbmlModelMixin):
         if len(identifiers) > 1:
             raise ValueError('Author {} has multiple {} ids'.format(self.id, namespace))
         return None
-'''
 
 
 class Change(obj_model.Model, SbmlModelMixin):
@@ -5421,16 +5422,17 @@ class Change(obj_model.Model, SbmlModelMixin):
     conclusions = ManyToManyAttribute('Conclusion', related_name='changes')
     comments = LongStringAttribute()
     references = ManyToManyAttribute('Reference', related_name='changes')
+    authors = ManyToManyAttribute('Author', related_name='changes')
     date = DateTimeAttribute()
 
     class Meta(obj_model.Model.Meta):
         attribute_order = ('id', 'name',
                            'type', 'target', 'target_submodel', 'target_type', 'reason', 'reason_type', 'intention', 'intention_type',
                            'identifiers', 'evidence', 'conclusions', 'comments', 'references',
-                           'date')
+                           'authors', 'date')
         children = {
-            'submodel': ('identifiers', 'evidence', 'conclusions', 'references'),
-            'core_model': ('identifiers', 'evidence', 'conclusions', 'references'),
+            'submodel': ('identifiers', 'evidence', 'conclusions', 'references', 'authors'),
+            'core_model': ('identifiers', 'evidence', 'conclusions', 'references', 'authors'),
         }
         child_attrs = {
             'sbml': (),
@@ -5457,7 +5459,7 @@ class Identifier(obj_model.Model, SbmlModelMixin):
         * distribution_init_concentrations (:obj:`list` of :obj:`DistributionInitConcentration`): distributions
           of initial concentrations of species at the beginning of each cell cycle
         * observables (:obj:`list` of :obj:`Observable`): observables
-        * functions (:obj:`list` of :obj:`Macro`): functions
+        * functions (:obj:`list` of :obj:`Function`): functions
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws
         * dfba_objs (:obj:`list` of :obj:`DfbaObjective`): dFBA objectives
@@ -5520,22 +5522,6 @@ class Identifier(obj_model.Model, SbmlModelMixin):
             objects[Identifier][serialized_val] = identifier
 
         return (identifier, None)
-
-
-class TestModel(obj_model.Model):
-    """ A test Model for migration
-
-    Attributes:
-        id (:obj:`str`): unique identifier equal to 'taxon'
-        name (:obj:`str`): name
-        model (:obj:`Model`): model
-    """
-    id = SlugAttribute(primary=True, unique=True)
-    name = StringAttribute()
-    model = OneToOneAttribute(Model, related_name='test_model')
-
-    class Meta(obj_model.Model.Meta):
-        attribute_order = ('id', 'name')
 
 
 class Validator(obj_model.Validator):

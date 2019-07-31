@@ -58,13 +58,13 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         for submodel in model.submodels:
             if are_terms_equivalent(submodel.framework, onto['WC:dynamic_flux_balance_analysis']):
                 for species in submodel.get_children(kind='submodel', __type=wc_lang.core.Species):
-                    if species.container == ext_comp:
+                    if species.compartment == ext_comp:
                         id = rxn_id_template.format(submodel.id,
                                                     species.species_type.id,
-                                                    species.container.id)
+                                                    species.compartment.id)
                         name = rxn_name_template.format(submodel.name or submodel.id,
                                                         species.species_type.name or species.species_type.id,
-                                                        species.container.name or species.container.id)
+                                                        species.compartment.name or species.compartment.id)
                         participants = [species.species_coefficients.get_or_create(coefficient=1.)]
                         reversible = True
                         if species.species_type.structure and species.species_type.structure.has_carbon():
