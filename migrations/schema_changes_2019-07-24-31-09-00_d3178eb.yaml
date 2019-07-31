@@ -1,0 +1,8 @@
+# schema changes file
+# stored in 'schema_changes_2019-07-24-31-09-00_d3178eb.yaml'
+
+commit_hash: d3178eb25c8e146a196a48b3a921ea48ef41dbc2
+renamed_attributes: [[[Compartment, comments], [Compartment, notes]],
+                    [[Species, compartment], [Species, container]]]
+renamed_models: [[Function, Macro]]
+transformations_file: './round_trip_test/forward.py'
