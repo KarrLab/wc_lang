@@ -60,7 +60,6 @@ WC-Lang cannot be mapped to SBML and vice-versa.
 :License: MIT
 """
 
-from obj_model.utils import group_objects_by_model
 from wc_lang.transform.prep_for_sbml import PrepForSbmlTransform
 from wc_lang.sbml.util import LibSbmlInterface
 from wc_onto import onto

@@ -7,6 +7,7 @@ Supported file types:
 * Tab separated values (.tsv)
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2016-12-05
 :Copyright: 2016, Karr Lab
 :License: MIT
@@ -14,12 +15,31 @@ Supported file types:
 
 from wc_lang import core
 from wc_utils.util.string import indent_forest
+from wc_utils.util.list import get_count_limited_class
 import obj_model.utils
 import obj_model
 import os
 import wc_lang
 import wc_lang.config.core
 from wc_utils.util import git
+
+
+def get_root_model(models):
+    """ Get a root model class from an iterator over `obj_model.Model` classes
+
+    The root model is obtained by name, rather than from `core.Model`, because `models` may have
+    been obtained from `obj_model` migration, which loads other versions of `wc_lang.core` in
+    private imports.
+
+    Args:
+        models (:obj:`iterator`): subclasses of :obj:`obj_model.Model` being read or written
+
+    Returns:
+        :obj:`type`: a subclass of `obj_model.Model` whose name is `root_model_name`
+    """
+    # the singleton, root obj_model.Model in wc_lang.core
+    ROOT_MODEL_NAME = 'Model'
+    return get_count_limited_class(models, ROOT_MODEL_NAME)
 
 
 class Writer(obj_model.io.Writer):
@@ -37,13 +57,13 @@ class Writer(obj_model.io.Writer):
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
             title=None, description=None, keywords=None, version=None, language=None, creator=None,
-            extra_entries=0, set_repo_metadata_from_path=True):
+            extra_entries=0, data_repo_metadata=False, schema_package=None):
         """ Write a list of model classes to an Excel file, with one worksheet for each model, or to
             a set of .csv or .tsv files, with one file for each model.
 
         Args:
             path (:obj:`str`): path to write file(s)
-            model (:obj:`core.Model`): model
+            model (:obj:`type`): a `wc_lang` Model that's a subclass of `obj_model.Model`
             models (:obj:`list` of :obj:`Model`, optional): models in the order that they should
                 appear as worksheets; all models which are not in `models` will
                 follow in alphabetical order
@@ -58,24 +78,23 @@ class Writer(obj_model.io.Writer):
             language (:obj:`str`, optional): language
             creator (:obj:`str`, optional): creator
             extra_entries (:obj:`int`, optional): additional entries to display
-            set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
-                branch, revision) for the model from the parent directory of :obj:`core_path`
+            data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
+                about the file's Git repo; the repo must be current with origin, except for the file
+            schema_package (:obj:`str`, optional): the package which defines the `obj_model` schema
+                used by the file; if not :obj:`None`, try to write metadata information about the
+                the schema's Git repository: the repo must be current with origin
         """
-        if issubclass(self.get_writer(path), obj_model.io.WorkbookWriter):
-            self.validate_implicit_relationships()
-            self.validate_implicit_relationships_are_set(model)
-
         if models is None:
             models = self.MODELS
+        root_model = get_root_model(models)
+
+        if issubclass(self.get_writer(path), obj_model.io.WorkbookWriter):
+            self.validate_implicit_relationships(root_model)
+            self.validate_implicit_relationships_are_set(model, root_model)
 
         config = wc_lang.config.core.get_config()['wc_lang']['io']
         if validate is None:
             validate = config['validate']
-
-        # default metadata for exported model
-        if set_repo_metadata_from_path:
-            obj_model.utils.set_git_repo_metadata_from_path(model,
-                git.RepoMetadataCollectionType.DATA_REPO, path)
 
         # default metadata for exported file
         if title is None:
@@ -91,43 +110,46 @@ class Writer(obj_model.io.Writer):
 
         super(Writer, self).run(path, model, models=models, get_related=get_related,
                                 include_all_attributes=include_all_attributes, validate=validate,
-                                title=title, description=description, version=version, language=language, creator=creator,
-                                extra_entries=extra_entries)
+                                title=title, description=description, version=version, language=language,
+                                creator=creator, extra_entries=extra_entries,
+                                data_repo_metadata=data_repo_metadata, schema_package=schema_package)
 
     @classmethod
-    def validate_implicit_relationships(cls):
-        """ Check that relationships to :obj:`core.Model` do not need to be explicitly exported because they can be inferred
-        by :obj:`Reader.run`. This is necessary to enable the relationships to :obj:`core.Model` to not be exported in workbooks, and
-        instead added by :obj:`Reader.run`.
+    def validate_implicit_relationships(cls, root_model):
+        """ Check that relationships to :obj:`root_model` do not need to be explicitly exported because
+            they can be inferred by :obj:`Reader.run`. This is necessary to enable the relationships
+            to :obj:`root_model` to not be exported in workbooks, and instead added by :obj:`Reader.run`.
 
         Raises:
-            :obj:`Exception`: if there are relationships from :obj:`core.Model` or one-to-many or many-to-many relationships
-                to :obj:`core.Model`
+            :obj:`Exception`: if there are relationships from :obj:`core.Model` or one-to-many or
+                many-to-many relationships to :obj:`root_model`
         """
-        for attr in core.Model.Meta.attributes.values():
+        for attr in root_model.Meta.attributes.values():
             if isinstance(attr, obj_model.RelatedAttribute) and \
-                    attr.related_class != core.Identifier:
+                    attr.related_class.__name__ != 'Identifier':
                 raise Exception('Relationships from `Model` not supported')
 
-        for attr in core.Model.Meta.related_attributes.values():
+        for attr in root_model.Meta.related_attributes.values():
             if not isinstance(attr, (obj_model.OneToOneAttribute, obj_model.ManyToOneAttribute)):
-                raise Exception('Only one-to-one and many-to-one relationships are supported to `Model`')
+                raise Exception('Only one-to-one and many-to-one relationships are supported to `{}`'.format(
+                    root_model.__name__))
 
-    def validate_implicit_relationships_are_set(self, model):
-        """ Check that there is only one instance of :obj:`core.Model` and that each relationship to :obj:`core.Model`
-        is set. This is necessary to enable the relationships to :obj:`core.Model` to not be exported in workbooks, and
-        instead added by :obj:`Reader.run`.
+    def validate_implicit_relationships_are_set(self, model, root_model):
+        """ Check that there is only one instance of :obj:`root_model` and that each relationship to
+        :obj:`root_model` is set. This is necessary to enable the relationships to :obj:`root_model`
+        to not be exported in workbooks, and instead added by :obj:`Reader.run`.
 
         Args:
-            model (:obj:`core.Model`): model
+            model (:obj:`obj_model.Model`): the root model instance
+            root_model (:obj:`type`): the type of `model`, a subclass of :obj:`obj_model.Model`
 
         Raises:
-            :obj:`ValueError`: if there are multiple instances of :obj:`core.Model` in the object graph
+            :obj:`ValueError`: if there are multiple instances of `root_model` in the object graph
         """
         for obj in model.get_related():
             for attr in obj.Meta.attributes.values():
                 if isinstance(attr, obj_model.RelatedAttribute) and \
-                        attr.related_class == core.Model:
+                        attr.related_class == root_model:
                     if getattr(obj, attr.name) != model:
                         raise ValueError('{}.{} must be set to the instance of `Model`'.format(obj.__class__.__name__, attr.name))
 
@@ -139,8 +161,8 @@ class Reader(obj_model.io.Reader):
 
     def run(self, path, models=None,
             ignore_missing_sheets=None, ignore_extra_sheets=None, ignore_sheet_order=None,
-            include_all_attributes=False, ignore_missing_attributes=None, ignore_extra_attributes=None, ignore_attribute_order=None,
-            group_objects_by_model=True, validate=None):
+            include_all_attributes=False, ignore_missing_attributes=None, ignore_extra_attributes=None,
+            ignore_attribute_order=None, validate=None):
         """ Read a list of model objects from file(s) and, optionally, validate them
 
         Args:
@@ -161,8 +183,6 @@ class Reader(obj_model.io.Reader):
                 attributes in the data are not in the model
             ignore_attribute_order (:obj:`bool`): if :obj:`True`, do not require the attributes to be provided
                 in the canonical order
-            group_objects_by_model (:obj:`bool`, optional): if :obj:`True`, group decoded objects by their
-                types
             validate (:obj:`bool`, optional): if :obj:`True`, validate the data
 
         Returns:
@@ -172,11 +192,12 @@ class Reader(obj_model.io.Reader):
             :obj:`ValueError`: if the file defines zero or multiple models or the model defined in the file(s) is
                 invalid
         """
-        if issubclass(self.get_reader(path), obj_model.io.WorkbookReader):
-            Writer.validate_implicit_relationships()
-
         if models is None:
             models = self.MODELS
+
+        root_model = get_root_model(models)
+        if issubclass(self.get_reader(path), obj_model.io.WorkbookReader):
+            Writer.validate_implicit_relationships(root_model)
 
         config = wc_lang.config.core.get_config()['wc_lang']['io']
         if ignore_missing_sheets is None:
@@ -200,20 +221,21 @@ class Reader(obj_model.io.Reader):
                                           ignore_missing_attributes=ignore_missing_attributes,
                                           ignore_extra_attributes=ignore_extra_attributes,
                                           ignore_attribute_order=ignore_attribute_order,
-                                          group_objects_by_model=group_objects_by_model,
+                                          group_objects_by_model=True,
                                           validate=False)
 
-        # check that file only has 1 model
-        if len(objects[core.Model]) != 1:
+        # check that file only has 1 wc_lang Model instance
+        root_model = get_root_model(objects)
+        if len(objects[root_model]) != 1:
             raise ValueError('"{}" should define one model'.format(path))
-        model = objects[core.Model][0]
+        model = objects[root_model][0]
 
         # add implicit relationships to `Model`
         if issubclass(self.get_reader(path), obj_model.io.WorkbookReader):
             for cls, cls_objects in objects.items():
                 for attr in cls.Meta.attributes.values():
                     if isinstance(attr, obj_model.RelatedAttribute) and \
-                            attr.related_class == core.Model:
+                            attr.related_class == root_model:
                         for cls_obj in cls_objects:
                             setattr(cls_obj, attr.name, model)
 
@@ -245,17 +267,17 @@ def convert(source, destination):
         destination (:obj:`str`): path to save converted file
     """
     model = Reader().run(source)[core.Model][0]
-    Writer().run(destination, model, set_repo_metadata_from_path=False)
+    Writer().run(destination, model, data_repo_metadata=False)
 
 
-def create_template(path, extra_entries=10, set_repo_metadata_from_path=True):
+def create_template(path, extra_entries=10, data_repo_metadata=True):
     """ Create file with model template, including row and column headings
 
     Args:
         path (:obj:`str`): path to file(s)
         extra_entries (:obj:`int`, optional): additional entries to display
-        set_repo_metadata_from_path (:obj:`bool`, optional): if :obj:`True`, set the Git repository metadata (URL,
-            branch, revision) for the model from the parent directory of :obj:`core_path`
+        data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
+            about the file's Git repo
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
-    Writer().run(path, model, extra_entries=extra_entries, set_repo_metadata_from_path=set_repo_metadata_from_path)
+    Writer().run(path, model, extra_entries=extra_entries, data_repo_metadata=data_repo_metadata)

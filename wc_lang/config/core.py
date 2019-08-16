@@ -1,7 +1,7 @@
 """ Configuration
 
-:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2019-01-06
 :Copyright: 2017-2019, Karr Lab
 :License: MIT
@@ -9,9 +9,9 @@
 
 import configobj
 import os
-import pkg_resources
 import wc_utils.config
 import wc_utils.debug_logs.config
+from wc_utils.config.core import AltResourceName
 
 
 def get_config(extra=None):
@@ -21,11 +21,13 @@ def get_config(extra=None):
         extra (:obj:`dict`, optional): additional configuration to override
 
     Returns:
-        :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the configuration source(s).
+        :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the
+            configuration source(s).
     """
+    alt_resource_name = AltResourceName(__file__)
     paths = wc_utils.config.ConfigPaths(
-        default=pkg_resources.resource_filename('wc_lang', 'config/core.default.cfg'),
-        schema=pkg_resources.resource_filename('wc_lang', 'config/core.schema.cfg'),
+        default=alt_resource_name.resource_filename('config/core.default.cfg'),
+        schema=alt_resource_name.resource_filename('config/core.schema.cfg'),
         user=(
             'wc_lang.cfg',
             os.path.expanduser('~/.wc/wc_lang.cfg'),
@@ -80,7 +82,8 @@ def get_debug_logs_config(extra=None):
         :obj:`configobj.ConfigObj`: nested dictionary with the configuration settings loaded from the configuration source(s).
     """
     paths = wc_utils.debug_logs.config.paths.deepcopy()
-    paths.default = pkg_resources.resource_filename('wc_lang', 'config/debug.default.cfg')
+    alt_resource_name = AltResourceName(__file__)
+    paths.default = alt_resource_name.resource_filename('config/debug.default.cfg')
     paths.user = (
         'wc_lang.debug.cfg',
         os.path.expanduser('~/.wc/wc_lang.debug.cfg'),

@@ -208,29 +208,3 @@ class TestUtil(unittest.TestCase):
         for f in model.functions:
             units.add(f.units)
         self.assertEqual(set(obj_model.units.get_obj_units(model)), units)
-
-
-class MigrateTestCase(unittest.TestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
-    def test(self):
-        model = Model(id='model', version='0.0.1', wc_lang_version='0.0.1')
-        model.species_types.create(id='st_1')
-        model.species_types.create(id='st_2')
-        filename = os.path.join(self.tempdir, 'model.xlsx')
-        io.Writer().run(filename, model, set_repo_metadata_from_path=False)
-
-        version = '0.0.2'
-        filename_2 = os.path.join(self.tempdir, 'model-2.xlsx')
-        util.migrate(filename, version, out_path=filename_2, set_repo_metadata_from_path=False)
-        model = io.Reader().run(filename_2)[Model][0]
-        self.assertEqual(model.wc_lang_version, version)
-
-        version = '0.0.3'
-        util.migrate(filename, version, set_repo_metadata_from_path=False)
-        model = io.Reader().run(filename)[Model][0]
-        self.assertEqual(model.wc_lang_version, version)

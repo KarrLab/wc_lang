@@ -1,8 +1,9 @@
 bpforms
 cement >= 3.0.0
-obj_model
+gitpython
 natsort
 networkx
+obj_model
 pint >= 0.9
 pronto
 python_libsbml >= 5.16.0
