@@ -283,8 +283,8 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename)
-        row = wb['Model'].pop(0)
-        wb['Model'].insert(1, row)
+        row = wb['Model'].pop(2)
+        wb['Model'].insert(3, row)
         write_workbook(filename, wb)
 
         with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
@@ -324,8 +324,8 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename_xls1, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename_xls1)
-        row = wb['Model'].pop(0)
-        wb['Model'].insert(1, row)
+        row = wb['Model'].pop(2)
+        wb['Model'].insert(3, row)
         write_workbook(filename_xls1, wb)
 
         with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
@@ -355,7 +355,7 @@ class TestSimpleModel(unittest.TestCase):
 
         # introduce error into model file
         wb = read_workbook(filename)
-        wb['Model'][0][1] = '1000'
+        wb['Model'][2][1] = '1000'
         write_workbook(filename, wb)
 
         # read model and verify that it doesn't validate
@@ -426,6 +426,9 @@ class TestExampleModel(unittest.TestCase):
         Writer().run(self.filename, model, data_repo_metadata=False)
         original = read_workbook(fixture_filename)
         copy = read_workbook(self.filename)
+        remove_ws_metadata(original)
+        remove_ws_metadata(copy)
+
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
             for i_row, (copy_row, original_row) in enumerate(zip(copy[sheet], original[sheet])):
@@ -557,3 +560,13 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
         with self.assertRaisesRegex(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
             io.Writer.validate_implicit_relationships(Model)
         Model.Meta.related_attributes.pop('test')
+
+
+def remove_ws_metadata(wb):
+    for sheet in wb.values():
+        for row in list(sheet):
+            if row and ((isinstance(row[0], str) and row[0].startswith('!!')) or
+                        all(cell in ['', None] for cell in row)):
+                sheet.remove(row)
+            else:
+                break
