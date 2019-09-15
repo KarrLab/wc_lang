@@ -25,6 +25,7 @@ from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.git import GitHubRepoForTests
 from wc_utils.util.units import unit_registry
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
+import obj_model.core
 import obj_model.io
 import os
 import re
@@ -355,7 +356,7 @@ class TestSimpleModel(unittest.TestCase):
 
         # introduce error into model file
         wb = read_workbook(filename)
-        wb['Model'][2][1] = '1000'
+        wb['Model'][1][1] = '1000'
         write_workbook(filename, wb)
 
         # read model and verify that it doesn't validate
@@ -428,6 +429,8 @@ class TestExampleModel(unittest.TestCase):
         copy = read_workbook(self.filename)
         remove_ws_metadata(original)
         remove_ws_metadata(copy)
+        original.pop(obj_model.core.TOC_NAME)
+        copy.pop(obj_model.core.TOC_NAME)
 
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():

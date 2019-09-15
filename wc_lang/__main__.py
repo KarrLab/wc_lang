@@ -13,10 +13,12 @@ from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import cement
+import obj_model
 import os
 import sys
 import wc_lang
 import wc_lang.sbml.io
+import wc_utils.workbook
 
 
 class BaseController(cement.Controller):
@@ -133,6 +135,8 @@ class DifferenceController(cement.Controller):
             (['path_2'], dict(type=str, help='Path to second model')),
             (['--compare-files'], dict(dest='compare_files', default=False, action='store_true',
                                        help='If true, compare models; otherwise compare files directly')),
+            (['--compare-metadata-in-files'], dict(dest='compare_metadata_in_files', default=False, action='store_true',
+                                                   help='If true, compare metadata (tables of contents, header rows)')),
         ]
 
     @cement.ex(hide=True)
@@ -142,6 +146,10 @@ class DifferenceController(cement.Controller):
         if args.compare_files:
             model1 = read_workbook(args.path_1)
             model2 = read_workbook(args.path_2)
+            if not args.compare_metadata_in_files:
+                self.remove_metadata(model1)
+                self.remove_metadata(model2)
+
             diff = model1.difference(model2)
 
         else:
@@ -153,6 +161,22 @@ class DifferenceController(cement.Controller):
             print(diff)
         else:
             print('Models are identical')
+
+    @staticmethod
+    def remove_metadata(model):
+        """ Remove metadata from model
+
+        Args:
+            model (:obj:`wc_utils.workbook.Workbook`): model
+        """
+        if obj_model.TOC_NAME in model:
+            model.pop(obj_model.TOC_NAME)
+        for sheet in model.values():
+            for row in list(sheet):
+                if row and isinstance(row[0], str) and row[0].startswith('!!'):
+                    sheet.remove(row)
+                else:
+                    break
 
 
 transform_list = ''
