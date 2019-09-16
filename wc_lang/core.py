@@ -177,19 +177,19 @@ class RateLawDirection(int, CaseInsensitiveEnum):
 class ReactionParticipantAttribute(ManyToManyAttribute):
     """ Reaction participants """
 
-    def __init__(self, related_name='', verbose_name='', verbose_related_name='', help=''):
+    def __init__(self, related_name='', verbose_name='', verbose_related_name='', description=''):
         """
         Args:
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
             verbose_name (:obj:`str`, optional): verbose name
             verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
+            description (:obj:`str`, optional): description
         """
         super(ReactionParticipantAttribute, self).__init__('SpeciesCoefficient', related_name=related_name,
                                                            min_related=1,
                                                            verbose_name=verbose_name,
                                                            verbose_related_name=verbose_related_name,
-                                                           help=help)
+                                                           description=description)
 
     def serialize(self, participants, encoded=None):
         """ Serialize related object
@@ -536,18 +536,18 @@ class EvidenceManyToManyAttribute(ManyToManyAttribute):
 
 
 class IdentifierOneToManyAttribute(OneToManyAttribute):
-    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', help=''):
+    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', description=''):
         """
         Args:
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
             verbose_name (:obj:`str`, optional): verbose name
             verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
+            description (:obj:`str`, optional): description
         """
         super(IdentifierOneToManyAttribute, self).__init__('Identifier', related_name=related_name,
                                                            verbose_name=verbose_name,
                                                            verbose_related_name=verbose_related_name,
-                                                           help=help)
+                                                           description=description)
 
     def serialize(self, identifiers, encoded=None):
         """ Serialize related object
@@ -623,18 +623,18 @@ class IdentifierOneToManyAttribute(OneToManyAttribute):
 
 
 class IdentifierManyToManyAttribute(ManyToManyAttribute):
-    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', help=''):
+    def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', description=''):
         """
         Args:
             related_name (:obj:`str`, optional): name of related attribute on `related_class`
             verbose_name (:obj:`str`, optional): verbose name
             verbose_related_name (:obj:`str`, optional): verbose related name
-            help (:obj:`str`, optional): help message
+            description (:obj:`str`, optional): description
         """
         super(IdentifierManyToManyAttribute, self).__init__('Identifier', related_name=related_name,
                                                             verbose_name=verbose_name,
                                                             verbose_related_name=verbose_related_name,
-                                                            help=help)
+                                                            description=description)
 
     def serialize(self, identifiers, encoded=None):
         """ Serialize related object
