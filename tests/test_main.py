@@ -282,7 +282,7 @@ class TestCli(unittest.TestCase):
                 self.assertRegex(capturer.get_text(), 'usage: wc-lang')
 
     def test_migration_handlers(self):
-        with CaptureOutput(relay=False) as capturer:
+        with CaptureOutput(relay=False, termination_delay=0.1) as capturer:
             with __main__.App(argv=['make-changes-template']) as app:
                 app.run()
                 m = re.search(r"Created and added template schema changes file: '(.+)'",
