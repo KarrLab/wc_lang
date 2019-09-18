@@ -44,7 +44,7 @@ Author                         Model.annotation
 Change                         --
 Identifier              SBase.annotation
 pint.Unit                      UnitDefinition
-obj_model.Model.comments       SBase.notes
+obj_tables.Model.comments       SBase.notes
 =============================  =====================
 
 In addition, WC-Lang attributes which have no equivalent SBML attribute are mapped to
@@ -68,7 +68,7 @@ from wc_utils.util.units import unit_registry
 import abc
 import glob
 import libsbml
-import obj_model
+import obj_tables
 import os
 import warnings
 import wc_lang.core
@@ -143,8 +143,8 @@ class SbmlReader(object):
             # convert SBML-encoded model to wc_lang
             model = SbmlImporter.run(sbml_doc)
 
-            import obj_model.core
-            error = obj_model.core.Validator().run(model, get_related=True)
+            import obj_tables.core
+            error = obj_tables.core.Validator().run(model, get_related=True)
             assert error is None, str(error)
 
 

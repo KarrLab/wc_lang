@@ -7,7 +7,7 @@
 """
 
 from itertools import chain
-from obj_model import RelatedAttribute
+from obj_tables import RelatedAttribute
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType,
                      Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform

@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-from obj_model import utils
+from obj_tables import utils
 from test.support import EnvironmentVarGuard
 from wc_lang import (Model, Taxon, TaxonRank, Submodel, Reaction, SpeciesType,
                      Species, Compartment, SpeciesCoefficient,
@@ -25,8 +25,8 @@ from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.git import GitHubRepoForTests
 from wc_utils.util.units import unit_registry
 from wc_utils.workbook.io import read as read_workbook, write as write_workbook
-import obj_model.core
-import obj_model.io
+import obj_tables.core
+import obj_tables.io
 import os
 import re
 import shutil
@@ -429,8 +429,8 @@ class TestExampleModel(unittest.TestCase):
         copy = read_workbook(self.filename)
         remove_ws_metadata(original)
         remove_ws_metadata(copy)
-        original.pop(obj_model.core.TOC_NAME)
-        copy.pop(obj_model.core.TOC_NAME)
+        original.pop(obj_tables.core.TOC_NAME)
+        copy.pop(obj_tables.core.TOC_NAME)
 
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
@@ -474,7 +474,7 @@ class TestReaderException(unittest.TestCase):
         model1 = Model(id='model1', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         model2 = Model(id='model2', name='test model', version='0.0.1a', wc_lang_version='0.0.1')
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [model1, model2], models=Writer.MODELS, include_all_attributes=False)
+        obj_tables.io.WorkbookWriter().run(filename, [model1, model2], models=Writer.MODELS, include_all_attributes=False)
 
         with self.assertRaisesRegex(ValueError, ' should define one model$'):
             Reader().run(filename)
@@ -490,7 +490,7 @@ class TestReadNoModel(unittest.TestCase):
 
     def test(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [], models=io.Writer.MODELS, include_all_attributes=False)
+        obj_tables.io.WorkbookWriter().run(filename, [], models=io.Writer.MODELS, include_all_attributes=False)
         with self.assertRaisesRegex(ValueError, 'should define one model'):
             Reader().run(filename)
 
@@ -546,20 +546,20 @@ class ImplicitRelationshipsTestCase(unittest.TestCase):
 
     def test_read(self):
         filename = os.path.join(self.tempdir, 'model.xlsx')
-        obj_model.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], models=Writer.MODELS, include_all_attributes=False)
+        obj_tables.io.WorkbookWriter().run(filename, [Submodel(id='submodel')], models=Writer.MODELS, include_all_attributes=False)
         with self.assertRaisesRegex(ValueError, 'should define one model'):
             Reader().run(filename)
 
     def test_validate(self):
-        class TestModel(obj_model.Model):
-            id = obj_model.StringAttribute(primary=True, unique=True)
+        class TestModel(obj_tables.Model):
+            id = obj_tables.StringAttribute(primary=True, unique=True)
 
-        Model.Meta.attributes['test'] = obj_model.OneToOneAttribute(TestModel, related_name='a')
+        Model.Meta.attributes['test'] = obj_tables.OneToOneAttribute(TestModel, related_name='a')
         with self.assertRaisesRegex(Exception, 'Relationships from `Model` not supported'):
             io.Writer.validate_implicit_relationships(Model)
         Model.Meta.attributes.pop('test')
 
-        Model.Meta.related_attributes['test'] = obj_model.OneToManyAttribute(TestModel, related_name='b')
+        Model.Meta.related_attributes['test'] = obj_tables.OneToManyAttribute(TestModel, related_name='b')
         with self.assertRaisesRegex(Exception, 'Only one-to-one and many-to-one relationships are supported to `Model`'):
             io.Writer.validate_implicit_relationships(Model)
         Model.Meta.related_attributes.pop('test')

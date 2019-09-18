@@ -7,13 +7,13 @@
 :License: MIT
 """
 
-from obj_model.migrate import schema_repo_migration_controllers
+from obj_tables.migrate import schema_repo_migration_controllers
 from wc_lang import transform
 from wc_lang.core import Model
 from wc_lang.io import Writer, Reader, convert, create_template
 from wc_utils.workbook.io import read as read_workbook
 import cement
-import obj_model
+import obj_tables
 import os
 import sys
 import wc_lang
@@ -169,8 +169,8 @@ class DifferenceController(cement.Controller):
         Args:
             model (:obj:`wc_utils.workbook.Workbook`): model
         """
-        if obj_model.TOC_NAME in model:
-            model.pop(obj_model.TOC_NAME)
+        if obj_tables.TOC_NAME in model:
+            model.pop(obj_tables.TOC_NAME)
         for sheet in model.values():
             for row in list(sheet):
                 if row and isinstance(row[0], str) and row[0].startswith('!!'):

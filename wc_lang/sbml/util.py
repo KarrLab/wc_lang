@@ -13,9 +13,9 @@
 from wc_utils.util.units import unit_registry, are_units_equivalent
 import libsbml
 import math
-import obj_model
-import obj_model.expression
-import obj_model.units
+import obj_tables
+import obj_tables.expression
+import obj_tables.units
 import re
 import scipy
 import types
@@ -320,7 +320,7 @@ class LibSbmlInterface(object):
             :obj:`dict`: dictionary that maps units to ids of SBML unit definitions
         """
         # Define units
-        units = obj_model.units.get_obj_units(model)
+        units = obj_tables.units.get_obj_units(model)
 
         units_to_sbml = {}
         for unit in units:
@@ -625,20 +625,20 @@ class LibSbmlInterface(object):
 
         Args:
             set_math_func (:obj:`callable`): function to set the math of an SBML object
-            expression (:obj:`obj_model.expression.Expression`): expression
+            expression (:obj:`obj_tables.expression.Expression`): expression
         """
-        str_formula = expression._parsed_expression.get_str(cls._obj_model_token_to_str, with_units=True, number_units=' dimensionless')
+        str_formula = expression._parsed_expression.get_str(cls._obj_tables_token_to_str, with_units=True, number_units=' dimensionless')
         if units_transform:
             str_formula = units_transform.format(str_formula)
         sbml_formula = cls.call_libsbml(libsbml.parseL3Formula, str_formula)
         cls.call_libsbml(set_math_func, sbml_formula)
 
     @staticmethod
-    def _obj_model_token_to_str(token):
+    def _obj_tables_token_to_str(token):
         """ Get a string representation of a token that represents an instance of :obj:`Model`.
 
         Args:
-            token (:obj:`obj_model.expression.ObjModelToken`): token that represents an instance of :obj:`Model`
+            token (:obj:`obj_tables.expression.ObjTablesToken`): token that represents an instance of :obj:`Model`
 
         Returns:
             :obj:`str`: string representation of a token that represents an instance of :obj:`Model`.
@@ -661,7 +661,7 @@ class LibSbmlInterface(object):
                 that map ids of model objects to model objects
 
         Returns:
-            :obj:`obj_model.expression.Expression`: expression
+            :obj:`obj_tables.expression.Expression`: expression
         """
         sbml_formula = cls.call_libsbml(get_math_func)
         str_formula = cls.call_libsbml(libsbml.formulaToL3String, sbml_formula)
@@ -686,7 +686,7 @@ class LibSbmlInterface(object):
         """ Export annotations from a model object to an SBML object
 
         Args:
-            model_obj (:obj:`obj_model.Model`): model object
+            model_obj (:obj:`obj_tables.Model`): model object
             nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
             sbml_obj (:obj:`libsbml.SBase`): SBML object
         """
@@ -700,7 +700,7 @@ class LibSbmlInterface(object):
         """ Export annotations from a model object to an SBML object
 
         Args:
-            model_obj (:obj:`obj_model.Model`): model object
+            model_obj (:obj:`obj_tables.Model`): model object
             nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
             sbml_obj (:obj:`libsbml.SBase`): SBML object
 
@@ -729,7 +729,7 @@ class LibSbmlInterface(object):
         """ Import annotations from a model object to an SBML object
 
         Args:
-            model_obj (:obj:`obj_model.Model`): model object
+            model_obj (:obj:`obj_tables.Model`): model object
             nested_attr_paths (:obj:`dict`): dictionary that maps names of attributes to paths to the attributes
             sbml_obj (:obj:`libsbml.SBase`): SBML object
             model_objs (:obj:`dict`, optional): dictionary that maps classes of model objects to dictonaries
@@ -744,7 +744,7 @@ class LibSbmlInterface(object):
             nested_attr_path = nested_attr_paths.get(nested_attr_name, None)
             if nested_attr_path:
                 attr = model_obj.get_nested_attr(nested_attr_path)
-                if isinstance(attr, obj_model.RelatedAttribute):
+                if isinstance(attr, obj_tables.RelatedAttribute):
                     val, error = attr.deserialize(val, model_objs)
                 else:
                     val, error = attr.deserialize(val)
@@ -892,7 +892,7 @@ class LibSbmlInterface(object):
         """ Export comments from a model object to an SBML object
 
         Args:
-            model_obj (:obj:`obj_model.Model`): model object
+            model_obj (:obj:`obj_tables.Model`): model object
             sbml_obj (:obj:`libsbml.SBase`): SBML object
         """
         if model_obj.comments:
@@ -903,7 +903,7 @@ class LibSbmlInterface(object):
         """ Import comments from an SBML object to a model object
 
         Args:
-            model_obj (:obj:`obj_model.Model`): model object
+            model_obj (:obj:`obj_tables.Model`): model object
             sbml_obj (:obj:`libsbml.SBase`): SBML object
         """
         if cls.call_libsbml(sbml_obj.isSetNotes):
