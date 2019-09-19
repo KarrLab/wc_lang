@@ -356,12 +356,13 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
 
         return (parts, errors)
 
-    def validate(self, obj, value):
+    def validate(self, obj, value, tolerance=1E-10):
         """ Determine if `value` is a valid value of the attribute
 
         Args:
             obj (:obj:`Reaction`): object being validated
             value (:obj:`list` of :obj:`SpeciesCoefficient`): value of attribute to validate
+            tolerance (:obj:`float`, optional): error tolerance value, default value is 1E-10
 
         Returns:
             :obj:`InvalidAttribute` or None: None if attribute is valid, other return list of errors as an instance of `InvalidAttribute`
@@ -399,9 +400,17 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                     delta_charge += part.species.species_type.structure.charge * part.coefficient
 
             if not errors:
+                tolerated_elements = []
+                for element, coefficient in delta_formula.items():
+                    if abs(coefficient) < tolerance:
+                        tolerated_elements.append(element)
+                for element in tolerated_elements:
+                    delta_formula[element] = 0.        
+                
                 if delta_formula:
                     errors.append('Reaction is element imbalanced: {}'.format(delta_formula))
-                if delta_charge != 0.:
+                
+                if abs(delta_charge) > tolerance:
                     errors.append('Reaction is charge imbalanced: {}'.format(delta_charge))
 
             if errors:

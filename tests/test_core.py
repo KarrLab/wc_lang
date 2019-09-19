@@ -974,6 +974,12 @@ class TestCore(unittest.TestCase):
             self.assertRegex(str(rv), 'element imbalanced')
             self.assertRegex(str(rv), 'charge imbalanced')
 
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-3.333)
+            rxn.participants.create(species=s_3, coefficient=1.1111)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
+
             st_1.structure.empirical_formula = EmpiricalFormula('CH1N2OP2')
             st_1.structure.charge = None
             rxn = Reaction(id='rxn')
