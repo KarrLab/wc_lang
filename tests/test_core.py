@@ -975,8 +975,8 @@ class TestCore(unittest.TestCase):
             self.assertRegex(str(rv), 'charge imbalanced')
 
             rxn = Reaction(id='rxn')
-            rxn.participants.create(species=s_1, coefficient=-3.333)
-            rxn.participants.create(species=s_3, coefficient=1.1111)
+            rxn.participants.create(species=s_1, coefficient=-3.3333333333)
+            rxn.participants.create(species=s_3, coefficient=1.11111111111)
             rv = rxn.validate()
             self.assertEqual(rv, None, str(rv))
 
