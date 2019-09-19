@@ -169,8 +169,7 @@ class DifferenceController(cement.Controller):
         Args:
             model (:obj:`wc_utils.workbook.Workbook`): model
         """
-        if obj_tables.TOC_NAME in model:
-            model.pop(obj_tables.TOC_NAME)
+        model.pop('!' + obj_tables.TOC_SHEET_NAME, None)
         for sheet in model.values():
             for row in list(sheet):
                 if row and isinstance(row[0], str) and row[0].startswith('!!'):

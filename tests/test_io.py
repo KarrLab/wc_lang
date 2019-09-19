@@ -429,8 +429,8 @@ class TestExampleModel(unittest.TestCase):
         copy = read_workbook(self.filename)
         remove_ws_metadata(original)
         remove_ws_metadata(copy)
-        original.pop(obj_tables.core.TOC_NAME)
-        copy.pop(obj_tables.core.TOC_NAME)
+        original.pop('!' + obj_tables.core.TOC_SHEET_NAME)
+        copy.pop('!' + obj_tables.core.TOC_SHEET_NAME)
 
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
