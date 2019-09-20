@@ -47,6 +47,7 @@ cmd='wc-lang validate'
     ${cmd} ~/Documents/h1_hesc/tests/model/cell_cycle/fixtures/test_exponential_growth_in_M.xlsx
     ${cmd} ~/Documents/h1_hesc/tests/model/cell_cycle/fixtures/test_cyclin_dynamics.xlsx
     CONFIG__DOT__wc_lang__DOT__validation__DOT__validate_element_charge_balance=0 ${cmd} ~/Documents/h1_hesc/model/hesc_recon/hesc_recon_wc_data_model.xlsx
+    ${cmd} ~/Documents/h1_hesc/tests/code/fixtures/eukaryote_model.xlsx
 
 # rand_wc_model_gen
     ${cmd} ~/Documents/rand_wc_model_gen/rand_wc_model_gen/model_gen/model.xlsx
