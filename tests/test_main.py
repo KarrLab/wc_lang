@@ -175,7 +175,7 @@ class TestCli(unittest.TestCase):
             with __main__.App(argv=['difference', filename1, filename3,
                                     '--compare-files']) as app:
                 app.run()
-            diff = 'Sheet Model:\n  Row 7:\n    Cell B: 0.0.0 != 0.0.1'
+            diff = 'Sheet !Model:\n  Row 7:\n    Cell B: 0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
 
     def test_transform(self):

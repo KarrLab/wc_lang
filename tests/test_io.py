@@ -284,11 +284,11 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename)
-        row = wb['Model'].pop(2)
-        wb['Model'].insert(3, row)
+        row = wb['!Model'].pop(3)
+        wb['!Model'].insert(4, row)
         write_workbook(filename, wb)
 
-        with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!Model' must be defined in this order"):
             Reader().run(filename)
 
         env = EnvironmentVarGuard()
@@ -325,11 +325,11 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename_xls1, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename_xls1)
-        row = wb['Model'].pop(2)
-        wb['Model'].insert(3, row)
+        row = wb['!Model'].pop(3)
+        wb['!Model'].insert(4, row)
         write_workbook(filename_xls1, wb)
 
-        with self.assertRaisesRegex(ValueError, "The rows of worksheet 'Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
@@ -356,7 +356,7 @@ class TestSimpleModel(unittest.TestCase):
 
         # introduce error into model file
         wb = read_workbook(filename)
-        wb['Model'][1][1] = '1000'
+        wb['!Model'][4][1] = '1000'
         write_workbook(filename, wb)
 
         # read model and verify that it doesn't validate
