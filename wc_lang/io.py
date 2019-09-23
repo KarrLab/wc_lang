@@ -57,7 +57,7 @@ class Writer(obj_tables.io.Writer):
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
             title=None, description=None, keywords=None, version=None, language=None, creator=None,
-            extra_entries=0, data_repo_metadata=False, schema_package=None):
+            write_schema=False, write_toc=True, extra_entries=0, data_repo_metadata=False, schema_package=None):
         """ Write a list of model classes to an Excel file, with one worksheet for each model, or to
             a set of .csv or .tsv files, with one file for each model.
 
@@ -77,6 +77,8 @@ class Writer(obj_tables.io.Writer):
             version (:obj:`str`, optional): version
             language (:obj:`str`, optional): language
             creator (:obj:`str`, optional): creator
+            write_schema (:obj:`bool`, optional): if :obj:`True`, include additional worksheet with schema
+            write_toc (:obj:`bool`, optional): if :obj:`True`, include additional worksheet with table of contents
             extra_entries (:obj:`int`, optional): additional entries to display
             data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
                 about the file's Git repo; the repo must be current with origin, except for the file
@@ -111,7 +113,9 @@ class Writer(obj_tables.io.Writer):
         super(Writer, self).run(path, model, models=models, get_related=get_related,
                                 include_all_attributes=include_all_attributes, validate=validate,
                                 title=title, description=description, version=version, language=language,
-                                creator=creator, extra_entries=extra_entries,
+                                creator=creator,
+                                write_schema=write_schema, write_toc=write_toc,
+                                extra_entries=extra_entries,
                                 data_repo_metadata=data_repo_metadata, schema_package=schema_package)
 
     @classmethod
@@ -270,14 +274,20 @@ def convert(source, destination):
     Writer().run(destination, model, data_repo_metadata=False)
 
 
-def create_template(path, extra_entries=10, data_repo_metadata=True):
+def create_template(path, write_schema=False, write_toc=True,
+                    extra_entries=10, data_repo_metadata=True):
     """ Create file with model template, including row and column headings
 
     Args:
         path (:obj:`str`): path to file(s)
+        write_schema (:obj:`bool`, optional): if :obj:`True`, include additional worksheet with schema
+        write_toc (:obj:`bool`, optional): if :obj:`True`, include additional worksheet with table of contents
         extra_entries (:obj:`int`, optional): additional entries to display
         data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
             about the file's Git repo
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
-    Writer().run(path, model, extra_entries=extra_entries, data_repo_metadata=data_repo_metadata)
+    Writer().run(path, model,
+                 write_schema=write_schema, write_toc=write_toc,
+                 extra_entries=extra_entries,
+                 data_repo_metadata=data_repo_metadata)
