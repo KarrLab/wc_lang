@@ -2178,7 +2178,7 @@ class Compartment(obj_model.Model, SbmlModelMixin):
         parent_compartment (:obj:`Compartment`): parent compartment
         mass_units (:obj:`unit_registry.Unit`): mass units
         init_volume (:obj:`InitVolume`): initial volume
-        init_density (:obj:`Parameter`): function that calculates the density during the initialization of
+        init_density (:obj:`Parameter`): parameter that provides the density during the initialization of
             each simulation
         ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
