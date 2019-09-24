@@ -14,8 +14,8 @@ import re
 import unittest
 import wc_lang
 import wc_lang.config.core
-from obj_model import InvalidAttribute
-from obj_model.expression import ExpressionManyToOneAttribute
+from obj_tables import InvalidAttribute
+from obj_tables.expression import ExpressionManyToOneAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
@@ -973,6 +973,12 @@ class TestCore(unittest.TestCase):
             rv = rxn.validate()
             self.assertRegex(str(rv), 'element imbalanced')
             self.assertRegex(str(rv), 'charge imbalanced')
+
+            rxn = Reaction(id='rxn')
+            rxn.participants.create(species=s_1, coefficient=-3.3333333333)
+            rxn.participants.create(species=s_3, coefficient=1.11111111111)
+            rv = rxn.validate()
+            self.assertEqual(rv, None, str(rv))
 
             st_1.structure.empirical_formula = EmpiricalFormula('CH1N2OP2')
             st_1.structure.charge = None
@@ -2183,8 +2189,8 @@ class TestCore(unittest.TestCase):
         """ Test a valid expression
 
         Args:
-            expression_class (:obj:`obj_model.Model`): expression class being tested
-            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            expression_class (:obj:`obj_tables.Model`): expression class being tested
+            parent_class (:obj:`obj_tables.Model`): the expression model that uses an expression_class
             objects (:obj:`dict`): dict of objects which can be used by `expr`
             expr (:obj:`str`): the expression
             expected_val (:obj:`obj`): the value expected when the expression is evaluated
@@ -2252,8 +2258,8 @@ class TestCore(unittest.TestCase):
         """ Test an expression that fails to deserialize
 
         Args:
-            expression_class (:obj:`obj_model.Model`): expression class being tested
-            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            expression_class (:obj:`obj_tables.Model`): expression class being tested
+            parent_class (:obj:`obj_tables.Model`): the expression model that uses an expression_class
             objects (:obj:`dict`): dict of objects which can be used by `expr`
             expr (:obj:`str`): the expression
             error_msg_substr (:obj:`str`): substring expected in error message
@@ -2285,8 +2291,8 @@ class TestCore(unittest.TestCase):
         """ Test an expression that fails to validate
 
         Args:
-            expression_class (:obj:`obj_model.Model`): expression class being tested
-            parent_class (:obj:`obj_model.Model`): the expression model that uses an expression_class
+            expression_class (:obj:`obj_tables.Model`): expression class being tested
+            parent_class (:obj:`obj_tables.Model`): the expression model that uses an expression_class
             objects (:obj:`dict`): dict of objects which can be used by `expr`
             expr (:obj:`str`): the expression
             error_msg_substr (:obj:`str`): substring expected in error message
@@ -2346,9 +2352,9 @@ class TestCore(unittest.TestCase):
         value = "pow( st_1[c], 2 )"
         of_expr, invalid_attribute = FunctionExpression.deserialize(value, objs)
         self.assertEqual(of_expr, None, str())
-        self.assertIn("ObjModelToken `pow` is ambiguous",
+        self.assertIn("ObjTablesToken `pow` is ambiguous",
                       invalid_attribute.messages[0])
-        self.assertIn("ObjModelToken matches a Parameter and a function",
+        self.assertIn("ObjTablesToken matches a Parameter and a function",
                       invalid_attribute.messages[0])
 
     def test_valid_stop_conditions(self):

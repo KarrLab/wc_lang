@@ -325,8 +325,8 @@ class TestLibsbmlInterface(unittest.TestCase):
 
         expression_2 = LibSbmlInterface.get_math(rule.getMath, ObservableExpression, model_objs)
         self.assertTrue(expression_2.is_equal(expression))
-        self.assertEqual(expression_2._parsed_expression._obj_model_tokens,
-                         expression._parsed_expression._obj_model_tokens)
+        self.assertEqual(expression_2._parsed_expression._obj_tables_tokens,
+                         expression._parsed_expression._obj_tables_tokens)
 
     def test_export_import_annotations(self):
         model = Model()

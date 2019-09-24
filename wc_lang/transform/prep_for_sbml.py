@@ -13,7 +13,7 @@ from .nullify_attrs import NullifyAttrsTransform
 from .set_finite_dfba_flux_bounds import SetFiniteDfbaFluxBoundsTransform
 from .split_reversible_reactions import SplitReversibleReactionsTransform
 from wc_lang.core import Model
-import obj_model
+import obj_tables
 
 
 class PrepForSbmlTransform(CompositeTransform):

@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from obj_model import get_models as base_get_models
+from obj_tables import get_models as base_get_models
 from wc_lang import core
 from wc_lang import io
 from wc_utils.util import git

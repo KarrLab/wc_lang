@@ -8,7 +8,7 @@
 """
 
 from capturer import CaptureOutput
-from obj_model import Validator
+from obj_tables import Validator
 from os import path
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -159,7 +159,8 @@ class TestCli(unittest.TestCase):
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
         with CaptureOutput(relay=False) as capturer:
-            with __main__.App(argv=['difference', filename1, filename2, '--compare-files']) as app:
+            with __main__.App(argv=['difference', filename1, filename2,
+                                    '--compare-files']) as app:
                 app.run()
             self.assertEqual(capturer.get_text(), 'Models are identical')
 
@@ -171,9 +172,10 @@ class TestCli(unittest.TestCase):
             self.assertEqual(capturer.get_text(), diff)
 
         with CaptureOutput(relay=False) as capturer:
-            with __main__.App(argv=['difference', filename1, filename3, '--compare-files']) as app:
+            with __main__.App(argv=['difference', filename1, filename3,
+                                    '--compare-files']) as app:
                 app.run()
-            diff = 'Sheet Model:\n  Row 7:\n    Cell B: 0.0.0 != 0.0.1'
+            diff = 'Sheet !Model:\n  Row 7:\n    Cell B: 0.0.0 != 0.0.1'
             self.assertEqual(capturer.get_text(), diff)
 
     def test_transform(self):
@@ -280,11 +282,11 @@ class TestCli(unittest.TestCase):
                 self.assertRegex(capturer.get_text(), 'usage: wc-lang')
 
     def test_migration_handlers(self):
-        with CaptureOutput(relay=False) as capturer:
+        with CaptureOutput(relay=False, termination_delay=0.1) as capturer:
             with __main__.App(argv=['make-changes-template']) as app:
                 app.run()
                 m = re.search(r"Created and added template schema changes file: '(.+)'",
-                    capturer.get_text())
+                              capturer.get_text())
                 filename = m.group(1)
                 self.assertTrue(os.path.isfile(filename))
                 # remove schema changes file from the git repo

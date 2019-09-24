@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-import obj_model
+import obj_tables
 import os
 import pytest
 import re
@@ -73,11 +73,11 @@ class RoundTripTestCase(unittest.TestCase):
         rl.expression, error = RateLawExpression.deserialize('param_1', {Parameter: {'param_1': param_1}})
         self.assertEqual(error, None)
 
-        errors = obj_model.Validator().run(model, get_related=True)
+        errors = obj_tables.Validator().run(model, get_related=True)
         self.assertNotEqual(errors, None)
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
-        with pytest.warns(obj_model.io.IoWarning, match='objects are not valid'):
+        with pytest.warns(obj_tables.io.IoWarning, match='objects are not valid'):
             Writer().run(filename, model, data_repo_metadata=False)
         with self.assertRaisesRegex(ValueError, re.escape('contains error(s)')):
             Reader().run(filename)
@@ -144,7 +144,7 @@ class RoundTripTestCase(unittest.TestCase):
         rl.expression, error = RateLawExpression.deserialize('param_2', objects)
         self.assertEqual(error, None)
 
-        errors = obj_model.Validator().run(model, get_related=True)
+        errors = obj_tables.Validator().run(model, get_related=True)
         self.assertEqual(errors, None, str(errors))
 
         filename = os.path.join(self.tmp_dir, 'model.xlsx')
