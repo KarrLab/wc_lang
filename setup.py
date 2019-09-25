@@ -29,6 +29,9 @@ setuptools.setup(
     package_data={
         name: [
             'VERSION',
+            'grammar/evidences.lark',
+            'grammar/identifiers.lark',
+            'grammar/reaction_participants.lark',
             'config/core.default.cfg',
             'config/core.schema.cfg',
             'config/debug.default.cfg',

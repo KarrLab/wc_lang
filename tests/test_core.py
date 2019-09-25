@@ -787,144 +787,6 @@ class TestCore(unittest.TestCase):
             '(-2) spec_type_0[comp_0]', '(-3.500000e+00) spec_type_1[comp_0]', 'spec_type_2[comp_0]'
         ]))
 
-    def test_reaction_participant_deserialize(self):
-        objs = {
-            SpeciesType: {
-                'spec_0': SpeciesType(id='spec_0'),
-                'spec_1': SpeciesType(id='spec_1'),
-                'spec_2': SpeciesType(id='spec_2')},
-            Compartment: {
-                'c_0': Compartment(id='c_0'),
-                'c_1': Compartment(id='c_1'),
-                'c_2': Compartment(id='c_2')
-            },
-            Species: {
-            },
-        }
-        objs[Species]['spec_0[c_0]'] = Species(
-            id='spec_0[c_0]',
-            species_type=objs[SpeciesType]['spec_0'],
-            compartment=objs[Compartment]['c_0'])
-        objs[Species]['spec_0[c_1]'] = Species(
-            id='spec_0[c_1]',
-            species_type=objs[SpeciesType]['spec_0'],
-            compartment=objs[Compartment]['c_1'])
-
-        val = 'spec_0[c_0]'
-        part0, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(part0.coefficient, 1)
-        self.assertEqual(part0.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(2) spec_0[c_0]'
-        part1, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(part1.coefficient, 2)
-        self.assertEqual(part1.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(2.) spec_0[c_1]'
-        part2, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(part2.coefficient, 2)
-        self.assertEqual(part2.species.serialize(), 'spec_0[c_1]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(2.5) spec_0[c_0]'
-        part3, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(part3.coefficient, 2.5)
-        self.assertEqual(part3.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(.5) spec_0[c_0]'
-        part4, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(error, None)
-        self.assertEqual(part4.coefficient, 0.5)
-        self.assertEqual(part4.species.serialize(), 'spec_0[c_0]')
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(.5) spec_0[c_0]'
-        part4b, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertEqual(part4b, part4)
-        self.assertTrue(part4b is part4)
-
-        # negative examples
-        val = '(1) spec_1'
-        part5, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
-        self.assertNotEqual(error, None)
-        self.assertEqual(part5, None)
-
-        val = '(-1) spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(part6, None)
-
-        val = '(1) spec_0'
-        part6, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(part6, None)
-
-        val = '(1.1.) spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(part6, None)
-
-        val = ' spec_0[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(part6, None)
-
-        val = ' spec_3[c_0]'
-        part6, error = SpeciesCoefficient.deserialize(val, objs)
-        self.assertNotEqual(error, None)
-        self.assertEqual(part6, None)
-
-        self.assertEqual(set(objs[SpeciesCoefficient].values()), set([part0, part1, part2, part3, part4]))
-        self.assertEqual(len(objs[Species]), 2)
-
-        val = '(1) spec_3'
-        part, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
-        self.assertNotEqual(error, None)
-        self.assertEqual(part, None)
-
-        val = '(2) spec_0'
-        objs[SpeciesCoefficient] = {
-            '(2) spec_0[c_0]': SpeciesCoefficient(
-                species=Species(id='spec_0[c_0]', species_type=objs[SpeciesType]['spec_0'], compartment=objs[Compartment]['c_0']),
-                coefficient=2)
-        }
-        part, error = SpeciesCoefficient.deserialize(val, objs, compartment=objs[Compartment]['c_0'])
-        self.assertEqual(error, None)
-        self.assertEqual(part, objs[SpeciesCoefficient]['(2) spec_0[c_0]'])
-
-        # species type and compartment who ids start with numbers
-        objs = {
-            SpeciesType: {'1st': SpeciesType(id='1st')},
-            Compartment: {'1comp': Compartment(id='1comp')},
-            Species: {},
-            SpeciesCoefficient: {},
-        }
-        objs[Species]['1st[1comp]'] = Species(id='1st[1comp]', species_type=objs[SpeciesType]
-                                              ['1st'], compartment=objs[Compartment]['1comp'])
-        objs[SpeciesCoefficient]['(2) 1st[1comp]'] = SpeciesCoefficient(
-            species=objs[Species]['1st[1comp]'],
-            coefficient=2)
-
-        part, error = SpeciesCoefficient.deserialize('(2) 1st', objs, compartment=objs[Compartment]['1comp'])
-        self.assertEqual(error, None)
-        self.assertEqual(part, objs[SpeciesCoefficient]['(2) 1st[1comp]'])
-
-        part, error = SpeciesCoefficient.deserialize('(2) 1st[1comp]', objs, compartment=None)
-        self.assertEqual(error, None)
-        self.assertEqual(part, objs[SpeciesCoefficient]['(2) 1st[1comp]'])
-
     def test_validate_reaction_balance(self):
         c = Compartment()
         st_1 = SpeciesType(structure=ChemicalStructure(empirical_formula=EmpiricalFormula('CH1N2OP2'), charge=1))
@@ -2685,52 +2547,22 @@ class TestCore(unittest.TestCase):
         obs_1 = Observation(id='obs_1')
         ev = Evidence(observation=obs_1, type=onto['WC:supporting_evidence'], strength=10., quality=20.)
         self.assertEqual(ev.serialize(), 'obs_1(+, s=10.0, q=20.0)')
-        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_1.id: obs_1}})
-        self.assertTrue(ev_b.is_equal(ev))
-        self.assertEqual(error, None)
 
         obs_1b = Observation(id='obs_1b')
         ev = Evidence(observation=obs_1b, type=onto['WC:supporting_evidence'], strength=10., quality=20.)
         self.assertEqual(ev.serialize(), 'obs_1b(+, s=10.0, q=20.0)')
-        ev_b, error = Evidence.deserialize('obs_1b(+, q=20.0, s=10.0)', {Observation: {obs_1b.id: obs_1b}})
-        self.assertTrue(ev_b.is_equal(ev))
-        self.assertEqual(error, None)
 
         obs_2 = Observation(id='obs_2')
         ev = Evidence(observation=obs_2, type=onto['WC:disputing_evidence'], strength=10.)
         self.assertEqual(ev.serialize(), 'obs_2(-, s=10.0)')
-        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_2.id: obs_2}})
-        self.assertTrue(ev_b.is_equal(ev))
-        self.assertEqual(error, None)
 
         obs_3 = Observation(id='obs_3')
         ev = Evidence(observation=obs_3, type=onto['WC:inconclusive_evidence'], quality=20.)
         self.assertEqual(ev.serialize(), 'obs_3(~, q=20.0)')
-        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_3.id: obs_3}})
-        self.assertTrue(ev_b.is_equal(ev))
-        self.assertEqual(error, None)
 
         obs_4 = Observation(id='obs_4')
         ev = Evidence(observation=obs_4, type=onto['WC:supporting_evidence'])
         self.assertEqual(ev.serialize(), 'obs_4(+)')
-        ev_b, error = Evidence.deserialize(ev.serialize(), {Observation: {obs_4.id: obs_4}})
-        self.assertTrue(ev_b.is_equal(ev))
-        self.assertEqual(error, None)
-
-        obs_5 = Observation(id='obs_5')
-        objs = {Observation: {obs_5.id: obs_5}}
-        ev_a, error_a = Evidence.deserialize('obs_5(+)', objs)
-        ev_b, error_b = Evidence.deserialize('obs_5(+)', objs)
-        self.assertTrue(ev_a is ev_b)
-        self.assertEqual(error_a, None)
-        self.assertEqual(error_b, None)
-
-        obs_6 = Observation(id='obs_6')
-        self.assertNotEqual(Evidence.deserialize('obs_6', {Observation: {obs_6.id: obs_6}})[1], None)
-        self.assertNotEqual(Evidence.deserialize('obs_6(+)', {Observation: {}})[1], None)
-        self.assertNotEqual(Evidence.deserialize('obs_6(+, s=a)', {Observation: {obs_6.id: obs_6}})[1], None)
-        self.assertNotEqual(Evidence.deserialize('obs_6(+, q=b)', {Observation: {obs_6.id: obs_6}})[1], None)
-        self.assertNotEqual(Evidence.deserialize('obs_6(+, s=10., s=10.)', {Observation: {obs_6.id: obs_6}})[1], None)
 
         attr = Submodel.Meta.attributes['evidence']
         obs_7 = Observation(id='obs_7')
@@ -2739,21 +2571,6 @@ class TestCore(unittest.TestCase):
             Evidence(observation=obs_7, type=onto['WC:supporting_evidence'], strength=20.),
         ]
         self.assertEqual(attr.serialize(ev), 'obs_7(+, s=10.0); obs_7(+, s=20.0)')
-
-        objs = {Observation: {obs_7.id: obs_7}}
-        ev_2, error = attr.deserialize('obs_7(+, s=10.0); obs_7(+, s=20.0)', objs)
-        self.assertTrue(ev_2[0].is_equal(ev[0]))
-        self.assertTrue(ev_2[1].is_equal(ev[1]))
-        self.assertEqual(error, None)
-
-        objs = {Observation: {obs_7.id: obs_7}}
-        ev_2, error = attr.deserialize('obs_7; obs_7(+, s=20.0)', objs)
-        self.assertNotEqual(error, None)
-
-        objs = {Observation: {obs_7.id: obs_7}, Evidence: {ev[0].serialize(): ev[0], ev[1].serialize(): ev[1]}}
-        ev_2, error = attr.deserialize('obs_7(+, s=10.0); obs_7(+, s=20.0)', objs)
-        self.assertEqual(ev_2, ev)
-        self.assertEqual(error, None)
 
 
 class TestCoreFromFile(unittest.TestCase):

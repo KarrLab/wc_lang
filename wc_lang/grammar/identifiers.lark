@@ -1,0 +1,6 @@
+start: identifier (identifier_sep identifier)*
+identifier: IDENTIFIER__NAMESPACE ns_id_sep IDENTIFIER__ID
+IDENTIFIER__NAMESPACE: /[a-zA-Z0-9_\.\-]+/
+IDENTIFIER__ID: /[^, ]+/
+?identifier_sep: / *, */
+?ns_id_sep: / *: */

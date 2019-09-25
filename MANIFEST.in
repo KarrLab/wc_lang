@@ -10,8 +10,11 @@ include LICENSE
 # requirements
 include requirements.txt
 
-# example
-recursive-include examples
+# grammars
+recursive-include wc_lang/grammar *.lark
 
 # configuration files
 recursive-include wc_lang *.cfg
+
+# examples
+recursive-include examples

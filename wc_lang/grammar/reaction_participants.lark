@@ -1,0 +1,24 @@
+start: gbl | lcl
+
+// global compartment
+gbl: / *\[ */ SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID / *\] *: */ gbl_reactants? / *==> */ gbl_products? WS*
+gbl_reactants: gbl_parts
+gbl_products: gbl_parts
+gbl_parts: gbl_part (/ *\+ */ gbl_part)*
+gbl_part: (/\( */ SPECIES_COEFFICIENT__COEFFIFICIENT / *\) */)? SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID
+
+// local compartments
+lcl: lcl_reactants? / *==> */ lcl_products? WS*
+lcl_reactants: lcl_parts
+lcl_products: lcl_parts
+lcl_parts: lcl_part (/ *\+ */ lcl_part)*
+lcl_part: (/\( */ SPECIES_COEFFICIENT__COEFFIFICIENT / *\) */)? SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID / *\[ */ SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID / *\] */
+
+// tokens
+SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID: SLUG
+SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID: SLUG
+SPECIES_COEFFICIENT__COEFFIFICIENT: FLOAT
+
+SLUG: /(?!(^|\b)(\d+(\.\d*)?(\b|$))|(\.\d+$)|(0[xX][0-9a-fA-F]+(\b|$))|([0-9]+[eE][0-9]+(\b|$)))[a-zA-Z0-9_]+/
+FLOAT: /([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][-+]?[0-9]+)?/
+WS: " "
