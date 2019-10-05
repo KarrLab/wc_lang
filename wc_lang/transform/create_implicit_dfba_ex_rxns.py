@@ -30,7 +30,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
         label = 'Create implicit exchange reactions for dFBA submodels'
 
     def run(self, model):
-        """ Transform model
+        """ Create implicit exchange reactions for dFBA submodels
 
         Args:
             model (:obj:`Model`): model

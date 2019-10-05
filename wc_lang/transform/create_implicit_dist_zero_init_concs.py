@@ -21,7 +21,7 @@ class CreateImplicitDistributionZeroInitConcentrationsTransform(Transform):
         label = 'Create the implicit zero concentrations in a model'
 
     def run(self, model):
-        """ Transform model
+        """ Create the implicit zero concentrations in a model
 
         Args:
             model (:obj:`Model`): model

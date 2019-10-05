@@ -25,7 +25,7 @@ class NullifyAttrsTransform(Transform):
         self.attrs_to_keep = attrs_to_keep
 
     def run(self, model):
-        """ Transform model
+        """ Generate a reduced model by nullifying specific attributes
 
         Args:
             model (:obj:`Model`): model

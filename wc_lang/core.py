@@ -974,7 +974,7 @@ class Model(obj_tables.Model, SbmlModelMixin):
         return self.submodels.get(__type=__type, **kwargs)
 
     def get_compartments(self, __type=None, **kwargs):
-        """ Get all compartments
+        """ Get all compartments that satisfy the matching criteria
 
         Args:
             __type (:obj:`types.TypeType` or :obj:`tuple` of :obj:`types.TypeType`): subclass(es) of :obj:`Model`
@@ -2251,7 +2251,8 @@ class Compartment(obj_tables.Model, SbmlModelMixin):
             'sbml': ('id', 'name', 'model', 'biological_type', 'physical_type', 'geometry',
                      'parent_compartment', 'mass_units', 'init_volume', 'init_density', 'ph',
                      'identifiers', 'comments'),
-            'wc_sim': ('id', 'model', 'mass_units', 'init_volume', 'init_density'),
+            'wc_sim': ('id', 'model', 'mass_units', 'biological_type', 'physical_type', 'geometry',
+                       'parent_compartment', 'init_volume', 'init_density'),
         }
 
     def validate(self):
