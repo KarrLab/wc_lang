@@ -59,17 +59,17 @@ from enum import Enum, EnumMeta
 from math import ceil, floor, exp, log, log10, isinf, isnan
 from natsort import natsorted, ns
 from obj_tables import (BooleanAttribute, EnumAttribute,
-                       FloatAttribute,
-                       IntegerAttribute, PositiveIntegerAttribute,
-                       RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
-                       UrlAttribute, EmailAttribute, DateTimeAttribute,
-                       OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
-                       ManyToOneRelatedManager,
-                       InvalidObject, InvalidAttribute, TableFormat)
+                        FloatAttribute,
+                        IntegerAttribute, PositiveIntegerAttribute,
+                        RegexAttribute, SlugAttribute, StringAttribute, LongStringAttribute,
+                        UrlAttribute, EmailAttribute, DateTimeAttribute,
+                        OneToOneAttribute, ManyToOneAttribute, ManyToManyAttribute, OneToManyAttribute,
+                        ManyToOneRelatedManager,
+                        InvalidObject, InvalidAttribute, TableFormat)
 from obj_tables.expression import (ExpressionOneToOneAttribute, ExpressionManyToOneAttribute,
-                                  ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
-                                  ExpressionExpressionTermMeta, Expression,
-                                  ParsedExpression, ParsedExpressionError)
+                                   ExpressionStaticTermMeta, ExpressionDynamicTermMeta,
+                                   ExpressionExpressionTermMeta, Expression,
+                                   ParsedExpression, ParsedExpressionError)
 from obj_tables.ontology import OntologyAttribute
 from obj_tables.units import UnitAttribute
 from wc_lang.sbml.util import SbmlModelMixin, SbmlAssignmentRuleMixin, LibSbmlInterface
@@ -80,13 +80,16 @@ from wc_onto import onto
 from wc_utils.util.ontology import are_terms_equivalent
 from wc_utils.util.units import unit_registry, are_units_equivalent
 from wc_utils.workbook.core import get_column_letter
+import bcforms
 import bpforms
 import collections
 import datetime
+import lark
 import libsbml
 import networkx
 import obj_tables
 import obj_tables.chem
+import obj_tables.grammar
 import openbabel
 import pkg_resources
 import pronto.term
@@ -174,8 +177,10 @@ class RateLawDirection(int, CaseInsensitiveEnum):
     forward = 1
 
 
-class ReactionParticipantAttribute(ManyToManyAttribute):
+class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, ManyToManyAttribute):
     """ Reaction participants """
+
+    grammar_path = pkg_resources.resource_filename('wc_lang', 'grammar/reaction_participants.lark')
 
     def __init__(self, related_name='', verbose_name='', verbose_related_name='', description=''):
         """
@@ -229,132 +234,107 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         else:
             return '{} ==> {}'.format(' + '.join(lhs), ' + '.join(rhs))
 
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
+    class Transformer(obj_tables.grammar.ToManyGrammarTransformer):
+        """ Transforms parse trees into a list of instances of :obj:`core.Model` """
+        @lark.v_args(inline=True)
+        def start(self, parts):
+            if len(set(parts)) < len(parts):
+                raise ValueError('Reaction participants cannot be repeated')
+            return parts
 
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+        @lark.v_args(inline=True)
+        def gbl(self, *args):
+            parts = []
+            for arg in args:
+                if isinstance(arg, lark.lexer.Token) and \
+                        arg.type == 'SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID':
+                    comp = self.get_or_create_model_obj(
+                        Compartment, _serialized_val=arg.value)
 
-        Returns:
-            :obj:`list` of :obj:`SpeciesCoefficient`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        errors = []
-
-        species_type_id = SpeciesType.id.pattern[1:-1]
-        comp_id = Compartment.id.pattern[1:-1]
-        stoch = r'\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\)'
-        gbl_part = r'({} *)*({})'.format(stoch, species_type_id)
-        lcl_part = r'({} *)*({}\[{}\])'.format(stoch, species_type_id, comp_id)
-        gbl_side = r'{}( *\+ *{})*'.format(gbl_part, gbl_part)
-        lcl_side = r'{}( *\+ *{})*'.format(lcl_part, lcl_part)
-        gbl_pattern = r'^\[({})\]: *({}|) *==> *({}|)$'.format(comp_id, gbl_side, gbl_side)
-        lcl_pattern = r'^({}|) *==> *({}|)$'.format(lcl_side, lcl_side)        
-
-        value = value.strip(' ')
-        global_match = re.match(gbl_pattern, value, flags=re.I)
-        local_match = re.match(lcl_pattern, value, flags=re.I)
-
-        if global_match:
-            if global_match.group(1) in objects[Compartment]:
-                global_comp = objects[Compartment][global_match.group(1)]
-            else:
-                global_comp = None
-                errors.append('Undefined compartment "{}"'.format(global_match.group(1)))
-            lhs = global_match.group(11)
-            rhs = global_match.group(41)
-
-        elif local_match:
-            global_comp = None
-            lhs = local_match.group(1)
-            rhs = local_match.group(49)        
-
-        else:
-            return (None, InvalidAttribute(self, ['Incorrectly formatted participants: {}'.format(value)]))
-
-        lhs_parts, lhs_errors = self.deserialize_side(-1., lhs, objects, global_comp)
-        rhs_parts, rhs_errors = self.deserialize_side(1., rhs, objects, global_comp)
-
-        parts = lhs_parts + rhs_parts
-        errors.extend(lhs_errors)
-        errors.extend(rhs_errors)
-
-        if errors:
-            return (None, InvalidAttribute(self, errors))
-        return (parts, None)
-
-    def deserialize_side(self, direction, value, objects, global_comp):
-        """ Deserialize the LHS or RHS of a reaction expression
-
-        Args:
-            direction (:obj:`float`): -1. indicates LHS, +1. indicates RHS
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            global_comp (:obj:`Compartment`): global compartment of the reaction
-
-        Returns:
-            :obj:`list` of :obj:`SpeciesCoefficient`: list of species coefficients
-            :obj:`list` of :obj:`Exception`: list of errors
-        """
-        species_type_id = SpeciesType.id.pattern[1:-1]
-        comp_id = Compartment.id.pattern[1:-1]
-        pattern = (r'(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*'
-                   r'(' + species_type_id + r')'
-                   r'(\[(' + comp_id + r')\])*')
-        i_st = 4
-        i_comp = 15
-
-        parts_str = re.findall(pattern, value, flags=re.I)
-
-        if global_comp:
-            temp = [part[i_st] for part in parts_str]
-        else:
-            temp = [part[i_st] + '[' + part[i_comp] + ']' for part in parts_str]
-        repeated_parts = [item for item, count in collections.Counter(temp).items() if count > 1]
-        if repeated_parts:
-            return ([], ['Participants are repeated\n  {}'.format('\n  '.join(repeated_parts))])
-
-        parts = []
-        errors = []
-        for part in parts_str:
-            part_errors = []
-
-            if part[i_st] in objects[SpeciesType]:
-                species_type = objects[SpeciesType][part[i_st]]
-            else:
-                part_errors.append('Undefined species type "{}"'.format(part[i_st]))
-
-            if global_comp:
-                compartment = global_comp
-            elif part[i_comp] in objects[Compartment]:
-                compartment = objects[Compartment][part[i_comp]]
-            else:
-                part_errors.append('Undefined compartment "{}"'.format(part[i_comp]))
-
-            coefficient = direction * float(part[1] or 1.)
-
-            if part_errors:
-                errors += part_errors
-            else:
-                species_id = Species._gen_id(species_type.id, compartment.id)
-                species, error = Species.deserialize(species_id, objects)
-                if error:
-                    errors.extend(error.messages)
-
-                elif coefficient != 0:
-                    if SpeciesCoefficient not in objects:
-                        objects[SpeciesCoefficient] = {}
-                    serialized_value = SpeciesCoefficient._serialize(species, coefficient)
-                    if serialized_value in objects[SpeciesCoefficient]:
-                        rxn_part = objects[SpeciesCoefficient][serialized_value]
+                elif isinstance(arg, lark.tree.Tree):
+                    if arg.data == 'gbl_reactants':
+                        sign = -1
                     else:
-                        rxn_part = SpeciesCoefficient(species=species, coefficient=coefficient)
-                        objects[SpeciesCoefficient][serialized_value] = rxn_part
-                    parts.append(rxn_part)
+                        sign = 1
 
-        return (parts, errors)
+                    for part in arg.children[0]:
+                        st = part['st']
+                        coeff = sign * part['coeff']
+                        s = self.get_or_create_model_obj(
+                            Species,
+                            _serialized_val=Species._gen_id(st.id, comp.id))
+                        spec_coeff = self.get_or_create_model_obj(
+                            SpeciesCoefficient,
+                            _serialized_val=SpeciesCoefficient._serialize(s, coeff),
+                            species=s, coefficient=coeff)
+                        parts.append(spec_coeff)
+            return parts
+
+        @lark.v_args(inline=True)
+        def gbl_parts(self, *args):
+            val = []
+            for arg in args:
+                if isinstance(arg, dict):
+                    val.append(arg)
+            return val
+
+        @lark.v_args(inline=True)
+        def gbl_part(self, *args):
+            coeff = 1.
+            for arg in args:
+                if arg.type == 'SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID':
+                    st = self.get_or_create_model_obj(
+                        SpeciesType, _serialized_val=arg.value)
+                elif arg.type == 'SPECIES_COEFFICIENT__COEFFIFICIENT':
+                    coeff = float(arg.value)
+            return {'st': st, 'coeff': coeff}
+
+        @lark.v_args(inline=True)
+        def lcl(self, *args):
+            parts = []
+            for arg in args:
+                if isinstance(arg, lark.tree.Tree):
+                    if arg.data == 'lcl_reactants':
+                        sign = -1
+                    else:
+                        sign = 1
+                    for part in arg.children[0]:
+                        s = part['s']
+                        coeff = sign * part['coeff']
+                        spec_coeff = self.get_or_create_model_obj(
+                            SpeciesCoefficient,
+                            _serialized_val=SpeciesCoefficient._serialize(s, coeff),
+                            species=s, coefficient=coeff)
+                        parts.append(spec_coeff)
+            return parts
+
+        @lark.v_args(inline=True)
+        def lcl_parts(self, *args):
+            val = []
+            for arg in args:
+                if isinstance(arg, dict):
+                    val.append(arg)
+            return val
+
+        @lark.v_args(inline=True)
+        def lcl_part(self, *args):
+            coeff = 1.
+            for arg in args:
+                if arg.type == 'SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID':
+                    st = self.get_or_create_model_obj(
+                        SpeciesType,
+                        _serialized_val=arg.value)
+                elif arg.type == 'SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID':
+                    comp = self.get_or_create_model_obj(
+                        Compartment,
+                        _serialized_val=arg.value)
+                elif arg.type == 'SPECIES_COEFFICIENT__COEFFIFICIENT':
+                    coeff = float(arg.value)
+
+            s = self.get_or_create_model_obj(
+                Species,
+                _serialized_val=Species._gen_id(st.id, comp.id))
+            return {'s': s, 'coeff': coeff}
 
     def validate(self, obj, value, tolerance=1E-10):
         """ Determine if `value` is a valid value of the attribute
@@ -405,11 +385,11 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
                     if abs(coefficient) < tolerance:
                         tolerated_elements.append(element)
                 for element in tolerated_elements:
-                    delta_formula[element] = 0.        
-                
+                    delta_formula[element] = 0.
+
                 if delta_formula:
                     errors.append('Reaction is element imbalanced: {}'.format(delta_formula))
-                
+
                 if abs(delta_charge) > tolerance:
                     errors.append('Reaction is charge imbalanced: {}'.format(delta_charge))
 
@@ -459,8 +439,10 @@ class ReactionParticipantAttribute(ManyToManyAttribute):
         return validation
 
 
-class EvidenceManyToManyAttribute(ManyToManyAttribute):
+class EvidenceManyToManyAttribute(obj_tables.grammar.ToManyGrammarAttribute, ManyToManyAttribute):
     """ Many to many attribute for evidence """
+
+    grammar_path = pkg_resources.resource_filename('wc_lang', 'grammar/evidences.lark')
 
     def serialize(self, evidence, encoded=None):
         """ Serialize related object
@@ -474,34 +456,38 @@ class EvidenceManyToManyAttribute(ManyToManyAttribute):
         """
         return '; '.join(ev.serialize() for ev in evidence)
 
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
+    class Transformer(obj_tables.grammar.ToManyGrammarTransformer):
+        """ Transforms parse trees into a list of instances of :obj:`core.Model` """
+        @lark.v_args(inline=True)
+        def evidence(self, *args):
+            kwargs = {}
+            for arg in args:
+                if isinstance(arg, lark.lexer.Token):
+                    cls_name, _, attr_name = arg.type.partition('__')
+                    if cls_name.lower() == 'evidence':
+                        kwargs[attr_name.lower()] = arg.value
+                else:
+                    cls_name, _, attr_name = arg.children[0].data.partition('__')
+                    if cls_name.lower() == 'evidence':
+                        kwargs[attr_name.lower()] = arg.children[0].children[1].value
 
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
+            kwargs['observation'] = self.get_or_create_model_obj(
+                Observation, kwargs['observation'])
 
-        Returns:
-            :obj:`list` of :obj:`Evidence`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        value = (value or '').strip()
-        if not value:
-            return ([], None)
-
-        objs = []
-        errors = []
-        for v in value.split(';'):
-            obj, error = Evidence.deserialize(v.strip(), objects)
-            if error:
-                errors.extend(error.messages)
+            if kwargs['type'] == '+':
+                kwargs['type'] = onto['WC:supporting_evidence']
+            elif kwargs['type'] == '-':
+                kwargs['type'] = onto['WC:disputing_evidence']
             else:
-                objs.append(obj)
+                kwargs['type'] = onto['WC:inconclusive_evidence']
 
-        if errors:
-            return (None, InvalidAttribute(self, errors))
-        return (objs, None)
+            if 'strength' in kwargs:
+                kwargs['strength'] = float(kwargs['strength'])
+
+            if 'quality' in kwargs:
+                kwargs['quality'] = float(kwargs['quality'])
+
+            return self.get_or_create_model_obj(Evidence, **kwargs)
 
     def get_excel_validation(self, sheet_models=None):
         """ Get Excel validation
@@ -544,7 +530,52 @@ class EvidenceManyToManyAttribute(ManyToManyAttribute):
         return validation
 
 
-class IdentifierOneToManyAttribute(OneToManyAttribute):
+class IdentifierToManyGrammarAttribute(obj_tables.grammar.ToManyGrammarAttribute):
+    grammar_path = pkg_resources.resource_filename('wc_lang', 'grammar/identifiers.lark')
+
+    def serialize(self, identifiers, encoded=None):
+        """ Serialize related object
+
+        Args:
+            identifiers (:obj:`list` of :obj:`Identifier`): Python representation of identifiers
+            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
+
+        Returns:
+            :obj:`str`: string representation
+        """
+        sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
+        return ', '.join(id.serialize() for id in sorted_ids)
+
+    def get_excel_validation(self, sheet_models=None):
+        """ Get Excel validation
+
+        Args:
+            sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
+
+        Returns:
+            :obj:`wc_utils.workbook.io.FieldValidation`: validation
+        """
+        validation = super(IdentifierToManyGrammarAttribute, self).get_excel_validation(sheet_models=sheet_models)
+
+        validation.ignore_blank = True
+        input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
+        error_message = ['Value must be a comma-separated list of identifiers in external namespaces.']
+
+        input_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        error_message.append(('Examples:\n'
+                              '* doi: 10.1016/j.tcb.2015.09.004\n'
+                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
+
+        validation.input_message = '\n\n'.join(input_message)
+        validation.error_message = '\n\n'.join(error_message)
+
+        return validation
+
+
+class IdentifierOneToManyAttribute(IdentifierToManyGrammarAttribute, OneToManyAttribute):
     def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', description=''):
         """
         Args:
@@ -558,80 +589,8 @@ class IdentifierOneToManyAttribute(OneToManyAttribute):
                                                            verbose_related_name=verbose_related_name,
                                                            description=description)
 
-    def serialize(self, identifiers, encoded=None):
-        """ Serialize related object
 
-        Args:
-            identifiers (:obj:`list` of :obj:`Identifier`): Python representation of identifiers
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: string representation
-        """
-        sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
-        return ', '.join(id.serialize() for id in sorted_ids)
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`list` of :obj:`Identifier`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        value = value or ''
-        value = value.strip()
-        if not value:
-            return ([], None)
-
-        identifiers = set()
-        errors = []
-        for val in value.split(','):
-            id, invalid = Identifier.deserialize(val, objects)
-            if invalid:
-                errors.extend(invalid.messages)
-            else:
-                identifiers.add(id)
-
-        if errors:
-            return (None, InvalidAttribute(self, errors))
-        else:
-            return (det_dedupe(identifiers), None)
-
-    def get_excel_validation(self, sheet_models=None):
-        """ Get Excel validation
-
-        Args:
-            sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
-
-        Returns:
-            :obj:`wc_utils.workbook.io.FieldValidation`: validation
-        """
-        validation = super(OneToManyAttribute, self).get_excel_validation(sheet_models=sheet_models)
-
-        validation.ignore_blank = True
-        input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
-        error_message = ['Value must be a comma-separated list of identifiers in external namespaces.']
-
-        input_message.append(('Examples:\n'
-                              '* doi: 10.1016/j.tcb.2015.09.004\n'
-                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
-
-        error_message.append(('Examples:\n'
-                              '* doi: 10.1016/j.tcb.2015.09.004\n'
-                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
-
-        validation.input_message = '\n\n'.join(input_message)
-        validation.error_message = '\n\n'.join(error_message)
-
-        return validation
-
-
-class IdentifierManyToManyAttribute(ManyToManyAttribute):
+class IdentifierManyToManyAttribute(IdentifierToManyGrammarAttribute, ManyToManyAttribute):
     def __init__(self, related_name='', verbose_name='Identifiers', verbose_related_name='', description=''):
         """
         Args:
@@ -644,78 +603,6 @@ class IdentifierManyToManyAttribute(ManyToManyAttribute):
                                                             verbose_name=verbose_name,
                                                             verbose_related_name=verbose_related_name,
                                                             description=description)
-
-    def serialize(self, identifiers, encoded=None):
-        """ Serialize related object
-
-        Args:
-            identifiers (:obj:`list` of :obj:`Identifier`): Python representation of identifiers
-            encoded (:obj:`dict`, optional): dictionary of objects that have already been encoded
-
-        Returns:
-            :obj:`str`: string representation
-        """
-        sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
-        return ', '.join(id.serialize() for id in sorted_ids)
-
-    def deserialize(self, value, objects, decoded=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            decoded (:obj:`dict`, optional): dictionary of objects that have already been decoded
-
-        Returns:
-            :obj:`list` of :obj:`Identifier`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        value = value or ''
-        value = value.strip()
-        if not value:
-            return ([], None)
-
-        identifiers = set()
-        errors = []
-        for val in value.split(','):
-            id, invalid = Identifier.deserialize(val, objects)
-            if invalid:
-                errors.extend(invalid.messages)
-            else:
-                identifiers.add(id)
-
-        if errors:
-            return (None, InvalidAttribute(self, errors))
-        else:
-            return (det_dedupe(identifiers), None)
-
-    def get_excel_validation(self, sheet_models=None):
-        """ Get Excel validation
-
-        Args:
-            sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
-
-        Returns:
-            :obj:`wc_utils.workbook.io.FieldValidation`: validation
-        """
-        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models)
-
-        validation.ignore_blank = True
-        input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
-        error_message = ['Value must be a comma-separated list of identifiers in external namespaces.']
-
-        input_message.append(('Examples:\n'
-                              '* doi: 10.1016/j.tcb.2015.09.004\n'
-                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
-
-        error_message.append(('Examples:\n'
-                              '* doi: 10.1016/j.tcb.2015.09.004\n'
-                              '* chebi: CHEBI:15377, kegg.compound: C00001'))
-
-        validation.input_message = '\n\n'.join(input_message)
-        validation.error_message = '\n\n'.join(error_message)
-
-        return validation
 
 
 class SubmodelsToModelRelatedManager(ManyToOneRelatedManager):
@@ -2445,6 +2332,7 @@ class ChemicalStructureFormat(int, CaseInsensitiveEnum):
     """ Format of a chemical structure """
     SMILES = 0
     BpForms = 1
+    BcForms = 2
 
 
 ChemicalStructureAlphabet = CaseInsensitiveEnum('ChemicalStructureAlphabet', list(bpforms.util.get_alphabets().keys()), type=int)
@@ -2490,7 +2378,7 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
         """ Get structure
 
         Returns:
-            :obj:`openbabel.OBMol` of :obj:`bpforms.BpForm`: structure
+            :obj:`openbabel.OBMol`, :obj:`bpforms.BpForm`, or :obj:`bcforms.BcForm`: structure
 
         Raises:
             :obj:`ValueError`: if the structure cannot be parsed
@@ -2508,6 +2396,9 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
         if self.format == ChemicalStructureFormat.BpForms and self.alphabet is not None:
             return bpforms.util.get_form(self.alphabet.name)().from_str(self.value)
 
+        if self.format == ChemicalStructureFormat.BcForms:
+            return bcforms.BpForm().from_str(self.value)
+
         raise ValueError('Unsupported format {}'.format(str(self.format)))
 
     def validate(self):
@@ -2516,7 +2407,7 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
         * Format provided when structure is not None
         * Value provided when format is not None
         * Alphabet provided for BpForms-encoded structures
-        * Empirical formula, molecular weight, charge match structure (when)
+        * Empirical formula, molecular weight, charge match structure (when provided)
 
         Returns:
             :obj:`InvalidObject` or None: `None` if the object is valid,
@@ -2552,6 +2443,10 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
                 exp_formula = OpenBabelUtils.get_formula(mol)
                 exp_charge = mol.GetTotalCharge()
             elif self.format == ChemicalStructureFormat.BpForms and self.alphabet is not None:
+                form = self.get_structure()
+                exp_formula = form.get_formula()
+                exp_charge = form.get_charge()
+            elif self.format == ChemicalStructureFormat.BcForms:
                 form = self.get_structure()
                 exp_formula = form.get_formula()
                 exp_charge = form.get_charge()
@@ -4024,61 +3919,6 @@ class SpeciesCoefficient(obj_tables.Model, SbmlModelMixin):
         else:
             return '{}{}'.format(coefficient_str, species.species_type.get_primary_attribute())
 
-    @classmethod
-    def deserialize(cls, value, objects, compartment=None):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-            compartment (:obj:`Compartment`, optional): compartment
-
-        Returns:
-            :obj:`tuple` of :obj:`SpeciesCoefficient`, `InvalidAttribute` or `None`: tuple of cleaned value
-                and cleaning error
-        """
-        errors = []
-
-        st_id = SpeciesType.id.pattern[1:-1]
-        comp_id = Compartment.id.pattern[1:-1]
-        if compartment:
-            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*(' + st_id + r')$'
-            i_coeff = 2
-            i_st = 5
-        else:
-            pattern = r'^(\(((\d*\.?\d+|\d+\.)(e[\-\+]?\d+)?)\) )*(' + st_id + r'\[' + comp_id + r'\])$'
-            i_coeff = 2
-            i_st = 5
-
-        match = re.match(pattern, value, flags=re.I)
-        if match:
-            errors = []
-
-            coefficient = float(match.group(i_coeff) or 1.)
-
-            if compartment:
-                species_id = Species._gen_id(match.group(i_st), compartment.get_primary_attribute())
-            else:
-                species_id = match.group(i_st)
-
-            species, error = Species.deserialize(species_id, objects)
-            if error:
-                return (None, error)
-
-            serialized_val = cls._serialize(species, coefficient)
-            if cls not in objects:
-                objects[cls] = {}
-            if serialized_val in objects[cls]:
-                obj = objects[cls][serialized_val]
-            else:
-                obj = cls(species=species, coefficient=coefficient)
-                objects[cls][serialized_val] = obj
-            return (obj, None)
-
-        else:
-            attr = cls.Meta.attributes['species']
-            return (None, InvalidAttribute(attr, ['Invalid species coefficient']))
-
 
 class RateLawExpression(obj_tables.Model, Expression, SbmlModelMixin):
     """ Rate law expression
@@ -5083,78 +4923,6 @@ class Evidence(obj_tables.Model):
 
         return '{}({})'.format(self.observation.serialize(), ', '.join(args))
 
-    @classmethod
-    def deserialize(cls, value, objects):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-
-        Returns:
-            :obj:`DfbaObjectiveExpression`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        match = re.match(r'^(.*?)\(([\+\-~])(,([qs])=(.*?))?(,([qs])=(.*?))?\)$', value.replace(' ', ''))
-        strength = ''
-        quality = ''
-        if match:
-            observation = match.group(1)
-            type = match.group(2)
-            if type == '+':
-                type = 'supporting_evidence'
-            elif type == '-':
-                type = 'disputing_evidence'
-            else:
-                type = 'inconclusive_evidence'
-
-            if match.group(4) and match.group(7) and match.group(4) == match.group(7):
-                return (None, InvalidAttribute(cls.Meta.attributes['observation'], ['Invalid syntax']))
-
-            if match.group(4) == 's':
-                strength = match.group(5)
-            elif match.group(4) == 'q':
-                quality = match.group(5)
-
-            if match.group(7) == 's':
-                strength = match.group(8)
-            elif match.group(7) == 'q':
-                quality = match.group(8)
-        else:
-            return (None, InvalidAttribute(cls.Meta.attributes['observation'],
-                                           ['Invalid syntax']))
-
-        errors = []
-
-        observation, error = cls.Meta.attributes['observation'].deserialize(observation, objects)
-        if error:
-            errors.extend(error.messages)
-
-        type, error = cls.Meta.attributes['type'].deserialize(type)
-        if error:
-            errors.extend(error.messages)  # pragma: no cover # unreachable because of parsing above
-
-        strength, error = cls.Meta.attributes['strength'].deserialize(strength)
-        if error:
-            errors.extend(error.messages)
-
-        quality, error = cls.Meta.attributes['quality'].deserialize(quality)
-        if error:
-            errors.extend(error.messages)
-
-        if errors:
-            return (None, InvalidAttribute(cls.Meta.attributes['observation'], errors))
-
-        obj = cls(observation=observation, type=type, strength=strength, quality=quality)
-        if cls not in objects:
-            objects[cls] = {}
-        serialized_val = obj.serialize()
-        existing_obj = objects[cls].get(serialized_val, None)
-        if existing_obj:
-            return (existing_obj, None)
-        objects[cls][serialized_val] = obj
-        return (obj, None)
-
 
 class Conclusion(obj_tables.Model):
     """ Conclusion of one or more observations
@@ -5503,35 +5271,6 @@ class Identifier(obj_tables.Model, SbmlModelMixin):
             :obj:`str`: value of primary attribute
         """
         return '{}: {}'.format(self.namespace, self.id)
-
-    @classmethod
-    def deserialize(cls, value, objects):
-        """ Deserialize value
-
-        Args:
-            value (:obj:`str`): String representation
-            objects (:obj:`dict`): dictionary of objects, grouped by model
-
-        Returns:
-            :obj:`Identifier`: cleaned value
-            :obj:`InvalidAttribute`: cleaning error
-        """
-        if ': ' not in value:
-            return (None, InvalidAttribute(cls.Meta.attributes['id'], ['Invalid format']))
-
-        namespace, _, id = value.strip().partition(': ')
-        identifier = cls(namespace=namespace.strip(), id=id.strip())
-
-        if Identifier not in objects:
-            objects[Identifier] = {}
-
-        serialized_val = identifier.serialize()
-        if serialized_val in objects[Identifier]:
-            identifier = objects[Identifier][serialized_val]
-        else:
-            objects[Identifier][serialized_val] = identifier
-
-        return (identifier, None)
 
 
 class Validator(obj_tables.Validator):
