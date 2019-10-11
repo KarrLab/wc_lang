@@ -2894,7 +2894,7 @@ class DistributionInitConcentration(obj_tables.Model, SbmlModelMixin):
         attribute_order = ('id', 'name', 'species',
                            'distribution', 'mean', 'std', 'units',
                            'identifiers', 'evidence', 'conclusions', 'comments', 'references')
-        verbose_name = 'Initial species concentration'
+        verbose_name = 'Init species concentration'
         frozen_columns = 1
         children = {
             'submodel': ('identifiers', 'evidence', 'conclusions', 'references'),
