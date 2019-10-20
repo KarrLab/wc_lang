@@ -284,11 +284,11 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename)
-        row = wb['!Model'].pop(3)
-        wb['!Model'].insert(4, row)
+        row = wb['!!Model'].pop(3)
+        wb['!!Model'].insert(4, row)
         write_workbook(filename, wb)
 
-        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!!Model' must be defined in this order"):
             Reader().run(filename)
 
         env = EnvironmentVarGuard()
@@ -325,11 +325,11 @@ class TestSimpleModel(unittest.TestCase):
         Writer().run(filename_xls1, self.model, data_repo_metadata=False)
 
         wb = read_workbook(filename_xls1)
-        row = wb['!Model'].pop(3)
-        wb['!Model'].insert(4, row)
+        row = wb['!!Model'].pop(3)
+        wb['!!Model'].insert(4, row)
         write_workbook(filename_xls1, wb)
 
-        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!Model' must be defined in this order"):
+        with self.assertRaisesRegex(ValueError, "The rows of worksheet '!!Model' must be defined in this order"):
             convert(filename_xls1, filename_csv)
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_lang__DOT__io__DOT__strict', '0')
@@ -356,7 +356,7 @@ class TestSimpleModel(unittest.TestCase):
 
         # introduce error into model file
         wb = read_workbook(filename)
-        wb['!Model'][4][1] = '1000'
+        wb['!!Model'][4][1] = '1000'
         write_workbook(filename, wb)
 
         # read model and verify that it doesn't validate
@@ -429,8 +429,8 @@ class TestExampleModel(unittest.TestCase):
         copy = read_workbook(self.filename)
         remove_ws_metadata(original)
         remove_ws_metadata(copy)
-        original.pop('!' + obj_tables.core.TOC_SHEET_NAME)
-        copy.pop('!' + obj_tables.core.TOC_SHEET_NAME)
+        original.pop('!!' + obj_tables.core.TOC_SHEET_NAME)
+        copy.pop('!!' + obj_tables.core.TOC_SHEET_NAME)
 
         # note that models must be sorted by id for this assertion to hold
         for sheet in original.keys():
