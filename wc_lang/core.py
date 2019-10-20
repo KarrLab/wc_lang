@@ -109,8 +109,6 @@ with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
 # models on disk. Therefore, suppress the warnings.
 warnings.filterwarnings('ignore', '', obj_tables.SchemaWarning, 'obj_tables')
 
-# configuration
-
 call_libsbml = LibSbmlInterface.call_libsbml
 
 
@@ -1373,7 +1371,7 @@ class Submodel(obj_tables.Model, SbmlModelMixin):
         id (:obj:`str`): unique identifier
         name (:obj:`str`): name
         model (:obj:`Model`): model
-        framework (:obj:`pronto.term.Term`): modeling framework (e.g. dynamic flux balance analysis)
+        framework (:obj:`pronto.term.Term`): modeling integration framework (e.g. SSA, ODE or dFBA)
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
@@ -2021,9 +2019,9 @@ class Ph(obj_tables.Model, SbmlModelMixin):
 
     Attributes:
         distribution (:obj:`proto.Term`): distribution
-        mean (:obj:`float`): mean initial volume
-        std (:obj:`float`): standard  deviation of the mean initial volume
-        units (:obj:`unit_registry.Unit`): units of volume
+        mean (:obj:`float`): mean initial pH
+        std (:obj:`float`): standard  deviation of the mean initial pH
+        units (:obj:`unit_registry.Unit`): units of pH
 
     Related attributes:
 
@@ -2072,7 +2070,8 @@ class Compartment(obj_tables.Model, SbmlModelMixin):
         physical_type (:obj:`pronto.term.Term`): physical type
         geometry (:obj:`pronto.term.Term`): geometry
         parent_compartment (:obj:`Compartment`): parent compartment
-        mass_units (:obj:`unit_registry.Unit`): mass units
+        mass_units (:obj:`unit_registry.Unit`): the units of the compartment mass returned when an
+            :obj:`Expression` uses the compartment as a term, identified by its id
         init_volume (:obj:`InitVolume`): initial volume
         init_density (:obj:`Parameter`): parameter that provides the density during the initialization of
             each simulation
@@ -2191,12 +2190,10 @@ class Compartment(obj_tables.Model, SbmlModelMixin):
             return self.sub_compartments
 
     def get_tot_mean_init_volume(self):
-        """ Get total mean initial volume of compartment and nested
-        sub-compartments
+        """ Get total mean initial volume of a compartment and its nested sub-compartments
 
         Returns:
-            :obj:`float`: total mean initial volume of compartment and nested
-                sub-compartments
+            :obj:`float`: total mean initial volume of a compartment and its nested sub-compartments
         """
         tot = self.init_volume.mean
         for comp in self.get_sub_compartments(nested=True):
