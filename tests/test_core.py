@@ -2335,7 +2335,7 @@ class TestCore(unittest.TestCase):
 
         non_linear_expression = 'ccc * ccc'
         self.do_test_invalid_expression(ObservableExpression, Observable, objects, non_linear_expression,
-                                        "Expression must be linear")
+                                        "Expression must be linear in species counts")
 
     def test_observable(self):
         model, objects, _ = self.make_objects()
