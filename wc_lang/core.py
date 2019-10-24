@@ -3335,7 +3335,7 @@ class StopCondition(obj_tables.Model):
         name (:obj:`str`): name
         model (:obj:`Model`): model
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
-        units (:obj:`unit_registry.Unit`): units
+        units (:obj:`unit_registry.Unit`): units, which must be dimensionless
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
