@@ -2617,6 +2617,41 @@ class ValidateModelTestCase(unittest.TestCase):
         self.model = Reader().run(self.MODEL_FILENAME)[Model][0]
         self.dfba_submodel = self.model.submodels.get_one(id='dfba_submodel')
 
+    def test_non_unique_error_message(self):
+        model = Model(id='model', version='0.0.1')
+        c = model.compartments.create(id='c')
+        st_1 = model.species_types.create(id='st_1')
+        st_2 = model.species_types.create(id='st_2')
+        s_1 = model.species.create(compartment=c, species_type=st_1)
+        s_2 = model.species.create(compartment=c, species_type=st_2)
+        s_1.id = s_1.gen_id()
+        s_2.id = s_2.gen_id()
+
+        obs_1 = model.observables.create(id='obs_1')
+        obs_2 = model.observables.create(id='obs_2')
+
+        objs = {
+            Species: {
+                s_1.id: s_1,
+                s_2.id: s_2,
+            }
+        }
+        obs_1.expression, err = ObservableExpression.deserialize('st_1[c]', objs)
+        assert err is None
+
+        obs_2_expression, err = ObservableExpression.deserialize('st_1[c]', objs)
+        assert err is None
+        self.assertEqual(obs_2_expression.observable, obs_1)
+        with self.assertRaisesRegex(ValueError, 'cannot be set because it is not `None`'):
+            obs_2.expression = obs_2_expression
+        with self.assertRaisesRegex(ValueError, 'cannot be set because it is not `None`'):
+            obs_2_expression.observable = obs_2
+        
+        obs_2_expression.observable = None
+        self.assertEqual(obs_1.expression, None)
+        obs_2_expression.observable = obs_2
+        self.assertEqual(obs_2.expression, obs_2_expression)        
+
     def test_min_flux_maxes(self):
         c_1 = Compartment(id='c_1')
         c_2 = Compartment(id='c_2')
