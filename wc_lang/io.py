@@ -57,7 +57,8 @@ class Writer(obj_tables.io.Writer):
 
     def run(self, path, model, models=None, get_related=True, include_all_attributes=False, validate=None,
             title=None, description=None, keywords=None, version=None, language=None, creator=None,
-            write_schema=False, write_toc=True, extra_entries=0, data_repo_metadata=False, schema_package=None):
+            write_schema=False, write_toc=True, extra_entries=0, data_repo_metadata=False, schema_package=None,
+            protected=True):
         """ Write a list of model classes to an Excel file, with one worksheet for each model, or to
             a set of .csv or .tsv files, with one file for each model.
 
@@ -85,6 +86,7 @@ class Writer(obj_tables.io.Writer):
             schema_package (:obj:`str`, optional): the package which defines the `obj_tables` schema
                 used by the file; if not :obj:`None`, try to write metadata information about the
                 the schema's Git repository: the repo must be current with origin
+            protected (:obj:`bool`, optional): if :obj:`True`, protect the worksheet
         """
         if models is None:
             models = self.MODELS
@@ -116,7 +118,8 @@ class Writer(obj_tables.io.Writer):
                                 creator=creator,
                                 write_schema=write_schema, write_toc=write_toc,
                                 extra_entries=extra_entries,
-                                data_repo_metadata=data_repo_metadata, schema_package=schema_package)
+                                data_repo_metadata=data_repo_metadata, schema_package=schema_package,
+                                protected=protected)
 
     @classmethod
     def validate_implicit_relationships(cls, root_model):
@@ -259,7 +262,7 @@ class Reader(obj_tables.io.Reader):
         return objects
 
 
-def convert(source, destination):
+def convert(source, destination, protected=True):
     """ Convert among Excel (.xlsx), comma separated (.csv), and tab separated (.tsv) file formats
 
     Read a model from the `source` files(s) and write it to the `destination` files(s). A path to a
@@ -269,13 +272,15 @@ def convert(source, destination):
     Args:
         source (:obj:`str`): path to source file(s)
         destination (:obj:`str`): path to save converted file
+        protected (:obj:`bool`, optional): if :obj:`True`, protect the worksheet
     """
     model = Reader().run(source)[core.Model][0]
-    Writer().run(destination, model, data_repo_metadata=False)
+    Writer().run(destination, model, data_repo_metadata=False, protected=protected)
 
 
 def create_template(path, write_schema=False, write_toc=True,
-                    extra_entries=10, data_repo_metadata=True):
+                    extra_entries=10, data_repo_metadata=True,
+                    protected=True):
     """ Create file with model template, including row and column headings
 
     Args:
@@ -285,9 +290,11 @@ def create_template(path, write_schema=False, write_toc=True,
         extra_entries (:obj:`int`, optional): additional entries to display
         data_repo_metadata (:obj:`bool`, optional): if :obj:`True`, try to write metadata information
             about the file's Git repo
+        protected (:obj:`bool`, optional): if :obj:`True`, protect the worksheet
     """
     model = core.Model(id='template', name='Template', version=wc_lang.__version__)
     Writer().run(path, model,
                  write_schema=write_schema, write_toc=write_toc,
                  extra_entries=extra_entries,
-                 data_repo_metadata=data_repo_metadata)
+                 data_repo_metadata=data_repo_metadata,
+                 protected=protected)
