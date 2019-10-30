@@ -17,4 +17,5 @@ from .core import (RateLawDirection, TaxonRank,
                    StopCondition, StopConditionExpression,
                    Observation, ObservationGenotype, ObservationEnv, ObservationSet, Evidence, Conclusion, Process, 
                    Identifier, Reference, Author, Change,
-                   Validator, WcLangWarning)
+                   Validator, WcLangWarning,
+                   unit_registry)
