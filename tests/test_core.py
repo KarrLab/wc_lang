@@ -1735,7 +1735,7 @@ class TestCore(unittest.TestCase):
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        value = "2*dfba_obj_reaction_1"
+        value = "3*dfba_obj_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(dfba_obj_reactions=[])
@@ -1753,7 +1753,7 @@ class TestCore(unittest.TestCase):
         rv = of_expr.validate()
         self.assertEqual(rv, None, str(rv))
 
-        value = "2*dfba_obj_reaction_1 - reaction_1"
+        value = "3*dfba_obj_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
@@ -1763,7 +1763,7 @@ class TestCore(unittest.TestCase):
         rv = of_expr.validate()
         self.assertNotEqual(rv, None, str(rv))
 
-        value = "2*dfba_obj_reaction_1 - reaction_1"
+        value = "4*dfba_obj_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression = of_expr.expression[0:-1]
         of_expr.dfba_obj = DfbaObjective()
@@ -1774,7 +1774,7 @@ class TestCore(unittest.TestCase):
         self.assertIsInstance(rv, InvalidObject)
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        value = "2*dfba_obj_reaction_1 - reaction_1"
+        value = "5*dfba_obj_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.expression += ')'
         of_expr.dfba_obj = DfbaObjective()
@@ -1785,7 +1785,7 @@ class TestCore(unittest.TestCase):
         self.assertIsInstance(rv, InvalidObject)
         self.assertRegex(rv.attributes[0].messages[0], "Python syntax error")
 
-        value = "2*dfba_obj_reaction_1 -  3*reaction_1"
+        value = "6*dfba_obj_reaction_1 -  3*reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj_reactions = []
         of_expr.dfba_obj = DfbaObjective()
@@ -1795,7 +1795,7 @@ class TestCore(unittest.TestCase):
         rv = of_expr.validate()
         self.assertRegex(rv.attributes[0].messages[0], re.escape("aren't the id(s) of an object"))
 
-        value = "2*dfba_obj_reaction_1 * reaction_1"
+        value = "7*dfba_obj_reaction_1 * reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
@@ -1806,7 +1806,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "2*dfba_obj_reaction_1 ** 2"
+        value = "8*dfba_obj_reaction_1 ** 2"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
@@ -1817,7 +1817,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "2*dfba_obj_reaction_1 - pow( reaction_1, 2)"
+        value = "9*dfba_obj_reaction_1 - pow( reaction_1, 2)"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         self.assertNotEqual(invalid_attribute, None)
 
@@ -1830,7 +1830,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(rv, None)
         self.assertFalse(of_expr._parsed_expression.is_linear)
 
-        value = "1 + dfba_obj_reaction_1"
+        value = "2 + dfba_obj_reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of_expr.dfba_obj = DfbaObjective()
         of_expr.dfba_obj.submodel = Submodel(
@@ -1870,7 +1870,7 @@ class TestCore(unittest.TestCase):
                            expression=DfbaObjectiveExpression(expression='1.'))
         self.assertNotEqual(of.validate(), None)
 
-        value = "3*dfba_obj_reaction_1 - reaction_1"
+        value = "10*dfba_obj_reaction_1 - reaction_1"
         of_expr, invalid_attribute = DfbaObjectiveExpression.deserialize(value, objs)
         of = DfbaObjective(id='dfba-obj-submdl_4',
                            submodel=Submodel(id='submdl_4'),
@@ -2111,7 +2111,7 @@ class TestCore(unittest.TestCase):
                                           expected_error=error)
 
         # reuse the FunctionExpression
-        with self.assertRaisesRegex(ValueError, 'must be `None`'):
+        with self.assertRaisesRegex(ValueError, 'cannot be set'):
             self.do_test_valid_expression(FunctionExpression, Function,
                                           objects, 'ccc', 1, {'observables': [id_map['Observable.ccc']]},
                                           expected_error=None)
@@ -2233,7 +2233,7 @@ class TestCore(unittest.TestCase):
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
                                           objects, expr, expected_test_val, expected_attrs)
 
-        with self.assertRaisesRegex(ValueError, 'must be `None`'):
+        with self.assertRaisesRegex(ValueError, 'cannot be set'):
             # reuse StopConditionExpression
             self.do_test_valid_expression(StopConditionExpression, StopCondition,
                                           objects, 'ccc > 0', True, {'observables': [id_map['Observable.ccc']]})
