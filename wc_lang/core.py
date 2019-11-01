@@ -397,17 +397,19 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
         # return None
         return None
 
-    def get_excel_validation(self, sheet_models=None):
+    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
             sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
+            doc_metadata_model (:obj:`type`): model whose worksheet contains the document metadata
 
         Returns:
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
         sheet_models = sheet_models or []
-        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models)
+        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models,
+                                                                           doc_metadata_model=doc_metadata_model)
 
         related_class = Species
         if related_class in sheet_models:
@@ -487,17 +489,19 @@ class EvidenceManyToManyAttribute(obj_tables.grammar.ToManyGrammarAttribute, Man
 
             return self.get_or_create_model_obj(Evidence, **kwargs)
 
-    def get_excel_validation(self, sheet_models=None):
+    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
             sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
+            doc_metadata_model (:obj:`type`): model whose worksheet contains the document metadata
 
         Returns:
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
         sheet_models = sheet_models or []
-        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models)
+        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models,
+                                                                           doc_metadata_model=doc_metadata_model)
 
         validation.ignore_blank = False
 
@@ -544,16 +548,18 @@ class IdentifierToManyGrammarAttribute(obj_tables.grammar.ToManyGrammarAttribute
         sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
         return ', '.join(id.serialize() for id in sorted_ids)
 
-    def get_excel_validation(self, sheet_models=None):
+    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
             sheet_models (:obj:`list` of :obj:`Model`, optional): models encoded as separate sheets
+            doc_metadata_model (:obj:`type`): model whose worksheet contains the document metadata
 
         Returns:
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
-        validation = super(IdentifierToManyGrammarAttribute, self).get_excel_validation(sheet_models=sheet_models)
+        validation = super(IdentifierToManyGrammarAttribute, self).get_excel_validation(sheet_models=sheet_models,
+                                                                                        doc_metadata_model=doc_metadata_model)
 
         validation.ignore_blank = True
         input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
@@ -1555,7 +1561,7 @@ class Submodel(obj_tables.Model, SbmlModelMixin):
 
         annots.extend(['framework', 'identifiers'])
 
-        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
+        annots.extend(['model.id', 'model.name', 'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
                        'model.identifiers',
                        'model.comments', 'model.updated', 'model.created'])
 
@@ -1597,7 +1603,7 @@ class Submodel(obj_tables.Model, SbmlModelMixin):
         # identifiers
         annots.extend(['framework', 'identifiers'])
 
-        annots.extend(['model.id', 'model.name',  'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
+        annots.extend(['model.id', 'model.name', 'model.version', 'model.url', 'model.branch', 'model.revision', 'model.wc_lang_version',
                        'model.identifiers', 'model.comments', 'model.updated', 'model.created'])
 
         if 'model.taxon.id' in parsed_annots:
@@ -4308,7 +4314,7 @@ class DfbaObjSpecies(obj_tables.Model, SbmlModelMixin):
                 ((self.units == unit_registry.parse_units('M s^-1') and
                     self.dfba_obj_reaction.cell_size_units != unit_registry.parse_units('l')) or
                  (self.units == unit_registry.parse_units('mol gDCW^-1 s^-1') and
-                    self.dfba_obj_reaction.cell_size_units != unit_registry.parse_units('gDCW'))):
+                     self.dfba_obj_reaction.cell_size_units != unit_registry.parse_units('gDCW'))):
             errors.append(InvalidAttribute(
                 self.Meta.attributes['units'],
                 ['Units {} are not consistent with cell size units {}'.format(

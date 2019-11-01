@@ -48,6 +48,8 @@ class CutSubmodelsController(cement.Controller):
         arguments = [
             (['in_file'], dict(type=str, help='Path to model to cut')),
             (['out_dir'], dict(type=str, help='Directory to save cut submodels')),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
@@ -65,10 +67,12 @@ class CutSubmodelsController(cement.Controller):
             os.makedirs(args.out_dir)
 
         # save separated submodels to file
-        Writer().run(os.path.join(args.out_dir, 'core.xlsx'), core, data_repo_metadata=False)
+        Writer().run(os.path.join(args.out_dir, 'core.xlsx'), core, data_repo_metadata=False,
+                     protected=(not args.unprotected))
         for submodel in submodels:
             Writer().run(os.path.join(args.out_dir, '{}.xlsx'.format(
-                submodel.submodels[0].id)), submodel, data_repo_metadata=False)
+                submodel.submodels[0].id)), submodel, data_repo_metadata=False,
+                protected=(not args.unprotected))
 
 
 class MergeModelsController(cement.Controller):
@@ -83,6 +87,8 @@ class MergeModelsController(cement.Controller):
             (['-p', '--primary'], dict(dest='primary_path', type=str, help='Path to base for merged model')),
             (['-s', '--secondary'], dict(dest='secondary_paths', type=str, nargs='*', help='Path to models to merge into primary model')),
             (['-o', '--out'], dict(dest='out_path', type=str, help='Path to save merged model')),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
@@ -95,7 +101,8 @@ class MergeModelsController(cement.Controller):
             secondary_model = Reader().run(secondary_path)[Model][0]
             primary_model.merge(secondary_model)
 
-        Writer().run(args.out_path, primary_model, data_repo_metadata=False)
+        Writer().run(args.out_path, primary_model, data_repo_metadata=False,
+                     protected=(not args.unprotected))
 
 
 class ValidateController(cement.Controller):
@@ -197,6 +204,8 @@ class TransformController(cement.Controller):
             (['dest'], dict(type=str, help='Path to save transformed model')),
             (['--transform'], dict(dest='transforms', action='append',
                                    help='Model transform:' + transform_list)),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
@@ -217,7 +226,8 @@ class TransformController(cement.Controller):
             instance.run(model)
 
         # write model
-        Writer().run(args.dest, model, data_repo_metadata=False)
+        Writer().run(args.dest, model, data_repo_metadata=False,
+                     protected=(not args.unprotected))
 
 
 class NormalizeController(cement.Controller):
@@ -232,6 +242,8 @@ class NormalizeController(cement.Controller):
         arguments = [
             (['source'], dict(type=str, help='Path to model')),
             (['--dest'], dict(default='', type=str, help='Path to save normalized model')),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
@@ -239,9 +251,11 @@ class NormalizeController(cement.Controller):
         args = self.app.pargs
         model = Reader().run(args.source)[Model][0]
         if args.dest:
-            Writer().run(args.dest, model, data_repo_metadata=False)
+            Writer().run(args.dest, model, data_repo_metadata=False,
+                         protected=(not args.unprotected))
         else:
-            Writer().run(args.source, model, data_repo_metadata=False)
+            Writer().run(args.source, model, data_repo_metadata=False,
+                         protected=(not args.unprotected))
 
 
 class ConvertController(cement.Controller):
@@ -257,12 +271,14 @@ class ConvertController(cement.Controller):
         arguments = [
             (['source'], dict(type=str, help='Path to model')),
             (['dest'], dict(type=str, help='Path to save model in converted format')),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        convert(args.source, args.dest)
+        convert(args.source, args.dest, protected=(not args.unprotected))
 
 
 class CreateTemplateController(cement.Controller):
@@ -279,12 +295,14 @@ class CreateTemplateController(cement.Controller):
             (['--ignore-repo-metadata'], dict(dest='data_repo_metadata', default=True, action='store_false',
                                               help=('If set, do not set the Git repository metadata for the knowledge base from '
                                                     'the parent directory of `path`'))),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
-        create_template(args.path, data_repo_metadata=args.data_repo_metadata)
+        create_template(args.path, data_repo_metadata=args.data_repo_metadata, protected=(not args.unprotected))
 
 
 class UpdateVersionMetadataController(cement.Controller):
@@ -301,6 +319,8 @@ class UpdateVersionMetadataController(cement.Controller):
             (['--ignore-repo-metadata'], dict(dest='data_repo_metadata', default=True, action='store_false',
                                               help=('If set, do not set the Git repository metadata for the knowledge base from '
                                                     'the parent directory of `path-core`'))),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
@@ -308,7 +328,8 @@ class UpdateVersionMetadataController(cement.Controller):
         args = self.app.pargs
         model = Reader().run(args.path)[Model][0]
         model.wc_lang_version = wc_lang.__version__
-        Writer().run(args.path, model, data_repo_metadata=args.data_repo_metadata)
+        Writer().run(args.path, model, data_repo_metadata=args.data_repo_metadata,
+                     protected=(not args.unprotected))
 
 
 class ExportController(cement.Controller):
@@ -344,13 +365,16 @@ class ImportController(cement.Controller):
         arguments = [
             (['in_dir'], dict(type=str, help='Directory with model to import')),
             (['out_path'], dict(type=str, help='Path to save model')),
+            (['--unprotected'], dict(action='store_true', default=False,
+                                     help='If set, do not protect the outputted workbook')),
         ]
 
     @cement.ex(hide=True)
     def _default(self):
         args = self.app.pargs
         model = wc_lang.sbml.io.SbmlReader().run(args.in_dir)
-        Writer().run(args.out_path, model, data_repo_metadata=False)
+        Writer().run(args.out_path, model, data_repo_metadata=False,
+                     protected=(not args.unprotected))
 
 
 class App(cement.App):
