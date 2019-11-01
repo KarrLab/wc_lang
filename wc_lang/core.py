@@ -1381,7 +1381,7 @@ class Submodel(obj_tables.Model, SbmlModelMixin):
 
         * reactions (:obj:`list` of :obj:`Reaction`): reactions
         * dfba_obj (:obj:`DfbaObjective`): objective function for a dFBA submodel;
-          if not initialized, then `dfba_obj_reaction` is used as the objective function
+          if not initialized, then `dfba_obj_reactions` is used as the objective function
         * dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): the growth reaction for a dFBA submodel
         * changes (:obj:`list` of :obj:`Change`): changes
     """
@@ -1624,7 +1624,7 @@ class DfbaObjectiveExpression(obj_tables.Model, Expression, SbmlModelMixin):
         expression (:obj:`str`): mathematical expression
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_tables.Model`
         reactions (:obj:`list` of :obj:`Reaction`): reactions used by this expression
-        dfba_obj_reactions (:obj:`list` of :obj:`Species`): dFBA objective reactions used by this expression
+        dfba_obj_reactions (:obj:`list` of :obj:`DfbaObjReaction`): dFBA objective reactions used by this expression
 
     Related attributes:
 
@@ -2641,7 +2641,7 @@ class Species(obj_tables.Model, SbmlModelMixin):
         comp = Compartment.id.pattern[1:-1]
         match = re.match(r'^(' + st + r')\[(' + comp + r')\]$', id, flags=re.IGNORECASE)
         if not match:
-            raise ValueError('{} is not a valid id'.format(id))
+            raise ValueError('{} invalid species_id; it should be species_type_id[compartment_id]'.format(id))
 
         return (match.group(1), match.group(11))
 
@@ -4337,7 +4337,7 @@ class DfbaObjReaction(obj_tables.Model, SbmlModelMixin):
 
     Related attributes:
 
-        * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objectie expression
+        * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
         * dfba_obj_species (:obj:`list` of :obj:`DfbaObjSpecies`): the components of this dFBA objective reaction
     """
     id = SlugAttribute()
