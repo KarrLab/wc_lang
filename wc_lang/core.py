@@ -1379,6 +1379,7 @@ class Submodel(obj_tables.Model, SbmlModelMixin):
         model (:obj:`Model`): model
         framework (:obj:`pronto.term.Term`): modeling integration framework (e.g. SSA, ODE or dFBA)
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -1751,6 +1752,7 @@ class DfbaObjective(obj_tables.Model, SbmlModelMixin):
         reaction_rate_units (:obj:`unit_registry.Unit`): reaction rate units
         coefficient_units (:obj:`unit_registry.Unit`): coefficient units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2083,6 +2085,7 @@ class Compartment(obj_tables.Model, SbmlModelMixin):
             each simulation
         ph (:obj:`Ph`): pH
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2510,6 +2513,7 @@ class SpeciesType(obj_tables.Model, SbmlModelMixin):
         structure (:obj:`ChemicalStructure`): structure (InChI for metabolites; sequence for DNA, RNA, proteins)        
         type (:obj:`pronto.term.Term`): type
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2560,6 +2564,7 @@ class Species(obj_tables.Model, SbmlModelMixin):
         compartment (:obj:`Compartment`): compartment
         units (:obj:`unit_registry.Unit`): units of counts
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -2854,6 +2859,7 @@ class DistributionInitConcentration(obj_tables.Model, SbmlModelMixin):
             single cells at the beginning of each cell cycle
         units (:obj:`unit_registry.Unit`): units; default units is `M`
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -3033,6 +3039,7 @@ class Observable(obj_tables.Model, SbmlAssignmentRuleMixin):
         expression (:obj:`ObservableExpression`): mathematical expression for an Observable
         units (:obj:`unit_registry.Unit`): units of expression
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -3168,6 +3175,7 @@ class Function(obj_tables.Model, SbmlAssignmentRuleMixin):
         expression (:obj:`FunctionExpression`): mathematical expression for a Function
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -3343,6 +3351,7 @@ class StopCondition(obj_tables.Model):
         expression (:obj:`StopConditionExpression`): mathematical expression for a StopCondition
         units (:obj:`unit_registry.Unit`): units, which must be dimensionless
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -3470,8 +3479,10 @@ class Reaction(obj_tables.Model, SbmlModelMixin):
         submodel (:obj:`Submodel`): submodel that reaction belongs to
         participants (:obj:`list` of :obj:`SpeciesCoefficient`): participants
         reversible (:obj:`bool`): indicates if reaction is thermodynamically reversible
+        rate_units (:obj:`unit_registry.Unit`): units of rate law(s)
         flux_bounds (:obj:`FluxBounds`): flux bounds
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -4020,6 +4031,7 @@ class RateLaw(obj_tables.Model, SbmlModelMixin):
         expression (:obj:`RateLawExpression`): expression
         units (:obj:`unit_registry.Unit`): units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -4236,6 +4248,7 @@ class DfbaObjSpecies(obj_tables.Model, SbmlModelMixin):
         value (:obj:`float`): the specie's reaction coefficient
         units (:obj:`unit_registry.Unit`): units of the value
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -4337,6 +4350,7 @@ class DfbaObjReaction(obj_tables.Model, SbmlModelMixin):
         units (:obj:`unit_registry.Unit`): rate units
         cell_size_units (:obj:`unit_registry.Unit`): cell size units
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -4510,6 +4524,7 @@ class Parameter(obj_tables.Model, SbmlModelMixin):
         std (:obj:`float`): standard error of the value
         units (:obj:`unit_registry.Unit`): units of the value and standard error
         identifiers (:obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
@@ -4856,7 +4871,7 @@ class ObservationSet(obj_tables.Model, SbmlModelMixin):
 
 
 class Evidence(obj_tables.Model):
-    """ Observation that supports/disputes an conclusion
+    """ Observation that supports/disputes a conclusion
 
     Attributes:
         observation (:obj:`Observation`): observation which supports the conclusion
@@ -5176,6 +5191,7 @@ class Change(obj_tables.Model, SbmlModelMixin):
         intention (:obj:`str`): intention
         intention_type (:obj:`pronto.term.Term`): type of intention
         identifiers (::obj:`list` of :obj:`Identifier`): identifiers
+        evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
         references (:obj:`list` of :obj:`Reference`): references
