@@ -5,7 +5,7 @@ natsort
 networkx
 obj_tables
 pint >= 0.9
-pronto >= 1.1
+pronto >= 1
 python_libsbml >= 5.16.0
 scipy
 setuptools
