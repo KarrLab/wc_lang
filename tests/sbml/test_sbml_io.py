@@ -78,6 +78,14 @@ class SbmlIoTestCase(unittest.TestCase):
         sbml_compat_model = PrepForSbmlTransform().run(self.model.copy())
         self.assertTrue(model.is_equal(sbml_compat_model))
 
+    def test_export_another_model(self):
+        filename = 'tests/sbml/fixtures/static-model.xlsx'
+        model = Reader().run(filename)[Model][0]
+        self.assertEqual(model.validate(), None)
+
+        # write SBML file
+        sbml_io.SbmlWriter().run(model, self.dirname)
+
     def test_writer_errors(self):
         model = Model(version=None)
         with self.assertWarnsRegex(WcLangWarning, 'Model is invalid:'):
