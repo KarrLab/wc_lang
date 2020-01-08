@@ -36,7 +36,7 @@ from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
 from wc_lang.io import Reader
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto
-from wc_utils.util.units import unit_registry
+from wc_utils.util.units import unit_registry, are_units_equivalent
 
 
 class TestCore(unittest.TestCase):
@@ -2646,11 +2646,11 @@ class ValidateModelTestCase(unittest.TestCase):
             obs_2.expression = obs_2_expression
         with self.assertRaisesRegex(ValueError, 'cannot be set because it is not `None`'):
             obs_2_expression.observable = obs_2
-        
+
         obs_2_expression.observable = None
         self.assertEqual(obs_1.expression, None)
         obs_2_expression.observable = obs_2
-        self.assertEqual(obs_2.expression, obs_2_expression)        
+        self.assertEqual(obs_2.expression, obs_2_expression)
 
     def test_min_flux_maxes(self):
         c_1 = Compartment(id='c_1')
@@ -3243,11 +3243,11 @@ class UnitsTestCase(unittest.TestCase):
 
         coeff_unit = unit_registry.parse_expression('M s^-1')
         cell_size_unit = unit_registry.parse_expression('l')
-        self.assertTrue((coeff_unit * cell_size_unit * time_unit).to_base_units() == mol_unit.to_base_units())
+        self.assertTrue(are_units_equivalent(coeff_unit * cell_size_unit * time_unit, mol_unit))
 
         coeff_unit = unit_registry.parse_expression('mol gDCW^-1 s^-1')
         cell_size_unit = unit_registry.parse_expression('gDCW')
-        self.assertEqual((coeff_unit * cell_size_unit * time_unit).to_base_units(), mol_unit.to_base_units())
+        self.assertTrue(are_units_equivalent(coeff_unit * cell_size_unit * time_unit, mol_unit))
 
     def test_stop_condition_value(self):
         objs = {
