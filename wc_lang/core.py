@@ -246,6 +246,8 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
             for arg in args:
                 if isinstance(arg, lark.lexer.Token) and \
                         arg.type == 'SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID':
+                    if arg.value not in self.objects.get(Compartment, {}):
+                        raise ValueError('Model must contain compartment with id "{}"'.format(arg.value))
                     comp = self.get_or_create_model_obj(
                         Compartment, _serialized_val=arg.value)
 
@@ -258,9 +260,12 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
                     for part in arg.children[0]:
                         st = part['st']
                         coeff = sign * part['coeff']
+                        s_id = Species._gen_id(st.id, comp.id)
+                        if s_id not in self.objects.get(Species, {}):
+                            raise ValueError('Model must contain species with id "{}"'.format(s_id))
                         s = self.get_or_create_model_obj(
                             Species,
-                            _serialized_val=Species._gen_id(st.id, comp.id))
+                            _serialized_val=s_id)
                         spec_coeff = self.get_or_create_model_obj(
                             SpeciesCoefficient,
                             _serialized_val=SpeciesCoefficient._serialize(s, coeff),
@@ -281,6 +286,8 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
             coeff = 1.
             for arg in args:
                 if arg.type == 'SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID':
+                    if arg.value not in self.objects.get(SpeciesType, {}):
+                        raise ValueError('Model must contain species type with id "{}"'.format(arg.value))
                     st = self.get_or_create_model_obj(
                         SpeciesType, _serialized_val=arg.value)
                 elif arg.type == 'SPECIES_COEFFICIENT__COEFFIFICIENT':
@@ -319,19 +326,26 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
             coeff = 1.
             for arg in args:
                 if arg.type == 'SPECIES_COEFFICIENT__SPECIES__SPECIES_TYPE__ID':
+                    if arg.value not in self.objects.get(SpeciesType, {}):
+                        raise ValueError('Model must contain species type with id "{}"'.format(arg.value))
                     st = self.get_or_create_model_obj(
                         SpeciesType,
                         _serialized_val=arg.value)
                 elif arg.type == 'SPECIES_COEFFICIENT__SPECIES__COMPARTMENT__ID':
+                    if arg.value not in self.objects.get(Compartment, {}):
+                        raise ValueError('Model must contain compartment with id "{}"'.format(arg.value))
                     comp = self.get_or_create_model_obj(
                         Compartment,
                         _serialized_val=arg.value)
                 elif arg.type == 'SPECIES_COEFFICIENT__COEFFIFICIENT':
                     coeff = float(arg.value)
 
+            s_id = Species._gen_id(st.id, comp.id)
+            if s_id not in self.objects.get(Species, {}):
+                raise ValueError('Model must contain species with id "{}"'.format(s_id))
             s = self.get_or_create_model_obj(
                 Species,
-                _serialized_val=Species._gen_id(st.id, comp.id))
+                _serialized_val=s_id)
             return {'s': s, 'coeff': coeff}
 
     def validate(self, obj, value, tolerance=1E-10):
