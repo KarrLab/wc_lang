@@ -2381,8 +2381,8 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
 
     class Meta(obj_tables.Model.Meta):
         table_format = TableFormat.multiple_cells
-        unique_together = (('value', 'format', 'alphabet',
-                            'empirical_formula', 'molecular_weight', 'charge',), )
+        #unique_together = (('value', 'format', 'alphabet',
+        #                    'empirical_formula', 'molecular_weight', 'charge',), )
         attribute_order = ('value', 'format', 'alphabet',
                            'empirical_formula', 'molecular_weight', 'charge',)
         children = {
@@ -3463,7 +3463,7 @@ class FluxBounds(obj_tables.Model, SbmlModelMixin):
 
     class Meta(obj_tables.Model.Meta):
         table_format = TableFormat.multiple_cells
-        unique_together = (('min', 'max', 'units'), )
+        #unique_together = (('min', 'max', 'units'), )
         attribute_order = ('min', 'max', 'units')
         children = {
             'submodel': (),
