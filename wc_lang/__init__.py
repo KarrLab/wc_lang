@@ -1,7 +1,6 @@
 import pkg_resources
 
-with open(pkg_resources.resource_filename('wc_lang', 'VERSION'), 'r') as file:
-    __version__ = file.read().strip()
+from ._version import __version__
 # :obj:`str`: version
 
 # API
