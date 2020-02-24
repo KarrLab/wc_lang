@@ -1,9 +1,6 @@
 # description
 include README.rst
 
-# version
-include wc_lang/VERSION
-
 # license
 include LICENSE
 
