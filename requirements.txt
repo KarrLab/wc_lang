@@ -11,4 +11,4 @@ scipy
 setuptools
 stringcase
 wc_onto
-wc_utils
+wc_utils[git]
