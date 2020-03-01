@@ -3502,7 +3502,7 @@ class Reaction(obj_tables.Model, SbmlModelMixin):
 
     Related attributes:
 
-        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[0] is the forward
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[1] is the forward
           rate law, and rate_laws[0] is the backward rate law
         * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
     """
