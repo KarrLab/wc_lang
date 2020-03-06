@@ -14,8 +14,8 @@ from wc_utils.util.units import unit_registry, are_units_equivalent
 import libsbml
 import math
 import obj_tables
-import obj_tables.expression
-import obj_tables.units
+import obj_tables.math.expression
+import obj_tables.sci.units
 import re
 import scipy
 import types
@@ -320,7 +320,7 @@ class LibSbmlInterface(object):
             :obj:`dict`: dictionary that maps units to ids of SBML unit definitions
         """
         # Define units
-        units = obj_tables.units.get_obj_units(model)
+        units = obj_tables.sci.units.get_obj_units(model)
 
         units_to_sbml = {}
         for unit in units:
@@ -625,7 +625,7 @@ class LibSbmlInterface(object):
 
         Args:
             set_math_func (:obj:`callable`): function to set the math of an SBML object
-            expression (:obj:`obj_tables.expression.Expression`): expression
+            expression (:obj:`obj_tables.math.expression.Expression`): expression
         """
         str_formula = expression._parsed_expression.get_str(cls._obj_tables_token_to_str, with_units=True, number_units=' dimensionless')
         if units_transform:
@@ -638,7 +638,7 @@ class LibSbmlInterface(object):
         """ Get a string representation of a token that represents an instance of :obj:`Model`.
 
         Args:
-            token (:obj:`obj_tables.expression.ObjTablesToken`): token that represents an instance of :obj:`Model`
+            token (:obj:`obj_tables.math.expression.ObjTablesToken`): token that represents an instance of :obj:`Model`
 
         Returns:
             :obj:`str`: string representation of a token that represents an instance of :obj:`Model`.
@@ -661,7 +661,7 @@ class LibSbmlInterface(object):
                 that map ids of model objects to model objects
 
         Returns:
-            :obj:`obj_tables.expression.Expression`: expression
+            :obj:`obj_tables.math.expression.Expression`: expression
         """
         sbml_formula = cls.call_libsbml(get_math_func)
         str_formula = cls.call_libsbml(libsbml.formulaToL3String, sbml_formula)

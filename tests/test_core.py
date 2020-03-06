@@ -15,7 +15,7 @@ import unittest
 import wc_lang
 import wc_lang.config.core
 from obj_tables import InvalidAttribute
-from obj_tables.expression import ExpressionManyToOneAttribute
+from obj_tables.math.expression import ManyToOneExpressionAttribute
 from test.support import EnvironmentVarGuard
 from wc_lang.core import (Model, Taxon, TaxonRank, Submodel,
                           DfbaObjective, DfbaObjectiveExpression,
@@ -1562,7 +1562,7 @@ class TestCore(unittest.TestCase):
         rate_law = rxn.rate_laws[0]
         expression = rate_law.expression
 
-        attr = ExpressionManyToOneAttribute(RateLawExpression)
+        attr = ManyToOneExpressionAttribute(RateLawExpression)
         self.assertEqual(attr.serialize(expression), expression.expression)
 
     def test_RateLawExpressionAttribute_deserialize(self):
@@ -1588,7 +1588,7 @@ class TestCore(unittest.TestCase):
             compartment=objs[Compartment]['c_0'])
 
         expression = 'k_cat * spec_0[c_0]'
-        attr = ExpressionManyToOneAttribute(RateLawExpression)
+        attr = ManyToOneExpressionAttribute(RateLawExpression)
         expression1, error = attr.deserialize(expression, objs)
         self.assertEqual(error, None)
         self.assertEqual(expression1.expression, expression)

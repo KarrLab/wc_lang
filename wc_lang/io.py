@@ -16,8 +16,9 @@ Supported file types:
 from wc_lang import core
 from wc_utils.util.string import indent_forest
 from wc_utils.util.list import get_count_limited_class
-import obj_tables.utils
 import obj_tables
+import obj_tables.io
+import obj_tables.utils
 import os
 import wc_lang
 import wc_lang.config.core

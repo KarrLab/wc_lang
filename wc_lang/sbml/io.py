@@ -143,8 +143,7 @@ class SbmlReader(object):
             # convert SBML-encoded model to wc_lang
             model = SbmlImporter.run(sbml_doc)
 
-            import obj_tables.core
-            error = obj_tables.core.Validator().run(model, get_related=True)
+            error = obj_tables.Validator().run(model, get_related=True)
             assert error is None, str(error)
 
 

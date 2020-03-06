@@ -8,6 +8,7 @@
 """
 
 import obj_tables
+import obj_tables.io
 import os
 import pytest
 import re
