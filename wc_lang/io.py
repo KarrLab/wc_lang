@@ -113,7 +113,7 @@ class Writer(obj_tables.io.Writer):
         if creator is None:
             creator = '{}.{}'.format(self.__class__.__module__, self.__class__.__name__)
 
-        super(Writer, self).run(path, model, models=models, get_related=get_related,
+        super(Writer, self).run(path, model, schema_name='wc_lang', models=models, get_related=get_related,
                                 include_all_attributes=include_all_attributes, validate=validate,
                                 title=title, description=description, version=version, language=language,
                                 creator=creator,
@@ -221,7 +221,7 @@ class Reader(obj_tables.io.Reader):
         if ignore_attribute_order is None:
             ignore_attribute_order = not config['strict']
 
-        objects = super(Reader, self).run(path, models=models,
+        objects = super(Reader, self).run(path, schema_name='wc_lang', models=models,
                                           ignore_missing_models=ignore_missing_models,
                                           ignore_extra_models=ignore_extra_models,
                                           ignore_sheet_order=ignore_sheet_order,
