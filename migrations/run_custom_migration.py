@@ -137,6 +137,7 @@ paths = [
     {'path': 'h1_hesc/tests/model/cell_cycle/fixtures/test_cyclin_dynamics.xlsx'},
     {'path': 'h1_hesc/model/hesc_recon/hesc_recon_wc_data_model.xlsx'},
     {'path': 'h1_hesc/tests/code/fixtures/eukaryote_model.xlsx'},
+    {'path': 'h1_hesc/tests/code/fixtures/mock_model.xlsx'},
 
     # rand_wc_model_gen
     {'path': 'rand_wc_model_gen/rand_wc_model_gen/model_gen/model.xlsx'},
@@ -149,13 +150,13 @@ for i_path, path in enumerate(paths):
     abs_path = os.path.join(base_dir, path['path'])
 
     # migrate
-    # migration.transform(abs_path)
+    migration.transform(abs_path)
 
     # validate
     if path.get('validate', True):
         kwargs = copy.copy(path)
         kwargs.pop('path')
-        if 'validate' in kwards:
+        if 'validate' in kwargs:
             kwargs.pop('validate')
         try:
             wc_lang.io.Reader().run(abs_path, **kwargs)
