@@ -5202,7 +5202,7 @@ class Change(obj_tables.Model, SbmlModelMixin):
         reason_type (:obj:`pronto.term.Term`): type of reason
         intention (:obj:`str`): intention
         intention_type (:obj:`pronto.term.Term`): type of intention
-        identifiers (::obj:`list` of :obj:`Identifier`): identifiers
+        identifiers (:obj:`list` of :obj:`Identifier`): identifiers
         evidence (:obj:`list` of :obj:`Evidence`): observation that supports/disputes a conclusion
         conclusions (:obj:`list` of :obj:`Conclusion`): conclusions
         comments (:obj:`str`): comments
