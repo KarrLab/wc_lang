@@ -1,3 +1,4 @@
+import migration_2020_04_27 as migration
 """ Migration WC-lang-encoded files
 
 :Author: Jonathan Karr <karr@mssm.edu>
@@ -12,7 +13,6 @@ import sys
 import warnings
 import wc_lang.io
 sys.path.insert(0, 'migrations')
-import migration_2020_04_27 as migration
 
 base_dir = os.path.expanduser('~/Documents')
 
@@ -53,6 +53,8 @@ paths = [
      'ignore_extra_models': True},
     {'path': 'wc_sim/tests/fixtures/dynamic_tests/static.xlsx',
      'ignore_extra_models': True},
+    {'path': 'wc_sim/tests/submodels/fixtures/test_next_reaction_method_submodel.xlsx'},
+    {'path': 'wc_sim/tests/submodels/fixtures/test_next_reaction_method_submodel_2.xlsx'},
     {'path': 'wc_sim/tests/submodels/fixtures/test_submodel.xlsx'},
     {'path': 'wc_sim/tests/submodels/fixtures/test_submodel_no_shared_species.xlsx'},
     {'path': 'wc_sim/tests/fixtures/verification/cases/multialgorithmic/00001/00001-wc_lang.xlsx'},
@@ -142,6 +144,10 @@ paths = [
     # rand_wc_model_gen
     {'path': 'rand_wc_model_gen/rand_wc_model_gen/model_gen/model.xlsx'},
     {'path': 'rand_wc_model_gen/rand_wc_model_gen/model_gen/model_2.xlsx'},
+]
+
+paths = [
+{'path': 'wc_sim/tests/submodels/fixtures/test_next_reaction_method_submodel_2.xlsx'},
 ]
 
 for i_path, path in enumerate(paths):
