@@ -1,9 +1,8 @@
-import migration_2020_03_09 as migration
 """ Migration WC-lang-encoded files
 
 :Author: Jonathan Karr <karr@mssm.edu>
-:Date: 2019-10-10
-:Copyright: 2019, Karr Lab
+:Date: 2020-04-27
+:Copyright: 2020, Karr Lab
 :License: MIT
 """
 
@@ -13,6 +12,7 @@ import sys
 import warnings
 import wc_lang.io
 sys.path.insert(0, 'migrations')
+import migration_2020_04_27 as migration
 
 base_dir = os.path.expanduser('~/Documents')
 
