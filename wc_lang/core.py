@@ -3888,7 +3888,7 @@ class SpeciesCoefficient(obj_tables.Model, SbmlModelMixin):
     coefficient = FloatAttribute(nan=False)
 
     class Meta(obj_tables.Model.Meta):
-        unique_together = (('species', 'coefficient'),)
+        #unique_together = (('species', 'coefficient'),)
         attribute_order = ('species', 'coefficient')
         frozen_columns = 1
         table_format = TableFormat.cell
