@@ -2373,7 +2373,7 @@ class ChemicalStructure(obj_tables.Model, SbmlModelMixin):
     format = EnumAttribute(ChemicalStructureFormat, none=True)
     alphabet = EnumAttribute(ChemicalStructureAlphabet, none=True)
 
-    empirical_formula = obj_tables.chem.EmpiricalFormulaAttribute()
+    empirical_formula = obj_tables.chem.ChemicalFormulaAttribute()
     molecular_weight = FloatAttribute(min=0)
     charge = IntegerAttribute()
 
