@@ -383,14 +383,14 @@ class GetChildrenTestCase(unittest.TestCase):
         self.assertEqual(set(submodel_1.get_children(kind='submodel', __type=Parameter)),
                          set([model.parameters[0], model.parameters[2]] + model.parameters[3:5] + model.parameters[7:9]))
 
-        self.assertEqual(submodel_0.get_children(kind='submodel', id='rxn_01'),
+        self.assertEqual(submodel_0.get_children(kind='submodel', id='rxn_01', __check_attr_defined=False),
                          model.reactions[1:2])
-        self.assertEqual(submodel_1.get_children(kind='submodel', id='model'),
+        self.assertEqual(submodel_1.get_children(kind='submodel', id='model', __check_attr_defined=False),
                          [model])
 
-        self.assertEqual(submodel_0.get_children(kind='submodel', id='p_0'),
+        self.assertEqual(submodel_0.get_children(kind='submodel', id='p_0', __check_attr_defined=False),
                          model.parameters[0:1])
-        self.assertEqual(submodel_1.get_children(kind='submodel', id='p_2'),
+        self.assertEqual(submodel_1.get_children(kind='submodel', id='p_2', __check_attr_defined=False),
                          model.parameters[2:3])
 
 
