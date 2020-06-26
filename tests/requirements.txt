@@ -1,3 +1,4 @@
 capturer
+gitpython
 mock
 pytest
