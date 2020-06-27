@@ -13,6 +13,6 @@ email_notifications:
   - arthur.p.goldberg@mssm.edu
 static_analyses:
   ignore_unused_requirements:
-    - python-libsbml
+    - python_libsbml
   ignore_missing_requirements:
     - python-libsbml-experimental
