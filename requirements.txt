@@ -7,7 +7,7 @@ lark_parser
 natsort
 networkx
 obj_tables[grammar,math,sci,chem,revisioning]
-openbabel
+openbabel < 3
 pronto >= 1
 python_libsbml >= 5.16.0
 scipy
