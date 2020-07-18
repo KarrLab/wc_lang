@@ -409,7 +409,7 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
         # return None
         return None
 
-    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
+    def get_xlsx_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
@@ -420,8 +420,8 @@ class ReactionParticipantAttribute(obj_tables.grammar.ToManyGrammarAttribute, Ma
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
         sheet_models = sheet_models or []
-        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models,
-                                                                           doc_metadata_model=doc_metadata_model)
+        validation = super(ManyToManyAttribute, self).get_xlsx_validation(sheet_models=sheet_models,
+                                                                          doc_metadata_model=doc_metadata_model)
 
         related_class = Species
         if related_class in sheet_models:
@@ -501,7 +501,7 @@ class EvidenceManyToManyAttribute(obj_tables.grammar.ToManyGrammarAttribute, Man
 
             return self.get_or_create_model_obj(Evidence, **kwargs)
 
-    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
+    def get_xlsx_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
@@ -512,8 +512,8 @@ class EvidenceManyToManyAttribute(obj_tables.grammar.ToManyGrammarAttribute, Man
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
         sheet_models = sheet_models or []
-        validation = super(ManyToManyAttribute, self).get_excel_validation(sheet_models=sheet_models,
-                                                                           doc_metadata_model=doc_metadata_model)
+        validation = super(ManyToManyAttribute, self).get_xlsx_validation(sheet_models=sheet_models,
+                                                                          doc_metadata_model=doc_metadata_model)
 
         validation.ignore_blank = False
 
@@ -560,7 +560,7 @@ class IdentifierToManyGrammarAttribute(obj_tables.grammar.ToManyGrammarAttribute
         sorted_ids = sorted(identifiers, key=lambda id: (id.namespace, id.id))
         return ', '.join(id.serialize() for id in sorted_ids)
 
-    def get_excel_validation(self, sheet_models=None, doc_metadata_model=None):
+    def get_xlsx_validation(self, sheet_models=None, doc_metadata_model=None):
         """ Get Excel validation
 
         Args:
@@ -570,8 +570,8 @@ class IdentifierToManyGrammarAttribute(obj_tables.grammar.ToManyGrammarAttribute
         Returns:
             :obj:`wc_utils.workbook.io.FieldValidation`: validation
         """
-        validation = super(IdentifierToManyGrammarAttribute, self).get_excel_validation(sheet_models=sheet_models,
-                                                                                        doc_metadata_model=doc_metadata_model)
+        validation = super(IdentifierToManyGrammarAttribute, self).get_xlsx_validation(sheet_models=sheet_models,
+                                                                                       doc_metadata_model=doc_metadata_model)
 
         validation.ignore_blank = True
         input_message = ['Enter a comma-separated list of identifiers in external namespaces.']
