@@ -4275,8 +4275,9 @@ class DfbaObjSpecies(obj_tables.Model, SbmlModelMixin):
                                  verbose_related_name='dFBA objective species')
     value = FloatAttribute()
     units = UnitAttribute(unit_registry,
-                          choices=(unit_registry.parse_units('M s^-1'), unit_registry.parse_units('mol gDCW^-1 s^-1')),
-                          default=unit_registry.parse_units('M s^-1'))
+                          choices=(unit_registry.parse_units('molecule gDCW^-1'), unit_registry.parse_units('mol gDCW^-1'), 
+                                    unit_registry.parse_units('molecule cell^-1')),
+                          default=unit_registry.parse_units('mol gDCW^-1'))
     identifiers = IdentifierManyToManyAttribute(related_name='dfba_obj_species',
                                                 verbose_related_name='dFBA objective species')
     evidence = EvidenceManyToManyAttribute('Evidence', related_name='dfba_obj_species')
