@@ -3104,7 +3104,7 @@ class FunctionExpression(obj_tables.Model, Expression, SbmlModelMixin):
         observables (:obj:`list` of :obj:`Observable`): Observables used by this function expression
         parameters (:obj:`list` of :obj:`Parameter`): Parameters used by this function expression
         functions (:obj:`list` of :obj:`Function`): other Functions used by this function expression
-        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
+        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this function expression
 
     Related attributes:
 
@@ -3501,8 +3501,8 @@ class Reaction(obj_tables.Model, SbmlModelMixin):
 
     Related attributes:
 
-        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if present, rate_laws[1] is the forward
-          rate law, and rate_laws[0] is the backward rate law
+        * rate_laws (:obj:`list` of :obj:`RateLaw`): rate laws; if two rate laws are present,
+          rate_laws[1] is the forward rate law, and rate_laws[0] is the backward rate law
         * dfba_obj_expression (:obj:`DfbaObjectiveExpression`): dFBA objective expression
     """
     id = SlugAttribute()
@@ -3947,14 +3947,16 @@ class SpeciesCoefficient(obj_tables.Model, SbmlModelMixin):
 
 
 class RateLawExpression(obj_tables.Model, Expression, SbmlModelMixin):
-    """ Rate law expression
+    """ A mathematical expression of Parameters, Species, Observables, Functions, Compartments and Python functions
+
+    The expression used by a :obj:`RateLaw`.
 
     Attributes:
         expression (:obj:`str`): mathematical expression of the rate law
         _parsed_expression (:obj:`ParsedExpression`): an analyzed `expression`; not an `obj_tables.Model`
         species (:obj:`list` of :obj:`Species`): species whose dynamic concentrations are used in the rate law
         parameters (:obj:`list` of :obj:`Parameter`): parameters whose values are used in the rate law
-        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this stop condition expression
+        compartments (:obj:`list` of :obj:`Compartment`): Compartments used by this rate law expression
 
     Related attributes:
 
