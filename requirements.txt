@@ -1,10 +1,13 @@
+bcforms
 bpforms
 cement >= 3.0.0
+configobj
 gitpython
+lark_parser
 natsort
 networkx
 obj_tables[grammar,math,sci,chem,revisioning]
-pint >= 0.10
+openbabel < 3
 pronto >= 1
 python_libsbml >= 5.16.0
 scipy
