@@ -3442,7 +3442,7 @@ class StopCondition(obj_tables.Model):
 
 
 class FluxBounds(obj_tables.Model, SbmlModelMixin):
-    """ Flux bounds 
+    """ Flux bounds for reactions modeled by dFBA submodels
 
     Attributes:
         min (:obj:`float`): minimum flux bound for solving an FBA model; negative for reversible reactions
