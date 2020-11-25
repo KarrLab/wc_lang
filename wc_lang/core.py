@@ -1654,7 +1654,8 @@ class DfbaObjectiveExpression(obj_tables.Model, Expression, SbmlModelMixin):
     reactions = OneToManyAttribute('Reaction', related_name='dfba_obj_expression',
                                    verbose_related_name='dFBA objective expression')
     dfba_obj_reactions = OneToManyAttribute('DfbaObjReaction', related_name='dfba_obj_expression',
-                                            verbose_name='dFBA objective reactions', verbose_related_name='dFBA objective expression')
+                                            verbose_name='dFBA objective reactions',
+                                            verbose_related_name='dFBA objective expression')
 
     class Meta(obj_tables.Model.Meta, Expression.Meta):
         table_format = TableFormat.cell

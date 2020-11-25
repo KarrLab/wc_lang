@@ -1,6 +1,7 @@
 """ Test splitting of reversible reactions.
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2018-06-19
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -8,17 +9,19 @@
 
 from itertools import chain
 from obj_tables import RelatedAttribute
-from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType,
+from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, FluxBounds,
                      Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import unittest
+import math
 
 
 class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
-    def test(self):
-        model = Model()
+
+    def setUp(self):
+        self.model = model = Model()
 
         c = model.compartments.create(id='c')
 
@@ -30,9 +33,9 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         s1 = model.species.create(id='s1[c]', species_type=t1, compartment=c)
         s2 = model.species.create(id='s2[c]', species_type=t2, compartment=c)
 
-        submodel = model.submodels.create(id='submodel', framework='SSA')
+        self.submodel = submodel = model.submodels.create(id='submodel', framework='SSA')
 
-        r0 = model.reactions.create(id='r0', reversible=True, submodel=submodel)
+        self.r0 = r0 = model.reactions.create(id='r0', reversible=True, submodel=submodel)
         r0.participants.create(species=s0, coefficient=-2)
         r0.participants.create(species=s1, coefficient=3)
 
@@ -41,7 +44,9 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r0_f.expression, error = RateLawExpression.deserialize('a', {Parameter: {'a': a}})
         assert error is None, str(error)
 
-        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward, expression=RateLawExpression(expression='b'), model=model)
+        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward,
+                                   expression=RateLawExpression(expression='b'),
+                                   model=model)
         b = model.parameters.create(id='b', value=1., units=unit_registry.parse_units('s^-1'))
         r0_b.expression, error = RateLawExpression.deserialize('b', {Parameter: {'b': b}})
         assert error is None, str(error)
@@ -49,7 +54,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r0.references.create(id='ref_0', model=model)
         r0.identifiers.create(namespace='x', id='y')
 
-        r1 = model.reactions.create(id='r1', reversible=False, submodel=submodel)
+        self.r1 = r1 = model.reactions.create(id='r1', reversible=False, submodel=submodel)
         r1.participants.create(species=s1, coefficient=-3)
         r1.participants.create(species=s2, coefficient=4)
 
@@ -66,11 +71,11 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r1.references.create(id='ref_1', model=model)
         r1.identifiers.create(namespace='xx', id='yy')
 
-        model2 = model.copy()
-        submodel2 = model2.submodels.get_one(id='submodel')
+    def test(self):
+        submodel2 = self.model.submodels.get_one(id='submodel')
         r0 = submodel2.reactions.get_one(id='r0')
 
-        SplitReversibleReactionsTransform().run(model2)
+        SplitReversibleReactionsTransform().run(self.model)
 
         self.assertEqual(set([x.id for x in submodel2.reactions]), set(['r0_forward', 'r0_backward', 'r1']))
 
@@ -112,3 +117,73 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
             if isinstance(attr, RelatedAttribute):
                 val = getattr(r0, attr_name)
                 self.assertTrue(val is None or (isinstance(val, list) and len(val) == 0))
+
+    def test_dfba_submodel(self):
+        self.submodel.framework=onto['WC:dynamic_flux_balance_analysis']
+
+        self.r1.reversible = True
+        model = self.model.copy()
+        SplitReversibleReactionsTransform().run(model)
+        for id in ['r0_forward', 'r0_backward', 'r1_forward', 'r1_backward']:
+            rxn = model.reactions.get_one(id=id)
+            self.assertEqual(rxn.flux_bounds, None)
+
+        self.r0.flux_bounds = FluxBounds(min=3.,
+                                         max=2.,
+                                         units=unit_registry.parse_units('M s^-1'))
+        model = self.model.copy()
+        with self.assertRaisesRegexp(AssertionError, 'min flux bound greater than max'):
+            SplitReversibleReactionsTransform().run(model)
+
+        # test NaN bounds
+        self.r0.flux_bounds = FluxBounds(units=unit_registry.parse_units('M s^-1'))
+        model = self.model.copy()
+        SplitReversibleReactionsTransform().run(model)
+        r0_f = model.reactions.get_one(id='r0_forward')
+        r0_b = model.reactions.get_one(id='r0_backward')
+        self.assertEqual(r0_f.flux_bounds.min, 0.)
+        self.assertTrue(math.isnan(r0_f.flux_bounds.max))
+        self.assertEqual(r0_b.flux_bounds.min, 0.)
+        self.assertTrue(math.isnan(r0_b.flux_bounds.max))
+
+        # test typical bounds
+        lb, ub = -8, 100
+        self.r0.flux_bounds = FluxBounds(min=lb,
+                                         max=ub,
+                                         units=unit_registry.parse_units('M s^-1'))
+        model = self.model.copy()
+        SplitReversibleReactionsTransform().run(model)
+        r0_f = model.reactions.get_one(id='r0_forward')
+        r0_b = model.reactions.get_one(id='r0_backward')
+        self.assertEqual(r0_f.flux_bounds.min, 0.)
+        self.assertEqual(r0_f.flux_bounds.max, ub)
+        self.assertEqual(r0_b.flux_bounds.min, 0.)
+        self.assertEqual(r0_b.flux_bounds.max, -lb)
+
+        # test 0 < min bound
+        lb, ub = 5, 10
+        self.r0.flux_bounds = FluxBounds(min=lb,
+                                         max=ub,
+                                         units=unit_registry.parse_units('M s^-1'))
+        model = self.model.copy()
+        SplitReversibleReactionsTransform().run(model)
+        r0_f = model.reactions.get_one(id='r0_forward')
+        r0_b = model.reactions.get_one(id='r0_backward')
+        self.assertEqual(r0_f.flux_bounds.min, lb)
+        self.assertEqual(r0_f.flux_bounds.max, ub)
+        self.assertEqual(r0_b.flux_bounds.min, 0.)
+        self.assertEqual(r0_b.flux_bounds.max, 0.)
+
+        # test max bound < 0
+        lb, ub = -50, -10
+        self.r0.flux_bounds = FluxBounds(min=lb,
+                                         max=ub,
+                                         units=unit_registry.parse_units('M s^-1'))
+        model = self.model.copy()
+        SplitReversibleReactionsTransform().run(model)
+        r0_f = model.reactions.get_one(id='r0_forward')
+        r0_b = model.reactions.get_one(id='r0_backward')
+        self.assertEqual(r0_f.flux_bounds.min, 0.)
+        self.assertEqual(r0_f.flux_bounds.max, 0.)
+        self.assertEqual(r0_b.flux_bounds.min, -ub)
+        self.assertEqual(r0_b.flux_bounds.max, -lb)
