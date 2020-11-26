@@ -360,7 +360,7 @@ class TestSimpleModel(unittest.TestCase):
         write_workbook(filename, wb)
 
         # read model and verify that it doesn't validate
-        with self.assertRaisesRegex(ValueError, 'does not match pattern'):
+        with self.assertRaisesRegex(ValueError, 'The model cannot be loaded because it fails to validate'):
             Reader().run(filename)
 
         env = EnvironmentVarGuard()
