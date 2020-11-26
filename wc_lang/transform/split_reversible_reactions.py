@@ -8,7 +8,8 @@
 """
 
 from .core import Transform
-from wc_lang import Model, Reaction, RateLawDirection, FluxBounds
+from obj_tables.math.expression import ObjTablesTokenCodes
+from wc_lang import Model, Reaction, DfbaObjReaction, RateLawDirection, FluxBounds, DfbaObjectiveExpression
 from wc_onto import onto
 from wc_utils.util.ontology import are_terms_equivalent
 import copy
@@ -101,6 +102,12 @@ class SplitReversibleReactionsTransform(Transform):
                                 assert rxn.flux_bounds.min <= rxn.flux_bounds.max, \
                                     f"min flux bound greater than max in {rxn.id}"
                             # Mapping of flux bounds to backward and forward reactions
+                            # Principles:
+                            # lower bounds must be set, and cannot be negative because that would imply reversible
+                            # upper bounds may be NaN if not previously set
+                            # the forward reaction uses existing bounds that are positive
+                            # the backward reaction uses existing bounds that are negative,
+                            # swapping min and max and negating signs
 
                             # NaNs
                             #                   backward rxn    forward rxn
@@ -143,23 +150,44 @@ class SplitReversibleReactionsTransform(Transform):
                                                              max=forward_max,
                                                              units=rxn.flux_bounds.units)
 
-                    # copy dFBA objective
+                    # transform dFBA objective expression
+                    # each dFBA objective expression is transformed for each reaction it uses
                     if rxn.dfba_obj_expression:
                         dfba_obj_expr = rxn.dfba_obj_expression
                         parsed_expr = dfba_obj_expr._parsed_expression
 
-                        dfba_obj_expr.expression = parsed_expr.expression = re.sub(
-                            r'\b' + rxn.id + r'\b',
-                            '({} - {})'.format(rxn_for.id, rxn_bck.id),
-                            dfba_obj_expr.expression)
+                        # create a new dFBA objective expression
+                        # 1. use parsed_expr._obj_tables_tokens to recreate the expression and
+                        # the objects it uses, while substituting the split reactions for the reversible reaction
+                        new_obj_expr_elements = []
+                        all_reactions = {Reaction: {},
+                                         DfbaObjReaction: {}}
+                        for ot_token in parsed_expr._obj_tables_tokens:
+                            if (ot_token.code == ObjTablesTokenCodes.obj_id and
+                                issubclass(ot_token.model_type, Reaction) and
+                                ot_token.model_id == rxn.id):
+                                new_obj_expr_elements.append(f'({rxn_for.id} - {rxn_bck.id})')
+                                all_reactions[Reaction][rxn_for.id] = rxn_for
+                                all_reactions[Reaction][rxn_bck.id] = rxn_bck
+                                continue
 
-                        parsed_expr._objs[Reaction].pop(rxn.id)
-                        parsed_expr._objs[Reaction][rxn_for.id] = rxn_for
-                        parsed_expr._objs[Reaction][rxn_bck.id] = rxn_bck
-                        parsed_expr.tokenize()
+                            if (ot_token.code == ObjTablesTokenCodes.obj_id and
+                                issubclass(ot_token.model_type, (Reaction, DfbaObjReaction))):
+                                new_obj_expr_elements.append(ot_token.token_string)
+                                all_reactions[ot_token.model_type][ot_token.model_id] = ot_token.model
+                                continue
+
+                            new_obj_expr_elements.append(ot_token.token_string)
+
+                        new_obj_expr = ' '.join(new_obj_expr_elements)
+
+                        # 2. create a new DfbaObjectiveExpression
+                        dfba_obj_expr, error = DfbaObjectiveExpression.deserialize(new_obj_expr, all_reactions)
+                        assert error is None, str(error)
 
                         rxn.dfba_obj_expression = None
                         rxn_for.dfba_obj_expression = dfba_obj_expr
                         rxn_bck.dfba_obj_expression = dfba_obj_expr
+                        submodel.dfba_obj.expression = dfba_obj_expr
 
         return model

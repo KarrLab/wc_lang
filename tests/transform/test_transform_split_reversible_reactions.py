@@ -10,7 +10,8 @@
 from itertools import chain
 from obj_tables import RelatedAttribute
 from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, FluxBounds,
-                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression)
+                     Species, Compartment, SpeciesCoefficient, RateLawDirection, RateLawExpression,
+                     DfbaObjReaction, DfbaObjective, DfbaObjectiveExpression)
 from wc_lang.transform import SplitReversibleReactionsTransform
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
@@ -119,7 +120,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
                 self.assertTrue(val is None or (isinstance(val, list) and len(val) == 0))
 
     def test_dfba_submodel(self):
-        self.submodel.framework=onto['WC:dynamic_flux_balance_analysis']
+        self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
 
         self.r1.reversible = True
         model = self.model.copy()
@@ -187,3 +188,55 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(r0_f.flux_bounds.max, 0.)
         self.assertEqual(r0_b.flux_bounds.min, -ub)
         self.assertEqual(r0_b.flux_bounds.max, -lb)
+
+    def do_test_dfba_obj_expr(self, obj_expression, reversible_rxns, expected_obj_expr,
+                              dfba_obj_reaction_id=None):
+        self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
+        model = self.model.copy()
+        submodel = model.submodels.get_one(id='submodel')
+        reactions = {'r0': model.reactions.get_one(id='r0'),
+                     'r1': model.reactions.get_one(id='r1')}
+        for rxn in reversible_rxns:
+            reactions[rxn].reversible = True
+        dfba_rxn = model.dfba_obj_reactions.create(id=dfba_obj_reaction_id, submodel=submodel)
+        dfba_obj_expression, error = DfbaObjectiveExpression.deserialize(
+            obj_expression, {Reaction: reactions,
+                             DfbaObjReaction: {dfba_obj_reaction_id: dfba_rxn}})
+        assert error is None, str(error)
+        submodel.dfba_obj = DfbaObjective(id='dfba-obj-submodel', expression=dfba_obj_expression)
+        error = submodel.dfba_obj.validate()
+        assert error is None, str(error)
+        SplitReversibleReactionsTransform().run(model)
+        self.assertEqual(expected_obj_expr, submodel.dfba_obj.expression.expression)
+
+    def test_dfba_obj_expr(self):
+        # test transform dFBA objective expression
+
+        # multiple reactions
+        expected_obj_expr = '(r0_forward - r0_backward) + 3. * r1 - (r0_forward - r0_backward) / 2 + 0'
+        self.do_test_dfba_obj_expr('r0+ 3.*r1 - r0/2 + 0',
+                                   reversible_rxns=['r0'],
+                                   expected_obj_expr=expected_obj_expr)
+
+        # multiple reversible reactions
+        expected_obj_expr = ("(r0_forward - r0_backward) + 3. * ( r1_forward - r1_backward ) - "
+                             "(r0_forward - r0_backward) / 2 + 0")
+        self.do_test_dfba_obj_expr('r0+ 3.*r1 - r0/2 + 0',
+                                   reversible_rxns=['r0', 'r1'],
+                                   expected_obj_expr=expected_obj_expr)
+
+        # a reversible reaction and a DfbaObjReaction with different ids
+        expected_obj_expr = ("(r0_forward - r0_backward) + 3. * r1 - "
+                             "(r0_forward - r0_backward) / 2 + dfba_rxn")
+        self.do_test_dfba_obj_expr('r0+ 3.*r1 - r0/2 + dfba_rxn',
+                                   reversible_rxns=['r0'],
+                                   expected_obj_expr=expected_obj_expr,
+                                   dfba_obj_reaction_id='dfba_rxn')
+
+        # a reversible reaction and a DfbaObjReaction with the same ids
+        expected_obj_expr = ("(r0_forward - r0_backward) + 3. * r1 - "
+                             "(r0_forward - r0_backward) / 2 + DfbaObjReaction.r0")
+        self.do_test_dfba_obj_expr('Reaction.r0+ 3.*r1 - Reaction.r0/2 + DfbaObjReaction.r0',
+                                   reversible_rxns=['r0'],
+                                   expected_obj_expr=expected_obj_expr,
+                                   dfba_obj_reaction_id='r0')
