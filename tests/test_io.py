@@ -273,7 +273,7 @@ class TestSimpleModel(unittest.TestCase):
         objs_read = Reader().run(data_file, [utils.DataRepoMetadata] + list(Writer.MODELS))
         data_repo_metadata = objs_read[utils.DataRepoMetadata][0]
         self.assertTrue(data_repo_metadata.url.startswith('https://github.com/'))
-        self.assertEqual(data_repo_metadata.branch, 'master')
+        self.assertEqual(data_repo_metadata.branch, 'main')
         self.assertEqual(len(data_repo_metadata.revision), 40)
 
         test_github_repo.delete_test_repo()
