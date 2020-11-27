@@ -15,6 +15,7 @@ from wc_lang import (Model, Submodel, Reaction, Parameter, SpeciesType, FluxBoun
 from wc_lang.io import Reader, Writer
 from wc_lang.transform import SplitReversibleReactionsTransform
 from wc_onto import onto
+from wc_utils.util.environ import EnvironUtils
 from wc_utils.util.units import unit_registry
 import math
 import os
@@ -78,7 +79,10 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         # check model's integrity by writing and reading with validate=True
         filename = os.path.join(self.tempdir, 'model_for_tranformation.xlsx')
         Writer().run(filename, model, data_repo_metadata=False)
-        model_read = Reader().run(filename, validate=True)[Model][0]
+        # turn off validate_element_charge_balance validation so that simple species and reactions validate
+        with EnvironUtils.temp_config_env([(['wc_lang', 'validation', 'validate_element_charge_balance'],
+                                            'False')]):
+            model_read = Reader().run(filename, validate=True)[Model][0]
         self.assertTrue(model_read.is_equal(model))
 
     def tearDown(self):
@@ -267,7 +271,10 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         SplitReversibleReactionsTransform().run(model)
         filename = os.path.join(self.tempdir, 'split_rxn_model.xlsx')
         Writer().run(filename, model, data_repo_metadata=False)
-        model_read = Reader().run(filename, validate=True)[Model][0]
+        # turn off validate_element_charge_balance validation so that simple species and reactions validate
+        with EnvironUtils.temp_config_env([(['wc_lang', 'validation', 'validate_element_charge_balance'],
+                                            'False')]):
+            model_read = Reader().run(filename, validate=True)[Model][0]
         self.assertTrue(model_read.is_equal(model))
 
     def test_dfba_obj_expr(self):
