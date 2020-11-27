@@ -138,13 +138,13 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertNotEqual(rxn_ids, set([rxn.id for rxn in model.reactions]))
 
         self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
-        model = self.model.copy()
-        SplitReversibleReactionsTransform(excluded_frameworks=dfba_framework).run(model)
-        self.assertEqual(rxn_ids, set([rxn.id for rxn in model.reactions]))
+        SplitReversibleReactionsTransform(excluded_frameworks=dfba_framework).run(self.model)
+        self.assertEqual(rxn_ids, set([rxn.id for rxn in self.model.reactions]))
 
-    def test_dfba_submodel(self):
+    def test_dfba_flux_bounds(self):
         self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
 
+        # test no flux bounds
         self.r1.reversible = True
         model = self.model.copy()
         SplitReversibleReactionsTransform().run(model)
@@ -152,6 +152,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
             rxn = model.reactions.get_one(id=id)
             self.assertEqual(rxn.flux_bounds, None)
 
+        # test bad flux bounds
         self.r0.flux_bounds = FluxBounds(min=3.,
                                          max=2.,
                                          units=unit_registry.parse_units('M s^-1'))
