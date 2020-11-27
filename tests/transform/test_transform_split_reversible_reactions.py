@@ -26,7 +26,7 @@ import unittest
 class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.model = model = Model(id='test', version=0.1)
+        self.model = model = Model(id='test', version='0.1')
 
         c = model.compartments.create(id='comp')
         c.init_density = model.parameters.create(id='density_compartment_1', value=1100,
@@ -40,19 +40,19 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         s1 = model.species.create(id='s1[comp]', species_type=t1, compartment=c)
         s2 = model.species.create(id='s2[comp]', species_type=t2, compartment=c)
 
-        self.submodel = submodel = model.submodels.create(id='submodel', framework='SSA')
+        self.submodel = submodel = model.submodels.create(id='submodel',
+                                                          framework=onto['WC:stochastic_simulation_algorithm'])
 
         self.r0 = r0 = model.reactions.create(id='r0', reversible=True, submodel=submodel)
         r0.participants.create(species=s0, coefficient=-2)
         r0.participants.create(species=s1, coefficient=3)
 
-        r0_f = r0.rate_laws.create(direction=RateLawDirection.forward, model=model)
+        r0_f = r0.rate_laws.create(id='r0-forward', direction=RateLawDirection.forward, model=model)
         a = model.parameters.create(id='a', value=1., units=unit_registry.parse_units('s^-1'))
         r0_f.expression, error = RateLawExpression.deserialize('a', {Parameter: {'a': a}})
         assert error is None, str(error)
 
-        r0_b = r0.rate_laws.create(direction=RateLawDirection.backward,
-                                   expression=RateLawExpression(expression='b'),
+        r0_b = r0.rate_laws.create(id='r0-backward', direction=RateLawDirection.backward,
                                    model=model)
         b = model.parameters.create(id='b', value=1., units=unit_registry.parse_units('s^-1'))
         r0_b.expression, error = RateLawExpression.deserialize('b', {Parameter: {'b': b}})
@@ -70,15 +70,16 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         r1_f.expression, error = RateLawExpression.deserialize('c', {Parameter: {'c': c}})
         assert error is None, str(error)
 
-        r1_b = r1.rate_laws.create(id='r1-backward', direction=RateLawDirection.backward, model=model)
-        d = model.parameters.create(id='d', value=1., units=unit_registry.parse_units('s^-1'))
-        r1_b.expression, error = RateLawExpression.deserialize('d', {Parameter: {'d': d}})
-        assert error is None, str(error)
-
         r1.references.create(id='ref_1', model=model)
         r1.identifiers.create(namespace='xx', id='yy')
 
         self.tempdir = tempfile.mkdtemp()
+
+        # check model's integrity by writing and reading with validate=True
+        filename = os.path.join(self.tempdir, 'model_for_tranformation.xlsx')
+        Writer().run(filename, model, data_repo_metadata=False)
+        model_read = Reader().run(filename, validate=True)[Model][0]
+        self.assertTrue(model_read.is_equal(model))
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
@@ -109,7 +110,6 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         self.assertEqual(r0_f.rate_laws[0].id, 'r0_forward-forward')
         self.assertEqual(r0_b.rate_laws[0].id, 'r0_backward-forward')
         self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.forward).expression.expression, 'c')
-        self.assertEqual(r1_2.rate_laws.get_one(direction=RateLawDirection.backward).expression.expression, 'd')
 
         self.assertEqual(set([x.id for x in r0_f.references]), set(['ref_0']))
         self.assertEqual(set([x.id for x in r0_b.references]), set(['ref_0']))
@@ -129,6 +129,18 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
             if isinstance(attr, RelatedAttribute):
                 val = getattr(r0, attr_name)
                 self.assertTrue(val is None or (isinstance(val, list) and len(val) == 0))
+
+    def test_skipping_submodels(self):
+        rxn_ids = set([rxn.id for rxn in self.model.reactions])
+        model = self.model.copy()
+        dfba_framework = [onto['WC:dynamic_flux_balance_analysis']]
+        SplitReversibleReactionsTransform(excluded_frameworks=dfba_framework).run(model)
+        self.assertNotEqual(rxn_ids, set([rxn.id for rxn in model.reactions]))
+
+        self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
+        model = self.model.copy()
+        SplitReversibleReactionsTransform(excluded_frameworks=dfba_framework).run(model)
+        self.assertEqual(rxn_ids, set([rxn.id for rxn in model.reactions]))
 
     def test_dfba_submodel(self):
         self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
@@ -202,24 +214,22 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
 
     def prep_dfba_obj_test(self, obj_expression, reversible_rxns, expected_obj_expr,
                            dfba_obj_reaction_id='unused'):
-        self.submodel.framework = onto['WC:dynamic_flux_balance_analysis']
         model = self.model.copy()
         submodel = model.submodels.get_one(id='submodel')
+        submodel.framework = onto['WC:dynamic_flux_balance_analysis']
         reactions = {'r0': model.reactions.get_one(id='r0'),
                      'r1': model.reactions.get_one(id='r1')}
         for rxn_id in ['r0', 'r1']:
             reactions[rxn_id].reversible = rxn_id in reversible_rxns
             if rxn_id not in reversible_rxns:
-                # irreversible reaction cannot have a backward rate law
+                # irreversible reaction cannot have a backward rate law (rate_law[0])
                 reactions[rxn_id].rate_laws.pop(0)
         dfba_rxn = model.dfba_obj_reactions.create(id=dfba_obj_reaction_id, submodel=submodel)
         all_reactions = {Reaction: reactions,
                          DfbaObjReaction: {dfba_obj_reaction_id: dfba_rxn}}
-        dfba_obj_expression, error = DfbaObjectiveExpression.deserialize(obj_expression,
-                                                                         all_reactions)
+        dfba_obj_expr, error = DfbaObjectiveExpression.deserialize(obj_expression, all_reactions)
         self.assertEqual(error, None)
-        submodel.dfba_obj = model.dfba_objs.create(id='dfba-obj-submodel',
-                                                   expression=dfba_obj_expression)
+        submodel.dfba_obj = model.dfba_objs.create(id='dfba-obj-submodel', expression=dfba_obj_expr)
         error = submodel.dfba_obj.validate()
         self.assertEqual(error, None)
         return (model, submodel, dfba_rxn)
@@ -239,6 +249,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         expected_dfba_obj_expr, error = DfbaObjectiveExpression.deserialize(expected_obj_expr,
                                                                             all_reactions)
         self.assertEqual(error, None)
+
         transformed_dfba_obj = submodel.dfba_obj
         submodel.dfba_obj = None
         dfba_obj = DfbaObjective(id='dfba-obj-submodel',
@@ -255,8 +266,7 @@ class SplitReversibleReactionsTransformTestCase(unittest.TestCase):
         SplitReversibleReactionsTransform().run(model)
         filename = os.path.join(self.tempdir, 'split_rxn_model.xlsx')
         Writer().run(filename, model, data_repo_metadata=False)
-        model_read = Reader().run(filename)[Model][0]
-        self.assertEqual(model_read.validate(), None)
+        model_read = Reader().run(filename, validate=True)[Model][0]
         self.assertTrue(model_read.is_equal(model))
 
     def test_dfba_obj_expr(self):

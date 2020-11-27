@@ -24,6 +24,14 @@ class SplitReversibleReactionsTransform(Transform):
         id = 'SplitReversibleReactions'
         label = 'Split reversible reactions into separate forward and backward reactions'
 
+    def __init__(self, excluded_frameworks=None):
+        self.excluded_frameworks = excluded_frameworks
+        """
+        Args:
+            excluded_frameworks (:obj:`list` of :obj:`pronto.term.Term`, optional): submodels using
+                these modeling integration frameworks are not transformed
+        """
+
     def run(self, model):
         """ Split reversible reactions in submodels into separate forward and backward reactions
 
@@ -31,9 +39,18 @@ class SplitReversibleReactionsTransform(Transform):
             model (:obj:`Model`): model definition
 
         Returns:
-            :obj:`Model`: same model definition, but with reversible reactions split into separate forward and backward reactions
+            :obj:`Model`: same model definition, but with reversible reactions split into separate
+            forward and backward reactions, their flux bounds adjusted accordingly, and the
+            dFBA objective expression adjusted accordingly
         """
         for submodel in model.submodels:
+
+            # skip submodels which use an excluded framework
+            if self.excluded_frameworks is not None:
+                if any([are_terms_equivalent(submodel.framework, excluded_framework)
+                        for excluded_framework in self.excluded_frameworks]):
+                    continue
+
             for rxn in list(submodel.reactions):
                 if rxn.reversible:
                     # remove reversible reaction
