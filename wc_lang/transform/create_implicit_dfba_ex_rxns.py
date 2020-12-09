@@ -22,7 +22,7 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
 
     * Metabolites transported from the extracellular environment (generate a
       "-> species_type[e]" reaction for each extracellular species involved in each dFBA submodel)
-    * TODO: Metabolites recycled from the byproducts of other submodels
+    * TODO: Metabolites recycled from the byproducts of other submodels and products produced for other submodels
     """
 
     class Meta(object):
