@@ -8,6 +8,7 @@
 """
 
 import math
+import obj_tables
 import os
 import pytest
 import re
@@ -2097,15 +2098,21 @@ class TestCore(unittest.TestCase):
             ('max(a, b)', 1,
                 {'parameters': [id_map['Parameter.a'], id_map['Parameter.b']]},
                 None),
-            ('Observable.ddd + Observable.duped_id - Parameter.duped_id', 1,
-                {'parameters': [id_map['Parameter.duped_id']],
-                 'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']]},
-                None),
             ('ddd * Function.duped_id', 1,
                 {'observables': [id_map['Observable.ddd']],
                  'functions':[id_map['Function.duped_id']]},
                 None),
         ]):
+            self.do_test_valid_expression(FunctionExpression, Function,
+                                          objects, expr, expected_test_val, expected_related_objs,
+                                          expected_error=error)
+
+        with self.assertRaisesRegex(obj_tables.math.expression.ParsedExpressionError,
+                                    'multiple models with id'):
+            expr = 'Observable.ddd + Observable.duped_id - Parameter.duped_id'
+            expected_test_val = 1
+            expected_related_objs = {'parameters': [id_map['Parameter.duped_id']],
+                                     'observables':[id_map['Observable.duped_id'], id_map['Observable.ddd']]}
             self.do_test_valid_expression(FunctionExpression, Function,
                                           objects, expr, expected_test_val, expected_related_objs,
                                           expected_error=error)
