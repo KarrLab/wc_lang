@@ -39,6 +39,11 @@ class CreateImplicitDfbaExchangeReactionsTransform(Transform):
             :obj:`Model`: same model, but transformed
         """
         config = wc_lang.config.core.get_config()['wc_lang']
+
+        create_implicit_exchange_reactions = config['dfba']['create_implicit_exchange_reactions']
+        if not create_implicit_exchange_reactions:
+            return model
+
         ext_comp = model.compartments.get_one(id=config['EXTRACELLULAR_COMPARTMENT_ID'])
         rxn_id_template = config['dfba']['exchange_reaction_id_template']
         rxn_name_template = config['dfba']['exchange_reaction_name_template']
